@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { ownSkillsDir, userSkillsDir } from '../../../../tools/skills.mjs';
 import { DIRS, REPO, fromStudio } from '../paths.ts';
 import { SOURCE_COLUMNS, type Source } from './classify.ts';
 import { loadConfig, type LibraryConfig } from './config.ts';
@@ -22,12 +23,18 @@ export type Lib = {
   out: string;
   brands: string;
   overlays: string;
-  /** .claude/skills: where skill variants are installed (media sync) */
+  /** where media sync installs the team's skill variants: your own skills, <workspace>/skills */
   skills: string;
+  /** the repo's .claude/skills: committed skills (links into .agents/skills) and loose folders */
+  repoSkills: string;
+  /** ~/.claude/skills, where a newly installed variant is linked so every session loads it */
+  userSkills?: string;
   log: (s: string) => void;
 };
 
-export const openLibrary = (opts: { cfg?: LibraryConfig; projects?: string; out?: string; brands?: string; overlays?: string; skills?: string; quiet?: boolean } = {}): Lib => {
+export const openLibrary = (
+  opts: { cfg?: LibraryConfig; projects?: string; out?: string; brands?: string; overlays?: string; skills?: string; userSkills?: string; quiet?: boolean } = {},
+): Lib => {
   const cfg = opts.cfg ?? loadConfig();
   const catalog = catalogDir(cfg.root);
   return {
@@ -42,7 +49,10 @@ export const openLibrary = (opts: { cfg?: LibraryConfig; projects?: string; out?
     out: opts.out ?? DIRS.out,
     brands: opts.brands ?? DIRS.brands,
     overlays: opts.overlays ?? DIRS.overlays,
-    skills: opts.skills ?? path.join(REPO, '.claude', 'skills'),
+    skills: opts.skills ?? ownSkillsDir(),
+    // a folder given (the tests) holds both kinds, and nothing is linked into ~/.claude/skills
+    repoSkills: opts.skills ?? path.join(REPO, '.claude', 'skills'),
+    userSkills: opts.userSkills ?? (opts.skills ? undefined : userSkillsDir()),
     log: opts.quiet ? () => {} : (s: string) => console.log(s),
   };
 };

@@ -125,7 +125,7 @@ Managing skills themselves
 | Skill | Visibility | What it does |
 |---|---|---|
 | [`fork-skill`](.agents/skills/fork-skill/SKILL.md) | public | Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-musi… |
-| [`publish-skill`](.agents/skills/publish-skill/SKILL.md) | public | Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for… |
+| [`publish-skill`](.agents/skills/publish-skill/SKILL.md) | public | Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the wor… |
 
 ## remotion
 

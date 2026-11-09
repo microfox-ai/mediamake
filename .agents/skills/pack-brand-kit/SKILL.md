@@ -1,6 +1,6 @@
 ---
 name: pack-brand-kit
-description: Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/studio/brands/ or to the shared engine in apps/studio/logoGraphics/. Append new user feedback to the log at the bottom.
+description: Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/studio/brands/ or to the shared engine in apps/studio/logoGraphics/. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: revise-image
 ---
@@ -490,7 +490,15 @@ the MP4 (exact `-ss` seeks). Fix clipping, unreadable text and overlaps first.
 
 ## Feedback log
 
-Add entries at the bottom: date · brand · what they said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add pack-brand-kit "<brand> · <what they said> → <the rule>"   # a new lesson, dated for you
+mm notes pack-brand-kit                                                 # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote pack-brand-kit` offers them to this log as a pull request.
 
 - 2026-10-23 · INVERTED Devils · Picked concept 1 (glow trace) of five → build five concepts first, let them pick.
 - 2026-10-23 · INVERTED Devils · "4 secs max, remove the bars, run both animations at same time, remove the background smoke… we first need only the logo animation as component" → transparent component first, ≤ 4 s, no construction lines, words together.

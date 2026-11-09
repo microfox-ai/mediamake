@@ -97,6 +97,7 @@ mm migrate [--yes]                 # after pulling the rename: your work from ap
 mm golden check                    # fixed frames of fixtures/ vs origin/main (--against=<ref>): a refactor changed no picture
 mm golden check --outside          # the same, with the fixtures in a workspace outside the repo
 mm workspace                       # where your projects, renders, brand kits and notes are on this machine
+mm notes <skill>                   # your lessons for a skill, outside the repo (add, list, promote as a PR: mm notes help)
 mm type-check
 ```
 

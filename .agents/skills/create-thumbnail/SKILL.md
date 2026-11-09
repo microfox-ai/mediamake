@@ -1,6 +1,6 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/studio/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.
+description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/studio/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: pack-brand-kit
 ---
@@ -263,7 +263,8 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 - When they like one ("I like B2, save it as it is"), lock it: `mm thumbs --
   keep <job> B2`. Its image and spec are snapshotted in `out/thumbnails/<job>/kept/`, renders skip
   it, and `render` warns if its spec ever changes. Build what they ask next as new variants.
-- Write what you learned into `brief.md` (this job) and the feedback log below (general taste).
+- Write what you learned into `brief.md` (this job) and your notes (general taste:
+  `mm notes add create-thumbnail "…"`, see the feedback log below).
 - When they pick: `mm thumbs pick <job> B2` (or `A1,B2,D3`). The finals
   land in `out/thumbnails/<job>/final/` as JPEGs under YouTube's 2 MB limit; tell them where, and
   for an A/B test that YouTube picks the winner by watch time.
@@ -289,7 +290,15 @@ and `thumbs pick`. Fix each comment the way this skill works (IDs never change o
 
 ## Feedback log
 
-Add entries at the bottom: date · job / channel · what they said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add create-thumbnail "<job / channel> · <what they said> → <the rule>"   # a new lesson, dated for you
+mm notes create-thumbnail                                                         # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote create-thumbnail` offers them to this log as a pull request.
 
 - 2026-10-24 · engine · Asked for the skill: thumbnails from an image or a concept plus the video's details (transcript optional); saturated contrast; one or a few big impactful words, partly hidden by a segmented subject when it stylises the image; fonts of extreme importance (a font-choose skill later); the channel's logo(s) at a striking spot, the user may give several or name them for download; 4 styles × 3 variants by default with IDs for a final pick or a 3-way A/B test; cheap to run; outputs gitignored; /thumbnail-edit later.
 - 2026-10-24 · engine · Gave `thumbnails/inspiration/` (13 anime / motivation edit thumbnails: ITACHI, GOAT, URAHARA, MONSTER, I CAN, JUST GRIND…) → the cinematic presets (`behind`, `lower`, `side`), the three-tier type and the taste list in step 6.

@@ -1,6 +1,6 @@
 ---
 name: pack-youtube
-description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/studio/out/youtube/<slug>/, ready to paste into YouTube Studio, with an info.json that Browse Hack's youtube_fill_uploads uses to switch to the channel and fill Studio's upload form. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", "upload it to YouTube", or gives a song title, lyrics.json and audio and wants it ready for YouTube. Append new user feedback to the log at the bottom.
+description: Make a song's YouTube upload pack from its title, its lyrics.json and its audio file, in parallel threads — thumbnails (through create-thumbnail) beside the description, then the title (through write-youtube-metadata: a 2-line intro, the plain lyrics, a 1-line channel outro, at most 5 hashtags) — collected in one folder, apps/studio/out/youtube/<slug>/, ready to paste into YouTube Studio, with an info.json that Browse Hack's youtube_fill_uploads uses to switch to the channel and fill Studio's upload form. Use when the user says "make a YouTube pack", "YouTube upload pack for <song>", "/pack-youtube", "thumbnail + title + description for this song", "upload it to YouTube", or gives a song title, lyrics.json and audio and wants it ready for YouTube. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # pack-youtube
@@ -367,7 +367,15 @@ day. A shorts pack isn't needed for that.
 
 ## Feedback log
 
-Add entries at the bottom: date · song / channel · what they said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add pack-youtube "<song / channel> · <what they said> → <the rule>"   # a new lesson, dated for you
+mm notes pack-youtube                                                          # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote pack-youtube` offers them to this log as a pull request.
 
 - 2026-10-24 · skill · Asked for the skill: inputs are the song title, lyrics.json and the audio file; it runs the thumbnail skill, then a new write-youtube-metadata skill for the title and description → this skill and write-youtube-metadata.
 - 2026-10-25 · Just Hit It (hitixf1, ATOMIC RAP) · The pack is for a song edit (video), so the user also asked for the channel's end screen on the video before uploading → when the pack is for a finished video, check it ends with the channel's end screen (YouTube's end-screen cards need the last 5–20 s) and offer to add one.

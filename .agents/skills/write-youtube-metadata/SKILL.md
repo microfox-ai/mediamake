@@ -1,6 +1,6 @@
 ---
 name: write-youtube-metadata
-description: Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/studio/brands/, e.g. INVERTED Devils, Subhodayam) from the song's title and its lyrics.json (or any lyrics file). The description is a 2-line intro to the song, the plain lyrics (no timestamps, no section labels), a 1-line outro about the channel and at most 5 hashtags, in the channel's voice; checked against YouTube's limits and saved as title.txt / description.txt. Use when the user says "YouTube title and description for <song>", "write the description with lyrics", "YouTube metadata", "/write-youtube-metadata", or as the metadata step of pack-youtube. Append new user feedback to the log at the bottom.
+description: Write the YouTube title and description for a song on one of the user's music channels (a brand under apps/studio/brands/, e.g. INVERTED Devils, Subhodayam) from the song's title and its lyrics.json (or any lyrics file). The description is a 2-line intro to the song, the plain lyrics (no timestamps, no section labels), a 1-line outro about the channel and at most 5 hashtags, in the channel's voice; checked against YouTube's limits and saved as title.txt / description.txt. Use when the user says "YouTube title and description for <song>", "write the description with lyrics", "YouTube metadata", "/write-youtube-metadata", or as the metadata step of pack-youtube. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # write-youtube-metadata
@@ -142,7 +142,15 @@ they gave the title themselves. Changes they ask for go into the files, then run
 
 ## Feedback log
 
-Add entries at the bottom: date · song / channel · what they said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add write-youtube-metadata "<song / channel> · <what they said> → <the rule>"   # a new lesson, dated for you
+mm notes write-youtube-metadata                                                          # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote write-youtube-metadata` offers them to this log as a pull request.
 
 - 2026-10-24 · skill · Asked for the skill: a title and a description per song; the description has the plain lyrics, at most 5 hashtags, a 2-line intro to the song and a 1-line outro about the channel → this skill, `ytmeta.py lyrics` / `check`.
 - 2026-10-25 · Just Hit It (ATOMIC RAP) · "for youtube title and thumbnail always preview and ask for user suggestions. ask if the lyrics have to be kept in description or if not needed." → step 1 always asks whether the lyrics go in; step 5 always previews the title and description and asks for suggestions; `check --no-lyrics` for a description without lyrics.

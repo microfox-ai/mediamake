@@ -103,9 +103,11 @@ Claude Code skills for making content: lyric videos and shorts, music remixes, t
 brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for videos, `create-*` for
 images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
 `.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
-[SKILLS.md](SKILLS.md) lists them all. A new skill made as a folder in `.claude/skills/` is moved and
-linked with `node tools/skills.mjs add --all`; `node tools/skills.mjs check` (also run in CI) fails
-when a skill holds an API key, a token or a path on your machine, or when SKILLS.md is out of date.
+[SKILLS.md](SKILLS.md) lists them all. A variant you fork (`fork-skill`) or your team shares starts as
+yours, in your workspace (`~/MediaMake/skills/`, linked from `~/.claude/skills/`), and
+`node tools/skills.mjs publish <name>` sends it to the repo as a pull request (`publish-skill`);
+`node tools/skills.mjs check` (also run in CI) fails when a skill holds an API key, a token or a path
+on your machine, or when SKILLS.md is out of date.
 
 ## Getting started
 

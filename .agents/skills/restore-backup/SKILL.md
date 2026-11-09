@@ -75,7 +75,15 @@ copies it back, checked. The command is the media library's
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add restore-backup "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes restore-backup                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote restore-backup` offers them to this log as a pull request.
 
 - 2026-11-02 · "lets copy them into a backup (but classified by channels of course) once the backup
   folder is done let me know, i will connect harddisk and you can copy there. also provide a skill

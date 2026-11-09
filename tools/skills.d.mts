@@ -1,4 +1,4 @@
-/** Types for what the media CLI imports from skills.mjs (apps/studio/scripts/library/sync.ts). */
+/** Types for what the studio's scripts import from skills.mjs (library/sync.ts, notes.ts). */
 export type SkillInfo = {
   name: string;
   dir: string;
@@ -21,3 +21,11 @@ export const TEXT_FILE: RegExp;
 export function frontmatter(file: string): { name?: string; description?: string; version?: string; metadata: Record<string, string> };
 export function skillAt(name: string, dir: string, where?: { moved?: boolean; linked?: boolean; upstream?: unknown }): SkillInfo;
 export function checks(skill: SkillInfo): { problems: string[]; notes: string[] };
+export function lineProblems(line: string): string[];
+export function lessonProblems(skill: SkillInfo): string[];
+export const NOTES_LINE: string;
+export function workspaceRoot(): string;
+export function ownSkillsDir(): string;
+export function userSkillsDir(): string;
+export function ownSkills(): (SkillInfo & { own: true })[];
+export function linkOwn(name: string): string;

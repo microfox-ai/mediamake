@@ -46,6 +46,7 @@ const ABOUT = {
   golden: 'fixed frames of the fixtures compared with another commit',
   migrate: 'moves your work from apps/lyrics_videos into apps/studio (dry run; --yes to move)',
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
+  notes: "your lessons for each skill, outside the repo (mm notes help)",
 };
 
 const help = () => {

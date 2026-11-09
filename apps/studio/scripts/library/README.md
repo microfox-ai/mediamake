@@ -76,6 +76,9 @@ folder (`"animemusiczone": "AMZ"`) or, once linked to its team's MediaMake cloud
      owners and editors push.
    - A pull never overwrites: a file that differs here lands beside it as `<file>.theirs`. Merge it
      and delete the `.theirs`; until then that thing isn't pushed.
+   - A skill variant the team made that isn't in the repo comes down as the user's own, in the
+     workspace (`~/MediaMake/skills/<name>`, linked from `~/.claude/skills/<name>`), never into the
+     checkout; `node tools/skills.mjs publish <name>` makes it public as a pull request.
    - Files go up only when the user says so (`media share <id> --yes`, or Share with team on the
      Library page) and only within the channel's limit (100 MB in all by default; the owner sets it
      with `media channel limit`).

@@ -4,7 +4,8 @@
  *
  *   brand        brands/<channel>/ ↔ the project's brand kit (assets by path and SHA-256, and its fields)
  *   skills       the skill variants its productions use, and uncommitted ones made for them (text files
- *                only, with skills.mjs's checks) ↔ .claude/skills/<name>/
+ *                only, with skills.mjs's checks) ↔ your own skills, <workspace>/skills/<name>/ (linked
+ *                from ~/.claude/skills), or the repo's .claude/skills/<name> for committed ones
  *   productions  projects/<slug>/mediamake.json with its deliveries ↔ the same file, no media
  *   media        its footage, images, art, overlays and references: details always, files only once the
  *                user shared them (share.ts) and under the channel's limit. A teammate's items are
@@ -305,18 +306,28 @@ const runAll = async (todo: { step: Step; run: () => Promise<void> }[]) => {
 
 type LocalSkill = ReturnType<typeof skillAt> & { committed: boolean };
 
-/** The skills in .claude/skills, read as skills.mjs reads them: a link into .agents/skills is committed, a real folder isn't yet. */
-const localSkills = (lib: Lib): LocalSkill[] =>
-  (fs.existsSync(lib.skills) ? fs.readdirSync(lib.skills) : []).flatMap(name => {
-    const at = path.join(lib.skills, name);
-    try {
-      const committed = fs.lstatSync(at).isSymbolicLink();
-      const dir = fs.realpathSync(at);
-      return fs.existsSync(path.join(dir, 'SKILL.md')) ? [{ ...skillAt(name, dir), committed }] : [];
-    } catch {
-      return [];
-    }
-  });
+/**
+ * The skills here, read as skills.mjs reads them: the repo's .claude/skills (a link into .agents/skills
+ * is committed, a real folder isn't yet), then your own in the workspace (never committed).
+ */
+const localSkills = (lib: Lib): LocalSkill[] => {
+  const seen = new Set<string>();
+  return [lib.repoSkills, lib.skills].flatMap(root =>
+    (fs.existsSync(root) ? fs.readdirSync(root) : []).flatMap(name => {
+      if (seen.has(name)) return [];
+      const at = path.join(root, name);
+      try {
+        const committed = root === lib.repoSkills && fs.lstatSync(at).isSymbolicLink();
+        const dir = fs.realpathSync(at);
+        if (!fs.existsSync(path.join(dir, 'SKILL.md'))) return [];
+        seen.add(name);
+        return [{ ...skillAt(name, dir), committed }];
+      } catch {
+        return [];
+      }
+    }),
+  );
+};
 
 /** A skill's text files (never binaries, never .env), as the team shares them. */
 const skillFiles = (dir: string, base = dir): { path: string; text: string }[] =>
@@ -418,6 +429,15 @@ const skillsPush = async (ctx: Ctx): Promise<Plan> => {
   return { steps, notes, apply: async () => void (items.length && (await pushItems(ctx, 'skill', items))) };
 };
 
+/** ~/.claude/skills/<name> → your copy, so every session loads it (skills.mjs's linkOwn, for lib's folders). */
+const linkSkill = (lib: Lib, name: string) => {
+  if (!lib.userSkills) return;
+  const link = path.join(lib.userSkills, name);
+  if (fs.lstatSync(link, { throwIfNoEntry: false })) return;
+  fs.mkdirSync(lib.userSkills, { recursive: true });
+  fs.symlinkSync(path.join(lib.skills, name), link, 'dir');
+};
+
 const skillsPull = async (ctx: Ctx): Promise<Plan> => {
   const remote = await remoteItems<{ files: { path: string; text: string }[] }>(ctx, 'skill');
   const steps: Step[] = [];
@@ -431,7 +451,9 @@ const skillsPull = async (ctx: Ctx): Promise<Plan> => {
       steps.push(step('skills', 'pull', 'skip', r.key, { detail: `not installed: ${problems[0]}` }));
       continue;
     }
-    const at = path.join(ctx.lib.skills, r.key);
+    // an update goes where the skill is (the repo's, or yours); a new one becomes yours
+    const repoAt = path.join(ctx.lib.repoSkills, r.key);
+    const at = fs.existsSync(repoAt) ? repoAt : path.join(ctx.lib.skills, r.key);
     const dir = fs.existsSync(at) ? fs.realpathSync(at) : at;
     const writes = files.filter(f => {
       const abs = path.join(dir, ...f.path.split('/'));
@@ -444,9 +466,10 @@ const skillsPull = async (ctx: Ctx): Promise<Plan> => {
     }
     const clashes = writes.filter(f => fs.existsSync(path.join(dir, ...f.path.split('/'))));
     const s = step('skills', 'pull', clashes.length ? 'conflict' : 'pull', r.key, {
-      detail: clashes.length ? `theirs beside ${clashes.map(f => f.path).join(', ')} (.theirs)` : fs.existsSync(at) ? `${writes.length} new files` : 'install into .claude/skills',
+      detail: clashes.length ? `theirs beside ${clashes.map(f => f.path).join(', ')} (.theirs)` : fs.existsSync(at) ? `${writes.length} new files` : 'install as yours (the workspace)',
     });
-    if (!fs.existsSync(at)) fresh++;
+    const isNew = !fs.existsSync(at);
+    if (isNew) fresh++;
     steps.push(s);
     todo.push({
       step: s,
@@ -456,11 +479,12 @@ const skillsPull = async (ctx: Ctx): Promise<Plan> => {
           fs.mkdirSync(path.dirname(dest), { recursive: true });
           fs.writeFileSync(dest, f.text);
         }
+        if (isNew) linkSkill(ctx.lib, r.key);
         markSynced(ctx, 'skill', r.key, r.hash);
       },
     });
   }
-  return { steps, notes: fresh ? ['skills: run node tools/skills.mjs index to list new ones in SKILLS.md and skills.json'] : [], apply: () => runAll(todo) };
+  return { steps, notes: fresh ? [`skills: new ones are yours, in ${ctx.lib.skills}, and load in new sessions; node tools/skills.mjs publish <name> makes one public`] : [], apply: () => runAll(todo) };
 };
 
 // ---------- productions ----------
