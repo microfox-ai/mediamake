@@ -1,5 +1,5 @@
 // a short's screens as JSON: kind, words, how much of the height a stack fills, its beats, entry and exit
-// usage (from apps/lyrics_videos): node --experimental-strip-types <this> <slug> <id>
+// usage (from apps/studio): node --experimental-strip-types <this> <slug> <id>
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const [slug, id] = process.argv.slice(2);

@@ -97,9 +97,9 @@ PY="$(uv tool dir)/reaper-mcp-server/bin/python"; SK=.claude/skills/make-loudnes
    song's memory or notes, answer each note in the revision JSON (`reply`, `status: "done"`) and
    set the revision's `status` to `resolved`, the way revise-image does.
 6. **Into the library.** The song's mix, its stems and the final master belong to the song's folder
-   in the media library (`apps/lyrics_videos/scripts/library/README.md`), where every later
+   in the media library (`apps/studio/scripts/library/README.md`), where every later
    production finds them:
-   `npm run media -w lyrics_videos -- ingest "<mix>.wav" "<song folder>/<Title> - final master (-9 LUFS).wav" --channel=<brand id>`.
+   `mm media ingest "<mix>.wav" "<song folder>/<Title> - final master (-9 LUFS).wav" --channel=<brand id>`.
    This clones them into `music/<channel>/<song>/`; the originals stay where the user keeps them.
    The master the user approved is a deliverable too: `media deliver <slug> --what=master --from="<master>"`
    (a dry run, then `--yes`) when there's a production for the song.

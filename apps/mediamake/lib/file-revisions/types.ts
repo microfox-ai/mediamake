@@ -2,7 +2,7 @@
  * File formats for the file revisions screen (/file-revision). See
  * components/file-revisions/README.md. A set is any folder of images, videos
  * or audio, described by an index.json (written by the workflow that made the
- * files: apps/lyrics_videos/scripts/thumbs.ts, scripts/image-index.ts for any
+ * files: apps/studio/scripts/thumbs.ts, scripts/image-index.ts for any
  * other folder) or, without one, read straight from the folder. Revisions are
  * written by this page, beside the files. The schema names keep "image" so
  * existing sets and revisions still read.

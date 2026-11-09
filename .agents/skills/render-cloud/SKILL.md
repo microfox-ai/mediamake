@@ -1,6 +1,6 @@
 ---
 name: render-cloud
-description: Render a lyrics_videos project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud only as far as the limits need (never more than 500 MB; unused files out, a long clip cut to the stretch that plays, the song encoded or a clip re-encoded only when the pack is over 200 MB or the clip is bigger than the export), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use when the user says "render it on Lambda / in the cloud", "cloud render", "render this on AWS", "how much would it cost to render on Lambda", "/render-cloud <slug>", or a full-size render is too slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). Append new user feedback to the log at the bottom.
+description: Render a studio project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud only as far as the limits need (never more than 500 MB; unused files out, a long clip cut to the stretch that plays, the song encoded or a clip re-encoded only when the pack is over 200 MB or the clip is bigger than the export), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use when the user says "render it on Lambda / in the cloud", "cloud render", "render this on AWS", "how much would it cost to render on Lambda", "/render-cloud <slug>", or a full-size render is too slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). Append new user feedback to the log at the bottom.
 metadata:
   category: other
 ---
@@ -10,7 +10,7 @@ metadata:
 A lyrics project renders on Remotion Lambda through MediaMake from one command:
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --lambda [--window=a-b] [--proxy] [--look=X]
+mm render <slug> --lambda [--window=a-b] [--proxy] [--look=X]
 ```
 
 The project is bundled alone as its own Lambda site (`lyrics-<slug>`), its media goes up as that
@@ -19,7 +19,7 @@ it sits in the user's render history with its cost in the platform's cost usage 
 counted, like a render from the editor. The file comes home where a local render would put it
 (`out/<slug>/<slug>.mp4`, `clips/` for a window, `looks/`, the previous master kept in `v<N>/`), with
 the cost printed and logged (`out/<slug>/.renders.jsonl`, `lambda.costUsd`). The mechanics live in
-`apps/lyrics_videos/scripts/lambda.ts` and are documented in `apps/lyrics_videos/README.md` › Render ›
+`apps/studio/scripts/lambda.ts` and are documented in `apps/studio/README.md` › Render ›
 On Lambda. This skill is the judgement around them: what to pack, which function, when to spend.
 
 **Lambda renders cost money, and the cost is the frames, not the pack.** A chunk downloads the
@@ -34,9 +34,9 @@ song as a 73 MB WAV and as an 8 MB AAC). Nothing in this skill spends without th
 
 | Need | Where | Without it |
 |---|---|---|
-| A MediaMake API key with **cloud rendering access** | `MEDIAMAKE_API_KEY`, or `npm run media -w lyrics_videos -- cloud login` (Keychain); the site is `MEDIAMAKE_API_URL` or `url` in `~/.mediamake/config.json` | the API answers 403 with the reason: render locally, or ask for Lambda access (admins, the private tier, or a `lambdaRender` grant on the key) |
+| A MediaMake API key with **cloud rendering access** | `MEDIAMAKE_API_KEY`, or `mm media cloud login` (Keychain); the site is `MEDIAMAKE_API_URL` or `url` in `~/.mediamake/config.json` | the API answers 403 with the reason: render locally, or ask for Lambda access (admins, the private tier, or a `lambdaRender` grant on the key) |
 | AWS keys to deploy the site | `REMOTION_AWS_ACCESS_KEY_ID` / `REMOTION_AWS_SECRET_ACCESS_KEY` in `apps/mediamake/.env` (`REMOTION_AWS_REGION` picks the region) | no site can go up; nothing renders |
-| The project prepared | `projects/<slug>/manifest.json` (`npm run prepare-project`) | nothing to pack |
+| The project prepared | `projects/<slug>/manifest.json` (`mm prepare`) | nothing to pack |
 
 Not needed: the MediaMake MCP. The script talks to `/api/remotion/render` and `/api/remotion/progress`
 itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes requests without a key.
@@ -44,20 +44,20 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
 
 ## Steps
 
-1. **Plan (free).** `npm run lambda -w lyrics_videos -- plan <slug>`. It stages the pack, weighs the
+1. **Plan (free).** `mm lambda plan <slug>`. It stages the pack, weighs the
    project's media against the routing limits (`apps/mediamake/docs/render-routing.md`), says which
    way it leans and why, shows the pack's size against the limits, and names the function preset the
    chooser would take for the whole video, a half-size review and a 20 s window. Tell the user the
    pack size and the lean in one line. A lyric video with overlay clips looping under the whole song
    is "heavy" by the limits (minutes of video played) and still fine on Lambda once the pack is
    trimmed; say so rather than refusing.
-2. **Pack (free).** `npm run lambda -w lyrics_videos -- pack <slug>`: every file that would go up,
+2. **Pack (free).** `mm lambda pack <slug>`: every file that would go up,
    with what it is and its verdict. Under 200 MB it says so and suggests nothing but the zero-cost
    things (a file nothing uses, a clip taller than the export): take those, skip the rest, move on.
    Over 200 MB, apply the rules below cheapest first until it is under: the ones the tool can do go
    in `projects/<slug>/lambda.json` (`pack --write` writes its suggestions; edit by hand for more),
    the ones that change the project (a cut clip, a dropped file) are edits to `input/` and the
-   storyboard, then `npm run prepare-project` again. Run `pack` once more and show the before →
+   storyboard, then `mm prepare` again. Run `pack` once more and show the before →
    after. Stop here if the pack stays over 500 MB: the render refuses, and the user renders locally.
 3. **Configuration.** The script works it out and prints it with its reason and an estimate
    ("Configuring the render" below): the function's memory, frames at once, frames a chunk, the
@@ -67,14 +67,14 @@ itself. A local dev server (`MEDIAMAKE_API_URL=http://localhost:3002`) takes req
    when the user says yes to it: a full render that dies on Lambda's 15 min limit costs the same as
    one that finishes (fma-edwardeleric, 2026-11-04: $2.59 for no file). Ask first, with the expected
    cost (a 20 s window of a 1080p lyric video with two overlay clips cost $0.05; a 10 s one $0.03).
-   Then `npm run render-project -w lyrics_videos -- <slug> --lambda --window=a-b` on the stretch with
+   Then `mm render <slug> --lambda --window=a-b` on the stretch with
    the most on screen (every mask, cutout, visualizer and blur at once: the last chorus, the drop),
    not the quiet intro. Check the clip (a still, the audio), and report the cost line, the
    **slowest chunk's seconds a frame** and the estimate for the whole video the script prints. That
    measurement is what sizes the full render: it goes into `out/<slug>/.renders.jsonl`, and the
    configuration reads it (`plan` shows "Measured: … s a frame" or "Not measured yet").
 5. **The whole video, on yes.** Show the estimate and ask. On yes,
-   `npm run render-project -w lyrics_videos -- <slug> --lambda --skip-deploy` (the site is already up;
+   `mm render <slug> --lambda --skip-deploy` (the site is already up;
    drop `--skip-deploy` after a code change). A review render is `--proxy` (half size, cheaper);
    the master is full size, once, after sign-off, as everywhere else (revise-video). Report the cost
    the script prints, and that it is in the user's render history.

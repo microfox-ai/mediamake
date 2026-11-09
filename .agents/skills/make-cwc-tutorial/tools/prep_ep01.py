@@ -1,5 +1,5 @@
 """Media for ep. 01 v4 (story v4): video atlases for the 3D panels, one clip per pantry station, textures,
-favicon voxels and label cards. Reads the brand kits in apps/lyrics_videos/brands (never writes there);
+favicon voxels and label cards. Reads the brand kits in apps/studio/brands (never writes there);
 writes into this project's input/ (atlas/, tex/, kit2/, sfx2/, voxels.json, stations.json).
 
 uv run --with pillow --with numpy --with scipy python -I tools/prep_v4.py   (from the project folder)

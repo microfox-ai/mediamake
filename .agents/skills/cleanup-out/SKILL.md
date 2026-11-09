@@ -21,13 +21,13 @@ footage). This skill frees the space in three tiers, from safe to final:
 Only video, audio, arrays and archives move. Images, JSON, notes and code stay, so the skill library,
 `/video-revision` and `/file-revision` keep working for archived work.
 
-Everything runs through `apps/lyrics_videos/scripts/cleanup-out.ts`. Every command is a dry run until
+Everything runs through `apps/studio/scripts/cleanup-out.ts`. Every command is a dry run until
 `--yes`. The folder layout (which file is a final, a version, work or a source) lives only in
-`apps/lyrics_videos/scripts/paths.ts`. When the layout changes, update that file, not this skill.
+`apps/studio/scripts/paths.ts`. When the layout changes, update that file, not this skill.
 
 ## Steps
 
-1. **Scan.** `npm run cleanup-out -w lyrics_videos -- scan`. Show the user the free space, the
+1. **Scan.** `mm cleanup-out scan`. Show the user the free space, the
    rebuildable total and the biggest productions (final / version / work / source / on disk).
    If it ends with **broken links** (symlinks under `projects/` whose file is gone), list each with the
    project it breaks and ask the user: put the file back where it points, or remove the link. Never
@@ -79,7 +79,7 @@ re-render, `version` to compare an old cut).
   - **work**: everything else (clips, stills, parts, previews, storyboards, picks).
 - **On the disk**: files sit at `MediaMake Archive/<repo path>`, next to `archive.json` (the disk's
   id) and `ledger.jsonl` (every copy with its SHA-256). A copy of the ledger is kept in
-  `apps/lyrics_videos/out/.cleanup/ledger.jsonl`, and `scan` uses it for the "on disk" column. A copy
+  `apps/studio/out/.cleanup/ledger.jsonl`, and `scan` uses it for the "on disk" column. A copy
   that's already on the disk and hashes the same isn't copied again, so a stopped run can be started
   again.
 - **APFS clones**: the YouTube pack's video is a clone of the final (`cp -c`), so du counts it twice
@@ -87,7 +87,7 @@ re-render, `version` to compare an old cut).
   before → after free space, not du.
 - **Previous revisions are never deleted** without a checked copy on the disk. That's this skill's
   only exception to keeping every version locally.
-- **The media library** (`~/Downloads/_LIBRARY`, `apps/lyrics_videos/scripts/library/`, layout 2) is
+- **The media library** (`~/Downloads/_LIBRARY`, `apps/studio/scripts/library/`, layout 2) is
   outside the repo and never swept here.
   - Projects' inputs are clones of library files and delivered outputs are clones of finals, so
     archiving a project's copy frees nothing while the other copy stays. Say so when it matters.
@@ -96,7 +96,7 @@ re-render, `version` to compare an old cut).
   - Duplicates across the Mac are `media dedupe`'s job (it turns them into clones), not this skill's.
 - **Why the temp folder filled up**: `bundle()` used to copy the whole `projects/` folder (20+ GB)
   into the temp folder, and a stopped run left the copy behind. Scripts now call `tempBundle()` from
-  `apps/lyrics_videos/scripts/bundle.ts`, which links the public folder and removes the bundle
+  `apps/studio/scripts/bundle.ts`, which links the public folder and removes the bundle
   however the process ends. Any new script that renders through the Node API should use it too.
 
 ## Feedback log

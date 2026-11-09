@@ -1,14 +1,14 @@
 ---
 name: pack-brand-kit
-description: Build a brand kit in apps/lyrics_videos/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/lyrics_videos/brands/ or to the shared engine in apps/lyrics_videos/logoGraphics/. Append new user feedback to the log at the bottom.
+description: Build a brand kit in apps/studio/brands/<name>/ sized to the brand — Starter (logo, favicons, fonts, tagline, colours), Standard (a channel going live — logo animation, a few intros and end screens, the YouTube kit, the thumbnail profile) or Full (everything, with sound and a Remotion visual guide) — from a logo image or a name alone. For Standard and Full it researches on Pinterest and Dribbble with inspo boards the user picks from (in depth when the brand matters most), while Starter goes for speed. It handles brands with two key logos (a picture logo and a word mark), builds extra assets on request, and runs in parallel threads once the logo is fixed. Use when the user says "make a brand / brand kit / brand guide for this logo", "create intro animations for my logo", "logo animation", "end cards / end screens for my channel", "channel branding", "sound effects for my intro / end screen", or asks to add a scene or asset to a brand under apps/studio/brands/ or to the shared engine in apps/studio/logoGraphics/. Append new user feedback to the log at the bottom.
 metadata:
   depends-on: revise-image
 ---
 
 # pack-brand-kit
 
-Brand material for a logo, built in Remotion in `apps/lyrics_videos`, in two parts (read
-`apps/lyrics_videos/logoGraphics/README.md` once):
+Brand material for a logo, built in Remotion in `apps/studio`, in two parts (read
+`apps/studio/logoGraphics/README.md` once):
 
 - `logoGraphics/`: the **shared engine**, committed. Studio entry (`index.ts`, `Root.tsx`), the
   contract (`kit.ts`), `lib/` (components every brand reuses: `Sfx`/`SfxMix`, `Guides`,
@@ -19,7 +19,7 @@ Brand material for a logo, built in Remotion in `apps/lyrics_videos`, in two par
   copying it into a brand.
 - `brands/<brand>/`: **one brand**, gitignored like `projects/`. `graphics/` is its source (logo,
   scenes, sounds, fonts, `brand/brand.json`); the rest of the folder is the exported kit, rendered
-  by `npm run brand -w lyrics_videos -- <brand>`. More material gets added to kits over time,
+  by `mm brand <brand>`. More material gets added to kits over time,
   always as source in `graphics/` + a `brand.json` entry, never by hand. Don't commit brand
   files; commit engine changes only when asked.
 
@@ -238,7 +238,7 @@ each a different device. Write them down first in `graphics/explorations/logo-<r
 (`M01-orbit-a/1.png`, `N01-radium-tile/1.png`; Midjourney downloads land in ~/Downloads, move
 them), dark grounds. Check every image's spelling: re-run a concept whose text is wrong (a
 stricter prompt that names the exact letters) rather than sending it. Make the folder reviewable
-(`npm run image-index -w lyrics_videos -- <folder> --groups=subfolders --workflow=pack-brand-kit`,
+(`mm image-index <folder> --groups=subfolders --workflow=pack-brand-kit`,
 then name each group and note flawed images in index.json), tile contact sheets into `checks/`,
 send them with the review link, and let the user pick. The review page opens directly on the
 deployed app, no local server needed: `https://mediamake.microfox.app/file-revision?job=<set>`
@@ -389,7 +389,7 @@ Midjourney, fal), since it is not drawn from the logo.
   Show **real components** frozen in scaled frames (`Freeze` + scale), never mock-ups.
   **The guide is slides, not a video:** render each page as one still image (Remotion
   `renderStill`, i.e. a `"kind": "still"` asset per page in brand.json, or
-  `npm run logos -w lyrics_videos -- stills <logo>-guide <t1>,<t2>,…` while iterating), one image
+  `mm logos stills <logo>-guide <t1>,<t2>,…` while iterating), one image
   per slide into `guide/NN-<page>.png`. **Never build or render a full brand-guide video**
   (no `"kind": "video"` entry for the guide, no `brand-guide.mp4`): it is slow and wastes tokens.
   Pages may still be laid out on one timeline (page N at N × 5 s) so a still at each page's rest
@@ -408,9 +408,9 @@ from named exports in `vectors`), the favicon set (`favicon`) and assets (`video
 `transparent-video` / `still` with `at`, `alpha`, `guides`). Then:
 
 ```bash
-npm run brand -w lyrics_videos -- <brand>                  # whole kit → brands/<brand>/
-npm run brand -w lyrics_videos -- <brand> --only=youtube   # filter by output path
-npm run brand -w lyrics_videos -- <brand> --resume         # skip renders already in the kit
+mm brand <brand>                  # whole kit → brands/<brand>/
+mm brand <brand> --only=youtube   # filter by output path
+mm brand <brand> --resume         # skip renders already in the kit
 ```
 
 A full kit is ~10 minutes, so run it in the background. **Load text fonts from local files**
@@ -442,21 +442,21 @@ seams), and compare a render in the source's own frame side by side with the ima
 ### 9. Thumbnail profile · Standard, Full
 
 Thumbnails are not part of the kit: they are made per video (engine in
-`apps/lyrics_videos/thumbnails/`, jobs in `thumbnails/jobs/<job>/`), not as brand scenes. The
+`apps/studio/thumbnails/`, jobs in `thumbnails/jobs/<job>/`), not as brand scenes. The
 kit's part is `graphics/brand/thumbnail.json`, which thumbnail jobs read: which kit logos to use (the lockup and a small
 mark), the fonts (files in `graphics/public/fonts/` with family, weight and role), the palette,
 default params and the thumbnail rules from `brandguide.md` ("Thumbnails and titles"). Write it
 when the kit is done (see `brands/inverteddevils/graphics/brand/thumbnail.json`), then check it
-with `npm run thumbs -w lyrics_videos -- init <brand>-test --brand=<brand>` and a first job.
+with `mm thumbs init <brand>-test --brand=<brand>` and a first job.
 Making the thumbnails themselves is outside this skill.
 
 ## Commands
 
 ```bash
-npm run logos-studio -w lyrics_videos                                      # Studio, all brands
-npm run logos -w lyrics_videos -- stills <logo>-<scene> 0.5,1.8,4 [--guides] [--alpha]   # out/brands/<brand>/stills/<scene>/
-npm run logos -w lyrics_videos -- render <logo>-<scene>                    # out/brands/<brand>/renders/
-npm run type-check -w lyrics_videos
+mm logos-studio                                      # Studio, all brands
+mm logos stills <logo>-<scene> 0.5,1.8,4 [--guides] [--alpha]   # out/brands/<brand>/stills/<scene>/
+mm logos render <logo>-<scene>                    # out/brands/<brand>/renders/
+mm type-check
 uv run --with librosa --with matplotlib python logoGraphics/tools/sfx.py <brand>
 uv run --with librosa --with scipy --with matplotlib python logoGraphics/tools/sync_check.py <brand> [scene,…]
 uv run --with fonttools --with uharfbuzz --with scikit-image --with scipy --with pillow \
@@ -485,7 +485,7 @@ the MP4 (exact `-ss` seeks). Fix clipping, unreadable text and overlaps first.
 - **Sound is sultry, not spooky.** No horror-trailer language: no reverse swells into deep boomy
   hits with long reverb tails, no haunting drones, no hissy neon hums or electric sizzles. Under
   the logo's draw, use something playful and musical: soft pops on the letters, or a short beat.
-- The user's own lyric-video taste (anime edits) is in `apps/lyrics_videos/projects/amz-inexorablemaster2/prefs.md`; it
+- The user's own lyric-video taste (anime edits) is in `apps/studio/projects/amz-inexorablemaster2/prefs.md`; it
   overlaps (dark, glowing, type as hero) but brand work is calmer and more restrained.
 
 ## Feedback log

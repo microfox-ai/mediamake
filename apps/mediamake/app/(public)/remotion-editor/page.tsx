@@ -4,7 +4,7 @@ import { RemotionEditorWorkspace } from '@/components/remotion-editor/RemotionEd
 export const metadata: Metadata = {
   title: 'Remotion editor · MediaMake',
   description:
-    'Open a lyric video from apps/lyrics_videos, move, re-font and retype what is on screen, and save the edits beside the project',
+    'Open a lyric video from apps/studio, move, re-font and retype what is on screen, and save the edits beside the project',
 };
 
 export default function RemotionEditorPage() {

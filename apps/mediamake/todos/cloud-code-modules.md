@@ -4,7 +4,7 @@ Shelved on 2026-10-24. Let Claude-written Remotion code render on Lambda and ope
 
 ## Why it is shelved
 
-Lyric projects are asset heavy. `apps/lyrics_videos/projects` is 2.1 GB today, and `amz-inexorablemaster2` alone has 504 MB of input, 783 MB of derived media and 461 MB of analysis. Every cloud render would first have to upload what the video uses, and every Lambda chunk would download it again. Until that cost is worth paying, these videos render locally.
+Lyric projects are asset heavy. `apps/studio/projects` is 2.1 GB today, and `amz-inexorablemaster2` alone has 504 MB of input, 783 MB of derived media and 461 MB of analysis. Every cloud render would first have to upload what the video uses, and every Lambda chunk would download it again. Until that cost is worth paying, these videos render locally.
 
 ## The problem it solves
 

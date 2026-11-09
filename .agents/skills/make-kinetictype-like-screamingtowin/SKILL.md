@@ -1,6 +1,6 @@
 ---
 name: make-kinetictype-like-screamingtowin
-description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 24 s 9:16 kinetic-type Short like that one, end to end with the same utilities and MCPs. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, npm run kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.
+description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 24 s 9:16 kinetic-type Short like that one, end to end with the same utilities and MCPs. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, mm kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.
 metadata:
   variant-of: make-kinetictype
   forked: 2026-11-08
@@ -30,9 +30,9 @@ is happy (each is a checkpoint, never a silent pick):
 |---|---|---|
 | **the picture** | From the quote's (and the music's) mood: a manga or anime page with 3–5 characters in one dramatic moment (screaming, celebrating, a raised fist), black-and-white ink, white space at the top. Midjourney through Browse Hack (`midjourney_generate`, text prompt, `--ar 4:5`, 4 images, the user picks); or fal (Ideogram `ideogram/v4.5` or FLUX.2 klein `fal-ai/flux-2/klein/9b` first, then Nano Banana 2.1 only if those can't). A franchise the user names: Pinterest (Browse Hack) for a real page, then the user picks | the batch and its cost |
 | **the quote** | Three options of 6–12 words with one hero word (a verb or an "-ing" word that can be shouted) and a two-or-three-word ending ("…to win", "…never stop"): from the picture's scene, or the franchise's own famous line (credited in the description). Mark the hero word | which one |
-| **the music** | The media library first (`npm run media -w lyrics_videos -- find instrumental epic --kind=music`); else the user's channel folders in Downloads; else Suno through Browse Hack (`suno_create`, instrumental, styles like "cinematic drops, epic drums, powerful score, orchestral composition, atmospheric", the model the user uses; each Create spends credits and makes two songs: agree first, `suno_download` the keeper into the library inbox) | the source; Suno credits |
+| **the music** | The media library first (`mm media find instrumental epic --kind=music`); else the user's channel folders in Downloads; else Suno through Browse Hack (`suno_create`, instrumental, styles like "cinematic drops, epic drums, powerful score, orchestral composition, atmospheric", the model the user uses; each Create spends credits and makes two songs: agree first, `suno_download` the keeper into the library inbox) | the source; Suno credits |
 
-A long instrumental (more than ~40 s): `npm run kinetictype -w lyrics_videos -- pick "<song>"
+A long instrumental (more than ~40 s): `mm kinetictype pick "<song>"
 --length=24 --top=3`, give the user the three mp3 previews (`open -R` line) and the plot, and use
 the one they pick (default: the first). The user picked 0:51–1:15 of a 3-minute track by ear for
 Screaming to Win; the tool's analysis finds the same kind of stretch.
@@ -44,8 +44,8 @@ signed in to Midjourney), the Midjourney round size (default "small": 6 panel st
 close-ups ≈ 11 jobs, relax mode), the channel for delivery and upload, and the missing inputs above.
 Then, without stopping unless something fails:
 
-1. `npm run media -w lyrics_videos -- production new <slug> --title="…" --skill=make-kinetictype-like-screamingtowin --deliver-folder=<channel folder>/<slug>`
-2. `npm run kinetictype -w lyrics_videos -- new <slug> --music="<song>" --from=<s> --to=<s> --image="<picture>" --quote="…"` — look at analysis/hits.png: a drop near 4 s and 3–5 section hits after it. If the drop is wrong, pick another stretch.
+1. `mm media production new <slug> --title="…" --skill=make-kinetictype-like-screamingtowin --deliver-folder=<channel folder>/<slug>`
+2. `mm kinetictype new <slug> --music="<song>" --from=<s> --to=<s> --image="<picture>" --quote="…"` — look at analysis/hits.png: a drop near 4 s and 3–5 section hits after it. If the drop is wrong, pick another stretch.
 3. `grid`, then `crops` (`c0-art` without the text + 4–5 close-ups: the main faces, a raised fist).
 4. Midjourney round 1 in parallel (wait: false, 6–8 at a time): `c0-art-1024.png` in the six styles —
    - "…, exactly the same pose and framing, bold red and black ink duotone, risograph print texture, grainy"
@@ -58,7 +58,7 @@ Then, without stopping unless something fails:
    While they render, run the Pinterest research (make-kinetictype step 4) only if the user asked for new type ideas; the look is fixed here.
 5. Pick (the cleanest of each four: faces intact, no extra limbs, the composition kept), Subtle-upscale the picks, round 2 on the picks: the close-ups in red riso and neon negative, the fist in fire.
 6. `cutout` the riso, linocut and colour panels (`--all`) and the close-ups; write input/assets.json; `storyboard --key=<hero word>`.
-7. `kit`, `sfx`; stills at the make-kinetictype step 7 times next to screamingtowin's (`ONLY_PROJECT=screamingtowin npm run stills … --only`): fix what's weaker than the reference.
+7. `kit`, `sfx`; stills at the make-kinetictype step 7 times next to screamingtowin's (`ONLY_PROJECT=screamingtowin mm stills … --only`): fix what's weaker than the reference.
 8. Review render (`--proxy`), preflight, the revise-video link — the first checkpoint the user sees after the inputs.
 9. After sign-off: the master, `media deliver`, the youtube/ pack (title like "<Quote in Title Case> 🔥 #<franchise>", the description as make-kinetictype step 9), preview it and ask, `youtube_fill_uploads`, then `deliver --uploaded` once the user has published.
 
@@ -78,15 +78,15 @@ published on a YouTube Shorts channel). Every rule below is something the user d
 production; the log at the bottom keeps their words.
 
 The edit is data. `projects/<slug>/video/edit.json` lists the shots, each one device with its own
-time span; `src/kinetictype` draws them (one Remotion layer per shot); `npm run kinetictype -w
-lyrics_videos -- <command>` does everything around it. A new project is three lines of TSX.
+time span; `src/kinetictype` draws them (one Remotion layer per shot); `mm kinetictype
+<command>` does everything around it. A new project is three lines of TSX.
 
 ## First: check the MCPs
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/browse-hack` | required | Midjourney restyles and upscales of the picture and its close-ups (`midjourney_generate` with `editImage`, `midjourney_upscale`), Pinterest type research (`pinterest_bulk_start`), the YouTube upload (`youtube_fill_uploads`), a new instrumental from Suno when there is none (`suno_create`) | No restyled art (the edit runs on the one picture), no research boards, the user uploads by hand |
-| `mcp/elevenlabs` | optional | Sound effects the media library doesn't have (`text_to_sound_effects`, paid: ask with the price), and a voice-over only if the user asks for one (`text_to_speech`; Scribe word times through `npm run transcribe`) | The library's sounds only; no voice-over |
+| `mcp/elevenlabs` | optional | Sound effects the media library doesn't have (`text_to_sound_effects`, paid: ask with the price), and a voice-over only if the user asks for one (`text_to_speech`; Scribe word times through `mm transcribe`) | The library's sounds only; no voice-over |
 | `mcp/fal` | optional | A new picture or an upscale when Midjourney isn't available (Ideogram and FLUX.2 klein first; paid: ask with the price) | Pictures come from Midjourney or the user |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -155,14 +155,14 @@ different profile (list_profiles, youtube_list_channels).
 - The shape: 9:16 Short by default (ask; a 16:9 section works the same with width/height in
   edit.json and the type re-fitted). Length: the stretch's length (≈24 s).
 - The channel (for the delivery folder and the upload) and the Chrome profile, by email.
-- Register the production: `npm run media -w lyrics_videos -- production new <slug> --title="…"
+- Register the production: `mm media production new <slug> --title="…"
   --skill=make-kinetictype --deliver-folder=<channel folder>/<slug>`.
 
 ### 2. The music
 
 ```bash
-npm run kinetictype -w lyrics_videos -- pick "<song>" --length=24 --top=3      # long song: 3 stretches + mp3 previews + plot
-npm run kinetictype -w lyrics_videos -- new <slug> --music="<song>" --from=51 --to=75 --image="<picture>" --quote="…"
+mm kinetictype pick "<song>" --length=24 --top=3      # long song: 3 stretches + mp3 previews + plot
+mm kinetictype new <slug> --music="<song>" --from=51 --to=75 --image="<picture>" --quote="…"
 ```
 
 `pick` looks for a quiet build into a drop about 4 s in (the bass coming back in), strong section
@@ -178,8 +178,8 @@ the drop on the song's pulse instead.
 ### 3. Crops and Midjourney
 
 ```bash
-npm run kinetictype -w lyrics_videos -- grid <slug>                     # analysis/grid.jpg: read the coordinates
-npm run kinetictype -w lyrics_videos -- crops <slug> --boxes='{"c0-art":[0,250,735,920],"c1-top":[165,262,545,642],"c5-fist":[385,268,545,468]}'
+mm kinetictype grid <slug>                     # analysis/grid.jpg: read the coordinates
+mm kinetictype crops <slug> --boxes='{"c0-art":[0,250,735,920],"c1-top":[165,262,545,642],"c5-fist":[385,268,545,468]}'
 ```
 
 `c0-art` is the whole art without its text; then 4–5 close-ups: each important face (square-ish,
@@ -192,8 +192,8 @@ Midjourney (the midjourney-restyle skill's steps; ask the batch size first, rela
 - each close-up redrawn clean (the ink prompt), then 1–2 style variations of each from the pick
   (`editImage: mj:<jobId>#<i>`: red riso, neon negative, the fist in fire);
 - `wait: false`, 6–8 jobs at a time, `midjourney_job_status`, `midjourney_download_images` with a set
-  name; contact sheets (`npm run kinetictype -w lyrics_videos -- sheet <folder>`) and a review set
-  (`npm run image-index -w lyrics_videos -- out/<slug>-mj --groups=subfolders`, link
+  name; contact sheets (`mm kinetictype sheet <folder>`) and a review set
+  (`mm image-index out/<slug>-mj --groups=subfolders`, link
   https://mediamake.microfox.app/file-revision?job=<slug>-mj);
 - Subtle-upscale the picks to 2048 (`midjourney_upscale`) before using them big; copy them to
   input/plates/ (the panel styles) and input/chars/ (the close-ups).
@@ -208,8 +208,8 @@ Swiss posters. Name the devices you take and from which pins (choice 4); put the
 ### 5. Cut-outs and the assets file
 
 ```bash
-npm run kinetictype -w lyrics_videos -- cutout <slug> input/plates/red-riso.png input/plates/linocut.png input/plates/anime-colour.png --all
-npm run kinetictype -w lyrics_videos -- cutout <slug> input/chars/c1-top.png input/chars/c5-fist.png input/chars/c1-riso.png
+mm kinetictype cutout <slug> input/plates/red-riso.png input/plates/linocut.png input/plates/anime-colour.png --all
+mm kinetictype cutout <slug> input/chars/c1-top.png input/chars/c5-fist.png input/chars/c1-riso.png
 ```
 
 `--all` for the group plates (every character kept). Look at input/cutouts/_checks.jpg; a blob (a
@@ -233,7 +233,7 @@ are fractions of each square, read off the cut-out:
 ### 6. The storyboard
 
 ```bash
-npm run kinetictype -w lyrics_videos -- storyboard <slug> --key=SCREAMING --title="Screaming / To Win"
+mm kinetictype storyboard <slug> --key=SCREAMING --title="Screaming / To Win"
 ```
 
 The quote splits around the hero word (`--key`, else the longest word): the words before it are the
@@ -269,8 +269,8 @@ the kinetic project and splice it in.
 ### 7. Check, review, revise
 
 ```bash
-ONLY_PROJECT=<slug> npm run stills -w lyrics_videos -- <slug> 0.5,1.3,2.3,4.6,6.8,8.7,9.5,12.8,15.0,16.6,18.5,21.6,23.9 --only
-npm run render-project -w lyrics_videos -- <slug> --proxy && npm run preflight -w lyrics_videos -- <slug>
+ONLY_PROJECT=<slug> mm stills <slug> 0.5,1.3,2.3,4.6,6.8,8.7,9.5,12.8,15.0,16.6,18.5,21.6,23.9 --only
+mm render <slug> --proxy && mm preflight <slug>
 ```
 
 Look at every still before the user does (Tailwind's `img {max-width:100%}` once capped every picture
@@ -281,8 +281,8 @@ watcher, revision files). An intended dark beat (the dive into the mouth) is ans
 ### 8. Sound
 
 ```bash
-npm run kinetictype -w lyrics_videos -- kit <slug>      # the sound kit from the media library into input/sfx/
-npm run kinetictype -w lyrics_videos -- sfx <slug>      # video/sfx.json from the edit (first time), mixed → input/mix-sfx.wav
+mm kinetictype kit <slug>      # the sound kit from the media library into input/sfx/
+mm kinetictype sfx <slug>      # video/sfx.json from the edit (first time), mixed → input/mix-sfx.wav
 ```
 
 `sfx` writes the cues once from the shots (choice 8), mixes them over the music through a limiter,
@@ -294,14 +294,14 @@ last render (revise-video, sound-only revisions), not re-rendered.
 
 ### 9. Master, delivery, upload
 
-- The master once the user signs off: `npm run render-project -w lyrics_videos -- <slug>`, preflight.
-- `npm run media -w lyrics_videos -- deliver <slug> --what=video` (dry run), then `--yes`.
+- The master once the user signs off: `mm render <slug>`, preflight.
+- `mm media deliver <slug> --what=video` (dry run), then `--yes`.
 - The upload: a `youtube/` folder beside the delivery with the video (a clone), title.txt,
   description.txt (the quote, a line about the edit, the source's credit, the music, at most 5
   hashtags) and info.json (`channel` @handle, `madeForKids: false`, `alteredContent: false`, category,
   language, tags). Preview the title and description and ask first; then `youtube_fill_uploads` with
   the folder: the tab waits on the Visibility step for the user to Publish or Schedule. When they say
-  it's out: `npm run media -w lyrics_videos -- deliver <slug> --uploaded`.
+  it's out: `mm media deliver <slug> --uploaded`.
 
 ## Feedback log
 
@@ -313,4 +313,4 @@ Append dated entries: what the user said → the rule.
 - 2026-11-08, on v1 · "make it more dynamic, not powerful enough, i only like rise to w6, the rest is not good" → choices 1 and 2; the slam device, letter-by-letter drop, faces on grounds, impact frames.
 - 2026-11-08, on v2 · "dw4 and dz are bad, redo them. e3 should end with a zoom in warping it to o1 making it a loop" → `crack` with the team punching up, `burst` out of the mouth, the warp and `open` (choice 7).
 - 2026-11-08 · voice-overs (Final Boss, Charlie, Knox, Havoc) with "do not overtightly follow the visuals", "after screaming, create an echo effect untill the to win comes", "to win should appear when the word first appears, and then win in echo later on" — then "remove all voices, i liked it before, jsut add some speciall sound fx along witht the music" → choice 8.
-- 2026-11-08 · the engine (src/kinetictype) and `npm run kinetictype` made from the project, checked against it side by side: the auto storyboard landed on the same cuts.
+- 2026-11-08 · the engine (src/kinetictype) and `mm kinetictype` made from the project, checked against it side by side: the auto storyboard landed on the same cuts.

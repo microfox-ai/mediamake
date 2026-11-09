@@ -1,4 +1,4 @@
-/** Types for what the media CLI imports from skills.mjs (apps/lyrics_videos/scripts/library/sync.ts). */
+/** Types for what the media CLI imports from skills.mjs (apps/studio/scripts/library/sync.ts). */
 export type SkillInfo = {
   name: string;
   dir: string;

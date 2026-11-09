@@ -25,7 +25,7 @@ const saveToSchema = z
   .string()
   .optional()
   .describe(
-    'Absolute path on this machine to write the captions as JSON, e.g. <lyrics_videos project>/input/lyrics.json. The file is the mediamake caption format lyrics_videos reads directly.',
+    'Absolute path on this machine to write the captions as JSON, e.g. <studio project>/input/lyrics.json. The file is the mediamake caption format studio reads directly.',
   );
 
 /** Strip a transcription to what a caller needs; processingData holds the raw provider dump. */
@@ -186,7 +186,7 @@ export function registerTranscriptionTools(
       title: 'Get transcription',
       description: options.localFiles
         ? "Get one transcription's captions. Optionally write them to a local lyrics.json."
-        : "Get one transcription's captions. includeWords returns the full caption JSON, the format lyrics_videos reads as input/lyrics.json.",
+        : "Get one transcription's captions. includeWords returns the full caption JSON, the format studio reads as input/lyrics.json.",
       inputSchema: withoutLocalArgs(
         {
           id: z.string(),

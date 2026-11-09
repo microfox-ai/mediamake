@@ -1,6 +1,6 @@
 /*
  * The remaster revision screen (/remaster-revision) reviews a ladder: a folder of versions of one
- * song (apps/lyrics_videos … <song folder>/remaster/v<N>/, made by make-loudness-remaster). It
+ * song (apps/studio … <song folder>/remaster/v<N>/, made by make-loudness-remaster). It
  * writes the same revision files as /file-revision (mediamake.image-revision/v1, see
  * lib/file-revisions/types.ts): the final is the version the user picked, a note on a version is a
  * comment on its ID, and a note at a moment is a pinned comment with `t`. See

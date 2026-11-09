@@ -33,7 +33,7 @@ export async function copyPath(abs: string | null, fallbackName: string): Promis
   }
   await copy(fallbackName);
   toast.message(`Copied "${fallbackName}"`, {
-    description: "This folder's full path isn't known: it has no index.json from its workflow (`npm run image-index -w lyrics_videos -- <folder>` writes one).",
+    description: "This folder's full path isn't known: it has no index.json from its workflow (`mm image-index <folder>` writes one).",
     duration: 7000,
   });
 }

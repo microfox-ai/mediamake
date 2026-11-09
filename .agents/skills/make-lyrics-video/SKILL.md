@@ -1,11 +1,11 @@
 ---
 name: make-lyrics-video
-description: Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/lyrics_videos — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use when the user says "make a lyric video from <folder>", "/make-lyrics-video <slug>", or asks to add/edit scenes of a project under apps/lyrics_videos/projects.
+description: Make a lyric video in Remotion from a song plus its timed transcription (lyrics.json), in apps/studio — start with a short intake of the song's theme and the user's taste (fonts, colours, ideas), analyze the audio (stems, beat grid, CTC word alignment), prepare a manifest, pitch 5 ideas, gather assets and storyboard the chosen one, write scenes, preview in Studio, render on request. REQUIRES both a song/recording and a timed transcription; not for videos without audio-first lyrics (explainers, slideshows, promos), nor for the one-picture waveform channel format from mediamake timelines (make-waveform-lyric-video). Use when the user says "make a lyric video from <folder>", "/make-lyrics-video <slug>", or asks to add/edit scenes of a project under apps/studio/projects.
 ---
 
 # make-lyrics-video
 
-Lyric videos built on Remotion. Everything lives in `apps/lyrics_videos`.
+Lyric videos built on Remotion. Everything lives in `apps/studio`.
 
 **Taste comes from the user, not from defaults.** Each project keeps its own taste doc,
 `projects/<slug>/prefs.md`: the intake answers' implications, style-specific rules and a dated log of
@@ -18,7 +18,7 @@ the user already has a taste doc (an earlier project's `prefs.md`, e.g.
 tooling, render mechanics). Style-specific lessons (fonts that worked, devices the user loved or
 rejected, picture rules for this look) go only into the project's `prefs.md`. After every review
 round, add what you learned to the right place, so both get better with every iteration.
-Read `apps/lyrics_videos/README.md` once for the layout, and `apps/lyrics_videos/analysis/README.md`
+Read `apps/studio/README.md` once for the layout, and `apps/studio/analysis/README.md`
 for the timing analysis, then follow the steps below **in order**.
 
 ## Requirements — check these first
@@ -33,8 +33,8 @@ If either is missing, stop and tell the user before doing anything else:
 - No audio: this skill doesn't apply. Say so; a video that isn't driven by a song needs a different setup.
 - No transcription: offer to transcribe the song first with ElevenLabs Scribe, as CLAUDE.md ›
   Transcription says. Never invent or estimate timings. It costs credits: ask first.
-  - Separate the vocals (`npm run analyze -w lyrics_videos -- <slug> --only separate`, works before
-    `lyrics.json` exists, ~1 min), then `npm run transcribe -w lyrics_videos -- <slug>`: the song's
+  - Separate the vocals (`mm analyze <slug> --only separate`, works before
+    `lyrics.json` exists, ~1 min), then `mm transcribe <slug>`: the song's
     cached words, or the stem's MP3 and the price.
   - `--yes` with the ElevenLabs MCP's key first (no widget); only on the Claude web or phone app the
     hosted ElevenLabs connector (`creative_transcribe_audio` on `analysis/stems/vocals.mp3`, then
@@ -64,7 +64,7 @@ For Remotion technique (springs, captions, audio viz, fonts, transitions, three.
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | recommended | Its API key: the song's timed words when there is no `lyrics.json` (`npm run transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
+| `mcp/elevenlabs` | recommended | Its API key: the song's timed words when there is no `lyrics.json` (`mm transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
 | `mcp/browse-hack` | recommended | Pinterest artwork in bulk, YouTube clips, and Midjourney outcrops and fills, in the user's Chrome (`pinterest_bulk_start`, `youtube_download`, `midjourney_outcrop`) | The user finds and drops in every picture and clip by hand |
 | `mcp/fal` | optional | Cutting a subject off its picture so graphics go behind it (`fal-ai/birefnet/v2`, paid) | No cutouts: graphics sit over the picture, never behind the subject |
 | `mcp/blender` | optional | 3D set pieces, only when the idea needs one | No 3D: the video stays 2D |
@@ -111,8 +111,8 @@ cite them.
 ## 1. Set up the project folder
 
 - Slug: kebab-case, `[a-z0-9-]`, not starting with `_` (underscore folders are ignored by discovery).
-- **The media library first** (`apps/lyrics_videos/scripts/library/README.md`):
-  - If the user gave an outside folder, run `npm run media -w lyrics_videos -- ingest <folder> --channel=<brand id>`.
+- **The media library first** (`apps/studio/scripts/library/README.md`):
+  - If the user gave an outside folder, run `mm media ingest <folder> --channel=<brand id>`.
     It clones the files into the library and leaves the user's folder as it was.
   - Search the library for anything else the video needs before downloading or generating it
     (`media find … --sheet`).
@@ -134,7 +134,7 @@ cite them.
 ## 2. Analyze (do this for every real project)
 
 ```bash
-npm run analyze -w lyrics_videos -- <slug> --plots
+mm analyze <slug> --plots
 ```
 
 This is the method of [mexicat/pdoom-video](https://github.com/mexicat/pdoom-video) (see
@@ -173,7 +173,7 @@ Skip this step only for throwaway tests. Without it, prepare falls back to a rou
 ## 3. Prepare (deterministic, never hand-write the manifest)
 
 ```bash
-npm run prepare-project -w lyrics_videos -- <slug>
+mm prepare <slug>
 ```
 
 This writes `projects/<slug>/manifest.json`: duration, beat grid + downbeats, envelopes, onsets, lyric
@@ -338,7 +338,7 @@ Media: measure every image (`sips -g pixelWidth -g pixelHeight` or ffprobe) befo
 at the clips with **exact** seeks (`ffmpeg -ss <t> -i clip -frames:v 1`); `fps=`-filter contact sheets
 mislabel times by up to one interval. Ask, or follow the brief, on whether portrait images may be
 cropped to the frame. List what the video uses in `video/media.json` (crop focus per image, clips to
-transcode) and run `npm run derive-media -w lyrics_videos -- <slug>`: it writes 16:9 crops and
+transcode) and run `mm derive-media <slug>`: it writes 16:9 crops and
 short-GOP H.264 clips to `derived/` (AV1/4K sources included) plus `derived/index.json`, and warns about
 upscales. Never upscale more than ~1.5× without treating the image as texture (blur, grain, duotone).
 Check overlay clips frame by frame for watermarks or text before using them.
@@ -463,14 +463,14 @@ CSS/SVG gotchas that cost a round each:
 ## 7. Verify yourself before showing the user
 
 ```bash
-npm run type-check -w lyrics_videos
-npm run stills -w lyrics_videos -- <slug>            # one frame per section mid-point
-npm run stills -w lyrics_videos -- <slug> 12.5,40.2  # extra moments, in seconds
-npm run stills -w lyrics_videos -- <slug> 12.5,40.2 --only   # only those moments
-npm run render-project -w lyrics_videos -- <slug> --frames=2940-3360 --proxy   # short half-size clip → out/<slug>/clips/
+mm type-check
+mm stills <slug>            # one frame per section mid-point
+mm stills <slug> 12.5,40.2  # extra moments, in seconds
+mm stills <slug> 12.5,40.2 --only   # only those moments
+mm render <slug> --frames=2940-3360 --proxy   # short half-size clip → out/<slug>/clips/
 ```
 
-`npm run stills` renders at half scale (960×540) and clears the stills folder on every run, so pass
+`mm stills` renders at half scale (960×540) and clears the stills folder on every run, so pass
 every time you need in one call and halve frame coordinates when cropping. Put several stills in one
 contact sheet (PIL) before reading them, to save context. Check its output for ✔ lines: while another
 session renders, it can fail with "Timed out … setting up the headless browser" and leave the
@@ -480,7 +480,7 @@ check `df -h /`; if space is short, look in the temp folder for `remotion-webpac
 your own failed runs left (match their creation times to your runs, and check `lsof` shows nothing
 using them) and delete only those. `scripts/stills.ts` now removes its bundle on exit, even on failure.
 
-Open the JPEGs in `apps/lyrics_videos/out/<slug>/stills/` with the Read tool and check: text fits the frame
+Open the JPEGs in `apps/studio/out/<slug>/stills/` with the Read tool and check: text fits the frame
 and is readable, lyrics match what's sung at that time, nothing is blank or clipped, the brief's
 palette is followed. For motion, extract a few frames of the clip with ffmpeg and check consecutive
 frames. Fix and re-run until clean.
@@ -488,7 +488,7 @@ frames. Fix and re-run until clean.
 ## 8. Preview
 
 ```bash
-npm run studio -w lyrics_videos
+mm preview
 ```
 
 Start it in the background and tell the user the composition id (= slug). Studio hot-reloads scene
@@ -497,9 +497,9 @@ edits; after re-running prepare, reload the page to refetch the manifest.
 ## 9. Render — only when the user asks
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --proxy   # review render, half size → apps/lyrics_videos/out/<slug>/<slug>.mp4
-npm run render-project -w lyrics_videos -- <slug>           # the master, once the user signs off
-npm run preflight -w lyrics_videos -- <slug>                # after every render the user will watch
+mm render <slug> --proxy   # review render, half size → apps/studio/out/<slug>/<slug>.mp4
+mm render <slug>           # the master, once the user signs off
+mm preflight <slug>                # after every render the user will watch
 ```
 
 A render for review is a half-size **review render** (`--proxy`); the full-size **master** renders
@@ -514,7 +514,7 @@ public dir (`projects/`, many GB) into a temp bundle (`$(getconf DARWIN_USER_TEM
 and can leave it behind; a few dozen single-frame stills fill the disk (2026-10-26: 130 GB, a render
 died with ENOSPC). For scratch-entry renders and stills pass `--public-dir` with a slim folder of
 hard links to just the project's manifest and the media it uses (no extra space), batch stills
-through `npm run stills` (one bundle) instead of one CLI call per frame, and ask the user before
+through `mm stills` (one bundle) instead of one CLI call per frame, and ask the user before
 clearing stale bundles (other sessions may be rendering).
 
 **Never lose an earlier cut.** The user keeps every render as a backup unless they ask for a
@@ -529,7 +529,7 @@ render from that frame to the end of the section with `npx remotion render src/i
 out/<slug>/seg.mp4 --frames=<k>-<end> --crf=18 --muted`, cut the old video's head with
 `-frames:v <k>` (not `-t`, which overshoots by a frame or two), concat with `-c copy`, mux the old
 file's audio back in, and confirm the frame count equals the full render's. Then write the map for
-the spliced file (`npm run map`). For mediamake's render API / Lambda, the
+the spliced file (`mm map`). For mediamake's render API / Lambda, the
 composition takes `inputProps = { manifest }`; asset paths must first be rewritten to public URLs.
 
 Every render also writes **`out/<slug>/<slug>.map.json`** beside the MP4 (the Revisions screen
@@ -544,7 +544,7 @@ When an MP4 is renamed, moved, or made some other way (another output name, ffmp
 its map yourself:
 
 ```bash
-npm run map -w lyrics_videos -- <slug> --video=out/<slug>/v5/<slug>.mp4   # → v5/<slug>.map.json
+mm map <slug> --video=out/<slug>/v5/<slug>.mp4   # → v5/<slug>.map.json
 ```
 
 A kept render's `.map.json` and `.revisions/` folder go with it into `out/<slug>/v<N>/`: they belong
@@ -568,7 +568,7 @@ comment the way this skill works; log style lessons in `prefs.md` and general on
 
 The user can adjust a project by hand in mediamake's **Remotion editor**:
 **https://mediamake.microfox.app/remotion-editor?project=<slug>** (Chrome, Edge, Arc or
-Brave; the first time they pick `apps/lyrics_videos`, after that it reopens), or
+Brave; the first time they pick `apps/studio`, after that it reopens), or
 `http://localhost:<port>/remotion-editor?project=<slug>` while mediamake runs `next dev`, which
 reads the repo with no picking. Give them the link with the slug filled in. It compiles the project
 in the browser from this folder, so code changes show up on their own (a file replaced on disk shows

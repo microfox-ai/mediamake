@@ -19,7 +19,7 @@ still apply to every fix. The screen itself is documented in
 - **`<folder>/index.json`** (`mediamake.image-set/v1`): who made the set (`workflow`: the skill's
   name), its source (`source`, `sourcePath`), its groups and IDs, and what is already picked or
   kept. The stills engine writes it on every render (`thumbs render`); any other folder gets it
-  from `npm run image-index -w lyrics_videos -- <folder> [--title=… --workflow=<skill>
+  from `mm image-index <folder> [--title=… --workflow=<skill>
   --source=<path> --groups=subfolders]`, run at the end of each round. Without it the folder still
   opens, but Claude can't tell which skill should act on the notes.
 - **Its own iterate step**: how a comment becomes a change (a new variant, a re-generation, an
@@ -35,7 +35,7 @@ It opens on the deployed app, no local server needed. **Always this base URL,
 `https://mediamake.microfox.app`, never a `localhost` link** (2026-11-02: "always use the base url -
 mediamake.microfox.app"), even while a local dev server runs. (`/thumbnail-revision` still redirects.)
 
-The first time, the user opens `apps/lyrics_videos/out` there (kept as a source: every thumbnail
+The first time, the user opens `apps/studio/out` there (kept as a source: every thumbnail
 and poster set is listed after that) or the set's own folder. There they select files (click; ⌘
 click adds; ⇧ click a range; or drag a box), pick finals (a thumbnail: 1, or up to 3 for YouTube's A/B test; a poster: one **Cover**),
 keep, drop and comment, zoom in and pin comments to small mistakes (on a video or song the comment
@@ -62,13 +62,13 @@ Send the sheet (SendUserFile) with the link and one line per ID.
 Act on revisions whose status is `ready` (the user may also just say "rev-002 is ready"), and on
 comments without a `reply`.
 
-**Thumbnails and posters** (sets made by the stills engine in `apps/lyrics_videos/thumbnails/`,
+**Thumbnails and posters** (sets made by the stills engine in `apps/studio/thumbnails/`,
 `thumbs render`):
 
-1. `keep` → `npm run thumbs -w lyrics_videos -- keep <job> <IDs>`. `drop` → don't iterate on those.
+1. `keep` → `mm thumbs keep <job> <IDs>`. `drop` → don't iterate on those.
 2. Comments → change the variant (only if it isn't kept) or add new variants with new IDs; re-render
    only those IDs (`thumbs render <job> <IDs>`) and check them on the sheet.
-3. `final` → `npm run thumbs -w lyrics_videos -- pick <job> <IDs>` once the comments on those IDs
+3. `final` → `mm thumbs pick <job> <IDs>` once the comments on those IDs
    are fixed (re-pick after re-rendering); a poster's cover with `--to=<release folder>` when there
    is one.
 

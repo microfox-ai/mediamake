@@ -1,13 +1,13 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/lyrics_videos/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.
+description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under apps/studio/thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. Append new user feedback to the log at the bottom.
 metadata:
   depends-on: pack-brand-kit
 ---
 
 # create-thumbnail
 
-Thumbnails are built with the engine in `apps/lyrics_videos/thumbnails/` (committed). **Read
+Thumbnails are built with the engine in `apps/studio/thumbnails/` (committed). **Read
 `thumbnails/README.md` once**: it has the spec format, the presets and the layers. Each job is a
 folder `thumbnails/jobs/<job>/` with one `thumbs.json`; renders go to `out/thumbnails/<job>/`.
 Jobs, renders and the inspiration folder are gitignored; commit engine changes only when asked.
@@ -77,12 +77,12 @@ folder already answers and say what you assumed):
    the **transcript** if they have one (optional; save it as `input/transcript.txt`).
 2. **The picture:** their image(s) (best), frames from the video, a concept to generate, or a
    type-only thumbnail. See step 2.
-3. **The channel and its logo(s):** which channel (a brand under `apps/lyrics_videos/brands/`?)
+3. **The channel and its logo(s):** which channel (a brand under `apps/studio/brands/`?)
    and **which logos this video needs**: the channel's, plus any franchise / show / game / artist /
    sponsor logos. They can hand over files, or name them and you fetch them (step 4).
 3a. **Watermarks: always ask which channel or channels to put on the thumbnail** (a song can belong
    to more than one: the channel that posts it and the artist's channel, e.g. Anime Music Zone +
-   Get into Zone). Offer the brands under `apps/lyrics_videos/brands/` as options (multi-select),
+   Get into Zone). Offer the brands under `apps/studio/brands/` as options (multi-select),
    plus "none". For each one picked, use the brand's logo that reads on any ground: a transparent
    logo in black or white chosen per picture (dark logo on light corners, light on dark), or a solid
    cut of a picture logo; never a tile with its own background unless they ask. Two channels go on
@@ -115,15 +115,15 @@ In order of preference:
 - **A concept to generate:** Midjourney through Browse Hack (`midjourney-style-reference` when
   they have a look in mind). fal costs money: ask first. Generate at 16:9 with room for words.
 - **The media library** holds the art, outcrops and upscales of earlier rounds and productions
-  (`npm run media -w lyrics_videos -- find "<song or character>" --kind=art --sheet`). Look there
+  (`mm media find "<song or character>" --kind=art --sheet`). Look there
   before generating or paying again. New generations go through `_INBOX` and `media ingest`
-  (`apps/lyrics_videos/scripts/library/README.md`).
+  (`apps/studio/scripts/library/README.md`).
 - **No picture:** the `poster` preset (type is the picture).
 
 Put pictures in `input/`. For anything that goes behind or in front of words, make a cutout:
 
 ```bash
-npm run thumbs -w lyrics_videos -- cutout <job> input/hero.jpg --model=birefnet-portrait   # people
+mm thumbs cutout <job> input/hero.jpg --model=birefnet-portrait   # people
 # birefnet-general for objects and scenes, isnet-anime for drawn art; --point=x,y keeps the part under a point
 ```
 
@@ -234,9 +234,9 @@ What makes a thumbnail work (from the user's references, Oct 2026):
 ## 7. Render, check, show
 
 ```bash
-npm run thumbs -w lyrics_videos -- init <job> [--brand=<brand>] [--title="…"]
+mm thumbs init <job> [--brand=<brand>] [--title="…"]
 # write thumbs.json, then:
-npm run thumbs -w lyrics_videos -- render <job>
+mm thumbs render <job>
 ```
 
 Fix every warning `render` prints. Then **look at `out/thumbnails/<job>/sheet.jpg` and
@@ -260,11 +260,11 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 - Feedback comes by ID ("B2 but with the A1 font", "C3, logo smaller"). Change that variant, or
   add a new one: **IDs never change once the user has seen them**; new variants continue the
   numbering (A4, B4) or start a new style letter (E).
-- When they like one ("I like B2, save it as it is"), lock it: `npm run thumbs -w lyrics_videos --
+- When they like one ("I like B2, save it as it is"), lock it: `mm thumbs --
   keep <job> B2`. Its image and spec are snapshotted in `out/thumbnails/<job>/kept/`, renders skip
   it, and `render` warns if its spec ever changes. Build what they ask next as new variants.
 - Write what you learned into `brief.md` (this job) and the feedback log below (general taste).
-- When they pick: `npm run thumbs -w lyrics_videos -- pick <job> B2` (or `A1,B2,D3`). The finals
+- When they pick: `mm thumbs pick <job> B2` (or `A1,B2,D3`). The finals
   land in `out/thumbnails/<job>/final/` as JPEGs under YouTube's 2 MB limit; tell them where, and
   for an A/B test that YouTube picks the winner by watch time.
 - **Three finals → three titles.** When they pick three for the A/B test, the video also gets three
@@ -273,7 +273,7 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 
 ## Brands
 
-A brand under `apps/lyrics_videos/brands/<brand>/` hands its thumbnail material to jobs through
+A brand under `apps/studio/brands/<brand>/` hands its thumbnail material to jobs through
 `graphics/brand/thumbnail.json` (gitignored, like the rest of the brand): `logos` (kit files and
 the names they get in `assets/`), `fonts` (files + family, weight, role), `palette`, default
 `params` and the brand's thumbnail `rules` (copied into each job's `brief.md`). INVERTED Devils

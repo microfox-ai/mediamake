@@ -123,7 +123,7 @@ id in `forChoices`.
    least one of those ids. Steps without it are always installed.
 5. A maker's local server and its hosted connector for the same job (ElevenLabs:
    `mcp/elevenlabs` and `mcp/elevenlabs-connector`): on a computer set up the
-   local server first: its API key is what MediaMake's `npm run transcribe
+   local server first: its API key is what MediaMake's `mm transcribe
    --yes` uses, and its files land straight on the computer, no widget. Offer
    the connector only as the alternative its `for` says: where nothing local
    can run (the Claude web or phone app), signing in with no key.
@@ -169,7 +169,7 @@ start Claude Code in that folder:
 
 ```bash
 gh repo clone microfox-ai/mediamake ~/mediamake
-cd ~/mediamake && npm install
+cd ~/mediamake && npm install && npm run mm -- link
 ```
 
 They use the skill from Claude Code started in `~/mediamake`
@@ -182,7 +182,8 @@ Clone to `~/mediamake` for `microfox-ai/mediamake`, otherwise
 `~/<repo name>`. If it's already there, `git -C <path> pull --ff-only`
 instead. Use `gh repo clone <repo> <path>` (works for private repos the
 person can see). If the repo's README says to install dependencies, do it
-(`npm install` at the repo root for mediamake). Remember the path; later
+(`npm install` at the repo root for mediamake, then `npm run mm -- link`, which puts
+the `mm` command the skills use on their PATH). Remember the path; later
 steps' INSTALL.md files may refer to it as `$MEDIAMAKE_REPO`.
 
 ### `type: "github-release"`: a file from a GitHub release

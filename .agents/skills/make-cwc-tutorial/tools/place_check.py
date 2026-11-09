@@ -4,7 +4,7 @@ usage: python place_check.py <project dir> <render.mp4> <id>=<seconds> [<id>=<se
 
 Cross-correlates each chunk (from input/vo4/vo.json, or the voice list --vo names) with the render's audio around its expected
 start and prints where it was found and how well it matched. A steady +0.04 s on every line is the
-render's own audio delay; anything else means a chunk moved. Run from apps/lyrics_videos with the
+render's own audio delay; anything else means a chunk moved. Run from apps/studio with the
 analysis venv (it needs numpy and librosa).
 """
 import json

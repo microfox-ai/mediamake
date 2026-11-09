@@ -122,7 +122,7 @@ Every song take made for a channel with Suno (songs, covers, extends, remasters)
 
 ### Lyric videos
 
-`transcribe` and `get_transcription` take `saveTo` to write the captions straight to a `lyrics_videos` project's `input/lyrics.json`; the file is the mediamake caption format that `apps/lyrics_videos` already reads.
+`transcribe` and `get_transcription` take `saveTo` to write the captions straight to a `studio` project's `input/lyrics.json`; the file is the mediamake caption format that `apps/studio` already reads.
 
 ### Renders
 

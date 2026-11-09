@@ -1,6 +1,6 @@
 # Remotion editor
 
-A screen at `/remotion-editor` that opens a lyric video from `apps/lyrics_videos` as live Remotion
+A screen at `/remotion-editor` that opens a lyric video from `apps/studio` as live Remotion
 (not a render) and lets the user move, scale, rotate, re-font and retype what is on screen, turn a
 scene's knobs, swap its pictures, clips and sounds for other files, and retime the sung words. Edits are saved beside the
 project as `projects/<slug>/video/edits.json`, and the lyric kit applies them in every render
@@ -12,7 +12,7 @@ window regains focus. The page is public (`app/(public)/`), like
 ## Where projects come from
 
 - **A folder** (`lib/remotion-editor/folder-source.ts`), anywhere, Chromium only: the user picks
-  `apps/lyrics_videos` (or the repo, or a folder holding `lyrics_videos/`) with the File System
+  `apps/studio` (or the repo, or a folder holding `studio/`) with the File System
   Access API, drops it on the page, or reopens one from the list (IndexedDB, per browser and
   origin). Chrome asks once per visit for edit access unless the user chose "Allow on every
   visit"; then the last folder reopens by itself. Nothing is uploaded. When a project opens, every
@@ -97,7 +97,7 @@ window regains focus. The page is public (`app/(public)/`), like
 - `Inspector.tsx`: position, font and content fields (types and choices are read from the props)
 - `Knobs.tsx`: a layer's knobs in the inspector; `AssetsPanel.tsx`: swapping files
 - `ElementsPanel.tsx`, `Transport.tsx`, `EditorHeader.tsx`, `RemotionEditorWorkspace.tsx`
-- `apps/lyrics_videos/src/kit/edits.tsx`: `editable()`, `EditsApplier`, `applyPropEdits`, file format;
+- `apps/studio/src/kit/edits.tsx`: `editable()`, `EditsApplier`, `applyPropEdits`, file format;
   `src/kit/knobs.ts`: `withKnobs`; `src/kit/hooks.ts`: `asset()` and the swaps
 
 ## Limits

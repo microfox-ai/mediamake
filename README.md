@@ -13,7 +13,7 @@ catalog for handing all of it out.
 ```
 apps/
   mediamake/          The Next.js app: Core dashboard, editor, API, hosted MCP, catalog, review apps
-  lyrics_videos/      Remotion workspace for song-driven lyric videos, shorts and posters (local renders)
+  studio/             Remotion workspace where every video is made: lyric videos, remixes, AMVs, shorts, posters (`mm`)
   writepad/           A separate writing app (Next.js), not part of the MediaMake site
 packages/
   remotion/           @microfox/remotion: JSON → Remotion components (scenes, layouts, atoms, effects)
@@ -50,7 +50,7 @@ Every render gets a suggestion for where to run, with the reason. Light renders 
 few short clips) go to Lambda; heavy ones (big files, many minutes of video) are suggested locally,
 because Lambda cost grows with media volume. You can always pick either. Lambda is limited to admins,
 the private tier and clients with the `lambdaRender` flag. Local means the editor's Browser render tab,
-`remotion render`, or the `lyrics_videos` scripts. Details:
+`remotion render`, or the `studio` scripts. Details:
 [render-routing.md](apps/mediamake/docs/render-routing.md).
 
 ### Brand kits
@@ -121,8 +121,10 @@ Put the app's environment in `apps/mediamake/.env.local` (MongoDB, Upstash Redis
 AWS keys, AI provider keys); see [apps/mediamake/README.md](apps/mediamake/README.md). With
 `DEV_CLIENT_KEY` set, the dev server signs your browser in on its own.
 
-For lyric videos, see [apps/lyrics_videos/README.md](apps/lyrics_videos/README.md)
-(`npm run studio -w lyrics_videos`).
+Videos are made in [apps/studio](apps/studio/README.md) with the `mm` command: `npm run mm -- link`
+once puts it on your PATH, then `mm help` lists its commands (`mm preview` opens Remotion Studio).
+`apps/studio` was `apps/lyrics_videos` until November 2026: after pulling that change, `mm migrate`
+moves your projects and renders across.
 
 ## More docs
 

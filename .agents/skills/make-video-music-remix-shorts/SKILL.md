@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix-shorts
-description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song set to footage, in Remotion, in make-video-music-remix's edit style — from either a finished song edit (a make-video-music-remix project with its 16:9 render) or just footage + a song (the shorts' stretches are cast fresh from the footage, each rendered in 16:9 for its short). Every run picks the three coolest different stretches of the song (energy, hits, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose: "rotate your phone" shorts, whose opening cue is the key — the film's own stand-in for the phone (a coffin for Dracula, Deadpool's mask for Deadpool) does a beat of its character and tips onto its side, the plea and the title appear already turned, and the 16:9 edit plays turned from the stretch's hit — or recast for the vertical frame (reframed on the subject, stacked splits and boxes where a crop would be soft); reviewed through Revisions (revise-video). Use when the user says "make shorts / reels / tiktoks of <edit or footage + song>", "vertical cuts of this song edit", "rotate your phone shorts", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/lyrics_videos/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.
+description: Make vertical shorts (9:16 YouTube Shorts / Reels / TikTok, 3:4 Instagram grid, 4:5 Instagram feed) of a song set to footage, in Remotion, in make-video-music-remix's edit style — from either a finished song edit (a make-video-music-remix project with its 16:9 render) or just footage + a song (the shorts' stretches are cast fresh from the footage, each rendered in 16:9 for its short). Every run picks the three coolest different stretches of the song (energy, hits, hooks that repeat, clean section starts and ends; never a stretch the user called bad), checks them with the user (waveform with the picks, an mp3 of each), then makes three finished shorts of 30 s–2 min in the formats the user chose: "rotate your phone" shorts, whose opening cue is the key — the film's own stand-in for the phone (a coffin for Dracula, Deadpool's mask for Deadpool) does a beat of its character and tips onto its side, the plea and the title appear already turned, and the 16:9 edit plays turned from the stretch's hit — or recast for the vertical frame (reframed on the subject, stacked splits and boxes where a crop would be soft); reviewed through Revisions (revise-video). Use when the user says "make shorts / reels / tiktoks of <edit or footage + song>", "vertical cuts of this song edit", "rotate your phone shorts", "9:16 / 3:4 versions", "/make-video-music-remix-shorts", or asks to change a short under apps/studio/projects/<slug>/shorts/. Not for the full-length edit (make-video-music-remix). Append new user feedback to the log at the bottom.
 ---
 
 # make-video-music-remix-shorts
@@ -197,13 +197,13 @@ hit. `--hook=center` (or `center5`, `band`). Its rules:
     montage with caption-box words was rejected (2026-11-02, lessons log). A block may start before the
     window (its earlier cuts are never seen), so a long edit's blocks can be reused by id
     (`full.blocks.filter(…)`).
-- **Make:** `npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16 --mode=rotate
+- **Make:** `mm shorts <slug> make A,B,C --formats=9x16 --mode=rotate
   --source=fresh|edit --cue=<stand-in> --plea="PLEASE.|Rotate your phone|(I'll wait.)"` (picks, or a
   range starting *on the hit* in seconds, snapped to a beat; `--hook=center` for the countdown). It
   writes short.json (`"mode": "rotate"`, `hook`, `video`, with `wide`/`videoFrom` when fresh), index.tsx
   and, when fresh, the edl.ts scaffold. Add the film's own sounds to `hook.sfx` (only files in
   derived/sfx). The turned composition plays the 16:9 video's mix (`ProjectDefinition.audio: false`).
-- **Check:** `npm run remix -- <slug> --short=<id>` checks a fresh short's 16:9 cut list (rhythm,
+- **Check:** `mm remix <slug> --short=<id>` checks a fresh short's 16:9 cut list (rhythm,
   repeats, mattes). Then stills through the hook: the cue's pop, its gesture, the tip (the arrow stays),
   the plea (reads upright when turned, clear of the stand-in), the title's slam, the hit
   (`stills … 0.1,0.5,0.8,1.1,1.3,1.8,2.4,3.5,4.8,5.7,6.2,7.5 --only --short=<id>`; the turned video has
@@ -228,7 +228,7 @@ hit. `--hook=center` (or `center5`, `band`). Its rules:
    Captions and top words sit at the safe heights (the renderer does this: 9:16 keeps the bottom
    quarter and the right edge for the platforms' buttons). Nothing important goes in the bottom quarter.
 5. **Sharp, not blown up.** A 2.39:1 1080p picture filling a 9:16 frame is enlarged 2.4× (1920 / 804),
-   and 1.8× in 3:4. `npm run remix -- <slug> --short=<id>` prints the factor for the project. Past
+   and 1.8× in 3:4. `mm remix <slug> --short=<id>` prints the factor for the project. Past
    ~1.5× it looks soft on held shots, so mix three layouts by section:
    - **reframe** (the default): full frame, the crop following the subject. Use it for fast cuts,
      close-ups, drops and motion, which hide the softness.
@@ -253,7 +253,7 @@ start: its casting, words, sound and look come along, and the user already appro
 song map, media), then cast only the shorts' stretches. The reframe needs a cutout (matte) on every
 footage shot used; without one the crop sits in the centre.
 
-Tools: ffmpeg. Engine (committed): `scripts/shorts.ts` (`npm run shorts`), `src/remix/shorts.ts`
+Tools: ffmpeg. Engine (committed): `scripts/shorts.ts` (`mm shorts`), `src/remix/shorts.ts`
 (`defineShorts`, `FORMATS` incl. `16x9` for a fresh short's stretch), `src/remix/RotateShort.tsx` (the
 countdowns) and `src/remix/RotateCue.tsx` (the cue), the stand-ins in `src/remix/gfx/cues/`, the
 vertical frame in `src/remix/Remix.tsx`, the song window in `src/kit` (`ProjectDefinition.window`),
@@ -280,12 +280,12 @@ One `AskUserQuestion` call:
 - no look previews for a short under a minute: build it whole (`revise-video` › Previews or the
   whole video). For one of a minute or more, ask whether to see looks of its hook first.
 
-Then read `prefs.md` and the shorts so far (`npm run shorts -w lyrics_videos -- <slug> list`).
+Then read `prefs.md` and the shorts so far (`mm shorts <slug> list`).
 
 ### 1. Pick three stretches
 
 ```bash
-npm run shorts -w lyrics_videos -- <slug> pick            # --n=3 --min=30 --max=120 --alts=3
+mm shorts <slug> pick            # --n=3 --min=30 --max=120 --alts=3
 ```
 
 It scores every bar-aligned stretch of 30 s–2 min:
@@ -330,7 +330,7 @@ open "out/<slug>/shorts/picks-<run>/A.mp3"
 Then one `AskUserQuestion` (multiSelect): an option per pick, e.g. label `A · 1:08–1:45 hook → drop`,
 description its sections, length, why it scored and `re-cut of s01` when it is one. "Other" takes swaps
 ("C is bad", "start B a bar earlier", "use the bridge instead"). Edit nothing until they approve three.
-A stretch they call bad: `npm run shorts -w lyrics_videos -- <slug> mark C bad --note="…"`, then
+A stretch they call bad: `mm shorts <slug> mark C bad --note="…"`, then
 offer the next alternate. "Autopick" (the user's answer on all three films, 2026-11-03) means: take your
 judged three (three different parts, each with a real hit, no repeated hook), say which and why in a line,
 and go on to make them without asking again.
@@ -338,7 +338,7 @@ and go on to make them without asking again.
 ### 3. Make
 
 ```bash
-npm run shorts -w lyrics_videos -- <slug> make A,B,C --formats=9x16,3x4
+mm shorts <slug> make A,B,C --formats=9x16,3x4
 ```
 
 Each becomes `shorts/s<NN>/`:
@@ -401,9 +401,9 @@ export const gfx = { ...full.gfx, band: [[112, 114]] as [number, number][] }; //
 Then check the short's window only:
 
 ```bash
-npm run remix -w lyrics_videos -- <slug> --short=<id>             # cuts, rhythm, repeats, mattes, enlargement
-npm run remix -w lyrics_videos -- <slug> --short=<id> --matte     # cutouts for shots without one
-npm run remix -w lyrics_videos -- <slug> --short=<id> --animatic  # out/<slug>/shorts/<id>/animatic/
+mm remix <slug> --short=<id>             # cuts, rhythm, repeats, mattes, enlargement
+mm remix <slug> --short=<id> --matte     # cutouts for shots without one
+mm remix <slug> --short=<id> --animatic  # out/<slug>/shorts/<id>/animatic/
 ```
 
 It writes `shorts/<id>/shots.json` (the short's shot map). Plates, mattes, slow clips and
@@ -412,9 +412,9 @@ It writes `shorts/<id>/shots.json` (the short's shot map). Plates, mattes, slow 
 ### 5. Check
 
 ```bash
-npm run stills -w lyrics_videos -- <slug> --short=<id> --cuts --scale=0.25                 # a frame per cut + sheet.jpg
-npm run stills -w lyrics_videos -- <slug> 0.2,2,8,20 --only --short=<id> --format=9x16   # seconds of the short
-npm run render-project -w lyrics_videos -- <slug> --short=<id> --format=9x16 --frames=0-150 --scale=0.5
+mm stills <slug> --short=<id> --cuts --scale=0.25                 # a frame per cut + sheet.jpg
+mm stills <slug> 0.2,2,8,20 --only --short=<id> --format=9x16   # seconds of the short
+mm render <slug> --short=<id> --format=9x16 --frames=0-150 --scale=0.5
 ```
 
 Stills go to `out/<slug>/shorts/<id>/stills-<format>/`, clips to `…/clips/`. Check every format:
@@ -430,7 +430,7 @@ Then the long edit's checks: rhythm, repeats, sound on its picture.
 ### 6. Render and review
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --short=<id>     # every format in short.json (or --format=9x16)
+mm render <slug> --short=<id>     # every format in short.json (or --format=9x16)
 ```
 
 → `out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4` plus its `.map.json` (the short's shots in its own
@@ -438,14 +438,14 @@ time). Earlier renders are kept in `v<N>/` beside it, as with the long edit. Ren
 after another in the background, not in parallel. Shorts render at full size (no `--proxy`); a rotate
 short plays the long edit's master, so `shorts make --mode=rotate` refuses a half-size review render of
 it. Before the links, run preflight on each short
-(`npm run preflight -w lyrics_videos -- <slug> --video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`) and
-fix or answer what it finds; after them, start the watcher (`npm run wait-revision -w lyrics_videos --
+(`mm preflight <slug> --video=out/<slug>/shorts/<id>/<slug>-<id>-9x16.mp4`) and
+fix or answer what it finds; after them, start the watcher (`mm wait-revision --
 <slug>` covers every short), as `revise-video` describes.
 
 Review with **`revise-video`**, one link per short and format:
 `/video-revision?folder=<slug>/shorts/<id>&video=<slug>-<id>-9x16.mp4` (if it doesn't open, the user
 picks `out/<slug>/shorts/<id>/`). Log the comments. When the user likes a short:
-`npm run shorts -w lyrics_videos -- <slug> mark <id> liked`. Then offer the YouTube text per short
+`mm shorts <slug> mark <id> liked`. Then offer the YouTube text per short
 (`pack-youtube` / `write-youtube-metadata`, with #shorts) and, for the long edit, a related-video link.
 
 ### Next runs

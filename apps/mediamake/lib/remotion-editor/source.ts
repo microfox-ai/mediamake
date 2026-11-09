@@ -1,7 +1,7 @@
 import type { CodeFile, MediaFile, ProjectEntry } from './types';
 
 /**
- * Where a lyric project's files come from. Paths are relative to the apps/lyrics_videos folder
+ * Where a lyric project's files come from. Paths are relative to the apps/studio folder
  * ("src/kit/index.ts", "projects/<slug>/video/index.tsx").
  *
  * - repo: on `next dev`, the dev-lyrics routes read the folder from disk.

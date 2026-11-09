@@ -282,7 +282,7 @@ export const useEditor = create<State>((set, get) => {
       const root = await findLyricsRoot(handle).catch(() => null);
       if (!root) {
         toast.error(
-          `"${handle.name}" has no projects/ and src/kit/. Pick apps/lyrics_videos (or the repo).`,
+          `"${handle.name}" has no projects/ and src/kit/. Pick apps/studio (or the repo).`,
           { duration: 8000 },
         );
         return;
@@ -304,7 +304,7 @@ export const useEditor = create<State>((set, get) => {
     openDropped: async handles => {
       const dir = handles.find((h): h is FileSystemDirectoryHandle => h.kind === 'directory');
       if (dir) await get().openFolder(dir);
-      else if (handles.length) toast.error('Drop the lyrics_videos folder, not a file', { duration: 5000 });
+      else if (handles.length) toast.error('Drop the studio folder, not a file', { duration: 5000 });
     },
 
     loadProjects: async () => {
@@ -344,7 +344,7 @@ export const useEditor = create<State>((set, get) => {
         const manifest = await readJson<LyricManifest>(source, `projects/${slug}/manifest.json`);
         if (!manifest) {
           throw new Error(
-            `No manifest. Run: npm run prepare-project -w lyrics_videos -- ${slug}`,
+            `No manifest. Run: mm prepare ${slug}`,
           );
         }
         const editsPath = `projects/${slug}/video/edits.json`;

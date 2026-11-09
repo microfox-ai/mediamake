@@ -152,9 +152,9 @@ export interface Sketch {
 export const sketchIsEmpty = (sketch: Sketch | null) =>
   !sketch || (sketch.marks.length === 0 && !sketch.spot);
 
-/** The lyrics_videos folder live projects come from (shared with /remotion-editor's list). */
+/** The studio folder live projects come from (shared with /remotion-editor's list). */
 export interface LiveFolder {
-  /** what the user picked (the folder itself, the repo, or the folder holding lyrics_videos/) */
+  /** what the user picked (the folder itself, the repo, or the folder holding studio/) */
   handle: FileSystemDirectoryHandle;
   source: FolderSource;
   projects: ProjectEntry[];
@@ -217,7 +217,7 @@ interface RevisionsState {
   /** The project playing live (no render), when one is open. */
   live: LiveProject | null;
   liveFolder: LiveFolder | null;
-  /** lyrics_videos folders opened before, here or in /remotion-editor */
+  /** studio folders opened before, here or in /remotion-editor */
   liveFolders: FolderEntry[];
   /** a known folder that needs a click before Chrome lets us in */
   livePending: FolderEntry | null;
@@ -300,7 +300,7 @@ interface RevisionsState {
   toggleLoupe: () => void;
   setGeneral: (general: boolean) => void;
 
-  /** Opens the folder picker for the lyrics_videos folder (needs a click). */
+  /** Opens the folder picker for the studio folder (needs a click). */
   pickLiveFolder: () => Promise<void>;
   connectLiveFolder: (handle: FileSystemDirectoryHandle) => Promise<boolean>;
   openLive: (slug: string) => Promise<void>;
@@ -587,7 +587,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
   };
 
   /**
-   * The lyrics_videos folder from last time (here or in /remotion-editor) lists its projects when
+   * The studio folder from last time (here or in /remotion-editor) lists its projects when
    * Chrome kept the grant; `?live=<slug>` opens that project. True when it opened one.
    */
   const initLive = async (): Promise<boolean> => {
@@ -1612,7 +1612,7 @@ export const useRevisionsStore = create<RevisionsState>((set, get) => {
       const root = await findLyricsRoot(handle).catch(() => null);
       if (!root) {
         toast.error(
-          `"${handle.name}" has no projects/ and src/kit/. Pick apps/lyrics_videos (or the repo).`,
+          `"${handle.name}" has no projects/ and src/kit/. Pick apps/studio (or the repo).`,
           { duration: 8000 },
         );
         return false;

@@ -7,7 +7,7 @@ For each take it prints:
     which whisper tends to place early after a pause
   - every word with whisper large-v3-turbo's start time
 Copy the onsets you need into the episode's timeline (the W tables in video/timeline.ts), as
-seconds from the start of the read. Run it from apps/lyrics_videos with the analysis venv:
+seconds from the start of the read. Run it from apps/studio with the analysis venv:
   HF_HUB_OFFLINE=1 analysis/.venv/bin/python -I <skill>/tools/voice_onsets.py input/vo-rN/<read>.mp3
 """
 import re

@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix
-description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat, paced by the song's feel (long takes and slow motion for a slow, stylish track; a fast pulse for a hard one); the hero is always the subject and the cut takes his tone (comedy for a funny character); the footage's scenes run in order through every section and the lyrics only punctuate them; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/lyrics_videos/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.
+description: Re-edit existing footage to a song in Remotion — any footage (films, sports, racing, anime, games, vlogs, concerts) to any song (rap, pop, EDM, rock, ballads, instrumentals): a song edit, remix edit, AMV, fan edit or velocity/CapCut-style edit. Cuts land on the beat, paced by the song's feel (long takes and slow motion for a slow, stylish track; a fast pulse for a hard one); the hero is always the subject and the cut takes his tone (comedy for a funny character); the footage's scenes run in order through every section and the lyrics only punctuate them; warp zooms, match cuts, cutouts, a speaker pump, impact frames, captions and big words, a title card, graphics and sound effects; reviewed through Revisions (revise-video). Reuses make-lyrics-video's analysis and render. Use when the user says "make a song edit / remix / AMV of <video> to <song>", "edit this footage to this song", "cut these clips to the beat", "take this edit as inspo", "/make-video-music-remix", or asks to change a project under apps/studio/projects that has a video/edl.ts. Not for lyric videos from artwork (make-lyrics-video) or logos. Append new user feedback to the log at the bottom.
 ---
 
 # make-video-music-remix
@@ -16,7 +16,7 @@ Existing footage, re-cut to a song. Four things decide every cut:
   times; a hard, fast one a steady beat pulse.
 - **The inspiration and the user's taste decide *how*:** transitions, type, sound.
 
-Everything lives in `apps/lyrics_videos`, next to the lyric videos: this skill shares their project
+Everything lives in `apps/studio`, next to the lyric videos: this skill shares their project
 folder, audio analysis, stills, render and shot map, so read `make-lyrics-video` steps 2, 3, 7–9
 once and use them as written; reviews go through the `revise-video` skill. This file covers what is
 different.
@@ -67,7 +67,7 @@ render.
    (kingpinxdeadpool rev-001: "the bridge … does not suit the character").
 7. **Every take once.** Never show a take twice — not a second moment of it, not the same shot from
    another fan edit (they share footage: compare frames), not a replay (a rewind runs fresh takes
-   backwards). `npm run remix` lists repeats; the list must be empty before a render ("don't re-use a
+   backwards). `mm remix` lists repeats; the list must be empty before a render ("don't re-use a
    shot that's already been used").
 8. **Slow motion only where it is needed.** Prefer a take long enough for its cut, or one the film shot in
    slow motion; slow a take only when it is shorter than the cut the music asks for, and only by as much as
@@ -169,7 +169,7 @@ These held across every review and apply to any re-edit (the standing rules abov
    reads fine). Never chase each line with half-beat offsets: the length then changes every other
    cut and the edit stumbles (hitixf1's verse 1: 23 half cuts, "very bad", next to a steady verse 2,
    "very good"). Half beats only as pairs inside one beat, on punchlines; quarter beats only in
-   builds. `npm run remix` prints each block's rhythm: watch the one-beat count and the length
+   builds. `mm remix` prints each block's rhythm: watch the one-beat count and the length
    changes.
 3. **Continuity where the song soars.** Verses may jump shot to shot as the words ask. Hooks, drops
    and bridges follow *one scene in its own order* — the start, the battle, the crash, the pit stop;
@@ -195,7 +195,7 @@ These held across every review and apply to any re-edit (the standing rules abov
    several beats. Adding slow motion (`slow`, interpolated) was rejected even there ("don't unnecessarily
    slo mo, some shots are already slow motion"): keep `slow` for a quiet bridge the user asks for.
 6. **One use per shot.** A shot seen twice reads as filler. Repeat only long takes, at other moments
-   of the take. `npm run remix` lists every repeat and flags the ones that show the same frames.
+   of the take. `mm remix` lists every repeat and flags the ones that show the same frames.
 7. **Motion, not colour.** No graded slices, negatives, psychedelic backgrounds, mirrors or RGB
    glitches: they read as cheap. The picture stays natural with a light film finish; black and white
    only for whole passages (an intro, a bridge). The style lives in the moves — the user loved
@@ -262,22 +262,22 @@ Sections, whatever the genre:
 
 1. **The song** (wav/flac preferred) and, if words will be shown, **its timed transcription**
    (`input/lyrics.json`). No transcription and the user wants text: offer to transcribe it as CLAUDE.md ›
-   Transcription says (`npm run transcribe … --yes` with the ElevenLabs MCP's key; the hosted connector only on the web; paid: ask first).
+   Transcription says (`mm transcribe … --yes` with the ElevenLabs MCP's key; the hosted connector only on the web; paid: ask first).
    No words at all: skip the text layer (an instrumental edit is untested end to end here — check
    that `prepare-project` accepts the project before relying on it).
 2. **Footage**: one or more videos (each its own source), ideally edits or highlight reels.
 3. **An inspiration edit** (optional): a short reel whose style the user wants.
 
 Tools: ffmpeg, uv. Engine (committed): `src/remix/` (cut-list language `edl.ts`, `resolve.ts`,
-renderer `Remix.tsx`, `gfx/`), `scripts/remix.ts` (`npm run remix`), `scripts/matte.py` (BiRefNet
-cutouts + subject anchors), `scripts/render.ts` (`npm run render-project`).
+renderer `Remix.tsx`, `gfx/`), `scripts/remix.ts` (`mm remix`), `scripts/matte.py` (BiRefNet
+cutouts + subject anchors), `scripts/render.ts` (`mm render`).
 
 MCPs (check at intake which this session has):
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/browse-hack` | recommended | Downloading footage from YouTube into the library inbox and checking a clip's real size and HDR first (`youtube_download`, `youtube_get_video`) | The user downloads every clip and drops it in themselves |
-| `mcp/elevenlabs` | optional | Its API key for timed lyrics when the user wants text and has no `lyrics.json` (`npm run transcribe --yes`, Scribe on the vocal stem's MP3), and sound effects as files only when the user asks for them (`text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; else the user brings a timed `lyrics.json`, and no sound effects: the edit runs on the song alone |
+| `mcp/elevenlabs` | optional | Its API key for timed lyrics when the user wants text and has no `lyrics.json` (`mm transcribe --yes`, Scribe on the vocal stem's MP3), and sound effects as files only when the user asks for them (`text_to_sound_effects`) | The hosted ElevenLabs connector instead where no local MCP runs; else the user brings a timed `lyrics.json`, and no sound effects: the edit runs on the song alone |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save`; sound effects as flow runs to download (`creative_generate_in_flow`, `node_type: sfx`) | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
@@ -298,7 +298,7 @@ may sign off the outro), how much text, footage that is off-limits (spoilers, bu
 people), anything they hate, and — unless the song makes it obvious — the pace (long takes and slow
 motion, or a fast pulse) and the tone (the hero's humour, menace, cool). Write `brief.md` and seed
 `prefs.md`. Register the production:
-`npm run media -w lyrics_videos -- production new <slug> --channel=<brand id> --skill=make-video-music-remix`.
+`mm media production new <slug> --channel=<brand id> --skill=make-video-music-remix`.
 
 Ask too whether to pitch 3–4 looks of the first hook first, as 8 s clips side by side in one grid,
 or to build the whole edit (`revise-video` › Previews or the whole video): the whole edit by default
@@ -308,7 +308,7 @@ under a minute or when they gave an edit to follow, previews when the style is o
 
 `projects/<slug>/input/`: the song, `lyrics.json`, `project.json` (`title`, `artist`, `audio`,
 `sections`), the footage, `inspiration/<name>.mp4`, `sfx/` (generated sound effects). **The media
-library first** (`apps/lyrics_videos/scripts/library/README.md`):
+library first** (`apps/studio/scripts/library/README.md`):
 - `media find "<character or film> <type>" --kind=footage --sheet` before any download. The same
   packs come back across edits (Zoro, the Kingpin song, One Piece raw clips).
 - Missing footage is downloaded into `_INBOX` (Browse Hack does it and says when the library
@@ -346,7 +346,7 @@ A shot sheet of candidates (3 frames each, 15/50/85 %) settles doubts before cas
 
 ### 4. Map the song
 
-`npm run analyze -w lyrics_videos -- <slug> --plots`, then `prepare-project` (make-lyrics-video 2–3).
+`mm analyze <slug> --plots`, then `prepare-project` (make-lyrics-video 2–3).
 
 - **Sections from energy, not lyric gaps:** print each stem's mean envelope per bar and cut where
   drums or bass drop out or return. Write them to `input/project.json`, re-run prepare.
@@ -371,7 +371,7 @@ with the shot *and why* as a comment (`c(1, 'lm0052', 'impact', S), // FRICTION:
 glowing`). Every section by scene, in the scene's order, the hero in every shot; a line gets a literal
 moment only where his scene has one. Before running anything, read the cut list against the standing
 rules: no talking shots, no line cast on another character, the pace the song asks for.
-Then run `npm run remix -w lyrics_videos -- <slug>` and fix, in this order:
+Then run `mm remix <slug>` and fix, in this order:
 
 1. **block lengths** (each block must end where the next starts; the resolver stops otherwise);
 2. **`runs … past the end` warnings** — a shorter cut or a longer take, never a rate change;
@@ -385,10 +385,10 @@ to `video/archive/storyboard.v<N>.md` (`.txt` keeps the type-check clean).
 ### 7. Media
 
 ```bash
-npm run remix -w lyrics_videos -- <slug>            # footage table, plates, anchors, slow-motion clips, resolve + checks, shots.json, jobs
-npm run remix -w lyrics_videos -- <slug> --matte    # + cutouts for the shots that have none yet (background)
-npm run remix -w lyrics_videos -- <slug> --unused   # + the shots not used yet, with their lengths
-npm run remix -w lyrics_videos -- <slug> --animatic # + out/<slug>/animatic/<section>.jpg: every cut's middle frame
+mm remix <slug>            # footage table, plates, anchors, slow-motion clips, resolve + checks, shots.json, jobs
+mm remix <slug> --matte    # + cutouts for the shots that have none yet (background)
+mm remix <slug> --unused   # + the shots not used yet, with their lengths
+mm remix <slug> --animatic # + out/<slug>/animatic/<section>.jpg: every cut's middle frame
 ```
 
 `video/remix.json`: `sources` (each `{ id, prefix, source, segregation, crop, matteFps }`: the first
@@ -429,10 +429,10 @@ See the reference below. Sound once the cut is settled:
 `video/index.tsx` is one layer: `Remix` at `'all'` with `{ slug, blocks, words, sfx, gfx, footage,
 anchors, window, theme }`; `theme.ts` loads the fonts and palette and sets the HUD.
 
-In this order: the animatic (`npm run remix -w lyrics_videos -- <slug> --animatic`: the middle frame of
+In this order: the animatic (`mm remix <slug> --animatic`: the middle frame of
 every cut, a sheet per section in `out/<slug>/animatic/`) — read it as the audience will: does each
 section tell its chapter, does the hero stay on screen, does it build; then `npm run type-check`; the title/graphic cuts frame by frame across their animation;
-stills at every changed moment (`npm run stills -- <slug> t1,t2,… --only`, a contact sheet);
+stills at every changed moment (`mm stills <slug> t1,t2,… --only`, a contact sheet);
 one late cut per source against `ffmpeg -ss <t> -i <source>` (catches timing bugs); half-scale
 `--frames` clips of the densest and the slowed passages as frame sheets (`select='between(n\,a\,b)'`,
 `tile=8x6`) — a zoom reads as a blur ramp into the cut and a decelerating landing out of it; slow
@@ -443,10 +443,10 @@ no stutter, no burned-in graphics, every sound on its picture.
 ### 10. Render and review
 
 ```bash
-npm run render-project -w lyrics_videos -- <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
-npm run render-project -w lyrics_videos -- <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
-npm run render-project -w lyrics_videos -- <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
-npm run preflight -w lyrics_videos -- <slug>                         # before every link: black or frozen frames, sound
+mm render <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
+mm render <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
+mm render <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
+mm preflight <slug>                         # before every link: black or frozen frames, sound
 ```
 
 Every review round is a half-size review render; the full-size master renders once, after sign-off
@@ -646,7 +646,7 @@ Append dated entries: what the user asked to change and the general rule behind 
   deliberate callback, and in the last drop a flashback of the whole story from the unused ends of
   earlier takes (¼ beat each, so no frame repeats); better, ask for a third source as soon as the
   budget falls short. The ElevenLabs MCP's speech_to_text returns text only: for word timings
-  `npm run transcribe … --yes` calls the API itself (`/v1/speech-to-text`, `timestamps_granularity=word`).
+  `mm transcribe … --yes` calls the API itself (`/v1/speech-to-text`, `timestamps_granularity=word`).
 - 2026-10-25 — hitixf1 after sign-off: "rerender video, by adding the atomic rap outro at the end … no
   need to add intro … reduce the volume of outro by a bit, as it sound too strong" → a finished edit
   gets the channel's end screen (brands/<brand>/outros/, the user picks which) appended after the last
@@ -827,7 +827,7 @@ Append dated entries: what the user asked to change and the general rule behind 
 - 2026-11-02 — kingpinxdeadpool v6 build: "never a shot twice" also means never the same footage from another source —
   fan edits reuse a film's shots (the Deadpool mask stare was in three of them, the overpass drop in three). Build
   `video/dupes.json` before casting (normalised keyframe thumbnails compared across sources; any pair under a mean
-  difference of ~0.16 is a copy) — `npm run remix` then lists "the same footage from two sources" next to the repeats,
+  difference of ~0.16 is a copy) — `mm remix` then lists "the same footage from two sources" next to the repeats,
   and both lists must be empty. At real speed, sub-beat fan-edit takes on one-beat cuts run into the next shot (a
   flash of another clip): check the "runs past the end" warnings, not only the summary, and cover them with a short
   `freeze`. A `match` / `flow` from a far-off subject into a close one used to shrink the picture to a card on black;
@@ -891,10 +891,10 @@ Append dated entries: what the user asked to change and the general rule behind 
 - 2026-11-03 — "lets make a script and put it in default skill setting across all skills, that better convert
   wav to mp3 before running elevenlabs scribe", then "connected hosted elevenlabs mcp (creative_transcription is the
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
-  `npm run transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
+  `mm transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
 - 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
-  MCP's key (`npm run transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
+  MCP's key (`mm transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
   connector is only the alternative where no local MCP runs (the Claude web or phone app). Its transcription
   tool is built around a file-picker widget and a flow canvas, and every result is a run to download from.
