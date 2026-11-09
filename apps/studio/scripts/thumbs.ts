@@ -41,12 +41,13 @@ import { PRESETS } from '../thumbnails/presets/index.ts';
 import { TREATMENTS } from '../thumbnails/treatments.ts';
 import { features, pickTreatments, scoreTreatments } from '../thumbnails/look.ts';
 import { type ExposureFile, MOODS, type Mood, type Stats, fixFor, levelsFor, curve, summarize } from '../thumbnails/exposure.ts';
+import { DIRS, repoPath, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const JOBS = path.join(ROOT, 'thumbnails', 'jobs');
+const JOBS = DIRS.thumbnailJobs;
 const MAX_BYTES = 2 * 1024 * 1024; // YouTube's thumbnail limit
 
-const rel = (p: string) => path.relative(ROOT, p);
+const rel = shown;
 const done = (p: string) => console.log(`✔ ${rel(p)}`);
 const warn = (m: string) => console.log(`⚠ ${m}`);
 
@@ -64,7 +65,7 @@ const specFile = (j: string) => {
 };
 const readSpec = (j: string) => JSON.parse(fs.readFileSync(specFile(j), 'utf8')) as JobSpec;
 /** out/thumbnails/<job>/ or out/posters/<job>/ */
-const outDir = (j: string) => path.join(ROOT, 'out', KINDS[jobKind(readSpec(j))].out, j);
+const outDir = (j: string) => path.join(DIRS.out, KINDS[jobKind(readSpec(j))].out, j);
 
 /** Pixel size of an image file (any format ffprobe reads). */
 const imageSize = (file: string): [number, number] | null => {
@@ -181,7 +182,7 @@ const init = () => {
   const spec: JobSpec = { job, ...(poster ? { kind: 'poster' as const, mood: mood ?? 'balanced' } : {}), title: flag('title'), brand, fonts: [], defaults: { params: {} }, styles: [] };
   let rules: string[] = [];
   if (brand) {
-    const kit = path.join(ROOT, 'brands', brand);
+    const kit = path.join(DIRS.brands, brand);
     const profileFile = path.join(kit, 'graphics', 'brand', 'thumbnail.json');
     if (!fs.existsSync(profileFile)) throw new Error(`No ${rel(profileFile)}: make the brand's thumbnail profile first (create-thumbnail skill, "Brands")`);
     const profile = JSON.parse(fs.readFileSync(profileFile, 'utf8')) as {
@@ -473,8 +474,8 @@ const writeIndex = (spec: JobSpec, variants: ResolvedVariant[], ext: string) => 
     job,
     kind: jobKind(spec),
     workflow: jobKind(spec) === 'poster' ? 'create-music-poster' : 'create-thumbnail',
-    source: path.relative(path.resolve(ROOT, '../..'), specFile(job)),
-    location: path.relative(path.resolve(ROOT, '../..'), outDir(job)),
+    source: repoPath(specFile(job)),
+    location: repoPath(outDir(job)),
     // absolute, so /file-revision can show the folder in Finder (dev server) or copy the path
     path: outDir(job),
     sourcePath: specFile(job),

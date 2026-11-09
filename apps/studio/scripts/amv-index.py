@@ -14,8 +14,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(Path(__file__).resolve().parent.parent / "analysis"))
+from workspace import workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
 slug = sys.argv[1]
-P = ROOT / "projects" / slug
+P = workspace_dir("projects") / slug
 out = P / "video"
 out.mkdir(exist_ok=True)
 

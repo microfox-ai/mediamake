@@ -9,14 +9,13 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DIRS, ROOT } from './paths.ts';
 import { REMOTION_CLI } from './render-tuning.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const slug = args[0] && !args[0].startsWith('--') ? args[0] : undefined;
 const flags = slug ? args.slice(1) : args;
-if (slug && !fs.existsSync(path.join(ROOT, 'projects', slug, 'video', 'index.tsx'))) {
+if (slug && !fs.existsSync(path.join(DIRS.projects, slug, 'video', 'index.tsx'))) {
   console.error(`No project ${slug} (projects/${slug}/video/index.tsx).`);
   process.exit(1);
 }

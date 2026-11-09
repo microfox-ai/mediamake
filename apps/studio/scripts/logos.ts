@@ -20,6 +20,7 @@ import path from 'node:path';
 import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
 import { OUT_BRANDS, ROOT, assemblePublic } from './brand-public.ts';
+import { shown } from './paths.ts';
 
 const main = async () => {
   const args = process.argv.slice(2);
@@ -51,7 +52,7 @@ const main = async () => {
     const backdrop = (composition.defaultProps.preview as string | undefined) ?? '#000';
     const dir = path.join(OUT_BRANDS, brandOf(composition));
     const scene = String(composition.defaultProps.scene ?? composition.id);
-    const show = (p: string) => console.log(`✔ ${path.relative(ROOT, p)}`);
+    const show = (p: string) => console.log(`✔ ${shown(p)}`);
     if (cmd === 'stills') {
       const alpha = flags.includes('--alpha');
       const outDir = path.join(dir, alpha ? 'stills-alpha' : 'stills', scene);

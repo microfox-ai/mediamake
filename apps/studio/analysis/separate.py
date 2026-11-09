@@ -39,7 +39,7 @@ def main():
     out = out * std + mean
     for src, y in zip(model.sources, out):
         sf.write(proj.stems / f"{src}.wav", y.T.cpu().numpy().astype(np.float32), sr, subtype="FLOAT")
-    print(f"wrote {', '.join(model.sources)} to {proj.stems.relative_to(common.APP)} "
+    print(f"wrote {', '.join(model.sources)} to {common.shown(proj.stems)} "
           f"({time.time() - t0:.0f} s on {device})")
 
 

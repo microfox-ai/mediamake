@@ -25,27 +25,62 @@
  *
  * Only heavy files (video, audio, arrays, archives) are ever moved. Images, JSON, notes and code
  * always stay, so the skill library and the review screens keep working for archived work.
+ *
+ * Where these folders are comes from the workspace (scripts/workspace.ts): still apps/studio until a
+ * workspace is set, then ~/MediaMake (or wherever it is). ROOT is always apps/studio, the framework;
+ * never join ROOT with projects, out, brands, thumbnails/jobs or overlays: use DIRS.
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fromStudioPath, toStudioPath, workspaceDirs } from './workspace.ts';
 
 export const LAYOUT = 2;
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO = path.resolve(ROOT, '..', '..');
 
+const WS = workspaceDirs(ROOT);
+
 export const DIRS = {
-  projects: path.join(ROOT, 'projects'),
-  out: path.join(ROOT, 'out'),
-  brands: path.join(ROOT, 'brands'),
-  brandRenders: path.join(ROOT, 'out', 'brands'),
-  youtube: path.join(ROOT, 'out', 'youtube'),
-  posters: path.join(ROOT, 'out', 'posters'),
-  thumbnails: path.join(ROOT, 'out', 'thumbnails'),
-  thumbnailJobs: path.join(ROOT, 'thumbnails', 'jobs'),
+  projects: WS.projects,
+  out: WS.out,
+  brands: WS.brands,
+  brandRenders: path.join(WS.out, 'brands'),
+  youtube: path.join(WS.out, 'youtube'),
+  posters: path.join(WS.out, 'posters'),
+  thumbnails: path.join(WS.out, 'thumbnails'),
+  thumbnailJobs: WS.thumbnailJobs,
+  overlays: WS.overlays,
+  /** what sessions learn, per skill: <notes>/<skill>.md */
+  notes: WS.notes,
+  /** your skill variants */
+  skills: WS.skills,
+  /** your scenes, graphics and catalog entries that aren't in the engine yet */
+  extensions: WS.extensions,
   mediamakeRenders: path.join(REPO, 'apps', 'mediamake', 'out'),
   /** cleanup-out's ledger of what went to which disk */
-  cleanup: path.join(ROOT, 'out', '.cleanup'),
+  cleanup: path.join(WS.out, '.cleanup'),
+};
+
+/**
+ * A file as the studio names it ("projects/<slug>/input/song.mp3", "out/<slug>/<slug>.mp4"), wherever the
+ * workspace is: for what is written down (render logs, review links, the library) and shown.
+ */
+export const studioPath = (abs: string) => toStudioPath(abs, ROOT);
+/** The file a studio path names ("out/<slug>/<slug>.mp4" → the workspace's out). */
+export const fromStudio = (rel: string) => fromStudioPath(rel, ROOT);
+
+/**
+ * A path to print: as the studio names it while it is in apps/studio ("out/<slug>/<slug>.mp4", as
+ * always), else in full with ~ for the home folder ("~/MediaMake/out/<slug>/<slug>.mp4"), so it can be
+ * opened or pasted from wherever you are.
+ */
+export const shown = (abs: string) => {
+  const p = path.resolve(abs);
+  if (p === ROOT || p.startsWith(ROOT + path.sep)) return path.relative(ROOT, p);
+  const home = os.homedir();
+  return p.startsWith(home + path.sep) ? `~/${path.relative(home, p)}` : p;
 };
 
 /** Folders under out/ that hold many productions (or none), not one. */
@@ -66,9 +101,19 @@ const HEAVY = new Set([
 /** Video, audio, arrays and archives: the files that fill the disk and the only ones ever moved. */
 export const isHeavy = (file: string) => HEAVY.has(path.extname(file).toLowerCase());
 
-/** Repo-relative path with forward slashes (what the ledger and the disk copy use). */
-export const repoPath = (abs: string) => path.relative(REPO, abs).split(path.sep).join('/');
-export const fromRepoPath = (rel: string) => path.join(REPO, ...rel.split('/'));
+const STUDIO_IN_REPO = path.relative(REPO, ROOT).split(path.sep).join('/');
+
+/**
+ * Repo-relative path with forward slashes (what the ledger and the disk copy use). Work in the workspace
+ * keeps the name it had in apps/studio ("apps/studio/out/<slug>/…"), so ledger entries and the copies on
+ * a disk still match after the workspace moves out of the repo.
+ */
+export const repoPath = (abs: string) => {
+  const s = studioPath(abs);
+  return path.isAbsolute(s) ? path.relative(REPO, abs).split(path.sep).join('/') : `${STUDIO_IN_REPO}/${s}`;
+};
+export const fromRepoPath = (rel: string) =>
+  rel.startsWith(`${STUDIO_IN_REPO}/`) ? fromStudio(rel.slice(STUDIO_IN_REPO.length + 1)) : path.join(REPO, ...rel.split('/'));
 
 const childDirs = (dir: string) =>
   fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory() && !d.name.startsWith('.')).map(d => d.name) : [];
@@ -143,7 +188,8 @@ export const isProtected = (abs: string) =>
  */
 export const kindOf = (abs: string): Kind => {
   if (abs.startsWith(DIRS.mediamakeRenders + path.sep)) return 'final';
-  const rel = path.relative(ROOT, abs).split(path.sep);
+  // as the studio names it (projects/…, out/…, thumbnails/jobs/…), wherever the workspace is
+  const rel = studioPath(abs).split('/');
   if (rel.some(s => /^v\d+$/.test(s))) return 'version';
   if (rel[0] === 'projects' || (rel[0] === 'thumbnails' && rel[1] === 'jobs')) return 'source';
   if (rel[0] !== 'out') return 'work';

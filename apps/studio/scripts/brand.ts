@@ -29,6 +29,7 @@ import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
 import { buildSync } from 'esbuild';
 import { BRANDS, OUT_BRANDS, ROOT, assemblePublic } from './brand-public.ts';
+import { shown } from './paths.ts';
 
 type Asset = { scene: string; kind: 'video' | 'transparent-video' | 'still'; to: string; at?: number | 'logo'; alpha?: boolean; guides?: boolean };
 type BrandConfig = {
@@ -61,7 +62,7 @@ const main = async () => {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     return p;
   };
-  const done = (p: string) => console.log(`✔ ${path.relative(ROOT, p)}`);
+  const done = (p: string) => console.log(`✔ ${shown(p)}`);
 
   // docs
   for (const doc of cfg.docs ?? []) if (want(doc)) fs.copyFileSync(path.join(src, doc), dest(doc)), done(dest(doc));

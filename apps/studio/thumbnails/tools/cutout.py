@@ -23,6 +23,8 @@ from rembg import new_session, remove
 from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(ROOT.parent / "analysis"))
+from workspace import shown, workspace_dir  # noqa: E402  (where thumbnail jobs are: analysis/workspace.py)
 
 
 def main():
@@ -32,7 +34,7 @@ def main():
         print(__doc__)
         sys.exit(1)
     job, rel = args[0], args[1]
-    job_dir = ROOT / "jobs" / job
+    job_dir = workspace_dir("thumbnailJobs") / job
     src = job_dir / rel
     img = Image.open(src).convert("RGB")
     model = flags.get("model", "birefnet-general")
@@ -61,8 +63,8 @@ def main():
     check.paste(img, mask=Image.fromarray(alpha))
     check.thumbnail((960, 960))
     check.save(dst.with_suffix(".check.jpg"), quality=85)
-    print(f"✔ {dst.relative_to(ROOT.parent)} ({model})")
-    print(f"✔ {dst.with_suffix('.check.jpg').relative_to(ROOT.parent)}")
+    print(f"✔ {shown(dst)} ({model})")
+    print(f"✔ {shown(dst.with_suffix('.check.jpg'))}")
 
 
 if __name__ == "__main__":

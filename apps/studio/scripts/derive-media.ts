@@ -15,12 +15,11 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { z } from 'zod';
+import { DIRS, shown } from './paths.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // The system ffmpeg usually has more decoders (AV1 via dav1d) than the bundled one.
 const which = (bin: string, fallback: string) => {
@@ -108,9 +107,9 @@ const main = () => {
     process.exit(1);
   }
   const force = flags.includes('--force');
-  const projectDir = path.join(ROOT, 'projects', slug);
+  const projectDir = path.join(DIRS.projects, slug);
   const specPath = path.join(projectDir, 'video', 'media.json');
-  if (!fs.existsSync(specPath)) throw new Error(`No ${path.relative(ROOT, specPath)}`);
+  if (!fs.existsSync(specPath)) throw new Error(`No ${shown(specPath)}`);
   const spec = MediaSchema.parse(JSON.parse(fs.readFileSync(specPath, 'utf8')));
   const outDir = path.join(projectDir, 'derived');
   fs.mkdirSync(path.join(outDir, 'img'), { recursive: true });
@@ -173,7 +172,7 @@ const main = () => {
   }
 
   fs.writeFileSync(indexPath, JSON.stringify(index, null, 1) + '\n');
-  console.log(`index: ${path.relative(ROOT, indexPath)} (${Object.keys(index).length} items)`);
+  console.log(`index: ${shown(indexPath)} (${Object.keys(index).length} items)`);
 };
 
 main();

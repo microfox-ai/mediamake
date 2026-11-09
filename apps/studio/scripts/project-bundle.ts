@@ -33,6 +33,8 @@ import { acquireLock, alive, onExit, readJson, writeJsonAtomic } from './locks.t
 import { onlyProject } from './only-project.ts';
 import { timestampSnapshots } from './snapshots.ts';
 import { studioCache, studioCacheDir } from './webpack-cache.ts';
+import { workspaceDir } from './workspace.ts';
+import { workspaceWebpack } from './workspace-webpack.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -87,13 +89,14 @@ class RecordDepsPlugin {
 
 /**
  * The webpack config every bundle of src/index.ts gets: Tailwind (mediamake presets and atoms style
- * themselves with its classes), snapshots by timestamp (snapshots.ts), webpack's cache in our folder,
- * and with a slug, that project alone under its own cache (only-project.ts).
+ * themselves with its classes), the studio's contexts reading the workspace (workspace-webpack.ts),
+ * snapshots by timestamp (snapshots.ts), webpack's cache in our folder, and with a slug, that project
+ * alone under its own cache (only-project.ts).
  */
 export const studioWebpack =
   (slug: string | null | undefined): WebpackOverrideFn =>
   async config => {
-    const styled = timestampSnapshots(await enableTailwind(config));
+    const styled = timestampSnapshots(workspaceWebpack(await enableTailwind(config), { studio: ROOT }));
     return studioCache(slug ? onlyProject(styled, slug) : styled);
   };
 
@@ -115,7 +118,7 @@ const entriesOf = (projectsDir: string, slug: string): string[] => {
 
 /** What a bundle depends on besides the files webpack read: Remotion, our bundling code, the installed packages. */
 const keyFor = (slug: string, entry: string, publicDir: string) => {
-  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts'].map(f => {
+  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts', 'workspace.ts', 'workspace-webpack.ts'].map(f => {
     try {
       return sha1(fs.readFileSync(path.join(HERE, f), 'utf8'));
     } catch {
@@ -206,7 +209,7 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export async function projectBundle(slug: string, opts: { projectsDir?: string; quiet?: boolean } = {}): Promise<ProjectBundle> {
   const started = Date.now();
   const entry = path.join(ROOT, 'src', 'index.ts');
-  const publicDir = opts.projectsDir ?? path.join(ROOT, 'projects');
+  const publicDir = opts.projectsDir ?? workspaceDir('projects', ROOT);
   const log = (msg: string) => opts.quiet || console.log(msg);
   const mode = process.env.MM_BUNDLE;
   const dir = path.join(BUNDLES, slug);

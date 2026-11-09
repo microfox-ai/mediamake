@@ -35,6 +35,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveAll, sourceTime, type Footage } from '../src/remix/resolve.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -43,7 +44,7 @@ if (!slug) throw new Error('usage: mm remix <slug> [--matte]');
 const flag = (n: string) => args.some(a => a === `--${n}`);
 const opt = (n: string) => args.find(a => a.startsWith(`--${n}=`))?.split('=')[1];
 
-const dir = path.join(ROOT, 'projects', slug);
+const dir = path.join(DIRS.projects, slug);
 type SourceCfg = { id: string; prefix: string; source: string; segregation: string; crop: [number, number, number, number]; matteFps?: number; plate?: string };
 const raw = JSON.parse(fs.readFileSync(path.join(dir, 'video/remix.json'), 'utf8'));
 // a single-source remix.json ({ source, segregation, crop }) is the first source with prefix "sh"
@@ -213,7 +214,7 @@ console.log(`\n${cuts.length} cuts (median ${lens.sort((a, b) => a - b)[lens.len
 
 // the animatic: one frame from the middle of every cut, a sheet per block, to read the story before a render
 if (flag('animatic')) {
-  const out = path.join(ROOT, 'out', slug, ...(shortId ? ['shorts', shortId] : []), 'animatic');
+  const out = path.join(DIRS.out, slug, ...(shortId ? ['shorts', shortId] : []), 'animatic');
   fs.mkdirSync(path.join(out, 'f'), { recursive: true });
   const [tw, th] = [320, Math.round((320 * cfg.window[1]) / cfg.window[0])];
   const byBlock: Record<string, string[]> = {};
@@ -238,7 +239,7 @@ if (flag('animatic')) {
     const layout = Array.from({ length: n }, (_, k) => `${(k % cols) * tw}_${Math.floor(k / cols) * th}`).join('|');
     execFileSync('ffmpeg', ['-v', 'error', '-y', ...inputs, '-filter_complex', `${Array.from({ length: n }, (_, k) => `[${k}]`).join('')}xstack=inputs=${n}:layout=${layout}`, '-frames:v', '1', '-update', '1', path.join(out, `${b}.jpg`)]);
   }
-  console.log(`✔ ${path.relative(ROOT, out)}/<block>.jpg (${Object.keys(byBlock).length} sheets)`);
+  console.log(`✔ ${shown(out)}/<block>.jpg (${Object.keys(byBlock).length} sheets)`);
 }
 
 fs.writeFileSync(

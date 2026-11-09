@@ -8,6 +8,11 @@ and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- lin
 root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
 the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
 
+Projects, renders (`out/`), brand kits, thumbnail jobs and overlays are the user's workspace, not the
+framework: `mm workspace` says where each is on this machine (apps/studio until a workspace is set in
+`~/.mediamake/config.json`, then e.g. `~/MediaMake`). Code takes these folders from `DIRS` in
+`apps/studio/scripts/paths.ts` (resolver: `scripts/workspace.ts`), never `apps/studio/projects` by hand.
+
 Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
 has the rest). The whole video is rendered only when the user asks to review all of it, and the master
 once, after they sign off.

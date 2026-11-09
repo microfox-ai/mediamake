@@ -25,13 +25,11 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { FFMPEG, probeMedia } from './ff.ts';
 import { readJson, writeJsonAtomic } from './locks.ts';
 import { buildVideoMap, mapPathFor, songTimeline, type PreviewStretch, type VideoMap } from './map.ts';
+import { DIRS } from './paths.ts';
 import { readRevisions, REVISIONS_SUFFIX, type Revision } from './revision-files.ts';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export type Stretch = { frames: [number, number]; why: string[] };
 export type PreviewPlan = { fps: number; durationInFrames: number; stretches: Stretch[]; source: string };
@@ -41,7 +39,7 @@ type Span = { from: number; to: number; why: string; whole?: boolean; start?: bo
 /** fps and length of a composition, from the bundle (a browser, once) and kept beside it until the manifest or edits change. */
 export async function compositionInfo(serveUrl: string, id: string, slug: string): Promise<{ fps: number; durationInFrames: number; width: number; height: number }> {
   const stat = (f: string) => {
-    const s = fs.statSync(path.join(ROOT, 'projects', slug, f), { throwIfNoEntry: false });
+    const s = fs.statSync(path.join(DIRS.projects, slug, f), { throwIfNoEntry: false });
     return s ? `${s.size}:${Math.round(s.mtimeMs)}` : 'x';
   };
   const key = `${id}|${stat('manifest.json')}|${stat('video/edits.json')}`;
@@ -97,7 +95,7 @@ function resolveTargets(slug: string, targets: string[]): Span[] {
 
 /** The revisions a preview can come from: the main video's, the last preview's and a live review's. */
 function latestRevision(slug: string): { revision: Revision; kind: 'main' | 'preview' | 'live' } | null {
-  const out = path.join(ROOT, 'out', slug);
+  const out = path.join(DIRS.out, slug);
   const places = [
     { dir: path.join(out, `${slug}${REVISIONS_SUFFIX}`), kind: 'main' as const },
     { dir: path.join(out, 'preview', `${slug}${REVISIONS_SUFFIX}`), kind: 'preview' as const },
@@ -123,7 +121,7 @@ function spansFromRevision(slug: string): { spans: Span[]; source: string } | nu
   // the preview's stretches, when the reviewed file is still the one on disk
   let stretches: PreviewStretch[] | null = null;
   if (kind === 'preview') {
-    const video = path.join(ROOT, 'out', slug, 'preview', `${slug}.mp4`);
+    const video = path.join(DIRS.out, slug, 'preview', `${slug}.mp4`);
     const map = readJson<VideoMap>(mapPathFor(video));
     const size = fs.statSync(video, { throwIfNoEntry: false })?.size;
     if (map?.stretches && size === revision.video.size) stretches = map.stretches;

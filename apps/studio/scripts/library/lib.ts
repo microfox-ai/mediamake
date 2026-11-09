@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { ownSkillsDir, userSkillsDir } from '../../../../tools/skills.mjs';
-import { DIRS, REPO, ROOT } from '../paths.ts';
+import { DIRS, REPO, fromStudio } from '../paths.ts';
 import { SOURCE_COLUMNS, type Source } from './classify.ts';
 import { loadConfig, type LibraryConfig } from './config.ts';
 import { catalogDir, extraOf, getItem, n, openDb, reindex, type Item, type Role } from './db.ts';
@@ -48,7 +48,7 @@ export const openLibrary = (
     projects: opts.projects ?? DIRS.projects,
     out: opts.out ?? DIRS.out,
     brands: opts.brands ?? DIRS.brands,
-    overlays: opts.overlays ?? path.join(ROOT, 'overlays'),
+    overlays: opts.overlays ?? DIRS.overlays,
     skills: opts.skills ?? ownSkillsDir(),
     // a folder given (the tests) holds both kinds, and nothing is linked into ~/.claude/skills
     repoSkills: opts.skills ?? path.join(REPO, '.claude', 'skills'),
@@ -181,12 +181,13 @@ export const locationsOf = (lib: Lib, id: string) =>
 
 /**
  * A path as a person or a skill typed it: relative to where the command ran, except that skills
- * write project paths (projects/<slug>/…, out/…) relative to apps/studio, from anywhere.
+ * write project paths (projects/<slug>/…, out/…) as the studio names them, from anywhere: they are
+ * found in the workspace (paths.ts fromStudio).
  */
 export const userPath = (p: string) => {
   if (path.isAbsolute(p)) return p;
   const direct = path.resolve(process.env.INIT_CWD ?? process.cwd(), p);
-  return !fs.existsSync(direct) && /^(projects|out|thumbnails|brands|overlays)\//.test(p) ? path.resolve(ROOT, p) : direct;
+  return !fs.existsSync(direct) && /^(projects|out|thumbnails|brands|overlays)\//.test(p) ? fromStudio(p) : direct;
 };
 
 /**

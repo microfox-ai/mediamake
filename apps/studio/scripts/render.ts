@@ -56,9 +56,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { lookGrid } from './look-grid.ts';
 import { keepPrevious, parseFramesFlag, writeVideoMap, type MapShort } from './map.ts';
+import { DIRS, ROOT, shown, studioPath } from './paths.ts';
 import { describeStretch, joinPreview, previewPlan } from './preview.ts';
 import { projectBundle } from './project-bundle.ts';
 import { appendRender } from './render-log.ts';
@@ -66,7 +66,6 @@ import { queueDisabled, renderSlot } from './render-queue.ts';
 import { remotionRender, tunedFlags } from './render-tuning.ts';
 import { reviewLink } from './revision-files.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, ...rest] = process.argv.slice(2);
 const value = (name: string) => rest.find(f => f.startsWith(`--${name}=`))?.slice(name.length + 3);
 const shortId = value('short');
@@ -90,7 +89,7 @@ if (!slug) {
   console.error('Usage: mm render <slug> [--preview[=<shot|section|seconds>,…]] [--proxy] [--look=<id>[,<id>…]] [flags]');
   process.exit(1);
 }
-if (!fs.existsSync(path.join(ROOT, 'projects', slug, 'manifest.json'))) {
+if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
   console.error(
     `No manifest. Run: mm prepare ${slug}`,
   );
@@ -160,7 +159,7 @@ async function renderOnLambdaHere(composition: string, outDir: string, short?: M
     return await renderOnLambda({
       slug,
       composition,
-      outDir: path.join(ROOT, outDir),
+      outDir,
       name: composition,
       frames: frames && { from: frames.from, to: frames.to },
       window: songWindow,
@@ -206,7 +205,7 @@ async function renderOne(composition: string, output: string, opts: { short?: Ma
     return { ok: (await renderOnLambdaHere(composition, outDir, opts.short)) !== null, seconds: 0 };
   }
   const s = await start(previewFlag ? 'preview' : looks.length ? `look ${looks.join(',')}` : shortId ? `short ${shortId}` : clip ? `clip ${framesName()}` : scale < 1 ? 'whole video, review' : 'master');
-  fs.mkdirSync(path.join(ROOT, path.dirname(output)), { recursive: true });
+  fs.mkdirSync(path.dirname(output), { recursive: true });
   const tuned = tunedFlags([...flags, ...(opts.extra ?? [])], { slug, preview: isPreviewish() });
   if (tuned.notes.length && !shownTuning) {
     shownTuning = true;
@@ -218,7 +217,7 @@ async function renderOne(composition: string, output: string, opts: { short?: Ma
   const renderFrames = parseFramesFlag([...flags, ...(opts.extra ?? [])]);
   if (opts.log !== false) {
     try {
-      appendRender(path.join(ROOT, output), {
+      appendRender(output, {
         at: new Date(started).toISOString(),
         scale,
         frames: renderFrames ? [renderFrames.from, renderFrames.to === Number.MAX_SAFE_INTEGER ? null : renderFrames.to] : undefined,
@@ -235,7 +234,7 @@ async function renderOne(composition: string, output: string, opts: { short?: Ma
   if (!r.ok) return { ok: false, seconds };
   if (opts.map !== false) {
     try {
-      writeVideoMap(slug, path.join(ROOT, output), renderFrames, opts.short);
+      writeVideoMap(slug, output, renderFrames, opts.short);
     } catch (err) {
       // The render is fine without a map; say so and move on.
       console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
@@ -245,7 +244,7 @@ async function renderOne(composition: string, output: string, opts: { short?: Ma
 }
 
 if (shortId) {
-  const shortDir = path.join(ROOT, 'projects', slug, 'shorts', shortId);
+  const shortDir = path.join(DIRS.projects, slug, 'shorts', shortId);
   if (!fs.existsSync(path.join(shortDir, 'short.json'))) {
     console.error(`No short ${shortId}. Run: mm shorts ${slug} make …`);
     process.exit(1);
@@ -255,24 +254,24 @@ if (shortId) {
   const shots = fs.existsSync(path.join(shortDir, 'shots.json')) ? `shorts/${shortId}/shots.json` : 'video/shots.json';
   // a rotate short with its own stretch: the 16:9 stretch first (unless only another format is asked for
   // and the stretch is already there), so the turned short has its video
-  const wideFile = short.wide && short.video ? path.join(ROOT, 'projects', slug, short.video) : undefined;
+  const wideFile = short.wide && short.video ? path.join(DIRS.projects, slug, short.video) : undefined;
   const list = format ? [format] : short.formats;
   if (wideFile && !clip && !list.includes('16x9') && (!format || !fs.existsSync(wideFile))) list.unshift('16x9');
   for (const f of list) {
     const name = `${slug}-${shortId}-${f}`;
-    const dir = path.join('out', slug, 'shorts', shortId);
+    const dir = path.join(DIRS.out, slug, 'shorts', shortId);
     const output = clip ? path.join(dir, 'clips', `${name}-${framesName()}.mp4`) : path.join(dir, `${name}.mp4`);
-    if (!clip && !lambda) keepPrevious(path.join(ROOT, dir), name);
+    if (!clip && !lambda) keepPrevious(dir, name);
     if (!(await renderOne(name, output, { short: { shots, offset: short.hook?.from ?? short.from } })).ok) process.exit(1);
     if (f === '16x9' && wideFile && !clip) {
       // the turned short plays it from the project folder (a hard link: no second copy)
       fs.rmSync(wideFile, { force: true });
       try {
-        fs.linkSync(path.join(ROOT, output), wideFile);
+        fs.linkSync(output, wideFile);
       } catch {
-        fs.copyFileSync(path.join(ROOT, output), wideFile);
+        fs.copyFileSync(output, wideFile);
       }
-      console.log(`✔ ${path.relative(ROOT, wideFile)} ← ${output}`);
+      console.log(`✔ ${shown(wideFile)} ← ${shown(output)}`);
     }
   }
   process.exit(0);
@@ -284,7 +283,7 @@ if (previewFlag && !looks.length) {
   const plan = await previewPlan(slug, bundle.serveUrl, previewTargets, { seconds: previewSeconds });
   console.log(`Preview from ${plan.source}:`);
   for (const st of plan.stretches) console.log(`  ${describeStretch(st, plan.fps)}`);
-  const dir = path.join('out', slug, 'preview');
+  const dir = path.join(DIRS.out, slug, 'preview');
   const output = path.join(dir, `${slug}.mp4`);
   const parts: { file: string; stretch: (typeof plan.stretches)[number] }[] = [];
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `mm-preview-${slug}-`));
@@ -296,14 +295,14 @@ if (previewFlag && !looks.length) {
       const r = await renderOne(slug, file, { extra: [`--frames=${st.frames[0]}-${st.frames[1]}`], log: false, map: false });
       renderSeconds += r.seconds;
       if (!r.ok) {
-        appendRender(path.join(ROOT, output), { at: new Date(started).toISOString(), scale, preview: plan.stretches.map(x => x.frames), seconds: renderSeconds, bundle: session?.bundleSeconds, queued: session?.queuedSeconds, ok: false });
+        appendRender(output, { at: new Date(started).toISOString(), scale, preview: plan.stretches.map(x => x.frames), seconds: renderSeconds, bundle: session?.bundleSeconds, queued: session?.queuedSeconds, ok: false });
         process.exit(1);
       }
       parts.push({ file, stretch: st });
     }
-    keepPrevious(path.join(ROOT, dir), slug);
-    const map = joinPreview(slug, parts, path.join(ROOT, output), plan.fps);
-    appendRender(path.join(ROOT, output), {
+    keepPrevious(dir, slug);
+    const map = joinPreview(slug, parts, output, plan.fps);
+    appendRender(output, {
       at: new Date(started).toISOString(),
       scale,
       preview: plan.stretches.map(x => x.frames),
@@ -313,9 +312,9 @@ if (previewFlag && !looks.length) {
       ok: true,
     });
     const length = map.stretches!.reduce((a, x) => a + x.to - x.from, 0);
-    console.log(`✔ ${output}: ${plan.stretches.length} stretch${plan.stretches.length === 1 ? '' : 'es'}, ${length.toFixed(1)} s of video in ${((Date.now() - started) / 1000).toFixed(1)} s (${map.shots.length} shots in the map)`);
-    console.log(`Review link: ${reviewLink(path.join(ROOT, output))}`);
-    console.log(`Preflight: mm preflight ${slug} --video=${output}`);
+    console.log(`✔ ${shown(output)}: ${plan.stretches.length} stretch${plan.stretches.length === 1 ? '' : 'es'}, ${length.toFixed(1)} s of video in ${((Date.now() - started) / 1000).toFixed(1)} s (${map.shots.length} shots in the map)`);
+    console.log(`Review link: ${reviewLink(output)}`);
+    console.log(`Preflight: mm preflight ${slug} --video=${studioPath(output)}`);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -335,20 +334,20 @@ if (looks.length) {
   }
   const outputs: string[] = [];
   for (const id of looks) {
-    const output = path.join('out', slug, 'looks', `${id}.mp4`);
+    const output = path.join(DIRS.out, slug, 'looks', `${id}.mp4`);
     if (!(await renderOne(slug, output, { extra: [propsFor(id)] })).ok) process.exit(1);
-    outputs.push(path.join(ROOT, output));
+    outputs.push(output);
   }
   if (outputs.length >= 2 && outputs.length <= 4) {
     const grid = lookGrid(outputs, { labels: looks });
-    console.log(`✔ ${path.relative(ROOT, grid)}`);
+    console.log(`✔ ${shown(grid)}`);
     console.log(`Review link: ${reviewLink(grid)}`);
   } else if (outputs.length > 4) console.log('More than four looks: put up to four in a grid with mm look-grid.');
   process.exit(0);
 }
 
-const output = clip ? path.join('out', slug, 'clips', `${slug}-${framesName()}.mp4`) : path.join('out', slug, `${slug}.mp4`);
-if (!clip && !lambda) keepPrevious(path.join(ROOT, 'out', slug), slug);
+const output = clip ? path.join(DIRS.out, slug, 'clips', `${slug}-${framesName()}.mp4`) : path.join(DIRS.out, slug, `${slug}.mp4`);
+if (!clip && !lambda) keepPrevious(path.join(DIRS.out, slug), slug);
 const ok = (await renderOne(slug, output)).ok;
 if (ok && scale < 1 && !clip)
   console.log(

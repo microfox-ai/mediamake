@@ -6,14 +6,13 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DIRS, studioPath } from './paths.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'out');
+const OUT = DIRS.out;
 
 export type RenderEntry = {
   at: string;
-  /** the output, relative to apps/studio (out/<slug>/<slug>.mp4) */
+  /** the output as the studio names it (out/<slug>/<slug>.mp4), wherever the workspace is (paths.ts studioPath) */
   video: string;
   /** 1 for the master, below 1 for a review render (--proxy) */
   scale: number;
@@ -46,7 +45,7 @@ export function appendRender(videoPath: string, entry: Omit<RenderEntry, 'video'
   const log = renderLogFor(videoPath);
   if (!log) return;
   fs.mkdirSync(path.dirname(log), { recursive: true });
-  const line: RenderEntry = { ...entry, video: path.relative(ROOT, path.resolve(videoPath)).split(path.sep).join('/') };
+  const line: RenderEntry = { ...entry, video: studioPath(videoPath) };
   fs.appendFileSync(log, `${JSON.stringify(line)}\n`);
 }
 
@@ -69,6 +68,6 @@ export function readRenders(logFile: string): RenderEntry[] {
 export function lastRender(videoPath: string): RenderEntry | null {
   const log = renderLogFor(videoPath);
   if (!log) return null;
-  const rel = path.relative(ROOT, path.resolve(videoPath)).split(path.sep).join('/');
+  const rel = studioPath(videoPath);
   return readRenders(log).filter(e => e.ok && e.video === rel).at(-1) ?? null;
 }
