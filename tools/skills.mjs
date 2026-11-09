@@ -9,8 +9,14 @@
  *   .agents/skills/<name>/     the skill's files, committed
  *   .claude/skills/<name>      a committed symlink to them, so the skill loads for anyone who
  *                              opens the repo in Claude Code
- * A new skill made as a real folder in .claude/skills is public too (it gets committed as it is);
- * `add` moves it to .agents/skills and links it, like the others.
+ *   <workspace>/skills/<name>/ your own: variants you forked and ones your team shared (media sync),
+ *                              outside the repo (~/MediaMake/skills unless ~/.mediamake/config.json
+ *                              names another workspace), linked from ~/.claude/skills/<name> so every
+ *                              session loads them. Never in SKILLS.md or skills.json; making or pulling
+ *                              one never changes a file git tracks.
+ * `publish` sends one of yours to the repo as a pull request (from a temporary worktree: this checkout
+ * is never touched); once it has merged and you pulled, `tidy` drops your copy. A new skill made as a
+ * real folder in .claude/skills is public too; `add` moves it to .agents/skills here and links it.
  *
  * skills.json (mediamake.skills/v1) is the registry: every skill's name, category, summary, where it
  * is and what it is a variant of. The site (homepage Skills tab, /skills/<name>) and the Library page read it, and the media CLI
@@ -19,7 +25,12 @@
  * Usage: node tools/skills.mjs list [--category=<c>] [--json]
  *        node tools/skills.mjs add <name> | --all [--dry-run]   checks, then moves a .claude/skills
  *                                                               folder to .agents/skills and links it
- *        node tools/skills.mjs fork <base> <new-name> [--like=<ref>]   a variant of a skill
+ *        node tools/skills.mjs fork <base> <new-name> [--like=<ref>] [--repo]   a variant of a skill,
+ *            yours in the workspace (--repo: in .agents/skills of this checkout, on a branch)
+ *        node tools/skills.mjs publish <name> [--yes] [--no-push]   one of yours into the repo as a PR
+ *            (a dry run without --yes)
+ *        node tools/skills.mjs tidy [--yes]                  drops your copies the repo has now, broken
+ *            links in ~/.claude/skills, and moves loose .claude/skills folders into the workspace
  *        node tools/skills.mjs diff <variant> [--stat] [--json]   what the variant changed against its
  *            base at the fork commit, and what the base changed since
  *        node tools/skills.mjs diff --all --json              the same numbers for every variant
@@ -56,6 +67,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { openPr, stamp } from './upstream.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLAUDE = path.join(ROOT, '.claude', 'skills');
@@ -65,6 +77,31 @@ const REGISTRY = path.join(ROOT, 'skills.json');
 const LOCK = path.join(ROOT, 'skills-lock.json');
 const THIRD_PARTY = path.join(ROOT, 'apps', 'mediamake', 'lib', 'catalog', 'third-party.json');
 export const REGISTRY_SCHEMA = 'mediamake.skills/v1';
+
+const expandHome = p => (p === '~' ? os.homedir() : p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p);
+const tilde = p => (p === os.homedir() || p.startsWith(os.homedir() + path.sep) ? `~${p.slice(os.homedir().length)}` : p);
+
+/**
+ * The user's workspace, read at call time: MEDIAMAKE_WORKSPACE, else `workspace` at the top of
+ * ~/.mediamake/config.json (MEDIAMAKE_CONFIG names another file), else ~/MediaMake. The same rule as
+ * apps/studio/scripts/workspace.ts; skills are always <workspace>/skills.
+ */
+export const workspaceRoot = () => {
+  const env = process.env.MEDIAMAKE_WORKSPACE?.trim();
+  if (env) return path.resolve(expandHome(env));
+  try {
+    const set = JSON.parse(fs.readFileSync(process.env.MEDIAMAKE_CONFIG ?? path.join(os.homedir(), '.mediamake', 'config.json'), 'utf8')).workspace;
+    if (typeof set === 'string' && set.trim()) return path.resolve(expandHome(set.trim()));
+  } catch {
+    // no config, or not JSON: the default
+  }
+  return path.join(os.homedir(), 'MediaMake');
+};
+/** Your own skills' folders. */
+export const ownSkillsDir = () => path.join(workspaceRoot(), 'skills');
+/** Claude Code's personal skills, which every session loads; yours are linked here. */
+export const userSkillsDir = () => path.join(os.homedir(), '.claude', 'skills');
+const SKILL_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** How much a skill gets out of an MCP it uses (UseNeed in apps/mediamake/lib/catalog/types.ts). */
 export const NEEDS = ['required', 'recommended', 'optional'];
@@ -262,6 +299,46 @@ export const allSkills = () => {
   return skills;
 };
 
+/** Whether ~/.claude/skills/<name> is the link to your own copy. */
+const linkedOwn = name => {
+  try {
+    return fs.realpathSync(path.join(userSkillsDir(), name)) === fs.realpathSync(path.join(ownSkillsDir(), name));
+  } catch {
+    return false;
+  }
+};
+
+/** Your own skills, in <workspace>/skills (`own: true`; `linked`: loaded through ~/.claude/skills). */
+export const ownSkills = () => {
+  const dir = ownSkillsDir();
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .sort()
+    .filter(name => SKILL_NAME.test(name) && fs.existsSync(path.join(dir, name, 'SKILL.md')))
+    .map(name => ({ ...skillAt(name, path.join(dir, name), { moved: false, linked: linkedOwn(name) }), own: true }));
+};
+
+/** ~/.claude/skills/<name> → <workspace>/skills/<name>, so every session loads it. */
+export const linkOwn = name => {
+  const link = path.join(userSkillsDir(), name);
+  const st = fs.lstatSync(link, { throwIfNoEntry: false });
+  if (st && linkedOwn(name)) return link;
+  // a link to nothing is left over from a copy that was moved or tidied: replace it
+  if (st && !(st.isSymbolicLink() && !fs.existsSync(link))) throw new Error(`${tilde(link)} is another skill: move it away, then link again`);
+  if (st) fs.unlinkSync(link);
+  fs.mkdirSync(userSkillsDir(), { recursive: true });
+  fs.symlinkSync(path.join(ownSkillsDir(), name), link, 'dir');
+  return link;
+};
+
+/** The repo's skills, then yours that the repo doesn't have. */
+const everySkill = () => {
+  const repo = allSkills();
+  const names = new Set(repo.map(s => s.name));
+  return [...repo, ...ownSkills().filter(s => !names.has(s.name))];
+};
+
 /** The description's first sentence, short enough for a table cell or a card. */
 const summary = d => {
   const first = decode(d.split(/(?<!\b(?:e\.g|i\.e|etc)\.)(?<=[.!?])\s+(?=[A-Z])/)[0]);
@@ -272,17 +349,22 @@ const summary = d => {
 const mcpList = mcps => mcps.map(m => `${m.id.slice('mcp/'.length)} (${m.need})`).join(', ');
 
 const list = () => {
-  let skills = allSkills();
+  let skills = everySkill();
+  const repoNames = new Set(allSkills().map(s => s.name));
+  const shadowing = ownSkills().filter(s => repoNames.has(s.name));
   const cat = flag('category');
   if (cat) skills = skills.filter(s => s.category === cat);
-  if (flags.includes('--json')) return console.log(JSON.stringify(skills.map(({ dir, ...s }) => ({ ...s, dir: rel(dir) })), null, 2));
+  if (flags.includes('--json')) return console.log(JSON.stringify(skills.map(({ dir, ...s }) => ({ ...s, dir: s.own ? dir : rel(dir) })), null, 2));
+  const mark = s => (s.own ? '◆' : s.moved ? '●' : '○');
+  const where = s => (s.own ? (s.linked ? '' : `  [not linked in ${tilde(userSkillsDir())}: node tools/skills.mjs tidy --yes]`) : s.linked ? '' : '  [not linked in .claude/skills]');
   for (const c of CATEGORIES) {
     const group = skills.filter(s => s.category === c.id);
     if (!group.length) continue;
     console.log(`\n${c.id} · ${c.about}`);
-    for (const s of group) console.log(`  ${s.moved ? '●' : '○'} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.dependsOn.length ? ` (needs ${s.dependsOn.join(', ')})` : ''}${s.mcps.length ? ` (MCPs: ${mcpList(s.mcps)})` : ''}${s.linked ? '' : '  [not linked in .claude/skills]'}`);
+    for (const s of group) console.log(`  ${mark(s)} ${s.name}${s.variantOf ? ` (variant of ${s.variantOf})` : ''}${s.dependsOn.length ? ` (needs ${s.dependsOn.join(', ')})` : ''}${s.mcps.length ? ` (MCPs: ${mcpList(s.mcps)})` : ''}${where(s)}`);
   }
-  console.log('\n● in .agents/skills  ○ a folder in .claude/skills, not moved yet (run: node tools/skills.mjs add --all)');
+  console.log(`\n● in .agents/skills  ◆ yours, in ${tilde(ownSkillsDir())} (node tools/skills.mjs publish <name> makes it public)  ○ a folder in .claude/skills, not moved yet (node tools/skills.mjs add --all, or tidy --yes keeps it as yours)`);
+  for (const s of shadowing) console.log(`⚠ ${s.name}: the repo has it now, and your copy in ${tilde(ownSkillsDir())} is what sessions load. node tools/skills.mjs tidy --yes drops yours when they are the same.`);
 };
 
 /** The files a skill's checks read, and the only ones `media sync` shares: text, never binaries. */
@@ -492,12 +574,15 @@ const check = () => {
 };
 
 const find = name => {
-  const skill = allSkills().find(s => s.name === name);
-  if (!skill) throw new Error(`No skill "${name}". Have: ${allSkills().map(s => s.name).join(', ')}`);
+  const skill = everySkill().find(s => s.name === name);
+  if (!skill) throw new Error(`No skill "${name}". Have: ${everySkill().map(s => s.name).join(', ')}`);
   return skill;
 };
 
-/** Moves skills made as real folders in .claude/skills to .agents/skills and links them. */
+/**
+ * Moves skills made as real folders in .claude/skills to .agents/skills and links them; one of yours
+ * (in the workspace) is copied in, on the branch you are on (publish does it as a PR instead).
+ */
 const add = () => {
   const skills = flags.includes('--all') ? allSkills().filter(s => !s.moved) : [find(a1)];
   if (!skills.length) return console.log('✔ every skill is in .agents/skills already');
@@ -519,9 +604,10 @@ const add = () => {
     const to = path.join(AGENTS, skill.name);
     if (fs.existsSync(to)) throw new Error(`${rel(to)} exists already`);
     fs.mkdirSync(AGENTS, { recursive: true });
-    fs.renameSync(skill.dir, to);
+    if (skill.own) copySkill(skill.dir, to);
+    else fs.renameSync(skill.dir, to);
     fs.symlinkSync(path.relative(CLAUDE, to), path.join(CLAUDE, skill.name));
-    console.log(`✔ ${skill.name}: ${rel(to)} ← ${rel(path.join(CLAUDE, skill.name))} (link)`);
+    console.log(`✔ ${skill.name}: ${rel(to)} ← ${rel(path.join(CLAUDE, skill.name))} (link)${skill.own ? `; your copy stays in use until this merges and you pull (then: node tools/skills.mjs tidy --yes)` : ''}`);
   }
   if (!flags.includes('--dry-run')) index();
   if (failed) throw new Error('Fix the ✖ lines, then run add again');
@@ -532,22 +618,31 @@ export const NOTES_LINE = 'New user feedback goes in your notes (mm notes add), 
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 }).trim();
 
+/** A skill folder's files, without dotfiles, .theirs copies (media sync) or node_modules. */
+const copySkill = (from, to) =>
+  fs.cpSync(from, to, { recursive: true, filter: src => src === from || !(path.basename(src).startsWith('.') || src.endsWith('.theirs') || path.basename(src) === 'node_modules') });
+
 const fork = () => {
   const base = find(a1);
   const name = a2;
-  if (!name || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) throw new Error('Usage: fork <base> <new-name> (lowercase words joined by -)');
+  if (!name || !SKILL_NAME.test(name)) throw new Error('Usage: fork <base> <new-name> (lowercase words joined by -)');
   if (!name.startsWith(`${base.name}-`)) console.log(`⚠ a variant's name starts with its base's: ${base.name}-like-<ref> or ${base.name}-v<N>`);
-  const to = path.join(AGENTS, name);
-  if (fs.existsSync(to) || fs.lstatSync(path.join(CLAUDE, name), { throwIfNoEntry: false })) throw new Error(`${name} exists already`);
+  // yours, in the workspace, unless --repo puts it in this checkout (on a branch, for a PR)
+  const inRepo = flags.includes('--repo');
+  const to = inRepo ? path.join(AGENTS, name) : path.join(ownSkillsDir(), name);
+  const taken = [path.join(AGENTS, name), path.join(CLAUDE, name), path.join(ownSkillsDir(), name), path.join(userSkillsDir(), name)].find(p => fs.lstatSync(p, { throwIfNoEntry: false }));
+  if (taken) throw new Error(`${name} exists already (${taken.startsWith(ROOT) ? rel(taken) : tilde(taken)})`);
   let sha = null;
   try {
     sha = git('rev-parse', 'HEAD');
-    if (git('status', '--porcelain', '--', rel(base.dir))) console.log(`⚠ ${base.name} has changes that aren't committed: diff counts them as the variant's own until they are`);
+    if (!base.own && git('status', '--porcelain', '--', rel(base.dir))) console.log(`⚠ ${base.name} has changes that aren't committed: diff counts them as the variant's own until they are`);
   } catch {
     console.log('⚠ not a git checkout: no forked-from commit, so diff will have to guess the fork point');
   }
-  fs.cpSync(base.dir, to, { recursive: true });
-  fs.symlinkSync(path.relative(CLAUDE, to), path.join(CLAUDE, name));
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  copySkill(base.dir, to);
+  if (inRepo) fs.symlinkSync(path.relative(CLAUDE, to), path.join(CLAUDE, name));
+  else linkOwn(name);
   const file = path.join(to, 'SKILL.md');
   const ref = flag('like') ?? name.replace(`${base.name}-`, '').replace(/^like-/, '');
   const today = new Date().toISOString().slice(0, 10);
@@ -570,8 +665,136 @@ const fork = () => {
   // the base's, and `mm notes <variant>` shows both)
   newBody = newBody.replace(new RegExp(`(\\bmm notes(?: add| promote)? )${base.name}(?![\\w-])`, 'g'), `$1${name}`);
   fs.writeFileSync(file, `---\n${front}\n---\n${newBody}`);
-  console.log(`✔ ${rel(to)} from ${base.name}${sha ? `@${sha.slice(0, 12)}` : ''}; now fill in its description and "This variant"`);
-  index();
+  const from = `${base.name}${sha ? `@${sha.slice(0, 12)}` : ''}`;
+  if (inRepo) {
+    console.log(`✔ ${rel(to)} from ${from}; now fill in its description and "This variant"`);
+    return index();
+  }
+  console.log(`✔ ${tilde(to)} from ${from}: yours, outside the repo, loaded by every new session through ${tilde(path.join(userSkillsDir(), name))}.`);
+  console.log(`  Now fill in its description and "This variant". node tools/skills.mjs publish ${name} makes it public, as a PR.`);
+};
+
+/** Whether two skill folders hold the same files (dotfiles and .theirs copies aside). */
+const sameFiles = (a, b) => {
+  const walk = (root, d = root) =>
+    fs.readdirSync(d, { withFileTypes: true }).flatMap(e => {
+      if (e.name.startsWith('.') || e.name.endsWith('.theirs') || e.name === 'node_modules') return [];
+      const abs = path.join(d, e.name);
+      return e.isDirectory() ? walk(root, abs) : [path.relative(root, abs)];
+    });
+  const left = walk(a).sort();
+  const right = walk(b).sort();
+  return left.length === right.length && left.every((f, i) => f === right[i] && fs.readFileSync(path.join(a, f)).equals(fs.readFileSync(path.join(b, f))));
+};
+
+/**
+ * One of your skills (or a loose folder in .claude/skills) into the repo as a pull request: a branch
+ * from origin/main in a temporary worktree with it in .agents/skills, linked from .claude/skills and
+ * listed in SKILLS.md and skills.json. Your copy stays in use until the PR merges and you pull.
+ */
+const publish = () => {
+  if (!a1) throw new Error('Usage: publish <name> [--yes] [--no-push] [--base=main]');
+  const skill = find(a1);
+  if (skill.moved && !skill.own) throw new Error(`${skill.name} is in the repo already: change it on a branch and a PR`);
+  if (allSkills().some(s => s.name === skill.name && s.moved)) throw new Error(`the repo has ${skill.name} already: node tools/skills.mjs tidy drops your copy when they are the same`);
+  const { problems: leaked, notes } = checks(skill);
+  const problems = [...leaked, ...skill.mcpErrors, ...lessonProblems(skill)];
+  for (const p of problems) console.log(`✖ ${skill.name}: ${p}`);
+  for (const n of notes) console.log(`⚠ ${skill.name}: ${n}`);
+  if (problems.length) throw new Error('Fix the ✖ lines, then publish again');
+  const base = flag('base') ?? 'main';
+  const push = !flags.includes('--no-push');
+  const what = skill.variantOf ? `a variant of ${skill.variantOf}` : 'a new skill';
+  if (!flags.includes('--yes')) {
+    console.log(`${skill.name} (${what}, ${skill.own ? `yours, in ${tilde(skill.dir)}` : rel(skill.dir)}) can be published.`);
+    console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked and listed in SKILLS.md and skills.json, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
+    console.log('Every skill in the repo is public on GitHub: read it for anything private first (publish-skill).');
+    return;
+  }
+  const r = openPr({
+    repo: ROOT,
+    base,
+    push,
+    branch: `skill/${skill.name}-${stamp()}`,
+    title: `skill(${skill.name}): ${what}`,
+    message: `Published from ${skill.own ? 'the workspace' : '.claude/skills'} with \`node tools/skills.mjs publish\`.`,
+    body: [`**${skill.name}**, ${what}, published with \`node tools/skills.mjs publish\`.`, '', decode(skill.description)].join('\n'),
+    change: wt => {
+      const to = path.join(wt, '.agents', 'skills', skill.name);
+      if (fs.existsSync(to)) throw new Error(`origin/${base} has ${skill.name} already`);
+      copySkill(skill.dir, to);
+      const links = path.join(wt, '.claude', 'skills');
+      fs.mkdirSync(links, { recursive: true });
+      fs.symlinkSync(path.relative(links, to), path.join(links, skill.name));
+      const ix = spawnSync(process.execPath, [path.join(wt, 'tools', 'skills.mjs'), 'index'], { cwd: wt, encoding: 'utf8' });
+      if (ix.status !== 0) throw new Error(`skills.mjs index: ${ix.stderr.trim()}`);
+      return [`.agents/skills/${skill.name}`, `.claude/skills/${skill.name}`, 'SKILLS.md', 'skills.json'];
+    },
+  });
+  console.log(`✔ ${skill.name} on ${r.branch} (${r.commit.slice(0, 10)})`);
+  if (r.pr) console.log(`  pull request: ${r.pr}`);
+  else if (r.compare) console.log(`  open the pull request: ${r.compare}`);
+  else if (!r.pushed) console.log(`  not pushed: git push -u origin ${r.branch}, then open a pull request`);
+  console.log(`  Your copy stays in use until it merges and you pull; then node tools/skills.mjs tidy --yes drops it.`);
+};
+
+/**
+ * Housekeeping for your own skills (a dry run without --yes): drop a copy the repo has now with the
+ * same files, link ones ~/.claude/skills doesn't load, remove links there that point at nothing in
+ * the workspace, and keep loose folders in .claude/skills (not committed) as yours in the workspace.
+ */
+const tidy = () => {
+  const yes = flags.includes('--yes');
+  const repo = new Map(allSkills().filter(s => s.moved).map(s => [s.name, s]));
+  const steps = [];
+  for (const own of ownSkills()) {
+    const pub = repo.get(own.name);
+    if (!pub) {
+      if (!own.linked) steps.push({ what: `link ${tilde(path.join(userSkillsDir(), own.name))} → ${tilde(own.dir)}, so sessions load it`, run: () => linkOwn(own.name) });
+      continue;
+    }
+    if (!sameFiles(own.dir, pub.dir)) {
+      console.log(`⚠ ${own.name}: the repo has it and your copy differs, so sessions load yours. Compare: diff -r ${tilde(own.dir)} ${rel(pub.dir)}`);
+      continue;
+    }
+    steps.push({
+      what: `drop your copy of ${own.name}: the repo has the same files (sessions load the repo's)`,
+      run: () => {
+        if (own.linked) fs.unlinkSync(path.join(userSkillsDir(), own.name));
+        fs.rmSync(own.dir, { recursive: true, force: true });
+      },
+    });
+  }
+  const users = userSkillsDir();
+  for (const name of fs.existsSync(users) ? fs.readdirSync(users) : []) {
+    const link = path.join(users, name);
+    const st = fs.lstatSync(link, { throwIfNoEntry: false });
+    if (!st?.isSymbolicLink() || fs.existsSync(link)) continue;
+    const target = path.resolve(users, fs.readlinkSync(link));
+    if (target.startsWith(ownSkillsDir() + path.sep)) steps.push({ what: `remove ${tilde(link)}: it points at ${tilde(target)}, which is gone`, run: () => fs.unlinkSync(link) });
+  }
+  for (const loose of allSkills().filter(s => !s.moved)) {
+    const to = path.join(ownSkillsDir(), loose.name);
+    if (fs.existsSync(to)) {
+      console.log(`⚠ ${loose.name}: a loose folder in .claude/skills and yours in the workspace both exist; keep one`);
+      continue;
+    }
+    steps.push({
+      what: `keep ${loose.name} as yours: ${rel(loose.dir)} → ${tilde(to)}, linked in ${tilde(users)}`,
+      run: () => {
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        copySkill(loose.dir, to);
+        fs.rmSync(loose.dir, { recursive: true, force: true });
+        linkOwn(loose.name);
+      },
+    });
+  }
+  if (!steps.length) return console.log('✔ nothing to tidy');
+  for (const st of steps) {
+    if (yes) st.run();
+    console.log(`${yes ? '✔' : '·'} ${st.what}`);
+  }
+  if (!yes) console.log('A dry run: node tools/skills.mjs tidy --yes does it.');
 };
 
 /**
@@ -651,7 +874,7 @@ const diff = () => {
 };
 
 const main = () => {
-  const commands = { list, add, publish: add, fork, diff, index, check };
+  const commands = { list, add, publish, fork, diff, index, check, tidy };
   const run = commands[cmd];
   if (!run) {
     console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').match(/\/\*\*([\s\S]*?)\*\//)[1].replace(/^ \* ?/gm, ''));

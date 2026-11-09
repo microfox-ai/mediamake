@@ -1,6 +1,6 @@
 ---
 name: publish-skill
-description: Add new Claude Code skills to this repo, where every skill is public — find skills made as folders in .claude/skills that aren't in .agents/skills yet, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then move it to .agents/skills (committed, linked from .claude/skills) and update SKILLS.md. Also lists every skill. Use when the user says "publish a skill", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update SKILLS.md.
+description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), then send it as a pull request into .agents/skills (linked from .claude/skills, listed in SKILLS.md) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update SKILLS.md.
 metadata:
   category: skill
 ---
@@ -13,6 +13,12 @@ so the skill loads for anyone who opens the repo in Claude Code and shows on Git
 are the gated ones (`private/` and the catalog releases at `/core/releases`); skills never go
 through a gate.
 
+A skill starts as the user's own when it isn't in the repo yet: a variant from `fork-skill`, or one
+their team shared through `media sync`. Those live in the workspace (`~/MediaMake/skills/<name>`,
+outside the repo) and are linked from `~/.claude/skills/<name>`, so every session on that computer
+loads them and making one never changes a file git tracks. Publishing is how one becomes public:
+a pull request, never an edit on main.
+
 `SKILLS.md` at the repo root lists every skill by category; the mediamake app shows it at
 `/skills` (https://mediamake.microfox.app/skills, rebuilt on every deploy; locally
 http://localhost:3002/skills reads the file live). `node tools/skills.mjs check` fails when
@@ -24,22 +30,25 @@ All of it goes through one script, run from the repo root:
 
 ```bash
 node tools/skills.mjs list [--category=<c>] [--json]
-node tools/skills.mjs add <name> --dry-run          # the checks only
-node tools/skills.mjs add <name> | --all            # checks, moves, links, rewrites SKILLS.md
-node tools/skills.mjs index                         # rewrites SKILLS.md
+node tools/skills.mjs publish <name>                # the checks only (a dry run)
+node tools/skills.mjs publish <name> --yes          # a branch with it from origin/main, pushed, and a PR
+node tools/skills.mjs tidy [--yes]                  # after the PR merged and you pulled: drops your copy
+node tools/skills.mjs add <name> | --all            # on a branch you are on: moves or copies it in, links it
+node tools/skills.mjs index                         # rewrites SKILLS.md and skills.json
 node tools/skills.mjs check                         # exit 1 when SKILLS.md is stale or a skill leaks
 ```
 
 ## 1. Find the new skills
 
-`node tools/skills.mjs list --json` and keep the ones with `"moved": false`: real folders in
-`.claude/skills/` (a skill just written there). Skip the question when there is one, or the
-user named it; otherwise ask which to add (`AskUserQuestion`, `multiSelect: true`), one option
-per skill with its one-line summary.
+`node tools/skills.mjs list --json` and keep the ones with `"own": true` (the user's, in the
+workspace; `list` marks them ◆) and those with `"moved": false` (real folders in `.claude/skills/`,
+a skill just written there; `node tools/skills.mjs tidy --yes` makes those the user's too). Skip
+the question when there is one, or the user named it; otherwise ask which to publish
+(`AskUserQuestion`, `multiSelect: true`), one option per skill with its one-line summary.
 
 ## 2. Check each one
 
-`node tools/skills.mjs add <name> --dry-run`. It stops on **✖** and warns on **⚠**:
+`node tools/skills.mjs publish <name>` (without `--yes` it only checks). It stops on **✖** and warns on **⚠**:
 
 - ✖ a path on this machine (`/Users/…`), something that looks like an API key or token, or a
   frontmatter `name` that doesn't match the folder. Fix it in the skill first (a repo-relative
@@ -78,11 +87,22 @@ says in it where new lessons go, so sessions never edit the committed file: the 
 uses (copy one from `pack-brand-kit`), with `mm notes add <name> "…"` and `mm notes <name>`.
 `add` and `check` fail on a log without it, or on an old "append to the log at the bottom" rule.
 
-## 3. Add
+## 3. Publish
 
-`node tools/skills.mjs add <name>` (or `--all`). Then show `git status --short` for
-`.agents/skills/<name>`, `.claude/skills/<name>` and `SKILLS.md`, and ask before committing; push
-only when asked. Once pushed, the files stay in git history.
+Ask before this step: once pushed, the files are on GitHub and stay in its history.
+`node tools/skills.mjs publish <name> --yes` makes a branch `skill/<name>-<time>` from `origin/main`
+in a temporary worktree, with the skill in `.agents/skills/<name>`, linked from `.claude/skills` and
+listed in `SKILLS.md` and `skills.json`, one commit, pushed, and a pull request (with `gh` signed
+in; otherwise it prints the link that opens one). The user's checkout, branch and edits are never
+touched, so it is safe on main. `--no-push` keeps the commit on a local branch instead.
+
+Give the user the PR link, and once it merges the skill's release page,
+`https://mediamake.microfox.app/core/releases/skill/<name>`. Their own copy keeps loading until they
+pull the merge; then `node tools/skills.mjs tidy --yes` drops it (only when the repo's files are the
+same; a copy that differs is kept, and `list` warns that it shadows the repo's).
+
+`add` is the older way, for a branch you are already on: it moves a `.claude/skills` folder (or
+copies one of the user's) into `.agents/skills`, links it and rewrites `SKILLS.md`, and you commit it.
 
 ## Naming and categories
 

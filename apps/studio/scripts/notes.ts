@@ -25,34 +25,23 @@
  * drops it. Notes sent in a PR that hasn't merged yet are recorded in notes/.sent.json, so they are
  * never sent twice.
  */
-import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { frontmatter, lineProblems } from '../../../tools/skills.mjs';
-import { configFile, expandHome } from './library/config.ts';
+import { frontmatter, lineProblems, workspaceRoot } from '../../../tools/skills.mjs';
+import { openPr, stamp } from '../../../tools/upstream.mjs';
 import { REPO } from './paths.ts';
 
 // ---------- where ----------
 
 /**
- * The user's workspace, read at call time: MEDIAMAKE_WORKSPACE, else `workspace` at the top of
- * ~/.mediamake/config.json, else ~/MediaMake. Notes have no older home, so they are always
- * <workspace>/notes, even while projects still default to apps/studio.
+ * The user's workspace (skills.mjs's rule, the same as scripts/workspace.ts): MEDIAMAKE_WORKSPACE, else
+ * `workspace` at the top of ~/.mediamake/config.json, else ~/MediaMake. Notes have no older home, so
+ * they are always <workspace>/notes, even while projects still default to apps/studio.
  */
-export const workspaceRoot = () => {
-  const env = process.env.MEDIAMAKE_WORKSPACE?.trim();
-  if (env) return path.resolve(expandHome(env));
-  try {
-    const set = (JSON.parse(fs.readFileSync(configFile(), 'utf8')) as { workspace?: unknown }).workspace;
-    if (typeof set === 'string' && set.trim()) return path.resolve(expandHome(set.trim()));
-  } catch {
-    // no config, or not JSON: the default
-  }
-  return path.join(os.homedir(), 'MediaMake');
-};
+export { workspaceRoot };
 export const notesDir = () => path.join(workspaceRoot(), 'notes');
 export const notesFile = (skill: string) => path.join(notesDir(), `${skill}.md`);
 const sentFile = () => path.join(notesDir(), '.sent.json');
@@ -257,12 +246,6 @@ export const appendToLog = (skillMd: string, notes: Entry[]) => {
 
 // ---------- promote ----------
 
-const git = (cwd: string, ...a: string[]) => {
-  const r = spawnSync('git', a, { cwd, encoding: 'utf8', maxBuffer: 1 << 26 });
-  if (r.status !== 0) throw new Error(`git ${a.join(' ')}: ${(r.stderr || r.stdout).trim()}`);
-  return r.stdout.trim();
-};
-
 export type PromoteItem = { skill: string; heading?: string; notes: Note[]; problems: string[] };
 
 /** What promote would send: each skill's new notes, and why one can't go. */
@@ -278,86 +261,52 @@ export const planPromote = (skills: string[], repo = REPO, opts: { again?: boole
     return { skill, heading: at?.heading, notes, problems };
   });
 
-/** https://github.com/<owner>/<repo>/compare/<base>...<branch>, when the remote is on GitHub. */
-const compareUrl = (remoteUrl: string, base: string, branch: string) => {
-  const m = remoteUrl.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/);
-  return m ? `https://github.com/${m[1]}/${m[2]}/compare/${base}...${encodeURIComponent(branch).replace(/%2F/g, '/')}?expand=1` : undefined;
-};
-
-const ghReady = () => spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' }).status === 0;
-
 export type Promoted = { branch: string; commit: string; pushed: boolean; pr?: string; compare?: string; sent: number };
 
+/** The notes on a new branch from origin/<base> (tools/upstream.mjs: a worktree, never this checkout), pushed, and a PR. */
 export const promote = (
   items: PromoteItem[],
   opts: { repo?: string; remote?: string; base?: string; push?: boolean; pr?: boolean; now?: Date } = {},
 ): Promoted => {
-  const repo = opts.repo ?? REPO;
-  const remote = opts.remote ?? 'origin';
-  const base = opts.base ?? 'main';
-  const push = opts.push ?? true;
   const go = items.filter(i => i.notes.length && !i.problems.length);
   if (!go.length) throw new Error('Nothing to send: no new notes, or every skill with them has a problem to fix first');
   const now = opts.now ?? new Date();
-  const stamp = now.toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
-  const branch = `notes/${go.length === 1 ? go[0].skill : `${go.length}-skills`}-${stamp}`;
-  git(repo, 'fetch', '--quiet', remote, base);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-notes-'));
-  const wt = path.join(tmp, 'wt');
-  git(repo, 'worktree', 'add', '--quiet', '-b', branch, wt, `${remote}/${base}`);
-  let committed = false;
-  let pushed = false;
-  try {
-    for (const item of go) {
-      const file = path.join(wt, '.agents', 'skills', item.skill, 'SKILL.md');
-      if (!fs.existsSync(file)) throw new Error(`${item.skill} isn't in ${remote}/${base} yet: its notes can go once it has merged`);
-      fs.writeFileSync(file, appendToLog(fs.readFileSync(file, 'utf8'), item.notes));
-    }
-    const count = go.reduce((n, i) => n + i.notes.length, 0);
-    const title =
+  const count = go.reduce((n, i) => n + i.notes.length, 0);
+  const remote = opts.remote ?? 'origin';
+  const base = opts.base ?? 'main';
+  const r = openPr({
+    repo: opts.repo ?? REPO,
+    remote,
+    base,
+    push: opts.push,
+    pr: opts.pr,
+    branch: `notes/${go.length === 1 ? go[0].skill : `${go.length}-skills`}-${stamp(now)}`,
+    title:
       go.length === 1
         ? `skill(${go[0].skill}): ${count} ${count === 1 ? 'lesson' : 'lessons'} from notes`
-        : `skills: ${count} lessons from notes (${go.map(i => i.skill).join(', ')})`;
-    git(wt, 'add', '--', ...go.map(i => path.join('.agents', 'skills', i.skill, 'SKILL.md')));
-    git(wt, 'commit', '--quiet', '-m', title, '-m', 'Sent from the workspace notes with `mm notes promote`.');
-    const commit = git(wt, 'rev-parse', 'HEAD');
-    committed = true;
-    let pr: string | undefined;
-    let compare: string | undefined;
-    if (push) {
-      git(wt, 'push', '--quiet', '-u', remote, branch);
-      pushed = true;
-      const body = [
-        'Lessons from the workspace notes (`mm notes promote`), for each skill\'s shared log.',
-        '',
-        ...go.flatMap(i => [`**${i.skill}** (${i.heading}):`, '', ...i.notes.map(n => n.text), '']),
-      ].join('\n');
-      if (opts.pr !== false && ghReady()) {
-        const r = spawnSync('gh', ['pr', 'create', '--base', base, '--head', branch, '--title', title, '--body', body], { cwd: wt, encoding: 'utf8' });
-        if (r.status === 0) pr = r.stdout.trim().split('\n').at(-1);
-      }
-      if (!pr) {
-        try {
-          compare = compareUrl(git(repo, 'remote', 'get-url', remote), base, branch);
-        } catch {
-          // a remote with no URL: no link
-        }
-      }
-    }
-    const ledger = readSent();
-    for (const item of go) {
-      const list = (ledger.sent[item.skill] ??= []);
-      for (const n of item.notes) list.push({ hash: hashOf(n.body), branch, pr: pr ?? compare, at: now.toISOString() });
-    }
-    writeSent(ledger);
-    return { branch, commit, pushed, pr, compare, sent: count };
-  } finally {
-    spawnSync('git', ['worktree', 'remove', '--force', wt], { cwd: repo });
-    // a pushed branch lives on the remote, and a failed one is dropped (the notes are all still in
-    // your notes); only --no-push keeps its commit here for you to push
-    if (push || !committed) spawnSync('git', ['branch', '-D', branch], { cwd: repo });
-    fs.rmSync(tmp, { recursive: true, force: true });
+        : `skills: ${count} lessons from notes (${go.map(i => i.skill).join(', ')})`,
+    message: 'Sent from the workspace notes with `mm notes promote`.',
+    body: [
+      "Lessons from the workspace notes (`mm notes promote`), for each skill's shared log.",
+      '',
+      ...go.flatMap(i => [`**${i.skill}** (${i.heading}):`, '', ...i.notes.map(n => n.text), '']),
+    ].join('\n'),
+    change: wt =>
+      go.map(item => {
+        const rel = path.join('.agents', 'skills', item.skill, 'SKILL.md');
+        const file = path.join(wt, rel);
+        if (!fs.existsSync(file)) throw new Error(`${item.skill} isn't in ${remote}/${base} yet: its notes can go once it has merged`);
+        fs.writeFileSync(file, appendToLog(fs.readFileSync(file, 'utf8'), item.notes));
+        return rel;
+      }),
+  });
+  const ledger = readSent();
+  for (const item of go) {
+    const list = (ledger.sent[item.skill] ??= []);
+    for (const n of item.notes) list.push({ hash: hashOf(n.body), branch: r.branch, pr: r.pr ?? r.compare, at: now.toISOString() });
   }
+  writeSent(ledger);
+  return { ...r, sent: count };
 };
 
 // ---------- tidy ----------
