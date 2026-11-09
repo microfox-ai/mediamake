@@ -21,8 +21,10 @@
       a group of characters).
   sheet <folder> [--out=<jpg>]
       a labelled contact sheet of the pictures in a folder (Midjourney results, pins).
-  storyboard <slug> [--quote="…"] [--key=WORD] [--title="…"]
+  storyboard <slug> [--quote="…"] [--key=WORD] [--title="…"] [--groups="SOMEONE TOOK|THE SAME|…"] [--step=0.5]
       a first video/edit.json from the quote, analysis/hits.json and input/assets.json (see the skill).
+      --groups sets the build's word groups by hand (one slam each, in order), --step the seconds between them
+      (default: the beat, or 0.5 s when the beat is outside 0.35–0.75 s).
   kit <slug>
       clones the sound-effect kit from the media library into input/sfx/ (media find + media use).
   sfx <slug> [--auto]
@@ -413,8 +415,15 @@ def cmd_sheet(a):
 # ======================================================================== the storyboard
 
 def snap(x, times, lo=None, hi=None):
+    """The time in `times` nearest to x within [lo, hi]; else x itself, kept inside the window (so cuts stay in order)."""
     c = [o for o in times if (lo is None or o >= lo) and (hi is None or o <= hi)]
-    return min(c, key=lambda o: abs(o - x)) if c else x
+    if c:
+        return min(c, key=lambda o: abs(o - x))
+    if lo is not None and x < lo:
+        x = lo
+    if hi is not None and x > hi:
+        x = max(hi, lo) if lo is not None else hi
+    return x
 
 
 def group_words(words):
@@ -443,7 +452,7 @@ def cmd_storyboard(a):
     pre, post = words[:ki], words[ki + 1 :]
     small = " ".join(post[:-1]) or None
     big = post[-1] if post else key
-    groups = group_words(pre) if pre else []
+    groups = [g.strip().upper() for g in a.groups.split("|") if g.strip()] if getattr(a, "groups", None) else (group_words(pre) if pre else [])
     S = lambda p: f"{a.slug}/input/{p}"
     plates = {k: S(v) for k, v in A["plates"].items()}
     teams = {k: S(v) for k, v in A.get("teams", {}).items()}
@@ -477,7 +486,7 @@ def cmd_storyboard(a):
     # one group per beat, counted back from the drop on the song's pulse (a short excerpt's beat tracking is
     # unreliable, the drop isn't), each snapped to an onset within 60 ms when there is one
     n = len(groups)
-    step = beat if 0.35 <= beat <= 0.75 else 0.5
+    step = float(a.step) if getattr(a, "step", None) else (beat if 0.35 <= beat <= 0.75 else 0.5)
     times = []
     for k in range(n, 0, -1):
         x = drop - k * step
@@ -831,7 +840,7 @@ def main():
     p = sp.add_parser("crops"); p.add_argument("slug"); p.add_argument("--boxes", required=True)
     p = sp.add_parser("cutout"); p.add_argument("slug"); p.add_argument("files", nargs="+"); p.add_argument("--all", action="store_true"); p.add_argument("--size", type=int, default=2048)
     p = sp.add_parser("sheet"); p.add_argument("folder"); p.add_argument("--out")
-    p = sp.add_parser("storyboard"); p.add_argument("slug"); p.add_argument("--quote"); p.add_argument("--key"); p.add_argument("--title")
+    p = sp.add_parser("storyboard"); p.add_argument("slug"); p.add_argument("--quote"); p.add_argument("--key"); p.add_argument("--title"); p.add_argument("--groups"); p.add_argument("--step", type=float)
     p = sp.add_parser("kit"); p.add_argument("slug")
     p = sp.add_parser("sfx"); p.add_argument("slug"); p.add_argument("--auto", action="store_true")
     a = ap.parse_args()
