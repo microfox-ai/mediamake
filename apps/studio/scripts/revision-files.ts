@@ -13,9 +13,8 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DIRS } from './paths.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const REVISION_SCHEMA = 'mediamake.revision/v1';
 export const REVISIONS_SUFFIX = '.revisions';
@@ -232,7 +231,7 @@ export function commentLine(c: RevisionComment, max = 160): string {
  * same query). Outside out/ there is no source folder to match, so it names the folder to open.
  */
 export function reviewLink(videoPath: string): string {
-  const folder = path.relative(path.join(ROOT, 'out'), path.dirname(path.resolve(videoPath))).split(path.sep).join('/');
+  const folder = path.relative(DIRS.out, path.dirname(path.resolve(videoPath))).split(path.sep).join('/');
   if (folder.startsWith('..') || path.isAbsolute(folder))
     return `https://mediamake.microfox.app/video-revision (open the folder ${path.dirname(path.resolve(videoPath))})`;
   const encoded = folder.split('/').map(encodeURIComponent).join('/');

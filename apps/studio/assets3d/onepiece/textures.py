@@ -6,12 +6,15 @@ crew's portraits from projects/nakama/derived/img (a_<id>.jpg) on the nakama pos
 Usage: uv run --with pillow python assets3d/onepiece/textures.py
 """
 import os
+import sys
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(HERE, '..', '..')
-NAKAMA = os.path.join(APP, 'projects', 'nakama', 'derived')
+sys.path.append(os.path.join(APP, 'analysis'))
+from workspace import workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
+NAKAMA = os.path.join(workspace_dir('projects'), 'nakama', 'derived')
 OUT = os.path.join(HERE, 'textures')
 SUP = '/System/Library/Fonts/Supplemental'
 INK = (52, 34, 22)

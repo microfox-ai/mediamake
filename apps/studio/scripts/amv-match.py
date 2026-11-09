@@ -32,6 +32,8 @@ import torch
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(Path(__file__).resolve().parent.parent / "analysis"))
+from workspace import shown, workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 CANON = 48  # side of the normalised silhouette
@@ -119,7 +121,7 @@ def main():
     ap.add_argument("--sheet", type=int, default=40)
     ap.add_argument("--eye-hue", default="85,110", help="OpenCV hue range (0-180) of the iris; Gojo's cyan-blue = 85,110")
     args = ap.parse_args()
-    proj = ROOT / "projects" / args.slug
+    proj = workspace_dir("projects") / args.slug
     footage = json.loads((proj / "video/footage.json").read_text())
     skip = set(args.skip.split(","))
     hue = tuple(int(v) for v in args.eye_hue.split(","))
@@ -275,7 +277,7 @@ def main():
                 f"{p['a']} last -> {p['b']} first  iou {p['iou']}  zoom {p['zoom']}  shift {p['shift']}") for p in shape], "shape")
     sheet([card(frames_of[(e["a"], e["pa"])], frames_of[(e["b"], e["pb"])], e["zoom"], e["shift"],
                 f"{e['a']} {e['pa']} -> {e['b']} {e['pb']}  zoom {e['zoom']}  shift {e['shift']}  tilt {e['tilt']}") for e in eyes], "eyes")
-    log(f"sheets: {sheets.relative_to(ROOT)}")
+    log(f"sheets: {shown(sheets)}")
 
 
 if __name__ == "__main__":

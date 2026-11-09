@@ -5,9 +5,15 @@ import { Config } from '@remotion/cli/config';
 import { enableTailwind } from '@remotion/tailwind-v4';
 import { onlyProject } from './scripts/only-project.ts';
 import { timestampSnapshots } from './scripts/snapshots.ts';
+import { workspaceDir } from './scripts/workspace.ts';
+import { workspaceWebpack } from './scripts/workspace-webpack.ts';
 
-// Every project's input/ and manifest.json are served via staticFile('<slug>/...').
-Config.setPublicDir('./projects');
+// Remotion runs this file in the folder it is in (apps/studio): its config loader changes into it first.
+const STUDIO = process.cwd();
+
+// Every project's input/ and manifest.json are served via staticFile('<slug>/...'), from wherever the
+// workspace keeps projects (scripts/workspace.ts: still ./projects until a workspace is set).
+Config.setPublicDir(workspaceDir('projects', STUDIO));
 Config.setVideoImageFormat('jpeg');
 Config.setDelayRenderTimeoutInMilliseconds(100000);
 // ANGLE gives headless Chrome a GPU path; three.js scenes (WebGL) need it.
@@ -19,7 +25,8 @@ Config.setChromiumOpenGlRenderer('angle');
 // projects at once got each other's bundle ("Could not find composition with ID honoredone. Available
 // compositions: wakeup-waveform…", 2026-11-04).
 if (process.env.ONLY_PROJECT) Config.setCachingEnabled(false);
+// The studio's contexts (projects, brands, thumbnail jobs) read the workspace (scripts/workspace-webpack.ts).
 Config.overrideWebpackConfig(async config => {
-  const styled = timestampSnapshots(await enableTailwind(config));
+  const styled = timestampSnapshots(workspaceWebpack(await enableTailwind(config), { studio: STUDIO }));
   return process.env.ONLY_PROJECT ? onlyProject(styled, process.env.ONLY_PROJECT) : styled;
 });

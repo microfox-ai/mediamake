@@ -309,7 +309,7 @@ def main(proj, plots=False):
                        min(w["conf_final"] for w in ws)))
     doc = dict(lines=lines, extras=detect_extras(words, f), method=METHOD, score=score)
     common.write_json(proj.out / "lyrics.aligned.json", doc)
-    print(f"wrote {(proj.out / 'lyrics.aligned.json').relative_to(common.APP)}: "
+    print(f"wrote {common.shown(proj.out / 'lyrics.aligned.json')}: "
           f"{len(lines)} lines, {len(words)} words (viterbi score {score:.0f})")
     print("  line  aligned  input   max|d|  minconf  text")
     for li, text, a, b, dmax, cmin in report:
@@ -337,7 +337,7 @@ def make_plots(proj, words, alt, L):
             ("whisper", ww),
         ]
         plot(proj, t0, t1, tracks, proj.qa / f"line_{li:03d}.png", title=f"L{li}: {l['text']}")
-    print(f"QA plots: {proj.qa.relative_to(common.APP)}/line_*.png")
+    print(f"QA plots: {common.shown(proj.qa)}/line_*.png")
 
 
 METHOD = (

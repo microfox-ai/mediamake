@@ -10,9 +10,9 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DIRS } from './paths.ts';
 
-const PROJECTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../projects');
+const PROJECTS = DIRS.projects;
 
 const slugs = process.argv.slice(2);
 if (!slugs.length) {

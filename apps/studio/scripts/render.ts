@@ -43,11 +43,10 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { keepPrevious, parseFramesFlag, writeVideoMap, type MapShort } from './map.ts';
+import { DIRS, ROOT, shown } from './paths.ts';
 import { appendRender } from './render-log.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, ...rest] = process.argv.slice(2);
 const value = (name: string) => rest.find(f => f.startsWith(`--${name}=`))?.slice(name.length + 3);
 const shortId = value('short');
@@ -66,7 +65,7 @@ if (!slug) {
   console.error('Usage: mm render <slug> [--proxy] [--look=<id>] [flags]');
   process.exit(1);
 }
-if (!fs.existsSync(path.join(ROOT, 'projects', slug, 'manifest.json'))) {
+if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
   console.error(
     `No manifest. Run: mm prepare ${slug}`,
   );
@@ -134,7 +133,7 @@ async function renderOnLambdaHere(composition: string, outDir: string, short?: M
     return await renderOnLambda({
       slug,
       composition,
-      outDir: path.join(ROOT, outDir),
+      outDir,
       name: composition,
       frames: frames && { from: frames.from, to: frames.to },
       window: songWindow,
@@ -162,7 +161,7 @@ async function renderOne(composition: string, output: string, short?: MapShort):
     const outDir = clip || look ? path.dirname(path.dirname(output)) : path.dirname(output);
     return (await renderOnLambdaHere(composition, outDir, short)) !== null;
   }
-  fs.mkdirSync(path.join(ROOT, path.dirname(output)), { recursive: true });
+  fs.mkdirSync(path.dirname(output), { recursive: true });
   const started = Date.now();
   const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', composition, output, ...flags], {
     cwd: ROOT,
@@ -171,7 +170,7 @@ async function renderOne(composition: string, output: string, short?: MapShort):
     env: { ...process.env, ONLY_PROJECT: slug },
   });
   try {
-    appendRender(path.join(ROOT, output), {
+    appendRender(output, {
       at: new Date(started).toISOString(),
       scale,
       frames: frames ? [frames.from, frames.to === Number.MAX_SAFE_INTEGER ? null : frames.to] : undefined,
@@ -184,7 +183,7 @@ async function renderOne(composition: string, output: string, short?: MapShort):
   }
   if (r.status !== 0) return false;
   try {
-    writeVideoMap(slug, path.join(ROOT, output), frames, short);
+    writeVideoMap(slug, output, frames, short);
   } catch (err) {
     // The render is fine without a map; say so and move on.
     console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
@@ -195,7 +194,7 @@ async function renderOne(composition: string, output: string, short?: MapShort):
 }
 
 if (shortId) {
-  const shortDir = path.join(ROOT, 'projects', slug, 'shorts', shortId);
+  const shortDir = path.join(DIRS.projects, slug, 'shorts', shortId);
   if (!fs.existsSync(path.join(shortDir, 'short.json'))) {
     console.error(`No short ${shortId}. Run: mm shorts ${slug} make …`);
     process.exit(1);
@@ -205,33 +204,33 @@ if (shortId) {
   const shots = fs.existsSync(path.join(shortDir, 'shots.json')) ? `shorts/${shortId}/shots.json` : 'video/shots.json';
   // a rotate short with its own stretch: the 16:9 stretch first (unless only another format is asked for
   // and the stretch is already there), so the turned short has its video
-  const wideFile = short.wide && short.video ? path.join(ROOT, 'projects', slug, short.video) : undefined;
+  const wideFile = short.wide && short.video ? path.join(DIRS.projects, slug, short.video) : undefined;
   const list = format ? [format] : short.formats;
   if (wideFile && !clip && !list.includes('16x9') && (!format || !fs.existsSync(wideFile))) list.unshift('16x9');
   for (const f of list) {
     const name = `${slug}-${shortId}-${f}`;
-    const dir = path.join('out', slug, 'shorts', shortId);
+    const dir = path.join(DIRS.out, slug, 'shorts', shortId);
     const output = clip ? path.join(dir, 'clips', `${name}-${framesName}.mp4`) : path.join(dir, `${name}.mp4`);
-    if (!clip && !lambda) keepPrevious(path.join(ROOT, dir), name);
+    if (!clip && !lambda) keepPrevious(dir, name);
     if (!(await renderOne(name, output, { shots, offset: short.hook?.from ?? short.from }))) process.exit(1);
     if (f === '16x9' && wideFile && !clip) {
       // the turned short plays it from the project folder (a hard link: no second copy)
       fs.rmSync(wideFile, { force: true });
       try {
-        fs.linkSync(path.join(ROOT, output), wideFile);
+        fs.linkSync(output, wideFile);
       } catch {
-        fs.copyFileSync(path.join(ROOT, output), wideFile);
+        fs.copyFileSync(output, wideFile);
       }
-      console.log(`✔ ${path.relative(ROOT, wideFile)} ← ${output}`);
+      console.log(`✔ ${shown(wideFile)} ← ${shown(output)}`);
     }
   }
   process.exit(0);
 }
 
 const output = look
-  ? path.join('out', slug, 'looks', `${look}.mp4`)
+  ? path.join(DIRS.out, slug, 'looks', `${look}.mp4`)
   : clip
-    ? path.join('out', slug, 'clips', `${slug}-${framesName}.mp4`)
-    : path.join('out', slug, `${slug}.mp4`);
-if (!clip && !look && !lambda) keepPrevious(path.join(ROOT, 'out', slug), slug);
+    ? path.join(DIRS.out, slug, 'clips', `${slug}-${framesName}.mp4`)
+    : path.join(DIRS.out, slug, `${slug}.mp4`);
+if (!clip && !look && !lambda) keepPrevious(path.join(DIRS.out, slug), slug);
 process.exit((await renderOne(slug, output)) ? 0 : 1);

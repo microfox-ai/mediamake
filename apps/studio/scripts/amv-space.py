@@ -30,6 +30,8 @@ import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(Path(__file__).resolve().parent.parent / "analysis"))
+from workspace import workspace_dir  # noqa: E402  (where projects are: analysis/workspace.py)
 MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 STD = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 COLS, ROWS = 32, 18
@@ -80,7 +82,7 @@ def main():
     ap.add_argument("slug")
     ap.add_argument("--sheet", action="store_true")
     a = ap.parse_args()
-    d = ROOT / "projects" / a.slug
+    d = workspace_dir("projects") / a.slug
     caps = json.loads((d / "analysis/captions.json").read_text())
     cap = cv2.VideoCapture(str(d / "analysis/clean/clean.mp4"))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30

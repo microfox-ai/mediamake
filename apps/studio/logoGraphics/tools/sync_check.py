@@ -24,11 +24,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 APP = os.path.join(os.path.dirname(__file__), '..', '..')
+sys.path.append(os.path.join(APP, 'analysis'))
+from workspace import workspace_dir  # noqa: E402  (where brands and renders are: analysis/workspace.py)
 BRAND = sys.argv[1] if len(sys.argv) > 1 else sys.exit('usage: sync_check.py <brand> [scene,...]')
 ONLY = sys.argv[2].split(',') if len(sys.argv) > 2 else None
-G = os.path.join(APP, 'brands', BRAND, 'graphics')
-RENDERS = os.path.join(APP, 'out', 'brands', BRAND, 'renders')
-CHECKS = os.path.join(APP, 'out', 'brands', BRAND, 'checks')
+G = os.path.join(workspace_dir('brands'), BRAND, 'graphics')
+RENDERS = os.path.join(workspace_dir('out'), 'brands', BRAND, 'renders')
+CHECKS = os.path.join(workspace_dir('out'), 'brands', BRAND, 'checks')
 SFX = os.path.join(G, 'public', 'sfx')
 META = json.load(open(os.path.join(G, 'sound', 'sfx.json')))
 LATENCY = json.load(open(os.path.join(G, 'sound', 'sfx.config.json')))['latency']

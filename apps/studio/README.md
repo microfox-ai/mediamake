@@ -13,6 +13,30 @@ After pulling the rename, your projects, renders and brand kits are still in `ap
 (git only moves the files it tracks). `mm migrate` shows what would move; `mm migrate --yes` moves
 them into `apps/studio` and points the media library at the new folder.
 
+### Where your work lives: the workspace
+
+This folder is the framework. What you make (projects, renders in `out/`, brand kits, thumbnail jobs,
+overlays, notes, skill variants, extensions) is your workspace, and `mm workspace` says where each
+folder is on this machine. Every script, `mm preview`, the renders, the mediamake app's dev routes
+and the Python analysis ask `scripts/workspace.ts` (or its twins: `analysis/workspace.py`,
+`apps/mediamake/lib/remotion-editor/server/workspace.ts`) where to look.
+
+- Until a workspace is set, projects, `out/`, `brands/`, `thumbnails/jobs/` and `overlays/` stay
+  here in `apps/studio`, as they always were; `notes/`, `skills/` and `extensions/` are in
+  `~/MediaMake`.
+- A workspace is set by `"workspace": "~/MediaMake"` in `~/.mediamake/config.json` (next to
+  `library`), or `MEDIAMAKE_WORKSPACE` for one shell. Then every folder is inside it, laid out like
+  this one: `~/MediaMake/projects/<slug>`, `~/MediaMake/out/<slug>`, `~/MediaMake/thumbnails/jobs/<job>`.
+  A project there still imports the engine as `../../../src/kit`: the bundles lay the workspace over
+  this folder (`scripts/workspace-webpack.ts`) until projects import it by name.
+- Logs, review links and the library keep naming files as the studio does (`out/<slug>/<slug>.mp4`),
+  so they mean the same file wherever the workspace is.
+- In code: take folders from `DIRS` in `scripts/paths.ts` (`DIRS.projects`, `DIRS.out`, …), never
+  `apps/studio/projects` by hand.
+
+Moving existing work out of the repo is the next step (`mm migrate` to `~/MediaMake`); a fresh,
+empty workspace can be set today.
+
 The rest of this page is about lyric videos, the first kind it made.
 
 **Requirements:** every project needs both
@@ -70,6 +94,8 @@ mm yt-grab @handle | <playlist|video URL> | --search "…" [--popular --limit 40
                                    # every video's title, description + transcript into one folder (yt-dlp; no key needed; research/<channel>/ style)
 mm migrate [--yes]                 # after pulling the rename: your work from apps/lyrics_videos into apps/studio
 mm golden check                    # fixed frames of fixtures/ vs origin/main (--against=<ref>): a refactor changed no picture
+mm golden check --outside          # the same, with the fixtures in a workspace outside the repo
+mm workspace                       # where your projects, renders, brand kits and notes are on this machine
 mm type-check
 ```
 

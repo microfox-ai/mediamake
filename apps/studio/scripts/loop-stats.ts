@@ -15,12 +15,11 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { readRenders, type RenderEntry } from './render-log.ts';
 import { LIVE_VIDEO, REVISIONS_SUFFIX, isMachineNote, readRevisions, type Revision } from './revision-files.ts';
+import { DIRS } from './paths.ts';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = path.join(ROOT, 'out');
+const OUT = DIRS.out;
 /** folders under out/ that are not productions */
 const NOT_PRODUCTIONS = new Set(['brands', 'youtube', 'posters', 'thumbnails', 'waveform-catalog']);
 

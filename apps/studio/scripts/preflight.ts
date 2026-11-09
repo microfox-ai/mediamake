@@ -60,6 +60,8 @@ import {
   type RevisionComment,
 } from './revision-files.ts';
 
+import { DIRS, shown } from './paths.ts';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 type Check = 'black' | 'freeze' | 'no-audio' | 'audio-short' | 'audio-long' | 'silence' | 'clipping' | 'quiet' | 'darker' | 'duller';
@@ -85,10 +87,6 @@ const args = process.argv.slice(2);
 const opt = (name: string) => args.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const has = (name: string) => args.includes(`--${name}`) || opt(name) !== undefined;
 const [slug] = args.filter(a => !a.startsWith('--'));
-const shown = (file: string) => {
-  const rel = path.relative(ROOT, file);
-  return rel.startsWith('..') ? file : rel;
-};
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const secs = (n: number) => `${n < 10 ? n.toFixed(2) : n.toFixed(1)} s`;
 const db = (n: number | null) => (n === null ? '–' : `${n > 0 ? '+' : ''}${n.toFixed(1)}`);
@@ -98,7 +96,7 @@ if (!slug && !opt('video')) {
   console.error('Usage: mm preflight <slug> [--video=path.mp4] [--source=picture] [--intended=c02 --why="…"]');
   process.exit(1);
 }
-const video = path.resolve(ROOT, opt('video') ?? path.join('out', slug!, `${slug}.mp4`));
+const video = opt('video') ? path.resolve(ROOT, opt('video')!) : path.join(DIRS.out, slug!, `${slug}.mp4`);
 if (!fs.existsSync(video)) {
   console.error(`No video at ${shown(video)}. Render first, or pass --video=<path>.`);
   process.exit(1);

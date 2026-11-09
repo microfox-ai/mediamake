@@ -19,8 +19,7 @@ import { fileURLToPath } from 'node:url';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { z } from 'zod';
 import { ManifestSchema, type Manifest } from '../src/kit/manifest.ts';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+import { DIRS, ROOT, shown } from './paths.ts';
 
 const which = (bin: string, fallback: string) => {
   try {
@@ -126,7 +125,7 @@ function shotsFromLyrics(manifest: Manifest, ids: Map<string, string>): Shot[] {
 }
 
 function readShots(slug: string, manifest: Manifest, rel = 'video/shots.json'): Shot[] | null {
-  const file = path.join(ROOT, 'projects', slug, rel);
+  const file = path.join(DIRS.projects, slug, rel);
   if (!fs.existsSync(file)) return null;
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
   const shots = z.array(ShotSchema.passthrough()).parse(Array.isArray(raw) ? raw : raw.shots);
@@ -150,7 +149,7 @@ export function buildVideoMap(
   frames?: { from: number; to: number },
   short?: MapShort,
 ): VideoMap {
-  const manifestPath = path.join(ROOT, 'projects', slug, 'manifest.json');
+  const manifestPath = path.join(DIRS.projects, slug, 'manifest.json');
   const manifest = ManifestSchema.parse(JSON.parse(fs.readFileSync(manifestPath, 'utf8')));
   const video = probe(videoPath);
   const ids = sectionIds(manifest);
@@ -224,7 +223,7 @@ export const keepPrevious = (dir: string, name: string) => {
   // the review notes belong to that cut: bring the kept copy up to date
   const revisions = path.join(dir, `${name}.revisions`);
   if (fs.existsSync(revisions)) fs.cpSync(revisions, path.join(into, `${name}.revisions`), { recursive: true });
-  console.log(`${same === undefined ? 'Kept' : 'Already kept'} the previous render in ${path.relative(ROOT, into)}/`);
+  console.log(`${same === undefined ? 'Kept' : 'Already kept'} the previous render in ${shown(into)}/`);
 };
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -237,7 +236,7 @@ if (isMain) {
     process.exit(1);
   }
   const videoFlag = flags.find(f => f.startsWith('--video='))?.slice('--video='.length);
-  const videoPath = path.resolve(ROOT, videoFlag ?? path.join('out', slug, `${slug}.mp4`));
+  const videoPath = videoFlag ? path.resolve(ROOT, videoFlag) : path.join(DIRS.out, slug, `${slug}.mp4`);
   if (!fs.existsSync(videoPath)) {
     console.error(`No video at ${videoPath}. Render first, or pass --video=<path>.`);
     process.exit(1);

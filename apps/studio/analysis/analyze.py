@@ -463,7 +463,7 @@ def main(proj, plots=False):
                "onsets of the vocal stem (incl. backing vocals and ad-libs)."),
     )
     common.write_json(proj.out / "audio.json", doc, compact=True)
-    print(f"wrote {(proj.out / 'audio.json').relative_to(common.APP)}: {len(beats)} beats, {len(downbeats)} "
+    print(f"wrote {common.shown(proj.out / 'audio.json')}: {len(beats)} beats, {len(downbeats)} "
           f"downbeats, {len(kt)} kicks, {len(st)} snares, {len(ht)} hats, {len(onsets['vocal'])} vocal onsets")
     if plots:
         make_plots(proj, doc, stems)
@@ -537,7 +537,7 @@ def make_plots(proj, doc, stems):
     fig.tight_layout()
     fig.savefig(proj.qa / "audio_overview.png", dpi=60)
     plt.close(fig)
-    print(f"QA plots: {proj.qa.relative_to(common.APP)}/audio_*.png")
+    print(f"QA plots: {common.shown(proj.qa)}/audio_*.png")
 
 
 if __name__ == "__main__":

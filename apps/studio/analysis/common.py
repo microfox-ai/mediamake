@@ -28,9 +28,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from workspace import shown, workspace_dir
+
 ROOT = Path(__file__).resolve().parent            # apps/studio/analysis
 APP = ROOT.parent                                 # apps/studio
-PROJECTS = APP / "projects"
+PROJECTS = workspace_dir("projects")              # apps/studio/projects, or the workspace's (workspace.py)
 CACHE = ROOT / ".cache"
 for var, sub in [("TORCH_HOME", "torch"), ("HF_HOME", "hf"), ("HF_HUB_CACHE", "hf/hub"),
                  ("XDG_CACHE_HOME", "xdg"), ("HUGGINGFACE_HUB_CACHE", "hf/hub"),
@@ -54,7 +56,7 @@ class Project:
         self.dir = PROJECTS / slug
         self.input = self.dir / "input"
         if not self.input.is_dir():
-            sys.exit(f"Missing {self.input.relative_to(APP)}/")
+            sys.exit(f"Missing {shown(self.input)}/")
         self.out = self.dir / "analysis"
         self.work = self.out / "work"
         self.stems = self.out / "stems"
@@ -123,7 +125,7 @@ class Project:
         import soundfile as sf
         p = self.stems / f"{name}.wav"
         if not p.exists():
-            sys.exit(f"Missing stem {p.relative_to(APP)}. Run: uv run python separate.py {self.slug}")
+            sys.exit(f"Missing stem {shown(p)}. Run: uv run python separate.py {self.slug}")
         y, s = sf.read(p, dtype="float32", always_2d=True)
         y = y.mean(axis=1) if mono else y.T
         return _resample(y, s, sr, mono), sr or s

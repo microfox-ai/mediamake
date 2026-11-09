@@ -31,7 +31,7 @@ import path from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
-  DIRS, KINDS, LAYOUT, REPO, danglingLinks, fromRepoPath, isHeavy, isProtected, kindOf, productionDirs, productionNames, rebuildableDirs, repoPath,
+  DIRS, KINDS, LAYOUT, REPO, danglingLinks, fromRepoPath, fromStudio, isHeavy, isProtected, kindOf, productionDirs, productionNames, rebuildableDirs, repoPath, studioPath,
   type Kind,
 } from './paths.ts';
 
@@ -133,7 +133,7 @@ const rebuildable = (): Item[] => {
       items.push({ abs, label: `temp: ${name}`, bytes: bytesOf(abs), skip });
     }
   for (const abs of rebuildableDirs())
-    items.push({ abs, label: path.relative(REPO, abs), bytes: bytesOf(abs), skip: rendering.length && abs.endsWith('.public') ? 'a render or Studio is running' : undefined });
+    items.push({ abs, label: repoPath(abs), bytes: bytesOf(abs), skip: rendering.length && abs.endsWith('.public') ? 'a render or Studio is running' : undefined });
   const next = path.join(REPO, 'apps', 'mediamake', '.next');
   if (fs.existsSync(next)) items.push({ abs: next, label: path.relative(REPO, next), bytes: bytesOf(next), skip: serving.length ? 'the Next.js dev server is running' : undefined });
   return items;
@@ -148,10 +148,12 @@ const clean = () => {
   for (const i of items.filter(i => i.skip)) console.log(`  skipped  ${i.label}: ${i.skip}`);
   const total = go.reduce((a, i) => a + i.bytes, 0);
   if (!yes) return console.log(`\n${size(total)} can go. Dry run: add --yes to delete.`);
-  const before = diskFree(REPO).free;
+  // the rebuildable folders are in out/, which may be on another disk than the repo (the workspace)
+  const work = fs.existsSync(DIRS.out) ? DIRS.out : REPO;
+  const before = diskFree(work).free;
   // rmSync removes a symlink without following it, so a linked public dir is never touched
   for (const i of go) fs.rmSync(i.abs, { recursive: true, force: true });
-  console.log(`\n✔ deleted ${size(total)}; free space ${size(before)} → ${size(diskFree(REPO).free)}`);
+  console.log(`\n✔ deleted ${size(total)}; free space ${size(before)} → ${size(diskFree(work).free)}`);
 };
 
 // ---------- ledger ----------
@@ -196,8 +198,9 @@ const printDrives = () => {
 const diskDir = (arg: string) => {
   const dir = arg.startsWith('/') ? arg : path.join('/Volumes', arg);
   if (!fs.existsSync(dir)) throw new Error(`${dir} isn't there. Connect the disk, then: mm cleanup-out drives`);
-  // archiving to the disk this repo is on frees nothing (tests pass --same-disk)
-  if (fs.statSync(dir).dev === fs.statSync(REPO).dev && !flags.includes('--same-disk')) throw new Error(`${dir} is on the same disk as the repo: pick an external disk`);
+  // archiving to the disk your work is on frees nothing (tests pass --same-disk)
+  const work = fs.existsSync(DIRS.out) ? DIRS.out : REPO;
+  if (fs.statSync(dir).dev === fs.statSync(work).dev && !flags.includes('--same-disk')) throw new Error(`${dir} is on the same disk as your work: pick an external disk`);
   return dir;
 };
 
@@ -280,9 +283,10 @@ const resolveTargets = (list: string[]): Target[] => {
       if (!dirs.length) throw new Error(`No production named ${t}. Run: mm cleanup-out scan`);
       return { name: t, dirs, explicit: false };
     }
-    const abs = path.isAbsolute(t) ? t : [path.resolve(REPO, t), path.resolve(DIRS.out, '..', t)].find(p => fs.existsSync(p)) ?? path.resolve(REPO, t);
+    // apps/studio/out/<name> (from the repo), out/<name> (as the studio names it), wherever the workspace is
+    const abs = path.isAbsolute(t) ? t : [fromRepoPath(t), fromStudio(t)].find(p => fs.existsSync(p)) ?? fromRepoPath(t);
     if (abs === DIRS.brands || abs.startsWith(DIRS.brands + path.sep)) throw new Error('brands/ holds the brand kits every video uses: it is never archived');
-    if (!abs.startsWith(REPO + path.sep)) throw new Error(`${t} is outside the repo`);
+    if (!abs.startsWith(REPO + path.sep) && path.isAbsolute(studioPath(abs))) throw new Error(`${t} is outside the repo and the workspace`);
     return { name: repoPath(abs), dirs: [abs], explicit: true };
   });
 };
@@ -463,7 +467,7 @@ const restore = async () => {
   if (!store.disk.id) throw new Error(`No ${ARCHIVE} on ${from}`);
   const entries = [...latest(readLedger(store.ledger)).values()];
   const jobs = targets.flatMap(t => {
-    const prefix = t.includes('/') ? repoPath(path.isAbsolute(t) ? t : path.resolve(REPO, t)) : null;
+    const prefix = t.includes('/') ? repoPath(path.isAbsolute(t) ? t : [fromRepoPath(t), fromStudio(t)].find(p => fs.existsSync(path.dirname(p))) ?? fromRepoPath(t)) : null;
     return entries.filter(
       e => (prefix ? e.path === prefix || e.path.startsWith(prefix + '/') : e.name === t) && e.action !== 'restored' && (!only || only.has(e.kind)) && !fs.existsSync(fromRepoPath(e.path)),
     );

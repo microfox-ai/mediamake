@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REVISIONS_SUFFIX, commentLine, isMachineNote, readRevisions, revisionsDirFor, type Revision } from './revision-files.ts';
+import { DIRS, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -25,11 +26,7 @@ if (!slug && !opt('video')) {
 const timeoutMin = Number(opt('timeout') ?? 110);
 const everySec = Math.max(1, Number(opt('every') ?? 3));
 const videoFlag = opt('video');
-const projectDir = slug ? path.join(ROOT, 'out', slug) : null;
-const shown = (file: string) => {
-  const rel = path.relative(ROOT, file);
-  return rel.startsWith('..') ? file : rel;
-};
+const projectDir = slug ? path.join(DIRS.out, slug) : null;
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /** every revisions folder to watch: --video's, or all under out/<slug>/ outside kept versions */
@@ -92,7 +89,7 @@ for (;;) {
     }
   }
   if (Date.now() >= deadline) {
-    const where = videoFlag ? shown(revisionsDirFor(path.resolve(ROOT, videoFlag))) : `out/${slug}/`;
+    const where = videoFlag ? shown(revisionsDirFor(path.resolve(ROOT, videoFlag))) : `${shown(path.join(DIRS.out, slug!))}/`;
     console.log(
       `No revision under ${where} was set to “Ready for Claude” in ${timeoutMin} min. Stopped watching; ` +
         'start it once more if the user is still reviewing, otherwise wait for their message.',
