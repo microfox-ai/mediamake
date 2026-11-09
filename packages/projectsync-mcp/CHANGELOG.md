@@ -1,5 +1,12 @@
 # @microfox/projectsync-mcp
 
+## 0.1.5
+
+### Patch Changes
+
+- c0815ad: Changes from PR #531: project-thread-9lumba
+- 3a1ceab: Changes from PR #539: project-thread-42czmp
+
 ## 0.1.4
 
 ### Patch Changes
