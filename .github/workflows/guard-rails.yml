@@ -1,0 +1,43 @@
+name: Guard rails
+
+# The session-start git check and the pre-edit guard (tools/git-health.mjs, tools/guard-rails.mjs)
+# are tested on throwaway checkouts: dirty, behind, diverged, mid-merge, mid-rebase, detached …
+on:
+  pull_request:
+    paths:
+      - 'tools/**'
+      - '.claude/settings.json'
+      - '.github/workflows/guard-rails.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/**'
+      - '.claude/settings.json'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Settings are valid JSON and point at scripts that exist
+        run: |
+          node -e '
+            const fs = require("fs");
+            const s = JSON.parse(fs.readFileSync(".claude/settings.json", "utf8"));
+            JSON.parse(fs.readFileSync("tools/guard-rails.json", "utf8"));
+            for (const groups of Object.values(s.hooks))
+              for (const g of groups)
+                for (const h of g.hooks) {
+                  const m = h.command.match(/\$CLAUDE_PROJECT_DIR\/([^"\s]+)/);
+                  if (!m || !fs.existsSync(m[1])) throw new Error(`hook points at a missing script: ${h.command}`);
+                }
+          '
+      - name: Tests
+        run: node --test tools/*.test.mjs
