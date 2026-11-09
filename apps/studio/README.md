@@ -37,13 +37,20 @@ and the Python analysis ask `scripts/workspace.ts` (or its twins: `analysis/work
   - The media library's catalog, your text files (job JSON, notes) and links that name the old folders
     are pointed at the new ones. `.claude/settings.local.json` lists the workspace in
     `additionalDirectories`, so Claude Code sessions started in the repo can open it.
-- A project in the workspace still imports the engine as `../../../src/kit`: the bundles lay the
-  workspace over this folder (`scripts/workspace-webpack.ts`), and the workspace's `tsconfig.json`
-  (`rootDirs`) and `node_modules` link do the same for TypeScript and editors
-  (`scripts/workspace-setup.ts`). Scripts that load a project's own code in Node (`mm remix`, `mm amv`,
-  `mm lyric-shorts`, `mm wave-lab`) and `mm brand`'s esbuild get the same fallback from
-  `scripts/workspace-node.ts`. This holds until projects import the engine by name. `mm type-check`
-  checks the studio, then the workspace's projects.
+- Your code imports the engine by name, wherever it is: `@mediamake/engine` (the kit: `defineProject`,
+  `layer`, the hooks) and `@mediamake/engine/<name>/<file>`, e.g. `@mediamake/engine/lyrics`,
+  `@mediamake/engine/remix/edl.ts`, `@mediamake/engine/logos/kit`. `engine.json` names each folder
+  (`mm engine` lists them) and holds the engine's version; the bundles, TypeScript (`tsconfig.json`
+  `paths`), Node (`scripts/workspace-node.ts`) and the editor all read it (`scripts/engine.ts`).
+  - Each project records the engine it was made with in `input/project.json` (`"engine": { "version",
+    "commit" }`): `mm prepare` and its first `mm render` write it. A change to the engine that would
+    break a project that worked bumps the major version; such a project is named when it renders.
+  - Older code imports it by path (`../../../src/kit`). `mm engine codemod` (a dry run, then `--yes`)
+    gives those imports their names and pins every project; `mm migrate` does the same. Until then
+    they keep working: the bundles lay the workspace over this folder (`scripts/workspace-webpack.ts`),
+    the workspace's `tsconfig.json` (`rootDirs`) and `node_modules` link do it for TypeScript and
+    editors (`scripts/workspace-setup.ts`), and `scripts/workspace-node.ts` for Node and esbuild.
+  - `mm type-check` checks the studio, then the workspace's projects.
 - Logs, review links and the library keep naming files as the studio does (`out/<slug>/<slug>.mp4`),
   so they mean the same file wherever the workspace is.
 - In code: take folders from `DIRS` in `scripts/paths.ts` (`DIRS.projects`, `DIRS.out`, …), never
@@ -330,7 +337,7 @@ looks, or the `waveform-audio` preset), `CoverBackdrop` and `TrackTitle`, plus t
 `waveformVideo()` templates. A project can then be a few lines:
 
 ```tsx
-import { lyricVideo } from '../../../src/mediamake';
+import { lyricVideo } from '@mediamake/engine/lyrics';
 export default lyricVideo({ id: 'my-song', cover: 'cover.jpg', lyrics: 'default', wave: 'default' });
 ```
 

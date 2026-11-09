@@ -12,7 +12,28 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@mediamake/engine": ["./src/kit/index.ts"],
+      "@mediamake/engine/kit": ["./src/kit"],
+      "@mediamake/engine/kit/*": ["./src/kit/*"],
+      "@mediamake/engine/lyrics": ["./src/mediamake"],
+      "@mediamake/engine/lyrics/*": ["./src/mediamake/*"],
+      "@mediamake/engine/remix": ["./src/remix"],
+      "@mediamake/engine/remix/*": ["./src/remix/*"],
+      "@mediamake/engine/lyricshorts": ["./src/lyricshorts"],
+      "@mediamake/engine/lyricshorts/*": ["./src/lyricshorts/*"],
+      "@mediamake/engine/kinetictype": ["./src/kinetictype"],
+      "@mediamake/engine/kinetictype/*": ["./src/kinetictype/*"],
+      "@mediamake/engine/amv": ["./src/amv"],
+      "@mediamake/engine/amv/*": ["./src/amv/*"],
+      "@mediamake/engine/catalog": ["./catalog"],
+      "@mediamake/engine/catalog/*": ["./catalog/*"],
+      "@mediamake/engine/logos": ["./logoGraphics"],
+      "@mediamake/engine/logos/*": ["./logoGraphics/*"],
+      "@mediamake/engine/thumbnails": ["./thumbnails"],
+      "@mediamake/engine/thumbnails/*": ["./thumbnails/*"]
+    }
   },
   "include": ["src", "projects", "scripts", "logoGraphics", "brands/*/graphics", "thumbnails", "catalog"],
   "exclude": ["node_modules", "out"]

@@ -29,7 +29,7 @@ The waves, font sets and caption setups to start from are in **`apps/studio/cata
 
 ```tsx
 // projects/<slug>/video/storyboard.ts — the three steps, then the picks
-import { tintWave, type Storyboard } from '../../../src/mediamake/look.ts';
+import { tintWave, type Storyboard } from '@mediamake/engine/lyrics/look.ts';
 
 export default {
   base: { cover: { image: 'cover.jpg', beatKick: 0.5 } },
@@ -40,7 +40,7 @@ export default {
 } satisfies Storyboard;
 
 // projects/<slug>/video/index.tsx
-import { storyboardVideo } from '../../../src/mediamake';
+import { storyboardVideo } from '@mediamake/engine/lyrics';
 import storyboard from './storyboard';
 export default storyboardVideo('<slug>', storyboard);
 ```

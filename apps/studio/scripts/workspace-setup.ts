@@ -6,7 +6,8 @@
  * - node_modules: a link to the checkout's node_modules. Anything that looks for packages next to a
  *   file finds the studio's: TypeScript, editors, a script run in the workspace. (The Remotion bundles
  *   don't need it: workspace-webpack.ts gives webpack the same fallback.)
- * - tsconfig.json: the studio's settings, plus rootDirs, so that a project's `../../../src/kit` means the
+ * - tsconfig.json: the studio's settings (with the engine's names, @mediamake/engine), plus rootDirs, so
+ *   that code still importing the engine by path (`../../../src/kit`) means the
  *   studio's src/kit, as it does in the bundles. It is rewritten while it keeps the MARK line; delete
  *   that line and your own edits are kept.
  *
@@ -29,7 +30,7 @@ const lstat = (p: string) => {
 export const workspaceTsconfig = (studio: string) =>
   JSON.stringify(
     {
-      $comment: `${MARK} for the studio in ${studio}. Your projects type-check with its settings, and their ../../../src/kit imports mean its src/kit (rootDirs). mm type-check runs it. Delete this line to keep your own edits.`,
+      $comment: `${MARK} for the studio in ${studio}. Your projects type-check with its settings and its engine (@mediamake/engine), and imports of it by path (../../../src/kit) mean its src/kit (rootDirs). mm type-check runs it. Delete this line to keep your own edits.`,
       extends: path.join(studio, 'tsconfig.json'),
       compilerOptions: { rootDirs: ['.', studio] },
       include: ['projects', 'brands/*/graphics', 'thumbnails/jobs', 'extensions'],

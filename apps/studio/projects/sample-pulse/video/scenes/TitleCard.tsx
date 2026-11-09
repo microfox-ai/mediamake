@@ -6,7 +6,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import { editable, useBeat, useSection, type SceneProps } from '../../../../src/kit';
+import { editable, useBeat, useSection, type SceneProps } from '@mediamake/engine';
 import { body, display } from '../fonts';
 
 type TitleCardProps = { title?: string; subtitle?: string };

@@ -1,4 +1,5 @@
 import { transform } from 'sucrase';
+import { engineTarget, isEngineImport, parseEngineNames, type EngineNames } from './engine-names';
 import { hostModuleNames, isHostModule, loadHostModules } from './host-modules';
 import type { ProjectSource } from './source';
 import type { KitApi, ProjectDefinition } from './types';
@@ -6,7 +7,8 @@ import type { KitApi, ProjectDefinition } from './types';
 /*
  * Compiles a lyric project in the browser. Each file goes through sucrase (TypeScript, JSX,
  * imports → CommonJS) on its own and runs with a small `require`: relative imports load other
- * project files, package imports come from the app (host-modules.ts). The whole of
+ * project files, the engine's names (@mediamake/engine/…, the studio's engine.json) load the
+ * engine's files, package imports come from the app (host-modules.ts). The whole of
  * inexorablemaster2 (~60 files) takes well under a second.
  */
 
@@ -57,6 +59,11 @@ const toCommonJs = (file: string, text: string) => {
   }
 };
 
+const readEngineNames = async (source: ProjectSource): Promise<EngineNames | null> =>
+  parseEngineNames(
+    (await source.readTexts(['engine.json']).catch(() => ({}) as Record<string, string | null>))['engine.json'],
+  );
+
 export async function compileProject(
   source: ProjectSource,
   slug: string,
@@ -66,6 +73,9 @@ export async function compileProject(
   for (const f of [entry, ...KIT_FILES]) {
     if (!mtimes.has(f)) throw new CompileError(`Missing ${f}`, f);
   }
+
+  // the engine's names: a studio from before them has no engine.json
+  const engine = await readEngineNames(source);
 
   // walk the import graph a level at a time, one request per level
   const code = new Map<string, string>();
@@ -85,11 +95,15 @@ export async function compileProject(
       const out = toCommonJs(file, text);
       code.set(file, out);
       for (const [, , spec] of out.matchAll(REQUIRE)) {
-        if (!spec.startsWith('.')) {
+        const named = spec.startsWith('.') ? null : engineTarget(spec, engine);
+        if (!engine && isEngineImport(spec)) {
+          throw new CompileError(`${file}: '${spec}' needs a newer studio (one with engine.json). Update apps/studio.`, file);
+        }
+        if (!spec.startsWith('.') && named === null) {
           packages.add(spec);
           continue;
         }
-        const base = joinPath(dirname(file), spec);
+        const base = named ?? joinPath(dirname(file), spec);
         const target = SUFFIXES.map(s => base + s).find(p => mtimes.has(p));
         if (!target) throw new CompileError(`${file}: cannot find '${spec}'`, file);
         resolved.set(`${file}\0${spec}`, target);
@@ -118,8 +132,10 @@ export async function compileProject(
       mod.exports = JSON.parse(text);
       return mod.exports;
     }
-    const require = (spec: string) =>
-      spec.startsWith('.') ? load(resolved.get(`${file}\0${spec}`)!) : host.get(spec);
+    const require = (spec: string) => {
+      const target = resolved.get(`${file}\0${spec}`);
+      return target ? load(target) : host.get(spec);
+    };
     try {
       // the sourceURL names the file in stack traces and the devtools Sources panel
       new Function('require', 'module', 'exports', `${text}\n//# sourceURL=lyrics:///${file}`)(

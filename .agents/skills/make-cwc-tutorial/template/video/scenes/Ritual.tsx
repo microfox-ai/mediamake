@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, interpolate, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { at, Caret, Ground, Keycap, prog, Sfx, typed, Window, Word } from '../parts';
 import { ASK_PROMPT, C, easeIn, easeInOut, f, INSTALL_PROMPT, INSTALL_STEPS, mono, sans, src } from '../theme';
 import { T } from '../timeline';

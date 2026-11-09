@@ -53,6 +53,7 @@ const ABOUT = {
   golden: 'fixed frames of the fixtures compared with another commit',
   migrate: 'moves your projects, renders and brand kits into your workspace, ~/MediaMake (dry run; --yes to move)',
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
+  engine: 'the engine by name (@mediamake/engine): its version, your pins; codemod gives old imports its names',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
 };
 

@@ -118,7 +118,7 @@ const entriesOf = (projectsDir: string, slug: string): string[] => {
 
 /** What a bundle depends on besides the files webpack read: Remotion, our bundling code, the installed packages. */
 const keyFor = (slug: string, entry: string, publicDir: string) => {
-  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts', 'workspace.ts', 'workspace-webpack.ts'].map(f => {
+  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts', 'workspace.ts', 'workspace-webpack.ts', 'engine.ts', '../engine.json'].map(f => {
     try {
       return sha1(fs.readFileSync(path.join(HERE, f), 'utf8'));
     } catch {

@@ -101,6 +101,8 @@ export const ProjectInputSchema = z.object({
   audio: z.string().optional(),
   /** Explicit sections; when omitted they are derived from gaps in the lyrics. */
   sections: z.array(SectionSchema).optional(),
+  /** The engine it was made with (scripts/engine.ts): mm prepare and mm render record it once. */
+  engine: z.object({ version: z.string(), commit: z.string().optional() }).optional(),
 });
 
 export type ProjectInput = z.infer<typeof ProjectInputSchema>;

@@ -12,8 +12,10 @@
  *
  * How:
  * - Each fixture's folder is copied into <app>/.golden/<name>/ (gitignored), one level under the app
- *   like projects/<name>, so its relative imports (../../../src/kit) reach that app's own engine. The
- *   bundle's projects context and public dir point there, so the user's projects are never bundled.
+ *   like projects/<name>. Its imports of the engine by name (@mediamake/engine, engine.ts) reach that
+ *   app's own engine (with this checkout's names when that app is from before they existed), and so
+ *   would relative ones (../../../src/kit). The bundle's projects context and public dir point there,
+ *   so the user's projects are never bundled.
  * - `check` shoots this checkout and <ref> (a git worktree in the temp folder, reused; it borrows
  *   this checkout's node_modules, so a built @microfox/remotion comes from here) with the fixtures of
  *   this checkout, then compares: byte-equal frames pass at once, others by PSNR (ffmpeg), and a
@@ -36,7 +38,8 @@ import webpack from 'webpack';
 import { removeBundle, tempBundle } from './bundle.ts';
 import { FFMPEG, FFPROBE } from './ff.ts';
 import { DIRS } from './paths.ts';
-import { workspaceWebpack } from './workspace-webpack.ts';
+import { readEngine } from './engine.ts';
+import { engineWebpack, workspaceWebpack } from './workspace-webpack.ts';
 
 const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(HERE, '..', '..');
@@ -109,7 +112,7 @@ const shoot = async (root: string, out: string, fixtures: Fixture[], scale: numb
           dirs: { projects: staged, brands: path.join(root, 'brands'), thumbnailJobs: path.join(root, 'thumbnails', 'jobs') },
         });
       // `as`: the CLI's webpack and @remotion/bundler's own copy have different types (only-project.ts)
-      return {
+      const fixturesOnly = {
         ...styled,
         plugins: [
           ...(styled.plugins ?? []),
@@ -117,6 +120,9 @@ const shoot = async (root: string, out: string, fixtures: Fixture[], scale: numb
           new webpack.ContextReplacementPlugin(projectsRe, staged),
         ],
       } as typeof styled;
+      // the fixtures import the engine by name: from <root>'s own folders, with this checkout's names
+      // when <root> is from before the engine had them (the folders are where they were)
+      return engineWebpack(fixturesOnly, root, readEngine(root) ?? readEngine(HERE));
     },
   }).finally(() => process.chdir(cwd));
   const chromiumOptions = { gl: 'angle' as const };

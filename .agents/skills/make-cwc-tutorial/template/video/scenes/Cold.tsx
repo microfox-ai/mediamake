@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, OffthreadVideo, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { CookWithClaudeLogo, LOGO_VIEW } from '../../../../brands/cookwithclaude/graphics/Logo';
 import { Css3D, Css3DObject } from '../css3d';
 import { Caret, clamp, Ground, prog, SelectBox, Sfx, typed } from '../parts';

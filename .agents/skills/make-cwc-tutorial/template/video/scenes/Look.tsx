@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { AbsoluteFill, Easing, random, useCurrentFrame } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import refsMeta from '../../input/tex/refs.json';
 import { KWord, SceneIn } from '../fx';
 import { Loop, prog, Sfx } from '../parts';

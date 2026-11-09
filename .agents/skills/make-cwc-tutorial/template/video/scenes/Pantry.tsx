@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import stationsData from '../../input/stations.json';
 import { AtlasCrop, Css3D, Css3DObject } from '../css3d';
 import { KWord, SparkTrace, swooshPts } from '../fx';

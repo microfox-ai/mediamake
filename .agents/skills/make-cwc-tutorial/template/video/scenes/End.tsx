@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Audio, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { CookWithClaudeLogo, LOGO_VIEW } from '../../../../brands/cookwithclaude/graphics/Logo';
 import { loopPts, SparkTrace } from '../fx';
 import { Caret, Ground, prog, Sfx, typed } from '../parts';

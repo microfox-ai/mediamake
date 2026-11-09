@@ -17,7 +17,9 @@
  *   type-check there;
  * - .claude/settings.local.json lists it in additionalDirectories, so Claude Code sessions in the repo
  *   can open it;
- * - each folder it left gets a MOVED.md saying where its files went.
+ * - each folder it left gets a MOVED.md saying where its files went;
+ * - your code's imports of the engine by path (../../../src/kit) get its names (@mediamake/engine),
+ *   and each project records the engine it was made with (engine.ts; mm engine codemod does this alone).
  *
  * How it moves (both steps):
  * - Folders are merged. A file that is already there with the same content is dropped from the old
@@ -44,6 +46,7 @@ import { tx } from './library/db.ts';
 import { exportLibrary } from './library/export.ts';
 import { openLibrary } from './library/lib.ts';
 import { rendering, size } from './library/sys.ts';
+import { applyCodemod, planCodemod } from './engine.ts';
 import { REPO, ROOT, shown } from './paths.ts';
 import { setupWorkspace } from './workspace-setup.ts';
 import { DEFAULT_WORKSPACE, STUDIO_FOLDERS, WORKSPACE_FOLDERS, workspaceDir, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
@@ -579,6 +582,14 @@ const main = () => {
   const notes = plans.filter(p => p.moves.length || p.same.length).map(p => `${shown(p.from)}/${NOTE}`);
   list('Then:', [...(config ? [config] : []), ...setup, ...(claude ? [claude] : []), ...(notes.length ? [`a note where your files were: ${notes.join(', ')}`] : [])]);
 
+  // ── the engine by name (engine.ts): your code's imports of it by path, and pins
+  const engine = planCodemod(ROOT);
+  const engineFiles = new Set(engine.changes.map(c => c.file)).size;
+  list('Your code and the engine (mm engine codemod lists each import):', [
+    ...(engineFiles ? [`${plural(engine.changes.length, 'import')} of the engine by path in ${plural(engineFiles, 'file')} get its names (@mediamake/engine/…)`] : []),
+    ...(engine.pins.length ? [`an engine pin (${engine.pins[0].pin.version}) in the input/project.json of ${plural(engine.pins.length, 'project')}: the engine it was made with`] : []),
+  ]);
+
   // ── the catalog, the watcher, and config files that name an old folder (both steps)
   const lib = hasConfig() ? openLibrary({ quiet: true }) : null;
   const catalog1 = lib ? catalogPaths(lib.db, pairs1, false) : [];
@@ -600,7 +611,7 @@ const main = () => {
   list('These name a folder that moves: edit them by hand (mm workspace says where each one is now):', elsewhere.map(tilde));
 
   const todo1 = !!plan1 && !!(plan1.moves.length || plan1.same.length || plan1.rebuild.length || plan1.texts.length);
-  const todo2 = plans.some(p => p.moves.length || p.same.length || p.rebuild.length) || copies.length || setup.length || config || claude || outside.length;
+  const todo2 = plans.some(p => p.moves.length || p.same.length || p.rebuild.length) || copies.length || setup.length || config || claude || outside.length || engine.changes.length || engine.pins.length;
   if (!todo1 && !todo2 && !catalog1.length && !catalog2.length && !watcher) {
     const conflicts = [...(plan1?.conflicts ?? []), ...plans.flatMap(p => p.conflicts)];
     console.log(conflicts.length ? '\nOnly the files above are left: compare the two copies, keep one, and delete the other.' : '\nNothing to do.');
@@ -639,6 +650,9 @@ const main = () => {
   setupWorkspace(ws, ROOT, true);
   if (configWorkspace() !== ws) saveWorkspace(tilde(ws));
   claudeAccess(ws, true);
+  // planned again: the files are where they moved to
+  const engineNow = planCodemod(ROOT);
+  applyCodemod(engineNow, ROOT);
   if (lib) {
     catalogPaths(lib.db, pairsNow, true);
     // the library's folders as they are now (lib was opened with the old ones)
@@ -655,6 +669,7 @@ const main = () => {
   for (const r of left1.slice(0, 40)) console.log(`  ${r}`);
   console.log(`\n✔ Your work is in ${tilde(ws)}, and the config names it as your workspace${lib ? '; the library catalog points there too' : ''}.`);
   list('Left where they were (in both with different content):', left2, 40);
+  if (engineNow.texts.size || engineNow.pins.length) console.log(`Your code imports the engine by name (${plural(engineNow.texts.size, 'file')} rewritten); engine pins in ${plural(engineNow.pins.length, 'project')}.`);
   console.log('mm workspace lists every folder.');
   if (plan1 && !lstat(path.join(REPO, 'node_modules', 'studio'))) console.log('Next: npm ci (the workspace is called studio now).');
 };

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
 import * as THREE from 'three';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { KCount, SparkTrace, swooshPts } from '../fx';
 import { Ground, prog, Sfx, typed } from '../parts';
 import { C, ease, easeIn, easeInOut, f, H, mono, NOTES, W } from '../theme';

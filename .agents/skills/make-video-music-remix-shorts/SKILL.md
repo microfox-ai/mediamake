@@ -361,7 +361,7 @@ be good.
 
 ```ts
 import * as full from '../../video/edl.ts';
-import { band, c, splitAt, aim, freeze, shake, type Block } from '../../../../src/remix/edl.ts';
+import { band, c, splitAt, aim, freeze, shake, type Block } from '@mediamake/engine/remix/edl.ts';
 
 const recast: Record<string, Block> = {
   // the short opens here: the hero on the downbeat, then the long edit's hook

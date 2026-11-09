@@ -36,7 +36,8 @@ import {
   type Manifest,
   type Section,
 } from '../src/kit/manifest.ts';
-import { DIRS, danglingLinks } from './paths.ts';
+import { pinProject } from './engine.ts';
+import { DIRS, ROOT, danglingLinks } from './paths.ts';
 
 const PROJECTS_DIR = DIRS.projects;
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|flac|webm)$/i;
@@ -599,6 +600,9 @@ const main = () => {
   );
 
   console.log(`✔ ${slug}/manifest.json`);
+  // the engine it is made with (engine.ts), once
+  const pinned = pinProject(projectDir, ROOT);
+  if (pinned) console.log(`✔ ${slug}/input/project.json: engine ${pinned.version}${pinned.commit ? ` (${pinned.commit.slice(0, 7)})` : ''}`);
   console.log(`  audio     ${audioFile}  ${duration.toFixed(2)}s`);
   console.log(
     `  beats     ${beats.list.length}${beats.bpm ? `  ~${beats.bpm} bpm` : ''}` +

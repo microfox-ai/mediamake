@@ -1,4 +1,4 @@
-import { lyricVideo } from '../../../src/mediamake';
+import { lyricVideo } from '@mediamake/engine/lyrics';
 
 // Golden-stills fixture (scripts/golden.ts): the mediamake template path, so a change to the
 // caption presets, the waveform layer or the cover backdrop shows up in `mm golden`.

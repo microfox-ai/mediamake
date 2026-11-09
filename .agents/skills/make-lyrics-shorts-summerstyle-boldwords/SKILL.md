@@ -434,7 +434,7 @@ to the channel's folder: `media deliver <slug> --what=shorts` (a dry run), then 
 ## The cut list — reference
 
 ```ts
-import { cut, full, stack, type LyricShortEdl } from '../../../../src/lyricshorts/spec.ts';
+import { cut, full, stack, type LyricShortEdl } from '@mediamake/engine/lyricshorts/spec.ts';
 
 export const edl: LyricShortEdl = {
   cuts: [                                   // the footage under everything, back to back from each beat

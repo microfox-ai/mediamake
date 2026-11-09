@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, Img, interpolate, OffthreadVideo, useCurrentFrame } from 'remotion';
 import { getWaveformPortion, useAudioData, visualizeAudio } from '@remotion/media-utils';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { Css3D, Css3DObject } from '../css3d';
 import { KCount, KWord, SparkTrace, swooshPts } from '../fx';
 import { Ground, prog, Sfx, smooth } from '../parts';
