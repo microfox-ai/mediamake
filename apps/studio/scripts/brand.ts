@@ -27,9 +27,10 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { removeBundle, tempBundle } from './bundle.ts';
 import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
-import { buildSync } from 'esbuild';
+import { build } from 'esbuild';
 import { BRANDS, OUT_BRANDS, ROOT, assemblePublic } from './brand-public.ts';
 import { shown } from './paths.ts';
+import { workspaceEsbuild } from './workspace-node.ts';
 
 type Asset = { scene: string; kind: 'video' | 'transparent-video' | 'still'; to: string; at?: number | 'logo'; alpha?: boolean; guides?: boolean };
 type BrandConfig = {
@@ -72,7 +73,8 @@ const main = async () => {
   for (const [i, v] of vectors.entries()) {
     fs.mkdirSync(path.join(OUT_BRANDS, brand), { recursive: true });
     const tmp = path.join(OUT_BRANDS, brand, `.brand-svg-${i}.mjs`);
-    buildSync({ entryPoints: [path.join(src, v.module)], bundle: true, platform: 'node', format: 'esm', outfile: tmp, external: ['remotion'], logLevel: 'error' });
+    // a brand in a workspace outside the checkout finds the engine (logoGraphics/…) from the studio
+    await build({ entryPoints: [path.join(src, v.module)], bundle: true, platform: 'node', format: 'esm', outfile: tmp, external: ['remotion'], logLevel: 'error', plugins: [workspaceEsbuild()] });
     const mod = (await import(pathToFileURL(tmp).href)) as Record<string, () => string>;
     const name = (v as { export?: string }).export ?? 'default';
     if (typeof mod[name] !== 'function') throw new Error(`${v.module} has no export "${name}"`);

@@ -42,6 +42,7 @@ import {
   type WaveDesign,
 } from '../src/mediamake/look.ts';
 import { DIRS, shown } from './paths.ts';
+import './workspace-node.ts'; // a storyboard, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(ROOT, '../..');

@@ -45,6 +45,7 @@ import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
 import { solveLockup, type Lockup } from '../src/lyricshorts/lockup.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
 import { DIRS, shown } from './paths.ts';
+import './workspace-node.ts'; // the project's own code, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);

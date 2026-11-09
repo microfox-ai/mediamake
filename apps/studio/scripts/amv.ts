@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DIRS } from './paths.ts';
+import './workspace-node.ts'; // the project's own code, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [slug, ...flags] = process.argv.slice(2);

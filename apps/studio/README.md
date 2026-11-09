@@ -40,8 +40,10 @@ and the Python analysis ask `scripts/workspace.ts` (or its twins: `analysis/work
 - A project in the workspace still imports the engine as `../../../src/kit`: the bundles lay the
   workspace over this folder (`scripts/workspace-webpack.ts`), and the workspace's `tsconfig.json`
   (`rootDirs`) and `node_modules` link do the same for TypeScript and editors
-  (`scripts/workspace-setup.ts`), until projects import it by name. `mm type-check` checks the studio,
-  then the workspace's projects.
+  (`scripts/workspace-setup.ts`). Scripts that load a project's own code in Node (`mm remix`, `mm amv`,
+  `mm lyric-shorts`, `mm wave-lab`) and `mm brand`'s esbuild get the same fallback from
+  `scripts/workspace-node.ts`. This holds until projects import the engine by name. `mm type-check`
+  checks the studio, then the workspace's projects.
 - Logs, review links and the library keep naming files as the studio does (`out/<slug>/<slug>.mp4`),
   so they mean the same file wherever the workspace is.
 - In code: take folders from `DIRS` in `scripts/paths.ts` (`DIRS.projects`, `DIRS.out`, …), never
