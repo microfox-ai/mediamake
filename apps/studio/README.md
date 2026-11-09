@@ -44,7 +44,16 @@ and the Python analysis ask `scripts/workspace.ts` (or its twins: `analysis/work
   `paths`), Node (`scripts/workspace-node.ts`) and the editor all read it (`scripts/engine.ts`).
   - Each project records the engine it was made with in `input/project.json` (`"engine": { "version",
     "commit" }`): `mm prepare` and its first `mm render` write it. A change to the engine that would
-    break a project that worked bumps the major version; such a project is named when it renders.
+    break a project that worked bumps the major version.
+  - A project made with another major version renders with its own engine (`scripts/engine-pinned.ts`):
+    `mm render`, `mm stills` and `mm preview <slug>` run the pinned commit's `mm`, from a kept checkout
+    of it in `~/.mediamake/engines/` (a git worktree, made the first time and reused; it shares this
+    checkout's packages when they are the same, and installs its own when not). An approved video
+    re-renders as it was approved. `--engine=current` renders it with this engine instead, to see it
+    there; `mm engine pin <slug>` then moves it over. `--engine=pinned` uses the pinned engine within
+    a major too. A commit whose engine is this one renders here, with nothing checked out. It needs
+    your work in the workspace (`mm migrate`). `mm engine` lists the kept engines and `mm engine prune`
+    removes the ones no project pins.
   - Older code imports it by path (`../../../src/kit`). `mm engine codemod` (a dry run, then `--yes`)
     gives those imports their names and pins every project; `mm migrate` does the same. Until then
     they keep working: the bundles lay the workspace over this folder (`scripts/workspace-webpack.ts`),

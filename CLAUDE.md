@@ -18,7 +18,9 @@ workspace: take the full path from `mm workspace`. Code takes these folders from
 `mm type-check` checks the studio and the workspace's projects. Code in the workspace imports the engine
 by name, never by path: `@mediamake/engine` (the kit) and `@mediamake/engine/<name>/…` (`mm engine` lists
 the names, from `apps/studio/engine.json`); `mm engine codemod` converts older code. Each project records
-the engine it was made with in `input/project.json` (`engine`).
+the engine it was made with in `input/project.json` (`engine`); one made with another major version
+renders with that engine, from a kept checkout (`--engine=current` to try it on this one, then
+`mm engine pin <slug>`).
 
 Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
 has the rest). The whole video is rendered only when the user asks to review all of it, and the master

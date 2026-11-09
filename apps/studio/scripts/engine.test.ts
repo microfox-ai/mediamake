@@ -182,7 +182,7 @@ test('pins: written once, kept, never on the framework example; another major is
   assert.equal(first?.version, table.version);
   assert.equal(pinProject(dir, STUDIO), null);
   fs.writeFileSync(path.join(dir, 'input', 'project.json'), JSON.stringify({ engine: { version: '0.9.0', commit: 'abc' } }));
-  assert.match(pinWarning(dir, STUDIO) ?? '', /made with engine 0\.9\.0 \(abc\); this is 1\./);
+  assert.match(pinWarning(dir, STUDIO) ?? '', /made with engine 0\.9\.0 \(abc\), and this render uses 1\./);
   assert.equal(pinProject(dir, STUDIO), null);
   assert.equal(pinProject(dir, STUDIO, { force: true })?.version, table.version);
   assert.equal(pinWarning(dir, STUDIO), null);

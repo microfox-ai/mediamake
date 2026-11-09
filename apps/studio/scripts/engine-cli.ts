@@ -7,11 +7,14 @@
  *   mm engine codemod … --yes       does it
  *   mm engine pin <slug>…           records this engine in the projects' input/project.json, over the
  *                                   pin they have (after checking them with a new major version)
+ *   mm engine prune [--yes]         the kept engines no project pins any more (engine-pinned.ts), and
+ *                                   with --yes removes them
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyCodemod, currentPin, ENGINE, planCodemod, pinProject, projectDirs, projectPin, readEngine, type CodemodPlan } from './engine.ts';
-import { DIRS, ROOT, shown } from './paths.ts';
+import { dropKeptEngine, enginesDir, keptEngines } from './engine-pinned.ts';
+import { DIRS, REPO, ROOT, shown } from './paths.ts';
 
 const args = process.argv.slice(2);
 const yes = args.includes('--yes');
@@ -65,6 +68,11 @@ const status = () => {
   for (const [v, n] of versions) console.log(`  made with ${v}: ${n}`);
   if (pins.some(p => !p)) console.log(`  no pin yet: ${pins.filter(p => !p).length}`);
   console.log(files ? `  ${plural(files, 'file')} of your code import the engine by path: mm engine codemod lists them.` : '  Your code imports the engine by name.');
+  const kept = keptEngines(DIRS.projects);
+  if (kept.length) {
+    console.log(`\nKept engines, for projects made with another one (${shown(enginesDir())}):`);
+    for (const k of kept) console.log(`  ${k.version}${short(k.commit)}  ${k.projects.length ? k.projects.join(', ') : 'no project pins it (mm engine prune)'}${k.packages === 'own' ? '  · its own packages' : ''}`);
+  }
 };
 
 const codemod = () => {
@@ -91,12 +99,23 @@ const pin = () => {
   }
 };
 
+const prune = () => {
+  const unused = keptEngines(DIRS.projects).filter(k => !k.projects.length);
+  if (!unused.length) return console.log(`No kept engine to remove: every one is pinned by a project (${shown(enginesDir())}).`);
+  console.log(`Kept engines no project in ${shown(DIRS.projects)} pins:`);
+  for (const k of unused) console.log(`  ${k.version}${short(k.commit)}  ${shown(k.dir)}`);
+  if (!yes) return console.log(`\nNothing has changed. To remove them: mm engine prune --yes (a render that needs one again keeps it again).`);
+  for (const k of unused) dropKeptEngine(REPO, k.dir);
+  console.log(`\n✔ ${plural(unused.length, 'kept engine')} removed.`);
+};
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     if (!command) status();
     else if (command === 'codemod') codemod();
     else if (command === 'pin') pin();
-    else throw new Error(`No mm engine ${command}: mm engine, mm engine codemod [<slug>…] [--yes], mm engine pin <slug>…`);
+    else if (command === 'prune') prune();
+    else throw new Error(`No mm engine ${command}: mm engine, mm engine codemod [<slug>…] [--yes], mm engine pin <slug>…, mm engine prune [--yes]`);
   } catch (err) {
     console.error(`engine: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
