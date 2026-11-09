@@ -53,7 +53,12 @@ export type VideoMap = {
   sections: MapSection[];
   shots: Shot[];
   markers: { id: string; time: number; label?: string }[];
+  /** a preview (mm render --preview) joins stretches of the song: where each sits in this file and in the song */
+  stretches?: PreviewStretch[];
 };
+
+/** One stretch of a preview: seconds in the preview file (from–to) and in the song (songFrom–songTo). */
+export type PreviewStretch = { from: number; to: number; songFrom: number; songTo: number; frames: [number, number]; why: string[] };
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -138,6 +143,18 @@ function readShots(slug: string, manifest: Manifest, rel = 'video/shots.json'): 
     // Fill in the section from time when the shot list does not say.
     section: section ?? manifest.sections.find(s => from >= s.from && from < s.to)?.label,
   }));
+}
+
+/** The project's shots and sections in song seconds, with the ids its renders' maps use (the --preview targets). */
+export function songTimeline(slug: string): { manifest: Manifest; sections: MapSection[]; shots: Shot[] } {
+  const manifest = ManifestSchema.parse(JSON.parse(fs.readFileSync(path.join(DIRS.projects, slug, 'manifest.json'), 'utf8')));
+  const ids = sectionIds(manifest);
+  const shots = readShots(slug, manifest) ?? shotsFromLyrics(manifest, ids);
+  return {
+    manifest,
+    sections: manifest.sections.map(s => ({ id: ids.get(s.label)!, label: s.label, from: s.from, to: s.to })),
+    shots: shots.map(s => ({ ...s, section: s.section ? ids.get(s.section) ?? s.section : undefined })),
+  };
 }
 
 /** a short (make-video-music-remix-shorts): its shot list and where it starts in the song (seconds) */

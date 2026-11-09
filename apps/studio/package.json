@@ -7,12 +7,15 @@
     "mm": "bin/mm.mjs"
   },
   "scripts": {
-    "preview": "remotion studio src/index.ts",
+    "preview": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/studio.ts",
     "analyze": "uv run --project analysis python analysis/pipeline.py",
     "prepare-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/prepare.ts",
     "derive-media": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/derive-media.ts",
     "stills": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/stills.ts",
     "render-project": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render.ts",
+    "benchmark": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render-tuning.ts",
+    "render-queue": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/render-queue.ts",
+    "bundle": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/project-bundle.ts",
     "lambda": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/lambda.ts",
     "map": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/map.ts",
     "cleanup-out": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/cleanup-out.ts",

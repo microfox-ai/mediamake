@@ -209,7 +209,7 @@ the kinetic project and splice it in.
 
 ```bash
 ONLY_PROJECT=<slug> mm stills <slug> 0.5,1.3,2.3,4.6,6.8,8.7,9.5,12.8,15.0,16.6,18.5,21.6,23.9 --only
-mm render <slug> --proxy && mm preflight <slug>
+mm render <slug> --preview && mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4
 ```
 
 Look at every still before the user does (Tailwind's `img {max-width:100%}` once capped every picture

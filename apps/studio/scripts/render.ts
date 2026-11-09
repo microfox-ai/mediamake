@@ -1,24 +1,37 @@
 /**
- * render: full video for one project via the Remotion CLI (so remotion.config.ts applies).
+ * render: a render of one project through the Remotion CLI (so remotion.config.ts applies).
  *
- * Usage: mm render <slug> [--proxy[=0.5]] [--look=<id>] [extra remotion render flags]
+ * Usage: mm render <slug> [--preview[=<what>,…]] [--proxy[=0.5]] [--look=<id>[,<id>…]] [--no-queue] [extra remotion render flags]
  * Output: out/<slug>/<slug>.mp4, plus out/<slug>/<slug>.map.json (every shot with its id, for the
  * mediamake Revisions screen; see scripts/map.ts)
+ *
+ * Previews (revise-video): a review round renders 10-second stretches, never the whole video.
+ * --preview renders the 10 s around what changed (the latest revision's comments) or around each
+ * shot, section or second named (--preview=h1.3,hook-2,1:23 or a stretch 40-55), at half size, joined
+ * into out/<slug>/preview/<slug>.mp4 with a map that keeps every shot's id and where each stretch sits
+ * in the song (scripts/preview.ts). --seconds=<n> for another length. The previous preview is kept
+ * in out/<slug>/preview/v<N>/.
  *
  * Earlier cuts are never lost: before a full render replaces out/<slug>/<slug>.mp4, the previous
  * video, its map and its .revisions/ folder are copied into out/<slug>/v<N>/ (the next free number;
  * skipped when an identical copy is already kept there). A clip (--frames=a-b) never touches the
  * main file: it goes to out/<slug>/clips/<slug>-<a>-<b>.mp4. Only the user asks for a cleanup.
  *
- * Review renders (revise-video): --proxy renders at half size (--scale=0.5; --proxy=0.75 for another
- * scale, an explicit --scale wins) into the same file, so the review link and the map stay the same
- * and a round costs a quarter of the pixels. Render the master (no --proxy) once, after the user
- * signs off: thumbnails, upload packs and rotate shorts come only from the master.
+ * The whole video at half size (--proxy; --proxy=0.75 for another scale, an explicit --scale wins)
+ * goes into the same file as the master, so its review link and map stay the same: only when the user
+ * asks to review the whole video. Render the master (no --proxy) once, after the user signs off:
+ * thumbnails, upload packs and rotate shorts come only from the master.
  *
  * Look previews (revise-video › Previews or the whole video): --look=<id> passes { "look": "<id>" }
  * as input props (merged into any --props; the project reads it with getInputProps()) and writes
- * out/<slug>/looks/<id>.mp4, the main file untouched. Render each look on the same --frames stretch,
- * then put them in one labelled video with look-grid.
+ * out/<slug>/looks/<id>.mp4, the main file untouched. --look=A,B,C,D renders every look on the same
+ * stretch (--frames=a-b or one --preview target) and puts them in one labelled grid (look-grid).
+ *
+ * Speed (refactor step B1): the project's bundle is made once and reused until its code changes
+ * (scripts/project-bundle.ts); renders wait their turn in this machine's render queue, so two
+ * sessions' renders don't slow each other down (scripts/render-queue.ts; --no-queue skips it); and
+ * the CLI runs with the benchmarked concurrency, x264 veryfast for anything but the master, and on
+ * macOS the memory it can really use (scripts/render-tuning.ts).
  *
  * Every render is logged in out/<slug>/.renders.jsonl (scripts/render-log.ts): loop-stats counts
  * render minutes from it, and shorts --mode=rotate refuses a review render as its source.
@@ -40,19 +53,30 @@
  * already started, after a dropped connection) are its own flags; --proxy/--scale, --look and --crf
  * apply as locally. Other remotion flags don't.
  */
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { lookGrid } from './look-grid.ts';
 import { keepPrevious, parseFramesFlag, writeVideoMap, type MapShort } from './map.ts';
-import { DIRS, ROOT, shown } from './paths.ts';
+import { DIRS, ROOT, shown, studioPath } from './paths.ts';
+import { describeStretch, joinPreview, previewPlan } from './preview.ts';
+import { projectBundle } from './project-bundle.ts';
 import { appendRender } from './render-log.ts';
+import { queueDisabled, renderSlot } from './render-queue.ts';
+import { remotionRender, tunedFlags } from './render-tuning.ts';
+import { reviewLink } from './revision-files.ts';
 
 const [slug, ...rest] = process.argv.slice(2);
 const value = (name: string) => rest.find(f => f.startsWith(`--${name}=`))?.slice(name.length + 3);
 const shortId = value('short');
 const format = value('format');
-const look = value('look');
+const lookFlag = value('look');
+const looks = lookFlag ? lookFlag.split(',').map(l => l.trim()).filter(Boolean) : [];
+const look = looks.length === 1 ? looks[0] : undefined;
 const proxy = rest.find(f => f === '--proxy' || f.startsWith('--proxy='));
+const previewFlag = rest.find(f => f === '--preview' || f.startsWith('--preview='));
+const previewTargets = previewFlag?.includes('=') ? previewFlag.slice('--preview='.length).split(',').map(t => t.trim()).filter(Boolean) : [];
+const previewSeconds = Number(value('seconds') ?? 10);
 const lambda = rest.includes('--lambda');
 const LAMBDA_FLAGS = /^--(window|region|preset|attach)=|^--skip-deploy$|^--direct$|^--lambda$/;
 if (!lambda && rest.some(f => LAMBDA_FLAGS.test(f) && f !== '--lambda')) {
@@ -60,9 +84,9 @@ if (!lambda && rest.some(f => LAMBDA_FLAGS.test(f) && f !== '--lambda')) {
   process.exit(1);
 }
 // the rest go to remotion render
-let flags = rest.filter(f => !/^--(short|format|look)=/.test(f) && f !== proxy && !LAMBDA_FLAGS.test(f));
+let flags = rest.filter(f => !/^--(short|format|look|seconds)=/.test(f) && f !== proxy && f !== previewFlag && f !== '--no-queue' && !LAMBDA_FLAGS.test(f));
 if (!slug) {
-  console.error('Usage: mm render <slug> [--proxy] [--look=<id>] [flags]');
+  console.error('Usage: mm render <slug> [--preview[=<shot|section|seconds>,…]] [--proxy] [--look=<id>[,<id>…]] [flags]');
   process.exit(1);
 }
 if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
@@ -71,48 +95,50 @@ if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
   );
   process.exit(1);
 }
+const fail = (msg: string) => {
+  console.error(msg);
+  process.exit(1);
+};
+if (previewFlag && (shortId || lambda)) fail('--preview is for the main video (a short is short: render it whole).');
+if (previewFlag && parseFramesFlag(flags)) fail('--preview picks its own stretches: name them (--preview=40-50), or render a clip with --frames alone.');
+if (!(previewSeconds > 0)) fail('--seconds takes the preview length in seconds: --seconds=10');
+if (looks.length > 1 && lambda) fail('--lambda renders one look at a time: --look=<id>.');
 
 const explicitScale = flags.find(f => f.startsWith('--scale='));
 let scale = explicitScale ? Number(explicitScale.slice('--scale='.length)) : 1;
-if (proxy && !explicitScale) {
-  scale = proxy.includes('=') ? Number(proxy.slice('--proxy='.length)) : 0.5;
-  if (!(scale > 0 && scale < 1)) {
-    console.error('--proxy takes a scale below 1: --proxy or --proxy=0.75');
-    process.exit(1);
-  }
+if ((proxy || previewFlag) && !explicitScale) {
+  scale = proxy?.includes('=') ? Number(proxy.slice('--proxy='.length)) : 0.5;
+  if (!(scale > 0 && scale < 1)) fail('--proxy takes a scale below 1: --proxy or --proxy=0.75');
   flags.push(`--scale=${scale}`);
 }
 
-if (look) {
-  if (shortId) {
-    console.error('--look is for the main video, not a short.');
-    process.exit(1);
-  }
-  if (!/^[\w.-]+$/.test(look)) {
-    console.error('--look takes a plain id (letters, digits, - _ .): --look=B');
-    process.exit(1);
-  }
+if (looks.length) {
+  if (shortId) fail('--look is for the main video, not a short.');
+  for (const l of looks) if (!/^[\w.-]+$/.test(l)) fail('--look takes plain ids (letters, digits, - _ .): --look=B or --look=A,B,C');
+}
+/** --props merged with { look } for each look */
+let baseProps: Record<string, unknown> | null = null;
+if (looks.length) {
   const propsFlag = flags.find(f => f.startsWith('--props='));
-  let props: Record<string, unknown> = {};
+  baseProps = {};
   if (propsFlag) {
     const raw = propsFlag.slice('--props='.length);
     const file = path.resolve(ROOT, raw);
     try {
-      props = JSON.parse(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : raw);
+      baseProps = JSON.parse(fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : raw);
     } catch {
-      console.error('--props must be JSON or a JSON file to merge the look into');
-      process.exit(1);
+      fail('--props must be JSON or a JSON file to merge the look into');
     }
     flags = flags.filter(f => f !== propsFlag);
   }
-  flags.push(`--props=${JSON.stringify({ ...props, look })}`);
 }
+const propsFor = (id: string) => `--props=${JSON.stringify({ ...baseProps, look: id })}`;
 
-const frames = parseFramesFlag(flags);
+let frames = parseFramesFlag(flags);
 const windowFlag = value('window');
 const songWindow = windowFlag ? parseWindow(windowFlag) : undefined;
-const clip = frames || flags.includes('--frames') || Boolean(songWindow);
-const framesName = frames ? `${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}` : 'clip';
+const clip = Boolean(frames) || flags.includes('--frames') || Boolean(songWindow);
+const framesName = () => (frames ? `${frames.from}-${frames.to === Number.MAX_SAFE_INTEGER ? 'end' : frames.to}` : 'clip');
 
 /** --window=a-b: song seconds, b may be left out (to the end) */
 function parseWindow(raw: string): { from: number; to: number } {
@@ -154,43 +180,67 @@ async function renderOnLambdaHere(composition: string, outDir: string, short?: M
   }
 }
 
-/** one remotion render, logged, then its shot map; false when the render failed */
-async function renderOne(composition: string, output: string, short?: MapShort): Promise<boolean> {
+/** the project's bundle, made or reused once for every render of this run */
+let bundled: ReturnType<typeof projectBundle> | null = null;
+const theBundle = () => (bundled ??= projectBundle(slug));
+
+/** the bundle and this machine's render slot, taken once for every render of this run */
+let session = null as { serveUrl: string; bundleSeconds: number; queuedSeconds: number } | null;
+async function start(what: string) {
+  if (session) return session;
+  const bundle = await theBundle();
+  const asked = Date.now();
+  await renderSlot(`${slug} ${what}`, { disabled: queueDisabled(rest) });
+  session = { serveUrl: bundle.serveUrl, bundleSeconds: Math.round(bundle.ms / 100) / 10, queuedSeconds: Math.round((Date.now() - asked) / 100) / 10 };
+  return session;
+}
+const isPreviewish = () => Boolean(previewFlag) || clip || looks.length > 0 || scale < 1;
+let shownTuning = false;
+
+/** one remotion render from the project's bundle, logged, then its shot map; false when the render failed */
+async function renderOne(composition: string, output: string, opts: { short?: MapShort; extra?: string[]; log?: boolean; map?: boolean } = {}): Promise<{ ok: boolean; seconds: number }> {
   if (lambda) {
     // clips/ and looks/ sit one level under the render's folder; the file is named after the composition
     const outDir = clip || look ? path.dirname(path.dirname(output)) : path.dirname(output);
-    return (await renderOnLambdaHere(composition, outDir, short)) !== null;
+    return { ok: (await renderOnLambdaHere(composition, outDir, opts.short)) !== null, seconds: 0 };
   }
+  const s = await start(previewFlag ? 'preview' : looks.length ? `look ${looks.join(',')}` : shortId ? `short ${shortId}` : clip ? `clip ${framesName()}` : scale < 1 ? 'whole video, review' : 'master');
   fs.mkdirSync(path.dirname(output), { recursive: true });
+  const tuned = tunedFlags([...flags, ...(opts.extra ?? [])], { slug, preview: isPreviewish() });
+  if (tuned.notes.length && !shownTuning) {
+    shownTuning = true;
+    console.log(`Render: ${tuned.notes.join(', ')}`);
+  }
   const started = Date.now();
-  const r = spawnSync('npx', ['remotion', 'render', 'src/index.ts', composition, output, ...flags], {
-    cwd: ROOT,
-    stdio: 'inherit',
-    // bundle this project alone (other projects' Google font loads made renders time out)
-    env: { ...process.env, ONLY_PROJECT: slug },
-  });
-  try {
-    appendRender(output, {
-      at: new Date(started).toISOString(),
-      scale,
-      frames: frames ? [frames.from, frames.to === Number.MAX_SAFE_INTEGER ? null : frames.to] : undefined,
-      look,
-      seconds: Math.round((Date.now() - started) / 100) / 10,
-      ok: r.status === 0,
-    });
-  } catch (err) {
-    console.warn(`Could not log the render: ${err instanceof Error ? err.message : err}`);
+  const r = remotionRender(s.serveUrl, composition, output, tuned.flags);
+  const seconds = Math.round((Date.now() - started) / 100) / 10;
+  const renderFrames = parseFramesFlag([...flags, ...(opts.extra ?? [])]);
+  if (opts.log !== false) {
+    try {
+      appendRender(output, {
+        at: new Date(started).toISOString(),
+        scale,
+        frames: renderFrames ? [renderFrames.from, renderFrames.to === Number.MAX_SAFE_INTEGER ? null : renderFrames.to] : undefined,
+        look: opts.extra?.find(f => f.startsWith('--props=')) ? JSON.parse(opts.extra.find(f => f.startsWith('--props='))!.slice(8)).look : look,
+        seconds,
+        bundle: s.bundleSeconds,
+        queued: s.queuedSeconds,
+        ok: r.ok,
+      });
+    } catch (err) {
+      console.warn(`Could not log the render: ${err instanceof Error ? err.message : err}`);
+    }
   }
-  if (r.status !== 0) return false;
-  try {
-    writeVideoMap(slug, output, frames, short);
-  } catch (err) {
-    // The render is fine without a map; say so and move on.
-    console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
+  if (!r.ok) return { ok: false, seconds };
+  if (opts.map !== false) {
+    try {
+      writeVideoMap(slug, output, renderFrames, opts.short);
+    } catch (err) {
+      // The render is fine without a map; say so and move on.
+      console.warn(`Could not write the shot map: ${err instanceof Error ? err.message : err}`);
+    }
   }
-  if (scale < 1 && !clip && !look)
-    console.log(`Review render at ${Math.round(scale * 100)}% size. Render the master without --proxy once the user signs off.`);
-  return true;
+  return { ok: true, seconds };
 }
 
 if (shortId) {
@@ -210,9 +260,9 @@ if (shortId) {
   for (const f of list) {
     const name = `${slug}-${shortId}-${f}`;
     const dir = path.join(DIRS.out, slug, 'shorts', shortId);
-    const output = clip ? path.join(dir, 'clips', `${name}-${framesName}.mp4`) : path.join(dir, `${name}.mp4`);
+    const output = clip ? path.join(dir, 'clips', `${name}-${framesName()}.mp4`) : path.join(dir, `${name}.mp4`);
     if (!clip && !lambda) keepPrevious(dir, name);
-    if (!(await renderOne(name, output, { shots, offset: short.hook?.from ?? short.from }))) process.exit(1);
+    if (!(await renderOne(name, output, { short: { shots, offset: short.hook?.from ?? short.from } })).ok) process.exit(1);
     if (f === '16x9' && wideFile && !clip) {
       // the turned short plays it from the project folder (a hard link: no second copy)
       fs.rmSync(wideFile, { force: true });
@@ -227,10 +277,81 @@ if (shortId) {
   process.exit(0);
 }
 
-const output = look
-  ? path.join(DIRS.out, slug, 'looks', `${look}.mp4`)
-  : clip
-    ? path.join(DIRS.out, slug, 'clips', `${slug}-${framesName}.mp4`)
-    : path.join(DIRS.out, slug, `${slug}.mp4`);
-if (!clip && !look && !lambda) keepPrevious(path.join(DIRS.out, slug), slug);
-process.exit((await renderOne(slug, output)) ? 0 : 1);
+if (previewFlag && !looks.length) {
+  // 10 s stretches around what changed, joined into one review file (scripts/preview.ts)
+  const bundle = await theBundle();
+  const plan = await previewPlan(slug, bundle.serveUrl, previewTargets, { seconds: previewSeconds });
+  console.log(`Preview from ${plan.source}:`);
+  for (const st of plan.stretches) console.log(`  ${describeStretch(st, plan.fps)}`);
+  const dir = path.join(DIRS.out, slug, 'preview');
+  const output = path.join(dir, `${slug}.mp4`);
+  const parts: { file: string; stretch: (typeof plan.stretches)[number] }[] = [];
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `mm-preview-${slug}-`));
+  const started = Date.now();
+  let renderSeconds = 0;
+  try {
+    for (const [i, st] of plan.stretches.entries()) {
+      const file = path.join(tmp, `part-${i + 1}.mp4`);
+      const r = await renderOne(slug, file, { extra: [`--frames=${st.frames[0]}-${st.frames[1]}`], log: false, map: false });
+      renderSeconds += r.seconds;
+      if (!r.ok) {
+        appendRender(output, { at: new Date(started).toISOString(), scale, preview: plan.stretches.map(x => x.frames), seconds: renderSeconds, bundle: session?.bundleSeconds, queued: session?.queuedSeconds, ok: false });
+        process.exit(1);
+      }
+      parts.push({ file, stretch: st });
+    }
+    keepPrevious(dir, slug);
+    const map = joinPreview(slug, parts, output, plan.fps);
+    appendRender(output, {
+      at: new Date(started).toISOString(),
+      scale,
+      preview: plan.stretches.map(x => x.frames),
+      seconds: Math.round((Date.now() - started) / 100) / 10,
+      bundle: session?.bundleSeconds,
+      queued: session?.queuedSeconds,
+      ok: true,
+    });
+    const length = map.stretches!.reduce((a, x) => a + x.to - x.from, 0);
+    console.log(`✔ ${shown(output)}: ${plan.stretches.length} stretch${plan.stretches.length === 1 ? '' : 'es'}, ${length.toFixed(1)} s of video in ${((Date.now() - started) / 1000).toFixed(1)} s (${map.shots.length} shots in the map)`);
+    console.log(`Review link: ${reviewLink(output)}`);
+    console.log(`Preflight: mm preflight ${slug} --video=${studioPath(output)}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  process.exit(0);
+}
+
+if (looks.length) {
+  // every look on one stretch: --frames, or the one stretch --preview names
+  if (previewFlag) {
+    const bundle = await theBundle();
+    const plan = await previewPlan(slug, bundle.serveUrl, previewTargets, { seconds: previewSeconds });
+    if (plan.stretches.length !== 1) fail(`Looks are compared on one stretch; --preview gave ${plan.stretches.length}. Name one: --preview=<shot|section|a-b>.`);
+    const [a, b] = plan.stretches[0].frames;
+    console.log(`Looks on ${describeStretch(plan.stretches[0], plan.fps)}`);
+    frames = { from: a, to: b };
+    flags.push(`--frames=${a}-${b}`);
+  }
+  const outputs: string[] = [];
+  for (const id of looks) {
+    const output = path.join(DIRS.out, slug, 'looks', `${id}.mp4`);
+    if (!(await renderOne(slug, output, { extra: [propsFor(id)] })).ok) process.exit(1);
+    outputs.push(output);
+  }
+  if (outputs.length >= 2 && outputs.length <= 4) {
+    const grid = lookGrid(outputs, { labels: looks });
+    console.log(`✔ ${shown(grid)}`);
+    console.log(`Review link: ${reviewLink(grid)}`);
+  } else if (outputs.length > 4) console.log('More than four looks: put up to four in a grid with mm look-grid.');
+  process.exit(0);
+}
+
+const output = clip ? path.join(DIRS.out, slug, 'clips', `${slug}-${framesName()}.mp4`) : path.join(DIRS.out, slug, `${slug}.mp4`);
+if (!clip && !lambda) keepPrevious(path.join(DIRS.out, slug), slug);
+const ok = (await renderOne(slug, output)).ok;
+if (ok && scale < 1 && !clip)
+  console.log(
+    `The whole video at ${Math.round(scale * 100)}% size. Review rounds preview 10 s stretches instead (mm render ${slug} --preview). ` +
+      'Render the master without --proxy once the user signs off.',
+  );
+process.exit(ok ? 0 : 1);

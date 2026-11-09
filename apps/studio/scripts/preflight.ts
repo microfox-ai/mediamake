@@ -60,7 +60,7 @@ import {
   type RevisionComment,
 } from './revision-files.ts';
 
-import { DIRS, shown } from './paths.ts';
+import { DIRS, fromStudio, shown } from './paths.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -96,7 +96,8 @@ if (!slug && !opt('video')) {
   console.error('Usage: mm preflight <slug> [--video=path.mp4] [--source=picture] [--intended=c02 --why="…"]');
   process.exit(1);
 }
-const video = opt('video') ? path.resolve(ROOT, opt('video')!) : path.join(DIRS.out, slug!, `${slug}.mp4`);
+// out/… means the workspace's out folder (as render prints it), wherever that is
+const video = opt('video') ? fromStudio(opt('video')!) : path.join(DIRS.out, slug!, `${slug}.mp4`);
 if (!fs.existsSync(video)) {
   console.error(`No video at ${shown(video)}. Render first, or pass --video=<path>.`);
   process.exit(1);

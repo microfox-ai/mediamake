@@ -15,7 +15,8 @@
  *          at the cut's x, at the short's fps) into derived/lyricshorts/, writes shorts/<id>/shots.json
  *          for the Revisions map, prints the timeline and the warnings, and draws
  *          out/<slug>/shorts/<id>/cuts.jpg (each cut's middle frame as it will be framed).
- *   render bundles the project once (alone, public dir linked, snapshots by timestamp) and renders the shorts one
+ *   render takes the project's kept bundle (made once, reused until the code changes: scripts/project-bundle.ts),
+ *          waits for this machine's render slot (scripts/render-queue.ts; --no-queue skips it) and renders the shorts one
  *          at a time → out/<slug>/shorts/<id>/<slug>-<id>-<format>.mp4 (the previous render kept in v<N>/), each with
  *          its Revisions map and a count of dark frames (watermark corner cropped). --frames=a-b renders a clip into
  *          clips/ instead. Use it, not render-project, for lyric shorts.
@@ -648,9 +649,10 @@ if (cmd === 'render') {
   };
 
   process.env.ONLY_PROJECT = slug;
-  const t0 = Date.now();
+  // the project's kept bundle (scripts/project-bundle.ts), then this machine's render slot (scripts/render-queue.ts)
   const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'src/index.ts'), publicDir: DIRS.projects, webpackOverride: enableTailwind });
-  console.log(`bundled ${slug} in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  const { queueDisabled, renderSlot } = await import('./render-queue.ts');
+  await renderSlot(`${slug} lyric shorts ${ids.join(',')}`, { disabled: queueDisabled(args) });
   // as remotion.config.ts sets for the CLI (the Node API doesn't read it): ANGLE for WebGL, a long delayRender
   const chromiumOptions = { gl: 'angle' as const };
   const timeoutInMilliseconds = 100000;

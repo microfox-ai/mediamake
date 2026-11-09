@@ -13,6 +13,10 @@ framework: `mm workspace` says where each is on this machine (apps/studio until 
 `~/.mediamake/config.json`, then e.g. `~/MediaMake`). Code takes these folders from `DIRS` in
 `apps/studio/scripts/paths.ts` (resolver: `scripts/workspace.ts`), never `apps/studio/projects` by hand.
 
+Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
+has the rest). The whole video is rendered only when the user asks to review all of it, and the master
+once, after they sign off.
+
 ## Git: main stays a clean copy of GitHub
 
 What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
