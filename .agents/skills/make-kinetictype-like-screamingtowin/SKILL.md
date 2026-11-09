@@ -1,6 +1,6 @@
 ---
 name: make-kinetictype-like-screamingtowin
-description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 9:16 kinetic-type Short in that style, end to end with the same utilities and MCPs — the style is the suggestion (the slam language, the type, the restyled picture, the loop, the sounds); the setup (length, sections, which devices when, what the words do, which art styles) is designed from the new quote, picture and track, never copied from the reference. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, mm kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.
+description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 9:16 kinetic-type Short in that style, end to end with the same utilities and MCPs — the style is the suggestion (the slam language, the type, the restyled picture, the loop, the sounds); the setup (length, sections, which devices when, what the words do, which art styles) is designed from the new quote, picture and track, never copied from the reference. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, mm kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   variant-of: make-kinetictype
   forked: 2026-11-08
@@ -347,7 +347,15 @@ last render (revise-video, sound-only revisions), not re-rendered.
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-kinetictype-like-screamingtowin "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes make-kinetictype-like-screamingtowin                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-kinetictype-like-screamingtowin` offers them to this log as a pull request.
 
 - 2026-11-08 · "crop the image, create multiple variations in different art styles in the midjourney (browse for some good kinetic typography effects in pinterest, pick a style that matches, and make an inspirational edit (you can also create other images of individual characters by cropping the image … and gen in midjourney if needed) use the music from 51 to 1:15" → the workflow: crops, Midjourney panel restyles, close-ups redrawn, Pinterest research, a 24 s 9:16 edit on that stretch.
 - 2026-11-08 · "no need to stick to bluelock poster for inspiration, inspiration can come from anywhere" → research wide (choice 4).

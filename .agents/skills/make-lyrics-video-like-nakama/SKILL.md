@@ -125,10 +125,12 @@ the user already has a taste doc (an earlier project's `prefs.md`, e.g.
 `projects/amz-inexorablemaster2/prefs.md` for anime motion-graphics edits), read it and seed the new
 `prefs.md` from what applies.
 
-**What goes where.** This skill holds only general lessons, true for any style (timing, readability,
-tooling, render mechanics). Style-specific lessons (fonts that worked, devices the user loved or
-rejected, picture rules for this look) go only into the project's `prefs.md`. After every review
-round, add what you learned to the right place, so both get better with every iteration.
+**What goes where.** General lessons, true for any style (timing, readability, tooling, render
+mechanics), go in your notes for this skill, outside the repo: `mm notes add make-lyrics-video-like-nakama "…"`, and you
+read them with `mm notes make-lyrics-video-like-nakama` before planning (never edit this file for a lesson).
+Style-specific lessons (fonts that worked, devices the user loved or rejected, picture rules for
+this look) go only into the project's `prefs.md`. After every review round, add what you learned to
+the right place, so both get better with every iteration.
 Read `apps/studio/README.md` once for the layout, and `apps/studio/analysis/README.md`
 for the timing analysis, then follow the steps below **in order**.
 
@@ -635,8 +637,8 @@ unclear whether they want a new concept or a new look, ask in one line before re
 Follow the **`revise-video`** skill: it runs preflight, gives the user the `/video-revision` link
 for the render, waits in the background for a revision marked ready, reads their revision files in
 `out/<slug>/<slug>.revisions/`, and closes each comment. Fix every
-comment the way this skill works; log style lessons in `prefs.md` and general ones in this skill
-(see the top of this file).
+comment the way this skill works; log style lessons in `prefs.md` and general ones in your notes
+(`mm notes add make-lyrics-video-like-nakama "…"`, see the top of this file).
 
 ## 11. Edits from the Remotion editor
 

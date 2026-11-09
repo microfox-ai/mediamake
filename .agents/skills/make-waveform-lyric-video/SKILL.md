@@ -1,6 +1,6 @@
 ---
 name: make-waveform-lyric-video
-description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/studio with src/mediamake and scripts/wave-lab.ts. Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). Append new user feedback to the log at the bottom.
+description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/studio with src/mediamake and scripts/wave-lab.ts. Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-waveform-lyric-video
@@ -15,7 +15,8 @@ Everything lives in `apps/studio`; the engine is `src/mediamake` (read its `READ
 Project folder, analysis, prepare, stills, Studio, render, the shot map, Revisions and the Remotion
 editor are shared with `make-lyrics-video` (its steps 1–3 and 7–11). Each project keeps a taste doc
 `projects/<slug>/prefs.md` (intake, picks, a dated log of every note): read the lessons log at the
-bottom of this file and the last project's prefs.md before starting.
+bottom of this file, your notes (`mm notes make-waveform-lyric-video`) and the last project's
+prefs.md before starting.
 
 ## The rules
 
@@ -332,7 +333,15 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
 
 ## Lessons log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-waveform-lyric-video "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes make-waveform-lyric-video                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-waveform-lyric-video` offers them to this log as a pull request.
 
 - 2026-10-25 · "based on the timeline based waveform linked lyric video create another make skill
   call it make-waveform-lyric-video" → this skill on the `src/mediamake` engine. Built with it:

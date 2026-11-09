@@ -1,6 +1,6 @@
 ---
 name: make-cwc-tutorial
-description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/studio/projects. Append new user feedback to the log at the bottom.
+description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under apps/studio/projects. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: revise-video, create-thumbnail, pack-youtube
   reference: apps/studio/projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
@@ -205,7 +205,7 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
 11. **Publish**: the YouTube packs and uploads for the episode and its Short (Publishing on YouTube,
     below), then, once the episode is live, its link as the item's intro video on the release
     dashboard.
-12. **Log** each note's lesson below.
+12. **Log** each note's lesson in your notes (`mm notes add make-cwc-tutorial "…"`, see the log below).
 
 ## A Short of an episode (9:16)
 
@@ -287,8 +287,18 @@ description carries chapters and links instead. Ep. 1's packs are
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule. The entries before 2026-11-02 22:30 were logged
-in this skill's draft, `make-skill-intro-video`, over episode 1's build and four review rounds.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-cwc-tutorial "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes make-cwc-tutorial                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-cwc-tutorial` offers them to this log as a pull request.
+
+The entries before 2026-11-02 22:30 were logged in this skill's draft, `make-skill-intro-video`,
+over episode 1's build and four review rounds.
 
 - 2026-11-02 · ep. 1 · "take the video motion graphics as default inspiration … use 'Cook with Claude' as the series title … guide user from copying the prompt and what it can deliver … you can use any and all assets we made with brand kit to demo" → the episode structure, the look, real outputs only.
 - 2026-11-02 · ep. 1 · "this is an intro/demo video but it still has to show the basic copy/paste of prompt to get started in the starting as that will tell users how simple it actually is" → the copy → paste → ask opening is mandatory, literal and short.

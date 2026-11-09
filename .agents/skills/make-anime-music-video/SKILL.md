@@ -1,6 +1,6 @@
 ---
 name: make-anime-music-video
-description: Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. Research comes first: popular edits on YouTube and Pinterest, downloaded as references and cut into technique clips, on a File Revisions board the user picks from. The song is read as the character's story, and the edit matches the song's feel. An epic, slow song gets the story edit: twixtor takes throughout, one shot per sung phrase cut on the beat, white stacked bold captions (the summerstyle shorts' type, font picked from snaps), each moving the way its words mean (motion typography researched on Pinterest: masks, cut-outs, trembles, echoes, dust, shatters, all with motion blur), Goten band glitches and old-TV blinks, aura on the power shots. Its full-speed drum fills (drum map) get a shot on every hit, bass-drop punches, match cuts and morphs. A fast, driving song gets UnClonable's flowing edit: match-cut runs framed by a match finder, mask cuts, portals, liquid morphs, heavy in-scene type. Every transition on a beat, every take once across packs. Reviewed at half size through Revisions (revise-video). Builds in apps/studio with src/amv and scripts/amv.ts. Use when the user says "make an AMV / anime music video / anime edit of <character> to <song>", "research anime edits and make a music video", "/make-anime-music-video", or asks to change a project with a video/cut.ts. Not for lyric videos from artwork (make-lyrics-video, make-waveform-lyric-video), footage re-edits of films (make-video-music-remix) or shorts. Append new user feedback to the log at the bottom.
+description: Make a high-effort anime music video (an AMV, but more detailed) in Remotion from a song and footage of one character. Research comes first: popular edits on YouTube and Pinterest, downloaded as references and cut into technique clips, on a File Revisions board the user picks from. The song is read as the character's story, and the edit matches the song's feel. An epic, slow song gets the story edit: twixtor takes throughout, one shot per sung phrase cut on the beat, white stacked bold captions (the summerstyle shorts' type, font picked from snaps), each moving the way its words mean (motion typography researched on Pinterest: masks, cut-outs, trembles, echoes, dust, shatters, all with motion blur), Goten band glitches and old-TV blinks, aura on the power shots. Its full-speed drum fills (drum map) get a shot on every hit, bass-drop punches, match cuts and morphs. A fast, driving song gets UnClonable's flowing edit: match-cut runs framed by a match finder, mask cuts, portals, liquid morphs, heavy in-scene type. Every transition on a beat, every take once across packs. Reviewed at half size through Revisions (revise-video). Builds in apps/studio with src/amv and scripts/amv.ts. Use when the user says "make an AMV / anime music video / anime edit of <character> to <song>", "research anime edits and make a music video", "/make-anime-music-video", or asks to change a project with a video/cut.ts. Not for lyric videos from artwork (make-lyrics-video, make-waveform-lyric-video), footage re-edits of films (make-video-music-remix) or shorts. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
   depends-on: analyze-video, revise-image, revise-video
@@ -346,7 +346,15 @@ render's map (`render-project` maps clips itself).
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-anime-music-video "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes make-anime-music-video                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-anime-music-video` offers them to this log as a pull request.
 
 - 2026-11-02 · honoredone intake: "research popular anime edits… show me research material, I will
   tell which ones are good… you give me your own ideas as well… storyboard ideas after initial research"

@@ -1,6 +1,6 @@
 ---
 name: make-video-music-remix-like-f1xhitit
-description: Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or hype track: black-and-white long real-speed takes in the intro, colour bursting in on verse 1, verses cast literally on a steady one-beat pulse, hooks, drops and the bridge each following one scene in order, smooth warp zooms and a speaker pump on every kick, wide-tracked Michroma captions in the bottom bar with only punch words big (Anton), natural colour (no colour devices), slow motion only in the bridge, a "<footage> × <song>" collab title lockup and the channel's sign-off. Use only when the user names this variant or asks for an edit like F1 × Hit It / the f1xhitit style; otherwise make-video-music-remix. Append new user feedback to the log at the bottom.
+description: Variant of make-video-music-remix in the style of the F1 × Hit It edit (projects/hitixf1, signed off 2026-10-25) — a high-aura racing / sports song edit for a rap or hype track: black-and-white long real-speed takes in the intro, colour bursting in on verse 1, verses cast literally on a steady one-beat pulse, hooks, drops and the bridge each following one scene in order, smooth warp zooms and a speaker pump on every kick, wide-tracked Michroma captions in the bottom bar with only punch words big (Anton), natural colour (no colour devices), slow motion only in the bridge, a "<footage> × <song>" collab title lockup and the channel's sign-off. Use only when the user names this variant or asks for an edit like F1 × Hit It / the f1xhitit style; otherwise make-video-music-remix. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   variant-of: make-video-music-remix
   forked: 2026-10-25
@@ -85,7 +85,7 @@ the F1 examples below come from it, the rules are meant for any footage and any 
 
 **Taste comes from the user.** Keep `projects/<slug>/prefs.md`: intake answers, the style rules for
 this look, and a dated log of every piece of feedback, numbered as the user wrote it. Read the
-lessons log at the bottom before planning. Keep what the user praised; recast around it.
+lessons log at the bottom and your notes (`mm notes make-video-music-remix-like-f1xhitit`) before planning. Keep what the user praised; recast around it.
 
 ## Principles
 
@@ -369,7 +369,7 @@ picture: render the audio and mux it onto the video (`-c:v copy`).
 
 Review with the **`revise-video`** skill (preflight, the `/video-revision` link, the background
 watcher, reading and closing the user's comments). The cut list's shot IDs are what the comments point at: keep them stable. Log
-every comment in `prefs.md` and the general rule in the lessons log here. After the master render,
+every comment in `prefs.md` and the general rule in your notes (`mm notes add make-video-music-remix-like-f1xhitit "…"`). After the master render,
 offer thumbnails (`create-thumbnail`) and the YouTube pack (`pack-youtube`).
 
 ## The cut list — reference
@@ -490,7 +490,15 @@ render ~1 min. Start the slow steps first and run renders in the background.
 
 ## Lessons log
 
-Append dated entries: what the user asked to change and the general rule behind it.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-video-music-remix-like-f1xhitit "<what the user asked to change> → <the general rule behind it>"   # a new lesson, dated for you
+mm notes make-video-music-remix-like-f1xhitit                                                                        # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-video-music-remix-like-f1xhitit` offers them to this log as a pull request.
 
 - 2026-10-24 — First project (hitixf1, a rap song × F1 footage). Edits that live on masks change the
   picture without cuts: study the inspo with dense frame sheets. Derived lyric sections fail on rap:

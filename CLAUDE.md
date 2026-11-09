@@ -8,6 +8,16 @@ and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- lin
 root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
 the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
 
+## Skill lessons: your notes, never the SKILL.md
+
+What a session learns from the user goes in the user's notes for that skill, outside the repo, so no
+session edits a committed file: `mm notes add <skill> "<what the user said> → <the rule>"` (dated for
+you, in `~/MediaMake/notes/<skill>.md`, or the `workspace` that `~/.mediamake/config.json` names).
+Before planning, read them with `mm notes <skill>` beside the skill's own Feedback or Lessons log. That
+log is shared and changes only in a pull request: when the user wants their notes shared,
+`mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
+touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
+
 ## Media files: the shared library
 
 Footage, pins, generated art, songs, stems, sound effects, overlays and fonts are kept once in the

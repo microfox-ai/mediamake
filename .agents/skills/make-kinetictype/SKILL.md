@@ -1,6 +1,6 @@
 ---
 name: make-kinetictype
-description: Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type, words as windows onto the art, cracked words, a letter-by-letter hero word on the drop, faces on the bass hits, impact frames, sound effects on every hit, and a seamless loop — as a Short or as a section inside a longer video. It records the workflow and the user's fundamental choices from the first one ("Screaming to Win", a Blue Lock page, 2026-11-08) and runs on a shared engine (src/kinetictype: the edit is data, video/edit.json) and one tool (mm kinetictype: pick a stretch from a long instrumental, map its hits, crop, cut out, storyboard, sound effects). Reviewed through revise-video. Use when the user says "kinetic typography / kinetic type edit", "make a kinetictype video / short", "an inspirational / motivational edit of this quote over this picture", "type that moves with the music", "/make-kinetictype", or asks to change a project whose video/edit.json is a kinetic edit. For the exact Screaming-to-Win look from an image, a quote and a song (making what's missing), use make-kinetictype-like-screamingtowin. Not for lyric videos of a sung song (make-lyrics-video, make-waveform-lyric-video) or footage edits (make-video-music-remix, make-anime-music-video). Append new user feedback to the log at the bottom.
+description: Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type, words as windows onto the art, cracked words, a letter-by-letter hero word on the drop, faces on the bass hits, impact frames, sound effects on every hit, and a seamless loop — as a Short or as a section inside a longer video. It records the workflow and the user's fundamental choices from the first one ("Screaming to Win", a Blue Lock page, 2026-11-08) and runs on a shared engine (src/kinetictype: the edit is data, video/edit.json) and one tool (mm kinetictype: pick a stretch from a long instrumental, map its hits, crop, cut out, storyboard, sound effects). Reviewed through revise-video. Use when the user says "kinetic typography / kinetic type edit", "make a kinetictype video / short", "an inspirational / motivational edit of this quote over this picture", "type that moves with the music", "/make-kinetictype", or asks to change a project whose video/edit.json is a kinetic edit. For the exact Screaming-to-Win look from an image, a quote and a song (making what's missing), use make-kinetictype-like-screamingtowin. Not for lyric videos of a sung song (make-lyrics-video, make-waveform-lyric-video) or footage edits (make-video-music-remix, make-anime-music-video). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
   depends-on: revise-video, revise-image
@@ -244,7 +244,15 @@ last render (revise-video, sound-only revisions), not re-rendered.
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add make-kinetictype "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes make-kinetictype                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote make-kinetictype` offers them to this log as a pull request.
 
 - 2026-11-08 · "crop the image, create multiple variations in different art styles in the midjourney (browse for some good kinetic typography effects in pinterest, pick a style that matches, and make an inspirational edit (you can also create other images of individual characters by cropping the image … and gen in midjourney if needed) use the music from 51 to 1:15" → the workflow: crops, Midjourney panel restyles, close-ups redrawn, Pinterest research, a 24 s 9:16 edit on that stretch.
 - 2026-11-08 · "no need to stick to bluelock poster for inspiration, inspiration can come from anywhere" → research wide (choice 4).

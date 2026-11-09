@@ -1,6 +1,6 @@
 ---
 name: revise-image
-description: Review and revise a set of images with the user through mediamake's File Revisions screen (/file-revision) — make the set reviewable (index.json), give them the review link, read their revision files (finals, keeps, drops, comments pinned to spots with zoomed crops) under <folder>/<set>.revisions/, act on them the way the skill that made the images works (re-render, keep, pick finals), reply and resolve, and log the lessons. Shared by every image skill (thumbnails, posters, logo concepts, Midjourney / fal sets, any create-* skill to come). Use after a round of images the user will look at, or when the user says "rev-002 is ready", "check my image revision / comments", "act on the revisions", "/revise-image <set>", or asks to fix notes left in the File Revisions screen. A set may also hold videos and songs (they play in the zoom view); a Remotion render's own review is revise-video. Append new user feedback to the log at the bottom.
+description: Review and revise a set of images with the user through mediamake's File Revisions screen (/file-revision) — make the set reviewable (index.json), give them the review link, read their revision files (finals, keeps, drops, comments pinned to spots with zoomed crops) under <folder>/<set>.revisions/, act on them the way the skill that made the images works (re-render, keep, pick finals), reply and resolve, and log the lessons. Shared by every image skill (thumbnails, posters, logo concepts, Midjourney / fal sets, any create-* skill to come). Use after a round of images the user will look at, or when the user says "rev-002 is ready", "check my image revision / comments", "act on the revisions", "/revise-image <set>", or asks to fix notes left in the File Revisions screen. A set may also hold videos and songs (they play in the zoom view); a Remotion render's own review is revise-video. New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # revise-image
@@ -85,12 +85,21 @@ Then, for every set:
 
 ## 4. Log what you learned
 
-Job-specific lessons go in the job's `brief.md`; general taste in the making skill's feedback log;
-lessons about the review loop itself in the log below.
+Job-specific lessons go in the job's `brief.md`; general taste in your notes for the making skill
+(`mm notes add <making skill> "…"`); lessons about the review loop itself in your notes for this one
+(`mm notes add revise-image "…"`). Never edit a SKILL.md to log a lesson.
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add revise-image "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes revise-image                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote revise-image` offers them to this log as a pull request.
 
 - 2026-10-25 · split out of the thumbnail skill's "Review in /image-revision" (asked for the image review page as its own skill, the way video review was split out) → this skill; the image skills point here.
 - 2026-10-27 · dependencies are one-way → the skills that use this one declare `depends-on: revise-image`; this skill names none of them.

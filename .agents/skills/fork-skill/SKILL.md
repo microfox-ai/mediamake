@@ -20,12 +20,14 @@ A variant is public like every skill: it is committed with the rest (see `publis
 ## Steps
 
 1. **Base and reference.** Which skill, and what the variant keeps: a project (read its
-   `prefs.md`, its storyboard, its cut list, the base skill's lessons log entries for it) or a
+   `prefs.md`, its storyboard, its cut list, the base skill's lessons log entries for it and your notes
+   for the base, `mm notes <base>`) or a
    version (note what is about to change in the base).
 2. **Copy:** `node tools/skills.mjs fork <base> <base>-like-<ref>` (or `<base>-v<N>`). It copies the
    folder to `.agents/skills/<name>/` and links it from `.claude/skills/<name>`, sets `name`, adds `metadata: variant-of: <base>` and
    `forked: <date>`, puts a variant note and an empty **This variant** section under the title,
-   and updates `SKILLS.md`.
+   and updates `SKILLS.md`. The variant's log points at its own notes (`mm notes add <variant>`);
+   `mm notes <variant>` shows those and the base's, so general lessons logged for the base still reach it.
 3. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
    section, transitions, type, sound, colour, what the user praised and rejected), each with where
    it came from. Then edit the body only where the variant really differs; the rest stays the base
@@ -43,6 +45,14 @@ under their base). Style changes stay where they were made.
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add fork-skill "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes fork-skill                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote fork-skill` offers them to this log as a pull request.
 
 - 2026-10-25 · "provide support to create variants of skills as they improve or change, so something like make-video-music-remix-like-f1xhitit" → this skill and `node tools/skills.mjs fork`; variants are `<base>-like-<ref>` or `<base>-v<N>` with `metadata.variant-of`.

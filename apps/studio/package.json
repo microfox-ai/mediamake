@@ -36,13 +36,15 @@
     "preflight": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/preflight.ts",
     "golden": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/golden.ts",
     "migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/migrate.ts",
+    "notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/notes.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",
     "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts",
     "transcribe": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/transcribe.ts",
     "kinetictype": "uv run --project analysis python scripts/kinetictype/cli.py",
     "yt-grab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/youtube-grab.ts",
-    "test:migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/migrate.test.ts"
+    "test:migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/migrate.test.ts",
+    "test:notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/notes.test.ts"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

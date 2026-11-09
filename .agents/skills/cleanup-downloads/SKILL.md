@@ -109,7 +109,15 @@ All commands: `mm media <command>` (`media …` below).
 
 ## Feedback log
 
-Append dated entries: what the user said → the rule.
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add cleanup-downloads "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes cleanup-downloads                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote cleanup-downloads` offers them to this log as a pull request.
 
 - 2026-11-02 · "all the input/downloaded/created footage will be kept in a shared folder…
   outputs copied to the higher channel folders in downloads… classification and organisation is

@@ -70,6 +70,7 @@ mm yt-grab @handle | <playlist|video URL> | --search "…" [--popular --limit 40
                                    # every video's title, description + transcript into one folder (yt-dlp; no key needed; research/<channel>/ style)
 mm migrate [--yes]                 # after pulling the rename: your work from apps/lyrics_videos into apps/studio
 mm golden check                    # fixed frames of fixtures/ vs origin/main (--against=<ref>): a refactor changed no picture
+mm notes <skill>                   # your lessons for a skill, outside the repo (add, list, promote as a PR: mm notes help)
 mm type-check
 ```
 
