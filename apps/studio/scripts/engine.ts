@@ -17,8 +17,8 @@
  * Pins: a project's input/project.json records the engine it was made with, `"engine": { "version",
  * "commit" }`. mm prepare and mm render write it when a project has none, mm engine codemod for every
  * project; nothing changes it after that but `mm engine pin <slug>`. A breaking change bumps the major
- * version, and a project pinned to another major is named when it renders (rendering it with its own
- * engine is the next step, A4).
+ * version, and a project pinned to another major renders with its own engine, from a kept checkout of
+ * its commit (engine-pinned.ts).
  *
  * The codemod (mm engine codemod, and mm migrate) rewrites relative imports of the engine in your code
  * to names, and pins every project. A relative import still works meanwhile: the bundles, TypeScript
@@ -211,7 +211,8 @@ export const pinWarning = (projectDir: string, studio: string): string | null =>
   const pin = projectPin(projectDir);
   const table = readEngine(studio);
   if (!pin || !table || major(pin.version) === major(table.version)) return null;
-  return `${path.basename(projectDir)} was made with engine ${pin.version}${pin.commit ? ` (${pin.commit.slice(0, 7)})` : ''}; this is ${table.version}, a new major version. Check that it renders as it did, then mm engine pin ${path.basename(projectDir)}.`;
+  const slug = path.basename(projectDir);
+  return `${slug} was made with engine ${pin.version}${pin.commit ? ` (${pin.commit.slice(0, 7)})` : ''}, and this render uses ${table.version}, another major version. When it looks as it should: mm engine pin ${slug}.`;
 };
 
 // ── the codemod

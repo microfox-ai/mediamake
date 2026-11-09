@@ -6,6 +6,8 @@
  *   --only      render just the given seconds, not one frame per section
  *   --scale=1   full resolution (default 0.5)
  * Output: out/<slug>/stills/<nn>-<label>-<seconds>s.jpg
+ * --engine=pinned | current: which engine, as for mm render (scripts/engine-pinned.ts); a project of
+ *   another major version than this engine's is shot with its own by default.
  *
  * A short (make-video-music-remix-shorts): --short=<id> [--format=9x16] renders that composition; the
  * seconds are the short's own, one frame per section inside it by default →
@@ -25,6 +27,7 @@ import { enableTailwind } from '@remotion/tailwind-v4';
 import { renderStill, selectComposition } from '@remotion/renderer';
 import { ManifestSchema } from '../src/kit/manifest.ts';
 import { DIRS, shown } from './paths.ts';
+import { runWithPinnedEngine } from './engine-pinned.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -46,6 +49,15 @@ const main = async () => {
     throw new Error(
       `No manifest. Run: mm prepare ${slug}`,
     );
+  // a project of another major version is shot with its own engine (engine-pinned.ts)
+  let pinned: number | null;
+  try {
+    pinned = runWithPinnedEngine('stills', slug, args, { studio: ROOT, projects: DIRS.projects });
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  }
+  if (pinned !== null) process.exit(pinned);
   const manifest = ManifestSchema.parse(
     JSON.parse(fs.readFileSync(manifestPath, 'utf8')),
   );

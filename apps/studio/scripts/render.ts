@@ -1,7 +1,7 @@
 /**
  * render: a render of one project through the Remotion CLI (so remotion.config.ts applies).
  *
- * Usage: mm render <slug> [--preview[=<what>,…]] [--proxy[=0.5]] [--look=<id>[,<id>…]] [--no-queue] [extra remotion render flags]
+ * Usage: mm render <slug> [--preview[=<what>,…]] [--proxy[=0.5]] [--look=<id>[,<id>…]] [--no-queue] [--engine=pinned|current] [extra remotion render flags]
  * Output: out/<slug>/<slug>.mp4, plus out/<slug>/<slug>.map.json (every shot with its id, for the
  * mediamake Revisions screen; see scripts/map.ts)
  *
@@ -33,6 +33,11 @@
  * the CLI runs with the benchmarked concurrency, x264 veryfast for anything but the master, and on
  * macOS the memory it can really use (scripts/render-tuning.ts).
  *
+ * The engine (refactor step A4, scripts/engine-pinned.ts): a project pinned to another major version of
+ * the engine than this checkout's (input/project.json "engine") renders with that engine, from a kept
+ * checkout of its commit, into the same files. --engine=pinned does that within a major too (an exact
+ * re-render); --engine=current renders with this checkout's engine whatever the pin says.
+ *
  * Every render is logged in out/<slug>/.renders.jsonl (scripts/render-log.ts): loop-stats counts
  * render minutes from it, and shorts --mode=rotate refuses a review render as its source.
  *
@@ -58,6 +63,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { lookGrid } from './look-grid.ts';
 import { pinProject, pinWarning } from './engine.ts';
+import { runWithPinnedEngine } from './engine-pinned.ts';
 import { keepPrevious, parseFramesFlag, writeVideoMap, type MapShort } from './map.ts';
 import { DIRS, ROOT, shown, studioPath } from './paths.ts';
 import { describeStretch, joinPreview, previewPlan } from './preview.ts';
@@ -85,7 +91,7 @@ if (!lambda && rest.some(f => LAMBDA_FLAGS.test(f) && f !== '--lambda')) {
   process.exit(1);
 }
 // the rest go to remotion render
-let flags = rest.filter(f => !/^--(short|format|look|seconds)=/.test(f) && f !== proxy && f !== previewFlag && f !== '--no-queue' && !LAMBDA_FLAGS.test(f));
+let flags = rest.filter(f => !/^--(short|format|look|seconds|engine)=/.test(f) && f !== proxy && f !== previewFlag && f !== '--no-queue' && !LAMBDA_FLAGS.test(f));
 if (!slug) {
   console.error('Usage: mm render <slug> [--preview[=<shot|section|seconds>,…]] [--proxy] [--look=<id>[,<id>…]] [flags]');
   process.exit(1);
@@ -96,7 +102,16 @@ if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
   );
   process.exit(1);
 }
-// the engine it was made with (engine.ts): recorded at its first render when mm prepare didn't
+// the engine it was made with (engine-pinned.ts): another major version renders with that engine,
+// from a kept checkout of it (--engine=pinned | current to choose)
+try {
+  const status = runWithPinnedEngine('render', slug, process.argv.slice(2), { studio: ROOT, projects: DIRS.projects });
+  if (status !== null) process.exit(status);
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
+// recorded at its first render when mm prepare didn't (engine.ts)
 pinProject(path.join(DIRS.projects, slug), ROOT);
 const pinNote = pinWarning(path.join(DIRS.projects, slug), ROOT);
 if (pinNote) console.warn(`⚠ ${pinNote}`);

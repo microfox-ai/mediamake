@@ -52,7 +52,7 @@
     "test:migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/migrate.test.ts",
     "workspace": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/workspace-cli.ts",
     "engine": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/engine-cli.ts",
-    "test:engine": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/engine.test.ts",
+    "test:engine": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/engine.test.ts scripts/engine-pinned.test.ts",
     "test:workspace": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/workspace.test.ts scripts/workspace-node.test.ts",
     "test:notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/notes.test.ts",
     "test:generated": "node --test scripts/generated.test.mjs"
