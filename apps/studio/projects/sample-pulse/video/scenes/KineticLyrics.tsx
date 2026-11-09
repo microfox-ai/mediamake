@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, spring, useVideoConfig } from 'remotion';
-import { editable, useLyrics, useSongTime, type SceneProps } from '../../../../src/kit';
+import { editable, useLyrics, useSongTime, type SceneProps } from '@mediamake/engine';
 import { body } from '../fonts';
 
 type KineticLyricsProps = {

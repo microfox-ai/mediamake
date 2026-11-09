@@ -1,24 +1,26 @@
 /**
- * Lets Node load your code from a workspace outside the checkout (scripts/workspace.ts), the way the
- * Remotion bundles do (workspace-webpack.ts). Some scripts import a project's own code in Node: mm remix
- * (video/edl.ts), mm amv (video/cut.ts), mm lyric-shorts (edl.ts, theme.ts), mm wave-lab (the
- * storyboard). That code imports the engine relatively (../../../../src/remix/edl.ts), which in
+ * Lets Node load your code the way the Remotion bundles do (workspace-webpack.ts). Some scripts import a
+ * project's own code in Node: mm remix (video/edl.ts), mm amv (video/cut.ts), mm lyric-shorts (edl.ts,
+ * theme.ts), mm wave-lab (the storyboard). That code imports the engine by name
+ * (@mediamake/engine/remix/edl.ts, engine.ts), or still by path (../../../src/remix/edl.ts), which in
  * ~/MediaMake means ~/MediaMake/src, a folder that isn't there.
  *
  * Importing this file (a side effect, before the project's code is imported) adds a Node resolve hook
- * (workspace-node-hooks.mjs). It only acts on what fails to resolve from a file in the workspace:
- * - a relative import that lands on one of the studio's framework folders or files in the workspace
- *   (src/, catalog/, logoGraphics/, thumbnails/<engine files>…) is read from the studio;
- * - a package is looked up from the studio (its node_modules), for a workspace with no node_modules link.
- * Everything that resolves today resolves as before, and nothing is added when no workspace is set
- * or it is the studio itself.
+ * (workspace-node-hooks.mjs):
+ * - the engine's names resolve to this studio's files (with the bundles' extensions and index files);
+ * - from a file in a workspace outside the studio, and only for what fails to resolve: a relative import
+ *   that lands on one of the studio's framework folders or files in the workspace (src/, catalog/,
+ *   logoGraphics/, thumbnails/<engine files>…) is read from the studio, and a package is looked up from
+ *   the studio (its node_modules), for a workspace with no node_modules link.
+ * Everything else resolves as before.
  *
- * `workspaceEsbuild()` is the same rule for esbuild (mm brand bundles a brand's svg module).
+ * `workspaceEsbuild()` is the same for esbuild (mm brand bundles a brand's svg module).
  */
 import fs from 'node:fs';
 import { register } from 'node:module';
 import path from 'node:path';
 import type { Plugin } from 'esbuild';
+import { ENGINE, SUFFIXES, engineFile, readEngine } from './engine.ts';
 import { ROOT } from './paths.ts';
 import { WORKSPACE_FOLDERS, workspaceSetting } from './workspace.ts';
 
@@ -60,16 +62,29 @@ const SKIP = 'mediamake-workspace';
 let registered = false;
 /** Adds the resolve hook once (importing this file does it). */
 export const registerWorkspaceResolve = (studio = ROOT) => {
+  if (registered) return;
+  const table = readEngine(studio);
   const overlay = workspaceOverlay(studio);
-  if (!overlay || registered) return;
+  if (!table && !overlay) return;
   registered = true;
-  register(new URL('./workspace-node-hooks.mjs', import.meta.url), { data: { ...overlay, own: Object.values(WORKSPACE_FOLDERS) } });
+  register(new URL('./workspace-node-hooks.mjs', import.meta.url), {
+    data: { studio: real(studio), overlay, own: Object.values(WORKSPACE_FOLDERS), engine: table, suffixes: SUFFIXES },
+  });
 };
 
-/** The same fallback for an esbuild build of workspace code. */
+/** The engine's names, and the same fallback for workspace code, for an esbuild build. */
 export const workspaceEsbuild = (studio = ROOT): Plugin => ({
   name: 'mediamake-workspace',
   setup(build) {
+    const table = readEngine(studio);
+    if (table) {
+      // ENGINE has no regular-expression characters
+      const names = new RegExp(`^${ENGINE}(/|$)`);
+      build.onResolve({ filter: names }, args => {
+        const file = engineFile(args.path, studio, table);
+        return file ? { path: file } : { errors: [{ text: `${args.path}: no such file in the engine (${path.join(studio, 'engine.json')})` }] };
+      });
+    }
     const overlay = workspaceOverlay(studio);
     if (!overlay) return;
     const again = { pluginData: SKIP } as const;

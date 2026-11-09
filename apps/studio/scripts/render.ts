@@ -57,6 +57,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { lookGrid } from './look-grid.ts';
+import { pinProject, pinWarning } from './engine.ts';
 import { keepPrevious, parseFramesFlag, writeVideoMap, type MapShort } from './map.ts';
 import { DIRS, ROOT, shown, studioPath } from './paths.ts';
 import { describeStretch, joinPreview, previewPlan } from './preview.ts';
@@ -95,6 +96,10 @@ if (!fs.existsSync(path.join(DIRS.projects, slug, 'manifest.json'))) {
   );
   process.exit(1);
 }
+// the engine it was made with (engine.ts): recorded at its first render when mm prepare didn't
+pinProject(path.join(DIRS.projects, slug), ROOT);
+const pinNote = pinWarning(path.join(DIRS.projects, slug), ROOT);
+if (pinNote) console.warn(`⚠ ${pinNote}`);
 const fail = (msg: string) => {
   console.error(msg);
   process.exit(1);

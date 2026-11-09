@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import * as app from '../../mediamake/lib/remotion-editor/server/workspace.ts';
 // @ts-expect-error: plain JS, no types (tools/workspace.mjs)
 import * as tools from '../../../tools/workspace.mjs';
-import { overlayAliases, workspaceWebpack } from './workspace-webpack.ts';
+import { engineWebpack, overlayAliases, workspaceWebpack } from './workspace-webpack.ts';
 import { STUDIO_FOLDERS, WORKSPACE_FOLDERS, fromStudioPath, isWorkspaceSet, toStudioPath, workspaceDir, workspaceDirs, workspaceRoot, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 const STUDIO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -157,10 +157,12 @@ test('paths.ts: DIRS, and ledger paths that keep their apps/studio name', () => 
   assert.equal(d.projects, path.join(STUDIO, 'projects'));
 });
 
-test('workspaceWebpack changes nothing while everything is in the studio', () => {
+test('workspaceWebpack only adds the engine names while everything is in the studio', () => {
   const config = { plugins: [], resolve: { alias: { react: '/r' } } };
-  assert.equal(workspaceWebpack(config, { studio: STUDIO }), config);
-  assert.equal(workspaceWebpack(config, { studio: STUDIO, root: STUDIO }), config);
+  for (const out of [workspaceWebpack(config, { studio: STUDIO }), workspaceWebpack(config, { studio: STUDIO, root: STUDIO })]) {
+    assert.deepEqual(out, engineWebpack(config, STUDIO));
+    assert.equal(out.plugins, config.plugins);
+  }
 });
 
 test('workspaceWebpack points the contexts, packages and engine at an outside workspace', () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, OffthreadVideo } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { src } from '../theme';
 
 /** 5.2–19.2 s: the approved series opener, as it is (picture and sound). */

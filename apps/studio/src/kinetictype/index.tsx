@@ -2,7 +2,7 @@
 // skills' engine. A project's video/index.tsx is three lines:
 //
 //   import edit from './edit.json';
-//   import { defineKinetic, type KineticEdit } from '../../../src/kinetictype';
+//   import { defineKinetic, type KineticEdit } from '@mediamake/engine/kinetictype';
 //   export default defineKinetic('<slug>', edit as KineticEdit);
 //
 // Each shot becomes its own layer (named "<id> <label>" in the Studio timeline) and draws one device

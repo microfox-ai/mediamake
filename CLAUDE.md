@@ -15,7 +15,10 @@ and sets `workspace` in `~/.mediamake/config.json`, usually `~/MediaMake`). In s
 `projects/…`, `out/…`, `brands/…`, `thumbnails/jobs/…` and `overlays/…` mean those folders of the
 workspace: take the full path from `mm workspace`. Code takes these folders from `DIRS` in
 `apps/studio/scripts/paths.ts` (resolver: `scripts/workspace.ts`), never `apps/studio/projects` by hand.
-`mm type-check` checks the studio and the workspace's projects.
+`mm type-check` checks the studio and the workspace's projects. Code in the workspace imports the engine
+by name, never by path: `@mediamake/engine` (the kit) and `@mediamake/engine/<name>/…` (`mm engine` lists
+the names, from `apps/studio/engine.json`); `mm engine codemod` converts older code. Each project records
+the engine it was made with in `input/project.json` (`engine`).
 
 Review renders are 10-second previews (`mm render <slug> --preview`, around what changed; revise-video
 has the rest). The whole video is rendered only when the user asks to review all of it, and the master

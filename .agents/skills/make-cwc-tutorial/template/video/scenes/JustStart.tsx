@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, OffthreadVideo, random, Sequence, spring, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { KWord, loopPts, SparkTrace, Sprinkle } from '../fx';
 import { Caret, Ground, prog, Sfx, Tag } from '../parts';
 import { C, easeInOut, f, H, sans, src, W } from '../theme';

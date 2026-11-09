@@ -1,5 +1,5 @@
 import React from 'react';
-import { defineProject, layer, type SceneProps } from '../../../src/kit';
+import { defineProject, layer, type SceneProps } from '@mediamake/engine';
 import { Grain } from './parts';
 import { Alive } from './scenes/Alive';
 import { Cold } from './scenes/Cold';

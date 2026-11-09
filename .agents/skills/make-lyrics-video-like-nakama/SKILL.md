@@ -348,8 +348,9 @@ bars, motion that eases *into* the next downbeat.
 - **Lyrics span section boundaries.** Sections are cut on the beat before the next line's first word,
   so the previous line's last word can still be sounding after the cut. Put the lyric layer at `'all'`
   (or let each lyric scene finish the line that started before it).
-- One scene per file in `video/scenes/`, typed `React.FC<SceneProps<MyProps>>`. Import the kit from
-  `src/kit` (relative path). Use the kit instead of re-deriving timing:
+- One scene per file in `video/scenes/`, typed `React.FC<SceneProps<MyProps>>`. Import the kit by name,
+  `import { … } from '@mediamake/engine'`, never by path (`mm engine` lists the names). Use the kit
+  instead of re-deriving timing:
   - `useSongTime()` — absolute seconds; `useSection()` — `progress`, `elapsed`, `remaining`
   - `useLyrics()` — current `line`, `wordIndex`, `isSinging`, `next`
   - `useBeat()` — `pulse` (1 on the beat, decaying), `bpm`; `useBar()` — bar `index`, `progress`,

@@ -1,4 +1,4 @@
-import { defineProject, layer } from '../../../src/kit';
+import { defineProject, layer } from '@mediamake/engine';
 import { Backdrop } from './scenes/Backdrop';
 import { ChorusWave } from './scenes/ChorusWave';
 import { KineticLyrics } from './scenes/KineticLyrics';

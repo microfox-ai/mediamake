@@ -3,7 +3,7 @@ import { AbsoluteFill, OffthreadVideo, useCurrentFrame } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
 import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { CookWithClaudeLogo, LOGO_VIEW } from '../../../../brands/cookwithclaude/graphics/Logo';
 import { WOK_BOX } from '../../../../brands/cookwithclaude/graphics/lockup';
 import { SPARK_BOX, SPARK_D } from '../../../../brands/cookwithclaude/graphics/parts/spark';

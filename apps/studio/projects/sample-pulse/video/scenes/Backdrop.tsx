@@ -5,7 +5,7 @@ import {
   useEnergy,
   useSongTime,
   type SceneProps,
-} from '../../../../src/kit';
+} from '@mediamake/engine';
 
 /** Full-song background: navy radial glow that breathes with loudness and kicks on beats. */
 export const Backdrop: React.FC<SceneProps> = () => {

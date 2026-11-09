@@ -1,6 +1,6 @@
 import React from 'react';
 import { Audio, interpolate, Sequence } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { Vo } from '../parts';
 import { f, src } from '../theme';
 import { MUSIC, vo, VO_AT } from '../timeline';

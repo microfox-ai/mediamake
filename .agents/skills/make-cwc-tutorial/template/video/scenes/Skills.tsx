@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, useCurrentFrame } from 'remotion';
-import type { SceneProps } from '../../../../src/kit';
+import type { SceneProps } from '@mediamake/engine';
 import { Css3D, Css3DObject } from '../css3d';
 import { KWord, loopPts, SceneIn, SparkTrace, swooshPts } from '../fx';
 import { Ground, prog, Sfx } from '../parts';
