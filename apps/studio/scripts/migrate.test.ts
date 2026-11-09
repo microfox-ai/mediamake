@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { openDb } from './library/db.ts';
-import { applyMigration, catalogPaths, planMigration, workspaceJobs } from './migrate.ts';
+import { applyMigration, catalogPaths, outsideLinks, planMigration, relinkOutside, workspaceJobs } from './migrate.ts';
 import { setupWorkspace } from './workspace-setup.ts';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-migrate-'));
@@ -159,6 +159,28 @@ test('workspace: which folders move where', () => {
       else process.env[k] = v;
     }
   }
+});
+
+test('workspace: links to your skill variants in ~/.claude/skills follow the skills folder', () => {
+  const t = path.join(tmp, 'variants');
+  const oldSkills = path.join(t, 'MediaMake', 'skills');
+  const newSkills = path.join(t, 'Elsewhere', 'skills');
+  const links = path.join(t, 'claude-skills');
+  put(oldSkills, 'mine/SKILL.md', '---\nname: mine\n---\n');
+  put(t, 'repo/.agents/skills/theirs/SKILL.md', 'x');
+  fs.mkdirSync(links, { recursive: true });
+  fs.symlinkSync(path.join(oldSkills, 'mine'), path.join(links, 'mine'));
+  fs.symlinkSync('../repo/.agents/skills/theirs', path.join(links, 'theirs'));
+  const pairs: [string, string][] = [[oldSkills, newSkills]];
+  const found = outsideLinks(pairs, [links]);
+  assert.deepEqual(found.map(l => [path.basename(l.link), l.to]), [['mine', path.join(newSkills, 'mine')]]);
+  fs.mkdirSync(path.dirname(newSkills), { recursive: true });
+  fs.renameSync(oldSkills, newSkills);
+  relinkOutside(found);
+  assert.equal(fs.readlinkSync(path.join(links, 'mine')), path.join(newSkills, 'mine'));
+  assert.ok(fs.existsSync(path.join(links, 'mine', 'SKILL.md')));
+  assert.equal(fs.readlinkSync(path.join(links, 'theirs')), '../repo/.agents/skills/theirs');
+  assert.deepEqual(outsideLinks(pairs, [links]), []);
 });
 
 test('workspace setup: a node_modules link and a tsconfig, kept current, your own tsconfig kept', () => {

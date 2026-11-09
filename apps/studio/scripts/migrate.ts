@@ -47,6 +47,7 @@ import { rendering, size } from './library/sys.ts';
 import { REPO, ROOT, shown } from './paths.ts';
 import { setupWorkspace } from './workspace-setup.ts';
 import { DEFAULT_WORKSPACE, STUDIO_FOLDERS, WORKSPACE_FOLDERS, workspaceDir, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
+import { userSkillsDir } from '../../../tools/skills.mjs';
 
 /** Deleted wherever they are: rebuilt by whatever made them. */
 const JUNK = new Set(['__pycache__', '.DS_Store']);
@@ -103,6 +104,34 @@ export const retarget = (old: string, link: string, target: string, pairs: Pairs
   const now = moved(was, pairs);
   if (path.isAbsolute(target)) return now;
   return pairs.some(([o]) => inside(o, was)) ? path.relative(path.dirname(link), now) : now;
+};
+
+/**
+ * Links outside the moved folders that point into one: your skill variants, linked from
+ * ~/.claude/skills into <workspace>/skills (tools/skills.mjs fork). Each is pointed at the new place.
+ */
+export const outsideLinks = (pairs: Pairs, dirs = [userSkillsDir()]) =>
+  dirs.flatMap(dir => {
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      return [];
+    }
+    return names.flatMap(n => {
+      const link = path.join(dir, n);
+      if (!lstat(link)?.isSymbolicLink()) return [];
+      const target = fs.readlinkSync(link);
+      const abs = path.resolve(dir, target);
+      return pairs.some(([o]) => inside(o, abs)) ? [{ link, target, to: retarget(link, link, target, pairs) }] : [];
+    });
+  });
+
+export const relinkOutside = (links: ReturnType<typeof outsideLinks>) => {
+  for (const l of links) {
+    fs.unlinkSync(l.link);
+    fs.symlinkSync(l.to, l.link, process.platform === 'win32' ? 'junction' : 'dir');
+  }
 };
 
 /** Same bytes (or, for links, the same target), read a chunk at a time. */
@@ -541,6 +570,8 @@ const main = () => {
   list('In both with different content (left where they are for you to settle):', plans.flatMap(p => at(p, p.conflicts)), 40);
   list(`Links pointed at their targets' new place:`, plans.flatMap(p => at(p, p.links)));
   list(`Text files naming an old folder's full path (pointed at ${tilde(ws)}):`, plans.flatMap(p => at(p, p.texts)));
+  const outside = outsideLinks(pairs2);
+  list('Links to your skill variants, pointed at their new place:', outside.map(l => `${tilde(l.link)} → ${tilde(l.to)}`));
 
   const setup = setupWorkspace(ws, ROOT, false).map(l => `${tilde(ws)}/${l}`);
   const config = configWorkspace() === ws ? null : `${shown(configFile())}: "workspace": "${tilde(ws)}" (every script, Remotion, the app and the analysis use it)`;
@@ -569,7 +600,7 @@ const main = () => {
   list('These name a folder that moves: edit them by hand (mm workspace says where each one is now):', elsewhere.map(tilde));
 
   const todo1 = !!plan1 && !!(plan1.moves.length || plan1.same.length || plan1.rebuild.length || plan1.texts.length);
-  const todo2 = plans.some(p => p.moves.length || p.same.length || p.rebuild.length) || copies.length || setup.length || config || claude;
+  const todo2 = plans.some(p => p.moves.length || p.same.length || p.rebuild.length) || copies.length || setup.length || config || claude || outside.length;
   if (!todo1 && !todo2 && !catalog1.length && !catalog2.length && !watcher) {
     const conflicts = [...(plan1?.conflicts ?? []), ...plans.flatMap(p => p.conflicts)];
     console.log(conflicts.length ? '\nOnly the files above are left: compare the two copies, keep one, and delete the other.' : '\nNothing to do.');
@@ -600,6 +631,7 @@ const main = () => {
       fs.writeFileSync(path.join(j.from, NOTE), note(j.from, j.to, j.tracked.size > 0));
     }
   }
+  relinkOutside(outsideLinks(pairsNow));
   for (const c of copiesNow) {
     fs.mkdirSync(path.dirname(c.to), { recursive: true });
     fs.copyFileSync(c.from, c.to);
