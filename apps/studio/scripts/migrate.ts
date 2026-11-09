@@ -656,7 +656,7 @@ const main = () => {
   console.log(`\n✔ Your work is in ${tilde(ws)}, and the config names it as your workspace${lib ? '; the library catalog points there too' : ''}.`);
   list('Left where they were (in both with different content):', left2, 40);
   console.log('mm workspace lists every folder.');
-  if (plan1 && !lstat(path.join(REPO, 'node_modules', 'studio'))) console.log('Next: npm install (the workspace is called studio now).');
+  if (plan1 && !lstat(path.join(REPO, 'node_modules', 'studio'))) console.log('Next: npm ci (the workspace is called studio now).');
 };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

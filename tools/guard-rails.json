@@ -33,16 +33,10 @@
   ],
   "areas": [
     {
-      "name": "generated file",
-      "paths": ["SKILLS.md", "skills.json", "apps/studio/src/mediamake/presets.json"],
-      "branch": "chore/<what>",
-      "where": "It is generated, never edited by hand: SKILLS.md and skills.json come from `node tools/skills.mjs index`, presets.json from `mm sync-presets`. Regenerate it on the branch of the change that needs it."
-    },
-    {
       "name": "lockfile",
       "paths": ["package-lock.json", "**/package-lock.json"],
       "branch": "deps/<what>",
-      "where": "The lockfile changes only in a PR that changes dependencies. To install on main, use `npm ci`, which leaves it as it is."
+      "where": "The lockfile changes only in a PR that changes dependencies (the guard also stops `npm install`, `update` and the like on main). To install on main, use `npm ci`, which leaves it as it is."
     },
     {
       "name": "skill file",

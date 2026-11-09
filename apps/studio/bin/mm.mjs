@@ -12,6 +12,9 @@
  * Without the link, run it from the repo as `npm run mm -- <command> [args…]`.
  * Your work out of the checkout, into ~/MediaMake (and, after the rename, out of apps/lyrics_videos):
  * `mm migrate` (a dry run), then `mm migrate --yes`.
+ *
+ * Before a command it builds the studio's generated files when they are missing or their sources
+ * changed (the mediamake presets, scripts/generated.mjs): git ignores them, so a pull never conflicts.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -19,6 +22,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NOT_WORK, STUDIO_FOLDERS, withWork, workspaceSetting } from '../../../tools/workspace.mjs';
+import { ensurePresets } from '../scripts/generated.mjs';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(APP, '..', '..');
@@ -53,7 +57,9 @@ const ABOUT = {
 };
 
 const help = () => {
-  const names = Object.keys(scripts).map(toCommand).sort();
+  // npm's own hooks (postinstall, pre<script>) aren't commands
+  const hook = n => /^(pre|post)/.test(n) && (n.replace(/^(pre|post)/, '') in scripts || ['install', 'uninstall', 'pack', 'publish'].includes(n.replace(/^(pre|post)/, '')));
+  const names = Object.keys(scripts).filter(n => !hook(n)).map(toCommand).sort();
   const width = Math.max(...names.map(n => n.length));
   console.log('mm: MediaMake studio commands (apps/studio). mm <command> [args…]\n');
   for (const n of names) console.log(`  ${n.padEnd(width)}  ${ABOUT[n] ?? ''}`.trimEnd());
@@ -136,6 +142,8 @@ const main = () => {
     process.exit(1);
   }
   remindMigrate(cmd);
+  // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
+  if (script !== 'sync-presets') ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)
