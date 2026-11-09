@@ -1,6 +1,6 @@
 ---
 name: make-kinetictype-like-screamingtowin
-description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 24 s 9:16 kinetic-type Short like that one, end to end with the same utilities and MCPs. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, npm run kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.
+description: Variant of make-kinetictype in the style of Screaming to Win (projects/screamingtowin, published 2026-11-08) — give it a picture, a quote and music (or any one of them: it makes the two that are missing) and it makes a stunning 9:16 kinetic-type Short in that style, end to end with the same utilities and MCPs — the style is the suggestion (the slam language, the type, the restyled picture, the loop, the sounds); the setup (length, sections, which devices when, what the words do, which art styles) is designed from the new quote, picture and track, never copied from the reference. It picks the best stretch of a long instrumental (a quiet build into a drop, big section hits, a dip to loop on), restyles the picture and its close-ups in Midjourney in the six styles that worked, cuts the characters out, storyboards the quote onto the music's hits (build word per beat, the hero word letter by letter on the drop, faces, the rise, the last word cracked and on fire, the poster ending warping back into the start), adds the sound effects, reviews through revise-video, renders the master, delivers it and fills the YouTube upload. Make a kinetic-typography edit in Remotion on the shared engine (src/kinetictype, video/edit.json, npm run kinetictype). Use when the user says "make one like Screaming to Win", "a kinetic type short like the Blue Lock one", "here's a picture / quote / song, make that style", "make a kinetictype short from this <picture | quote | song>", "/make-kinetictype-like-screamingtowin", or gives a long instrumental to cut a kinetic edit from; otherwise make-kinetictype. Append new user feedback to the log at the bottom.
 metadata:
   variant-of: make-kinetictype
   forked: 2026-11-08
@@ -15,11 +15,52 @@ metadata:
 
 ## This variant
 
-The finished recipe of Screaming to Win, to run again on new material with as few questions as
-possible. The look is fixed (make-kinetictype's choices 1–9 as they stand: the slam, the six
-Midjourney styles, Anton + ink/paper/red, faces clear of type, the 24 s shape, the loop, music and
-sound effects with no voice-over); what changes is the picture, the quote and the music. Compare
-every result with projects/screamingtowin side by side at the same moments (its stills are the bar).
+Screaming to Win's style, suggested for new material: one giant word per hit with impact frames and a
+camera that never rests, Anton caps in ink, paper and one accent colour, the picture restyled in
+several looks with its characters cut out in front of the type, faces clear of type, music with sound
+effects and no voice-over, an end that rushes back into the start so the Short loops. That is a
+suggestion, not a template: the setup of a new edit (its length, its sections, which devices come
+when, what the words do, which art styles) is designed from the new quote, picture(s) and track, and
+projects/screamingtowin is compared for craft only (its stills show what "powerful" and "readable"
+look like, not where the cuts go).
+
+Two things this skill got wrong on Someone Took (2026-11-08) and must not again:
+
+1. **Treating the look as fixed.** The six Midjourney styles, the red, the 24 s shape are what worked
+   for a Blue Lock page. For another picture pick the styles and colours that fit its world (a neon
+   negative for a shadow monarch, stadium floodlights for a football page) and keep only what still
+   serves: the slam, the type, the loop, the sounds.
+2. **Replicating the setup.** Screaming to Win's shape (build → drop → faces → rise → win → end, 24 s,
+   one drop 4 s in) came from that track and that quote. A new track may have two drops or a long
+   outro; a new quote a three-letter hero word or a two-word tail; new pictures a grin to burst from,
+   a weapon hand to rise, or no team at all. Read the three inputs first, then lay out the sections
+   and the devices to fit them.
+
+### Designing the setup from the inputs
+
+- **The track decides the time.** Run `pick` (on the tail alone when the song has vocals and the user
+  wants its instrumental part), then read analysis/hits.png: how many drops and how strong, the bass
+  hits, the swells and dips, the outro. Choose the length that holds the music's own arc (20–35 s,
+  not 24 by rule) and set the section marks on the hits: `hits.json`'s drop / riser / sections, by
+  hand when the tool's guess is wrong (keep its own in hits.auto.json). Two drops → the hero word on
+  the first, the tail words on the second; a swell before a drop → the rise; bass hits in a row →
+  the faces; a thinning outro → the poster end, its warp on the last strong onset.
+- **The quote decides the words' roles.** The hero word (the user picks: the shouted one) takes the
+  drop letter by letter: a short one (WON) fits three hits, a long one (SCREAMING) nine. The words
+  after it are the rise and the win: one word each, or a two-word tail as one big word ("WITH IT");
+  the lockup is "<hero> / <the tail>." The words before it are the build, grouped by hand onto the
+  beats before the drop (`storyboard --groups="…|…" --step=<s>`) and back in pairs as the poster's
+  phrases; a short build gets fewer, longer groups.
+- **The pictures decide the devices.** A group panel → the plates and the team cut-outs; a single
+  portrait → the plates, its cut-out placed low so the words above stay readable. A grin or a scream
+  → the burst's mouth; a fist, a weapon hand or a raised arm → the rise and the win's crack (cropped
+  as its own square, the sleeve masked, f = its top); several pictures → the faces, each on the
+  ground it contrasts with (b&w or colour on red, red-and-black on ink or paper), flashing between
+  styles. No mouth → no burst (the crack runs on to the faces); no fist → a face rises.
+- **The art styles fit the world.** Screaming to Win's six looks (riso, linocut, firelight, neon
+  negative, oil, full colour) are a palette to pick from, swap or add to: the colour look names the
+  franchise's own colours and light, and the type's red can give way to the picture's accent. Keep
+  "exactly the same pose and framing" on every restyle so the plates register.
 
 ### The inputs, and making the missing ones
 
@@ -28,38 +69,39 @@ is happy (each is a checkpoint, never a silent pick):
 
 | Missing | How to make it | Ask first |
 |---|---|---|
-| **the picture** | From the quote's (and the music's) mood: a manga or anime page with 3–5 characters in one dramatic moment (screaming, celebrating, a raised fist), black-and-white ink, white space at the top. Midjourney through Browse Hack (`midjourney_generate`, text prompt, `--ar 4:5`, 4 images, the user picks); or fal (Ideogram `ideogram/v4.5` or FLUX.2 klein `fal-ai/flux-2/klein/9b` first, then Nano Banana 2.1 only if those can't). A franchise the user names: Pinterest (Browse Hack) for a real page, then the user picks | the batch and its cost |
+| **the picture** | From the quote's (and the music's) mood: a manga or anime page with one dramatic moment (a scream, a celebration, a raised fist, a stare), black-and-white ink, free space for type. Midjourney through Browse Hack (`midjourney_generate`, text prompt, `--ar 4:5`, 4 images, the user picks); or fal (Ideogram `ideogram/v4.5` or FLUX.2 klein `fal-ai/flux-2/klein/9b` first, then Nano Banana 2.1 only if those can't). A franchise the user names: Pinterest (Browse Hack) for a real page, then the user picks. Every picture the user puts in the folder is in the mix | the batch and its cost |
 | **the quote** | Three options of 6–12 words with one hero word (a verb or an "-ing" word that can be shouted) and a two-or-three-word ending ("…to win", "…never stop"): from the picture's scene, or the franchise's own famous line (credited in the description). Mark the hero word | which one |
 | **the music** | The media library first (`npm run media -w lyrics_videos -- find instrumental epic --kind=music`); else the user's channel folders in Downloads; else Suno through Browse Hack (`suno_create`, instrumental, styles like "cinematic drops, epic drums, powerful score, orchestral composition, atmospheric", the model the user uses; each Create spends credits and makes two songs: agree first, `suno_download` the keeper into the library inbox) | the source; Suno credits |
 
 A long instrumental (more than ~40 s): `npm run kinetictype -w lyrics_videos -- pick "<song>"
 --length=24 --top=3`, give the user the three mp3 previews (`open -R` line) and the plot, and use
 the one they pick (default: the first). The user picked 0:51–1:15 of a 3-minute track by ear for
-Screaming to Win; the tool's analysis finds the same kind of stretch.
+Screaming to Win, and the instrumental tail of a sung track for Someone Took; the length follows the
+music, not the tool's default.
 
 ### The fast path
 
 Ask everything at once at the start (one question round): the Chrome profile by email (the one
-signed in to Midjourney), the Midjourney round size (default "small": 6 panel styles + the
-close-ups ≈ 11 jobs, relax mode), the channel for delivery and upload, and the missing inputs above.
-Then, without stopping unless something fails:
+signed in to Midjourney), the Midjourney round size (default "small": the main panel in 5–6 styles
++ each other picture in 1–2 ≈ 10–14 jobs, relax mode), the channel for delivery and upload, the
+hero word, and the missing inputs above. Then, without stopping unless something fails:
 
 1. `npm run media -w lyrics_videos -- production new <slug> --title="…" --skill=make-kinetictype-like-screamingtowin --deliver-folder=<channel folder>/<slug>`
-2. `npm run kinetictype -w lyrics_videos -- new <slug> --music="<song>" --from=<s> --to=<s> --image="<picture>" --quote="…"` — look at analysis/hits.png: a drop near 4 s and 3–5 section hits after it. If the drop is wrong, pick another stretch.
-3. `grid`, then `crops` (`c0-art` without the text + 4–5 close-ups: the main faces, a raised fist).
-4. Midjourney round 1 in parallel (wait: false, 6–8 at a time): `c0-art-1024.png` in the six styles —
-   - "…, exactly the same pose and framing, bold red and black ink duotone, risograph print texture, grainy"
+2. `npm run kinetictype -w lyrics_videos -- new <slug> --music="<song>" --from=<s> --to=<s> --image="<picture>" --quote="…"` — read analysis/hits.png and design the sections from it (above); re-cut the stretch if the drop is wrong; write the marks into hits.json.
+3. `grid`, then `crops` (`c0-art` without the text + the close-ups the devices need: faces, a mouth, a fist); the other pictures go to input/extras/ as they are.
+4. Midjourney round 1 in parallel (wait: false, 6–8 at a time): the main panel in the styles chosen for its world, prompt = what's in the picture + "exactly the same pose and framing" + the style words. The Blue Lock set, to pick from:
+   - "…, bold red and black ink duotone, risograph print texture, grainy"
    - "…, black and white linocut woodcut print, thick carved lines, rough ink edges"
    - "…, lit by roaring firelight, glowing embers and sparks, orange and black, cinematic"
    - "…, inverted photographic negative, glowing electric blue lines on a black background, neon energy"
    - "…, thick expressive oil painting, impasto brush strokes, deep crimson and charcoal"
-   - "…, full colour anime key visual, cel shaded, vivid <the team's colour> and white, dramatic stadium floodlights" (swap the setting for the picture's)
-   and each close-up "…, exactly the same pose and framing, black and white manga ink illustration, sharp clean linework, screentone, high detail".
-   While they render, run the Pinterest research (make-kinetictype step 4) only if the user asked for new type ideas; the look is fixed here.
-5. Pick (the cleanest of each four: faces intact, no extra limbs, the composition kept), Subtle-upscale the picks, round 2 on the picks: the close-ups in red riso and neon negative, the fist in fire.
-6. `cutout` the riso, linocut and colour panels (`--all`) and the close-ups; write input/assets.json; `storyboard --key=<hero word>`.
-7. `kit`, `sfx`; stills at the make-kinetictype step 7 times next to screamingtowin's (`ONLY_PROJECT=screamingtowin npm run stills … --only`): fix what's weaker than the reference.
-8. Review render (`--proxy`), preflight, the revise-video link — the first checkpoint the user sees after the inputs.
+   - "…, full colour anime key visual, cel shaded, vivid <the franchise's colours> and white, <its light>"
+   and each other picture in the one or two styles its device needs (a face in riso and neon, a fist in fire). A manga page that is already clean ink needs no redraw.
+   While they render, run the Pinterest research (make-kinetictype step 4) only if the user asked for new type ideas.
+5. Pick (the cleanest of each four: faces intact, no extra limbs, the composition kept), Subtle-upscale what is shown big, round 2 only where a device still lacks a look.
+6. `cutout` the plates that give cut-outs (`--all`) and the close-ups; a neon or fire restyle won't cut (black ground): use it uncut on ink or give it the riso cut-out's alpha; a 2048 upscale that loses a part gets the 1024 pick's alpha. Write input/assets.json; `storyboard --key=<hero> --groups=… --step=…` for the draft, then the edit by hand to the design (a tools/edit.py in the project keeps it reproducible).
+7. `kit`, `sfx`; stills at the new edit's own moments next to screamingtowin's stills of the same devices (not the same seconds): fix what is weaker in craft (words hidden behind cut-outs, thin knock rows, a cut-out covering the word, low contrast on a ground).
+8. Review render (`--proxy`), preflight (the burst's dark dive is intended), the revise-video link — the first checkpoint the user sees after the inputs.
 9. After sign-off: the master, `media deliver`, the youtube/ pack (title like "<Quote in Title Case> 🔥 #<franchise>", the description as make-kinetictype step 9), preview it and ask, `youtube_fill_uploads`, then `deliver --uploaded` once the user has published.
 
 ### What to expect from the draft (and fix by eye)
@@ -314,3 +356,7 @@ Append dated entries: what the user said → the rule.
 - 2026-11-08, on v2 · "dw4 and dz are bad, redo them. e3 should end with a zoom in warping it to o1 making it a loop" → `crack` with the team punching up, `burst` out of the mouth, the warp and `open` (choice 7).
 - 2026-11-08 · voice-overs (Final Boss, Charlie, Knox, Havoc) with "do not overtightly follow the visuals", "after screaming, create an echo effect untill the to win comes", "to win should appear when the word first appears, and then win in echo later on" — then "remove all voices, i liked it before, jsut add some speciall sound fx along witht the music" → choice 8.
 - 2026-11-08 · the engine (src/kinetictype) and `npm run kinetictype` made from the project, checked against it side by side: the auto storyboard landed on the same cuts.
+- 2026-11-08, Someone Took (Solo Leveling, "someone took the same situation you're complaining about and won with it") · "pick instrumental part at the end of the audio" → when the track is a song, the stretch comes from its instrumental tail: run `pick` on the tail alone (cut it to a file from where the vocals end) and take its drop, even if the tool scores a sung section higher. The tail's second drop became the win (hits.json's drop / sections set by hand, the tool's kept in hits.auto.json).
+- 2026-11-08 · "you can also use the statue image in the mix" (five pictures given: four of the hero, one of the villain's grin) → every picture the user puts in the folder is in the mix: the main panel gets the six styles, the others two styles each (riso + neon / fire) and become the faces, the mouth of the burst and the fist. The hero word was WON (the user's pick over COMPLAINING): the drop takes the short word letter by letter on its three bass hits, the two-word tail "WITH IT" is the rise and the win, the lockup "WON / WITH IT."
+- 2026-11-08 · engine notes from this run: `storyboard --groups="A B|C|…" --step=0.5` sets the build by hand; rembg on the 2048 upscales lost parts (the statue's right half, the dagger fist) that the 1024 picks kept, so cut the 1024 pick and put its alpha on the upscale; the neon-negative and firelight restyles don't cut at all (black grounds): the neon face goes on the ink ground uncut, the fire fist takes the riso cut-out's alpha (same framing). Parallel `midjourney_download_images` calls are fine; the inbox watcher ingests the files into _LIBRARY/_unsorted/art/<set>/ within a minute.
+- 2026-11-09, after Someone Took · "you got 2 things wrong in the skill, the skill should only suggest the video style, but not an exact replica, the new setup would be dependent on the new quote/image/track. for now, just update the skill, no need to redo it" → "This variant" rewritten: the style is a suggestion; the setup (length, sections, devices, word roles, art styles) is designed from the new inputs ("Designing the setup from the inputs"); the reference's stills compare craft, not moments. Someone Took stays as made.
