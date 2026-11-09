@@ -18,7 +18,8 @@ pulls. The guard rails in `.claude/settings.json` hold to this, with their paths
 - On main, never edit a framework file or commit: the change goes on a branch (`git switch -c <type>/<what>`,
   or a worktree when other sessions share the checkout) and a PR. The pre-edit guard (`tools/guard-rails.mjs`)
   stops edits and commits on main and says where each change belongs; a production's own feedback goes in
-  its `projects/<slug>/prefs.md`.
+  its `projects/<slug>/prefs.md`, and a lesson for a skill in the user's notes (`mm notes add <skill> "…"`,
+  below).
 - Every session starts with `tools/git-health.mjs` (`npm run git-health`): a half-done merge or rebase, edits
   or local commits on main, a checkout behind GitHub, stashes and branches not on GitHub. Tell the user what
   it found before starting, and fix it only with their OK.

@@ -37,7 +37,7 @@
       "name": "skill file",
       "paths": [".agents/skills/", ".claude/skills/", "skills-lock.json"],
       "branch": "skill/<skill>-<what>",
-      "where": "Skills are shared by everyone who pulls. A lesson from the user goes in your notes, never the skill: `mm notes add <skill> \"…\"` (outside the repo; `mm notes promote <skill>` offers them to the skill's log as a PR). Feedback for this production goes in its own projects/<slug>/prefs.md (git ignores it). A fix to the skill itself, or a variant from fork-skill, goes on a branch and a PR."
+      "where": "Skills are shared by everyone who pulls. A lesson from the user goes in the user's notes, never the skill: `mm notes add <skill> \"…\"` (outside the repo; `mm notes promote <skill>` offers them to the skill's log as a PR). Feedback for this production goes in its own projects/<slug>/prefs.md (git ignores it). A fix to the skill itself, or a variant from fork-skill, goes on a branch and a PR."
     },
     {
       "name": "production graphic or catalog entry",
