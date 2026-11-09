@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.6
+
+### Patch Changes
+
+- c0815ad: Changes from PR #531: project-thread-9lumba
+
 ## 2.0.5
 
 ### Patch Changes

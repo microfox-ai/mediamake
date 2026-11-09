@@ -1,5 +1,11 @@
 # @microfox/mediamake-mcp
 
+## 0.4.1
+
+### Patch Changes
+
+- c0815ad: Changes from PR #531: project-thread-9lumba
+
 ## 0.4.0
 
 ### Minor Changes
