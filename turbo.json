@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".agents/skills/**", "tools/skills.mjs"],
   "globalEnv": [
     "NODE_ENV",
     "WORKER_BASE_URL",
@@ -20,7 +21,7 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "skills-index"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
       "env": [
         "NODE_ENV",
@@ -38,6 +39,9 @@
         "ASSEMBLYAI_API_KEY",
         "MONGODB_URI"
       ]
+    },
+    "skills-index": {
+      "cache": false
     },
     "lint": {
       "dependsOn": ["^lint"]
