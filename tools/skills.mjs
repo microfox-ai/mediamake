@@ -678,8 +678,8 @@ const publish = () => {
  * same files, link ones ~/.claude/skills doesn't load, remove links there that point at nothing in
  * the workspace, and keep loose folders in .claude/skills (not committed) as yours in the workspace.
  */
-const tidy = () => {
-  const yes = flags.includes('--yes');
+export const tidySteps = () => {
+  const notes = [];
   const repo = new Map(allSkills().filter(s => s.moved).map(s => [s.name, s]));
   const steps = [];
   for (const own of ownSkills()) {
@@ -689,7 +689,7 @@ const tidy = () => {
       continue;
     }
     if (!sameFiles(own.dir, pub.dir)) {
-      console.log(`⚠ ${own.name}: the repo has it and your copy differs, so sessions load yours. Compare: diff -r ${tilde(own.dir)} ${rel(pub.dir)}`);
+      notes.push(`${own.name}: the repo has it and your copy differs, so sessions load yours. Compare: diff -r ${tilde(own.dir)} ${rel(pub.dir)}`);
       continue;
     }
     steps.push({
@@ -711,7 +711,7 @@ const tidy = () => {
   for (const loose of allSkills().filter(s => !s.moved)) {
     const to = path.join(ownSkillsDir(), loose.name);
     if (fs.existsSync(to)) {
-      console.log(`⚠ ${loose.name}: a loose folder in .claude/skills and yours in the workspace both exist; keep one`);
+      notes.push(`${loose.name}: a loose folder in .claude/skills and yours in the workspace both exist; keep one`);
       continue;
     }
     steps.push({
@@ -724,6 +724,13 @@ const tidy = () => {
       },
     });
   }
+  return { steps, notes };
+};
+
+const tidy = () => {
+  const yes = flags.includes('--yes');
+  const { steps, notes } = tidySteps();
+  for (const n of notes) console.log(`⚠ ${n}`);
   if (!steps.length) return console.log('✔ nothing to tidy');
   for (const st of steps) {
     if (yes) st.run();

@@ -169,7 +169,7 @@ start Claude Code in that folder:
 
 ```bash
 gh repo clone microfox-ai/mediamake ~/mediamake
-cd ~/mediamake && npm ci && npm run mm -- link && npm run mm -- migrate --yes
+cd ~/mediamake && npm ci && npm run mm -- link && npm run mm -- migrate --yes && npm run mm -- doctor
 ```
 
 They use the skill from Claude Code started in `~/mediamake`
@@ -179,18 +179,30 @@ app's Code tab), not from a chat with no folder.
 ### `type: "repo"`: clone a GitHub repository
 
 Clone to `~/mediamake` for `microfox-ai/mediamake`, otherwise
-`~/<repo name>`. If it's already there, `git -C <path> pull --ff-only`
-instead. Use `gh repo clone <repo> <path>` (works for private repos the
+`~/<repo name>`. Use `gh repo clone <repo> <path>` (works for private repos the
 person can see). If the repo's README says to install dependencies, do it
 (`npm ci` at the repo root for mediamake, which installs exactly what the lockfile says and never
 rewrites it, then `npm run mm -- link`, which puts
 the `mm` command the skills use on their PATH). For mediamake, then set up the
 workspace, where their projects, renders and brand kits live, outside the
 checkout (`~/MediaMake`): on a fresh clone run `npm run mm -- migrate --yes`
-(nothing moves; it names the workspace and sets it up). On a checkout that was
-already there, run `npm run mm -- migrate` and show them what it would move;
-run it with `--yes` only once they agree. Remember the path; later
-steps' INSTALL.md files may refer to it as `$MEDIAMAKE_REPO`.
+(nothing moves; it names the workspace and sets it up). Then `npm run mm -- doctor`
+checks the rest of the machine (Node 22.6 or newer, uv, ffmpeg, the render
+browser, an ElevenLabs key) and says how to fix what's missing; `--fix` does
+what it can itself.
+
+If it's already there, update it instead. For mediamake, run
+`npm run mm -- update` in it: on a clean main it pulls, runs `npm ci` when the
+dependencies changed, then shows what `mm migrate` would move and runs
+`mm doctor`. When it lists edits or commits on main, it has changed nothing:
+show them what it printed, and run `npm run mm -- update --yes` only once they
+agree (it keeps those on a `local/<date>` branch, then updates main). When it
+lists work to move into the workspace, run `npm run mm -- migrate --yes` once
+they agree. A checkout too old to have the command (npm or mm says there is
+no such script or command): `git -C <path> pull --ff-only`, then
+`npm run mm -- update`. Any other repo: `git -C <path> pull --ff-only`.
+Remember the path; later steps' INSTALL.md files may refer to it as
+`$MEDIAMAKE_REPO`.
 
 ### `type: "github-release"`: a file from a GitHub release
 
@@ -414,7 +426,8 @@ from MediaMake" or "check MediaMake for updates", or paste a prompt like
    code if you used one).
    An item installed from its source (`"source"` in `installed.json`) has
    no versions on MediaMake, so it isn't in `versions`: a skill that came
-   with the MediaMake repo updates with `git -C ~/mediamake pull --ff-only`;
+   with the MediaMake repo updates with the repo (`npm run mm -- update` in
+   `~/mediamake`, as step 4's `type: "repo"` says);
    one fetched from another repo, by fetching its folder again (step 4's
    `type: "source"`); an MCP from its maker updates itself (`uvx` runs the
    latest release when it starts, a hosted one is always current), so only

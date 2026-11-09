@@ -112,7 +112,10 @@ never committed.
 
 ## Getting started
 
-Needs Node 20 or newer.
+Needs Node 22.6 or newer (the studio's scripts run their TypeScript with Node's own type stripping).
+`npm run mm -- doctor` checks this machine (Node, uv, ffmpeg, dependencies, builds, the render
+browser, git, your workspace, an ElevenLabs key) and says how to fix what's missing; `--fix` does what
+it can itself.
 
 ```bash
 npm ci                                          # exactly the lockfile; npm install would rewrite it
@@ -128,6 +131,10 @@ Videos are made in [apps/studio](apps/studio/README.md) with the `mm` command: `
 once puts it on your PATH, then `mm help` lists its commands (`mm preview` opens Remotion Studio).
 `apps/studio` was `apps/lyrics_videos` until November 2026: after pulling that change, `mm migrate`
 moves your projects and renders across.
+
+To update, run `mm update`: it brings main up to GitHub's, runs `npm ci` when the dependencies
+changed, then `mm migrate` and `mm doctor`. Edits or commits you made on main stop it with a list;
+`mm update --yes` keeps them on a `local/<date>` branch first (`--push` sends it to GitHub for a PR).
 
 ## More docs
 

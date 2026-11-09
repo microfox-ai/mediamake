@@ -44,7 +44,11 @@ file git tracks is the framework, shared by everyone who pulls. The guard rails 
 - Never drop work without asking: no `reset --hard`, `checkout --` or `restore` on changed files, `stash drop`
   or `branch -D`, and never `git clean -x` or `-X`, which deletes the user's projects and renders (the guard
   stops it).
-- Update with `git pull --ff-only` on a clean main, then `npm ci`. On main, install only with `npm ci`:
+- Update with `mm update`: on a clean main it pulls (`--ff-only`), runs `npm ci` when the dependencies
+  changed, then `mm migrate` (a dry run) and `mm doctor`. Edits or commits on main it lists and leaves;
+  `mm update --yes`, with the user's OK, keeps them on a `local/<date>` branch and then updates main.
+  `mm doctor` checks the machine (Node 22.6+, uv, ffmpeg, dependencies, builds, the render browser,
+  git, workspace, keys); `--fix` repairs what it can. On main, install only with `npm ci`:
   `npm install`, `update` and the like rewrite `package-lock.json`, which changes only in a PR that
   changes dependencies (`deps/<what>`; the guard stops them on main).
 - Generated files are built, never committed: `skills.json` (the skills registry, built by the app's
