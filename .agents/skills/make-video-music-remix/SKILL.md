@@ -443,13 +443,14 @@ no stutter, no burned-in graphics, every sound on its picture.
 ### 10. Render and review
 
 ```bash
-mm render <slug> --crf=18 --proxy   # review render, half size → out/<slug>/<slug>.mp4 + .map.json (background)
+mm render <slug> --crf=18 --preview   # review: 10 s stretches around what changed, half size → out/<slug>/preview/ (background)
 mm render <slug> --crf=18           # the master once the user signs off (~10 min for 3.5 min at 1080p30)
 mm render <slug> --frames=900-960 --proxy   # a clip → out/<slug>/clips/
 mm preflight <slug>                         # before every link: black or frozen frames, sound
 ```
 
-Every review round is a half-size review render; the full-size master renders once, after sign-off
+Every review round is a preview (10 s stretches at half size around what changed, never the whole
+video); the full-size master renders once, after sign-off
 (`revise-video` step 1). Run preflight after every render the user will watch and fix or answer what
 it finds before the link (step 2): a cut that drops a frame shows as black, a source that stopped
 playing as a freeze.

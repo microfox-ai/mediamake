@@ -1,6 +1,6 @@
 ---
 name: revise-video
-description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders for review at half size (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/ (or out/<slug>/live.revisions/ when the user reviewed the project live, before any render: /video-revision?live=<slug>), fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). New user feedback goes in your notes (mm notes add), never in this file.
+description: Review and revise a rendered video with the user through mediamake's Video Revision screen (/video-revision) — renders 10-second previews for review, around what changed (the full-size master once, after sign-off), runs machine checks (preflight) before giving the review link, waits in the background for a revision marked ready, reads the revision files (general comments on the whole video, point comments with stills, range comments across shots, machine notes) under out/<slug>/<slug>.revisions/ (or out/<slug>/live.revisions/ when the user reviewed the project live, before any render: /video-revision?live=<slug>), fixes each comment in the project, replies and resolves, and logs the lessons. Also holds the shared intake rule for look previews (3–4 looks as 8 s clips in one grid, or the whole video; the whole video by default under a minute). Shared by every video-making skill (make-lyrics-video, make-video-music-remix, make-waveform-lyric-video, their variants and shorts, and any make-* video skill to come). Use after a render the user will watch, or when the user says "rev-002 is ready", "check my revision / comments", "act on the revisions", "/revise-video <slug>", or asks to fix notes left in the Revisions screen. Not for image sets (thumbnails, posters: create-thumbnail's /file-revision). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: revise
 ---
@@ -13,7 +13,7 @@ notes back from the **Video Revision** screen, fixes them in the project, and cl
 The making skill's own rules (its principles, its `prefs.md`, its render command) still apply to
 every fix.
 
-The loop, in order: render for review at half size (1) → preflight (2) → the link (3) → wait for a
+The loop, in order: render a 10 s preview for review (1) → preflight (2) → the link (3) → wait for a
 ready revision in the background (4) → read it (5) → act on it (6) → log what you learned (7). The
 full-size master renders once, after the user signs off.
 
@@ -51,34 +51,54 @@ Whether to make them is the user's call, so every making skill asks in its intak
   an earlier one). The making skill may say which it recommends.
 
 To make them, build each look on the same stretch with the project reading the look from its props
-(`getInputProps().look`), render each one at half size, then put them in one labelled grid:
+(`getInputProps().look`), then render them all at half size in one command, which bundles once and
+puts them in one labelled grid:
 
 ```bash
-mm render <slug> --look=A --frames=<a>-<b> --proxy   # → out/<slug>/looks/A.mp4
-mm look-grid out/<slug>/looks/A.mp4 out/<slug>/looks/B.mp4 out/<slug>/looks/C.mp4 out/<slug>/looks/D.mp4
+mm render <slug> --look=A,B,C,D --preview=hook-1 --seconds=8   # or --frames=<a>-<b> --proxy; → out/<slug>/looks/grid-A-B-C-D.mp4
 ```
 
-`look-grid` labels each tile with its look ID (two side by side, three or four in a 2×2), keeps the
-first clip's sound and shot map, and prints the grid's review link. The user names a pick, or a mix
-("B with the rings from D"), by the label on screen. A skill with its own preview command
+The grid labels each tile with its look ID (two side by side, three or four in a 2×2), keeps the
+first clip's sound and shot map, and its review link is printed (`mm look-grid <clip> …` makes one
+from clips rendered apart). The user names a pick, or a mix ("B with the rings from D"), by the
+label on screen. A skill with its own preview command
 (`wave-lab <slug> looks --clip=6`) makes the same grid. Then build the whole video on the pick.
 
-## 1. Render for review at half size
+## 1. Render for review: 10-second previews
 
-A render the user will review is a **review render**. `--proxy` renders at half size (960×540 for a
-1080p video; `--proxy=0.75` when fine detail matters) into the same file, so the review link and the
-map stay the same; each round paints a quarter of the pixels and takes roughly a third of the time:
+A render the user will review is a **preview**: 10-second stretches at half size, never the whole
+video (the user's rule, 2026-11-09: a whole render costs too much). `--preview` renders the 10 s
+around what changed and joins the stretches into one review file with a shot map, so the user's
+comments land on the right shots:
 
 ```bash
-mm render <slug> --proxy     # review render
-mm render <slug>             # the master, once the user signs off
+mm render <slug> --preview                  # around every point and range comment of the latest revision
+mm render <slug> --preview=h1.3,chorus-2,1:24,40-52   # around shots, sections (first 10 s), seconds; a-b as named
+mm render <slug>                            # the master, once the user signs off
 ```
 
-Every review round uses review renders. Render the **master** once, when the user signs off ("final",
-"render it", "looks good"), and say which of the two you are rendering. Thumbnails, the upload pack,
-rotate shorts and anything that gets uploaded come only from the master (`shorts make --mode=rotate`
-refuses a review render). When the user asks for full size during review, render full size. Shorts
-render at full size (`lyric-shorts render` has no proxy; they are short).
+- **What it renders:** with nothing named, the 10 s around each comment of the latest revision (the
+  main video's, the last preview's or a live review's), which is where the fixes just went; with no
+  revision yet, the first hook or chorus. Name the stretches yourself when the fixes went somewhere
+  else (a change to every chorus: name one chorus). Stretches less than a second apart are merged;
+  `--seconds=<n>` for another length. A video of 15 s or less is its own preview, whole.
+- **Where:** `out/<slug>/preview/<slug>.mp4`, the previous preview kept in `preview/v<N>/`. The command
+  prints the review link and the preflight line. Its map lists each stretch (`stretches`: where it
+  sits in the preview and in the song) with a marker at each join, and every shot keeps its ID, so a
+  comment's shot is the shot to fix. A comment's time is preview time: the map's `stretches` turn it
+  into song time, and the next `--preview` does that by itself.
+- **The whole video at half size** (`mm render <slug> --proxy`, into the master's file) only when the
+  user asks to watch the whole thing during review.
+
+Render the **master** once, when the user signs off ("final", "render it", "looks good"), and say
+which of the two you are rendering. Thumbnails, the upload pack, rotate shorts and anything that gets
+uploaded come only from the master (`shorts make --mode=rotate` refuses a review render). When the
+user asks for full size during review, add `--scale=1`. Shorts render at full size (`lyric-shorts
+render` has no proxy; they are short).
+
+Renders are quicker than they used to be, so don't skip one to save time: the project's bundle is
+kept and reused until its code changes, and renders on this machine take turns (a second session's
+render waits for the first: "Waiting for the render slot"; `mm render-queue` shows them).
 
 ### Or review it live, before rendering
 
@@ -127,7 +147,8 @@ Machines check, the user judges: the user should never be the one who finds a bl
 every render the user will watch:
 
 ```bash
-mm preflight <slug>     # --video=<mp4> for a short, a clip or a grid; --source=<their picture>
+mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4   # a preview (mm render prints this line)
+mm preflight <slug>     # the master; --video=<mp4> for a short, a clip or a grid; --source=<their picture>
 ```
 
 It checks black and frozen frames, a missing or short sound track, dropouts, clipping and a quiet
@@ -147,15 +168,16 @@ the top of the video's next revision, where the user will see them beside their 
 ## 3. Give the user the review link
 
 ```
-https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4
+https://mediamake.microfox.app/video-revision?folder=<slug>/preview&video=<slug>.mp4   # a preview
+https://mediamake.microfox.app/video-revision?folder=<slug>&video=<slug>.mp4           # the master
 ```
 
-Preflight prints it. It opens on the deployed app, no local server needed. **Always this base URL,
+`mm render --preview` and preflight print it. It opens on the deployed app, no local server needed. **Always this base URL,
 `https://mediamake.microfox.app`, never a `localhost` link** (2026-11-02: "why are you creating
 wrong remotion urls, always use the base url - mediamake.microfox.app"), even while a local dev
 server is running for your own checks. The old `/remotion-revision` and `/revisions` paths still
-redirect. For a kept cut, point `folder` at it (`<slug>/v5`). Say whether it is a half-size review
-render.
+redirect. For a kept cut, point `folder` at it (`<slug>/v5`, `<slug>/preview/v3`). Say what the preview
+holds (which stretches, around which notes) and that it is half size.
 
 The screen loads the video and its map, shows the shots on a timeline (⌘←/→ jumps shot to shot) and
 saves comments **next to the video**. On a paused frame the user can draw (pencil, brush, arrow, box,
@@ -231,8 +253,8 @@ out/<slug>/live.revisions/      the same, for notes left on the project reviewed
 - Act on revisions whose status is `ready` (the watcher, or the user saying "rev-002 is ready"),
   and on any comment without a `reply`: users add new comments to an older revision file too.
 - Fix each comment the way the making skill works (its principles and its `prefs.md`), check the
-  fix the way it checks (stills, frame sheets, exact seeks), then re-render as a review render
-  (step 1) and run preflight (step 2).
+  fix the way it checks (stills, frame sheets, exact seeks), then render a preview of the fixes
+  (`mm render <slug> --preview`, step 1) and run preflight on it (step 2).
 - In the JSON set each comment's `status` to `"done"` and add a short `reply` (what changed, or why
   not); set the revision's `status` to `"resolved"` when all are done (don't forget this last
   step: the watcher reports a ready revision at once). Edit only those fields: the open page picks

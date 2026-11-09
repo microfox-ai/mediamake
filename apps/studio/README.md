@@ -55,11 +55,12 @@ From the repo root:
 mm analyze <slug>                  # stems, beat grid, aligned words → analysis/
 mm prepare <slug>                  # input/ (+ analysis/) → manifest.json
 mm derive-media <slug>             # video/media.json → derived/ (16:9 crops, clips)
-mm preview                         # preview every project
+mm preview <slug>                  # Remotion Studio with one project (no slug: every project, each loads when opened)
 mm stills <slug>                   # one JPEG per section, for a quick check
 mm stills <slug> 12.5,40 --only    # just these seconds
-mm render <slug>                   # full MP4 into out/<slug>/<slug>.mp4 (+ <slug>.map.json)
-mm render <slug> --proxy           # the same at half size: a review render
+mm render <slug> --preview         # a review render: 10 s around what changed, half size → out/<slug>/preview/
+mm render <slug>                   # full MP4 into out/<slug>/<slug>.mp4 (+ <slug>.map.json): the master
+mm benchmark                       # the fastest render concurrency on this machine, used by every render
 mm map <slug> --video=<mp4>        # shot map for any other render
 mm preflight <slug>                # machine checks before the user reviews a render
 mm wait-revision <slug>            # wait until a revision is set to "Ready for Claude"
@@ -85,20 +86,41 @@ Each render also writes `<slug>.map.json` beside the MP4: every shot from
 project has no shot list). mediamake's Video Revision screen (`/video-revision`) reads it to tag review
 comments with shot IDs, and saves the comments in `<slug>.revisions/` next to the video.
 
+### Previews: how a video is reviewed
+
+A review round renders 10-second stretches, never the whole video: a half-size review of a 195 s
+video took 6–7 minutes on the M3 Pro (Postcards from Tomorrow, Nov 2026), a 10 s stretch about half a
+minute.
+
 ```bash
-# whole song
-mm render <slug>
+# the 10 s around what changed: every comment of the latest revision (its point or range), else the
+# first hook or chorus. Half size, joined into out/<slug>/preview/<slug>.mp4 with its own map
+mm render <slug> --preview
 
-# a slice, to check motion. --frames is frame numbers at the project's fps
-# (0-299 is the first 10s at 30fps). --proxy renders at half resolution (--scale=0.5).
-mm render <slug> --frames=0-299 --proxy
+# around the shots, sections or seconds you name, or a stretch in song seconds
+mm render <slug> --preview=h1.3,hook-2,1:23
+mm render <slug> --preview=40-55
+mm render <slug> --preview --seconds=6
 
-# a review render: the whole song at half size into the same file (same review link and map);
-# render the master without --proxy once the user signs off
+# looks side by side: every look on the same stretch, in one labelled grid (out/<slug>/looks/)
+mm render <slug> --look=A,B,C,D --preview=hook-1 --seconds=8
+```
+
+The preview's map keeps every shot's ID and where each stretch sits in the song (`stretches`, with a
+marker at each join), so comments on a preview land on the right shots. The previous preview is kept
+in `out/<slug>/preview/v<N>/`. Its review link is `?folder=<slug>/preview&video=<slug>.mp4`.
+
+```bash
+# the whole video at half size, into the main file (same review link and map): only when the user
+# asks to review the whole thing
 mm render <slug> --proxy
 
-# a look preview: { "look": "B" } as input props, into out/<slug>/looks/B.mp4
-mm render <slug> --look=B --frames=0-239 --proxy
+# the master, once, after the user signs off: thumbnails, upload packs and shorts come from it
+mm render <slug>
+
+# a slice, to check motion: frame numbers at the project's fps (0-299 is the first 10 s at 30 fps),
+# into out/<slug>/clips/
+mm render <slug> --frames=0-299 --proxy
 
 # higher quality (lower CRF; Remotion's default is 18)
 mm render <slug> --crf=16
@@ -106,7 +128,27 @@ mm render <slug> --crf=16
 
 Other flags pass through too (`--concurrency`, `--image-format=png`).
 The full list is at https://www.remotion.dev/docs/cli/render. Every render is logged in
-`out/<slug>/.renders.jsonl` (when, which file, scale, seconds).
+`out/<slug>/.renders.jsonl` (when, which file, scale, seconds, and the bundle and queue time).
+
+### Why renders start fast
+
+- **Kept bundles.** A project is bundled once and the bundle is reused until its code changes
+  (`node_modules/.cache/mediamake/bundles/<slug>/`, with webpack's cache for it beside): a render of
+  an unchanged project starts at once, and after an edit only what changed is rebuilt. `mm render`,
+  `mm stills`, lyric shorts and the other scripts share it. `MM_BUNDLE=fresh` bundles anew,
+  `mm bundle <slug>` makes it ahead of time. The bundles of the 8 projects used last are kept
+  (`MM_BUNDLE_KEEP`).
+- **One render at a time.** Renders from every session on this machine wait their turn
+  (`~/.mediamake/render-queue/`), since two at once each take more than twice as long.
+  `mm render-queue` lists them, `--no-queue` skips the wait.
+- **Tuned for the machine.** `mm benchmark` renders the same 10 s at a few concurrencies and keeps
+  the fastest in `~/.mediamake/render-tuning.json` (`mm benchmark <slug>` for a project heavy on
+  footage); every render without `--concurrency` uses it. Previews, clips, looks and half-size
+  renders are encoded with x264 `veryfast`, the master with Remotion's `medium`. On macOS, Remotion
+  is told the memory macOS can really hand out (`scripts/mac-memory.cjs`), so it encodes while it
+  renders and decodes footage on more threads.
+- **Studio loads what you open.** `mm preview <slug>` opens Studio with one project; with no slug,
+  each project's code and fonts load when its composition is opened.
 
 ### On Lambda
 

@@ -101,7 +101,7 @@ hero word, and the missing inputs above. Then, without stopping unless something
 5. Pick (the cleanest of each four: faces intact, no extra limbs, the composition kept), Subtle-upscale what is shown big, round 2 only where a device still lacks a look.
 6. `cutout` the plates that give cut-outs (`--all`) and the close-ups; a neon or fire restyle won't cut (black ground): use it uncut on ink or give it the riso cut-out's alpha; a 2048 upscale that loses a part gets the 1024 pick's alpha. Write input/assets.json; `storyboard --key=<hero> --groups=… --step=…` for the draft, then the edit by hand to the design (a tools/edit.py in the project keeps it reproducible).
 7. `kit`, `sfx`; stills at the new edit's own moments next to screamingtowin's stills of the same devices (not the same seconds): fix what is weaker in craft (words hidden behind cut-outs, thin knock rows, a cut-out covering the word, low contrast on a ground).
-8. Review render (`--proxy`), preflight (the burst's dark dive is intended), the revise-video link — the first checkpoint the user sees after the inputs.
+8. Preview for review (`--preview`, 10 s stretches at half size), preflight (the burst's dark dive is intended), the revise-video link — the first checkpoint the user sees after the inputs.
 9. After sign-off: the master, `media deliver`, the youtube/ pack (title like "<Quote in Title Case> 🔥 #<franchise>", the description as make-kinetictype step 9), preview it and ask, `youtube_fill_uploads`, then `deliver --uploaded` once the user has published.
 
 ### What to expect from the draft (and fix by eye)
@@ -312,7 +312,7 @@ the kinetic project and splice it in.
 
 ```bash
 ONLY_PROJECT=<slug> mm stills <slug> 0.5,1.3,2.3,4.6,6.8,8.7,9.5,12.8,15.0,16.6,18.5,21.6,23.9 --only
-mm render <slug> --proxy && mm preflight <slug>
+mm render <slug> --preview && mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4
 ```
 
 Look at every still before the user does (Tailwind's `img {max-width:100%}` once capped every picture

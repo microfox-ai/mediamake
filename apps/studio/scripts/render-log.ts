@@ -21,7 +21,14 @@ export type RenderEntry = {
   frames?: [number, number | null];
   /** the --look of a look preview */
   look?: string;
+  /** a preview (--preview): the song frames of each stretch it joins */
+  preview?: [number, number][];
+  /** wall seconds of the render itself (the bundle and the wait for the render slot are apart) */
   seconds: number;
+  /** seconds spent bundling first (0 when the kept bundle was reused); absent before 2026-11-09 */
+  bundle?: number;
+  /** seconds waited for this machine's render slot (another session's render) */
+  queued?: number;
   ok: boolean;
   /** set when the render ran on Remotion Lambda (scripts/lambda.ts); costUsd is Lambda compute only */
   lambda?: { region: string; renderId: string; functionName: string; lambdas: number; costUsd: number; through: 'mediamake' | 'aws'; /** the slowest chunk's seconds per frame (scripts/lambda.ts sizes the next render's chunks from it) */ slowestChunkSecondsPerFrame?: number; config?: { memory: number; framesPerLambda: number; concurrencyPerLambda: number; chunks: number; estimatedCost: number } };

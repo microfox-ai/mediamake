@@ -277,8 +277,8 @@ layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
    alpha) into `input/brand/` and layer the engine's `LogoSting` over the intro (e.g.
    `at: { from: 0.2, to: 4.2 }`, `box` half size over the subject's body), so it has faded before
    the first line's entrance (its start − 0.35 s). Check stills before, during and after.
-2. **Render**: a render the user asked for to review is a half-size review render
-   (`mm render <slug> --proxy`); the master is
+2. **Render**: a render the user asked for to review is a preview, 10 s stretches at half size
+   around what changed (`mm render <slug> --preview`); the master is
    `mm render <slug>` (≈ 10 min for 3 min, in the background; retry
    once on a font timeout), once they sign off (`revise-video` step 1). The previous render moves to
    `v<N>/` by itself. The end screen, the cover and the packs come from the master.
