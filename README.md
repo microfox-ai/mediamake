@@ -20,12 +20,11 @@ packages/
   datamotion/         @microfox/datamotion: data-driven component configs used by the AI agents
   mediamake-mcp/      @microfox/mediamake-mcp: the MCP server (local stdio / .mcpb build)
 tools/
-  skills.mjs          Builds SKILLS.md and checks skills for keys and machine paths
+  skills.mjs          Lists, forks and publishes skills, builds skills.json, checks them for keys and paths
   eslint-config/, tsconfig/   Shared lint and TypeScript configs
 scripts/              Release and CI helper scripts (used by .github/workflows)
 private/              Your unreleased MCPs and apps. Gitignored except its README
 .agents/skills/       Every skill (all public, committed); .claude/skills links to them
-SKILLS.md             Index of every skill
 install.md            What Claude follows to install a catalog item
 ```
 
@@ -103,18 +102,20 @@ Claude Code skills for making content: lyric videos and shorts, music remixes, t
 brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for videos, `create-*` for
 images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
 `.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
-[SKILLS.md](SKILLS.md) lists them all. A variant you fork (`fork-skill`) or your team shares starts as
+[mediamake.microfox.app/skills](https://mediamake.microfox.app/skills) lists them all (and
+`node tools/skills.mjs list` here). A variant you fork (`fork-skill`) or your team shares starts as
 yours, in your workspace (`~/MediaMake/skills/`, linked from `~/.claude/skills/`), and
 `node tools/skills.mjs publish <name>` sends it to the repo as a pull request (`publish-skill`);
 `node tools/skills.mjs check` (also run in CI) fails when a skill holds an API key, a token or a path
-on your machine, or when SKILLS.md is out of date.
+on your machine. The registry the site reads, `skills.json`, is built (by the app's `build` and `dev`),
+never committed.
 
 ## Getting started
 
 Needs Node 20 or newer.
 
 ```bash
-npm install
+npm ci                                          # exactly the lockfile; npm install would rewrite it
 npm run build --workspace=@microfox/remotion   # the app imports the built package
 cd apps/mediamake && npm run dev                # http://localhost:3000
 ```

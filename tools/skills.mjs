@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * skills: list, add and fork this repo's Claude Code skills, and keep SKILLS.md and skills.json up to date.
+ * skills: list, add, fork and publish this repo's Claude Code skills, and build skills.json, their registry.
  *
  * Every skill is public and committed: nothing about a skill is hidden. (Apps and MCPs are the
  * gated ones; they go through private/ and the catalog releases, see docs/catalog-releases.md.)
@@ -12,15 +12,17 @@
  *   <workspace>/skills/<name>/ your own: variants you forked and ones your team shared (media sync),
  *                              outside the repo (~/MediaMake/skills unless ~/.mediamake/config.json
  *                              names another workspace), linked from ~/.claude/skills/<name> so every
- *                              session loads them. Never in SKILLS.md or skills.json; making or pulling
- *                              one never changes a file git tracks.
+ *                              session loads them. Never in skills.json; making or pulling one never
+ *                              changes a file git tracks.
  * `publish` sends one of yours to the repo as a pull request (from a temporary worktree: this checkout
  * is never touched); once it has merged and you pulled, `tidy` drops your copy. A new skill made as a
  * real folder in .claude/skills is public too; `add` moves it to .agents/skills here and links it.
  *
  * skills.json (mediamake.skills/v1) is the registry: every skill's name, category, summary, where it
- * is and what it is a variant of. The site (homepage Skills tab, /skills/<name>) and the Library page read it, and the media CLI
- * puts it in the library's export; nothing else parses SKILL.md.
+ * is and what it is a variant of. It is built, never committed (git ignores it): the site's build and
+ * dev server write it with `index` (homepage Skills tab, /skills and /skills/<name>, the Library and
+ * the releases board read it), and the media CLI's export reads `registry()` in-process. Nothing else
+ * parses SKILL.md. The list of every skill is `list` here and https://mediamake.microfox.app/skills.
  *
  * Usage: node tools/skills.mjs list [--category=<c>] [--json]
  *        node tools/skills.mjs add <name> | --all [--dry-run]   checks, then moves a .claude/skills
@@ -34,10 +36,11 @@
  *        node tools/skills.mjs diff <variant> [--stat] [--json]   what the variant changed against its
  *            base at the fork commit, and what the base changed since
  *        node tools/skills.mjs diff --all --json              the same numbers for every variant
- *        node tools/skills.mjs index                          rewrites SKILLS.md and skills.json
- *        node tools/skills.mjs check [--hook=session|edit]    fails when SKILLS.md or skills.json is out
- *            of date or a skill holds a key, a token or a path on this machine (exit 1; as a Claude
- *            Code hook: a SessionStart note, or exit 2 after a tool changed a skill). CI runs it on every PR.
+ *        node tools/skills.mjs index [--quiet]                writes skills.json (a build step)
+ *        node tools/skills.mjs check [--hook=session|edit]    fails when a skill holds a key, a token or
+ *            a path on this machine, an MCP table it can't read, or a log that tells sessions to edit it
+ *            (exit 1; as a Claude Code hook: a SessionStart note, or exit 2 after a tool changed a
+ *            skill). CI runs it on every PR.
  *
  * Lessons: a skill's `## Feedback log` or `## Lessons log` is shared and changes only in a PR. New
  * lessons go in the user's notes, outside the repo (`mm notes add <skill> "…"`, apps/studio/scripts/
@@ -72,7 +75,6 @@ import { openPr, stamp } from './upstream.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLAUDE = path.join(ROOT, '.claude', 'skills');
 const AGENTS = path.join(ROOT, '.agents', 'skills');
-const INDEX = path.join(ROOT, 'SKILLS.md');
 const REGISTRY = path.join(ROOT, 'skills.json');
 const LOCK = path.join(ROOT, 'skills-lock.json');
 const THIRD_PARTY = path.join(ROOT, 'apps', 'mediamake', 'lib', 'catalog', 'third-party.json');
@@ -110,7 +112,7 @@ const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']
 const MCP_HEADER = /^\|\s*MCP\s*\|\s*Need\s*\|\s*Used for\s*\|\s*Without it\s*\|$/i;
 
 /**
- * Category by name prefix: what each verb means. Order is the order in SKILLS.md. `internal`
+ * Category by name prefix: what each verb means. Order is the order the site lists them in. `internal`
  * categories hold sub-skills and housekeeping (other skills call them, or they look after the
  * machine or the skills): the site lists them only when its "Internal" filter is on. A skill
  * overrides its category with `metadata.internal: true|false` in its SKILL.md.
@@ -420,56 +422,8 @@ export const checks = skill => {
   return { problems, notes: [...new Set(notes)] };
 };
 
-/** SKILLS.md as it should be now. */
-const renderIndex = skills => {
-  const out = [
-    '# Skills',
-    '',
-    'Claude Code skills in this repo. **Every skill is public**: its files are committed in',
-    '`.agents/skills/<name>/` and `.claude/skills/<name>` links to them, so they load for anyone who',
-    'opens the repo in Claude Code. Apps and MCPs are the ones that go through gated releases',
-    '(see [catalog-releases.md](apps/mediamake/docs/catalog-releases.md)). The `publish-skill` skill',
-    'adds a new skill and checks it for keys and private paths; `fork-skill` makes a variant.',
-    '',
-    'Regenerate this file and the registry, [`skills.json`](skills.json), with `node tools/skills.mjs index`',
-    '(add and fork do it themselves); `node tools/skills.mjs check` fails when either is out of date or',
-    'a skill holds a key or a path on this machine, in CI too. The mediamake app shows the registry at',
-    '[`/skills`](https://mediamake.microfox.app/skills), rebuilt on every deploy, and in the Library',
-    '(`/library`) with each skill\'s runs and outputs.',
-    '',
-    'A skill names the MCPs it works with in a `| MCP | Need | Used for | Without it |` table in its',
-    'SKILL.md (see `publish-skill`): it checks them when it runs, and installing it from MediaMake offers',
-    'each one, saying what it is for and what the skill loses without it.',
-    '',
-    '## Naming',
-    '',
-    'A skill is named `<verb>-<thing>`; the verb is its category:',
-    '',
-    ...CATEGORIES.filter(c => c.prefix || c.suffix).map(c => `- \`${c.prefix ?? `*${c.suffix}`}${c.prefix ? '*' : ''}\`: ${c.about}`),
-    '',
-    'A **variant** keeps its base skill\'s name and adds what it is modelled on: `<base>-like-<ref>`',
-    '(e.g. `make-video-music-remix-like-f1xhitit`, the style of one finished edit), or `<base>-v<N>` for',
-    'an older version kept as it was. Its frontmatter says `metadata: variant-of: <base>`, and',
-    '`forked-from: <base>@<commit>` when `fork` made it: `node tools/skills.mjs diff <variant>` shows',
-    'what the variant changed and what the base changed since.',
-    '',
-  ];
-  for (const c of CATEGORIES) {
-    const group = skills.filter(s => s.category === c.id);
-    if (!group.length) continue;
-    out.push(`## ${c.id}`, '', c.about, '', '| Skill | Visibility | What it does |', '|---|---|---|');
-    for (const s of group) {
-      const name = `[\`${s.name}\`](${rel(s.dir)}/SKILL.md)`;
-      const mcps = s.mcps.length ? ` MCPs: ${mcpList(s.mcps)}.` : '';
-      out.push(`| ${name}${s.variantOf ? ` (variant of \`${s.variantOf}\`)` : ''} | public | ${summary(s.description).replace(/\|/g, '/')}${mcps} |`);
-    }
-    out.push('');
-  }
-  return out.join('\n');
-};
-
-/** skills.json as it should be now: one entry per skill, keys left out when they have no value. */
-const renderRegistry = skills => {
+/** The registry (skills.json) as it is now: one entry per skill, keys left out when they have no value. */
+export const registry = (skills = allSkills()) => {
   const entry = s => {
     const e = {
       name: s.name,
@@ -490,43 +444,18 @@ const renderRegistry = skills => {
     };
     return Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== ''));
   };
-  const registry = {
+  return {
     schema: REGISTRY_SCHEMA,
     categories: CATEGORIES.map(({ id, prefix, suffix, about, internal }) => ({ id, ...(prefix && { prefix }), ...(suffix && { suffix }), about, ...(internal && { internal }) })),
     skills: skills.map(entry),
   };
-  return `${JSON.stringify(registry, null, 2)}\n`;
 };
 
+/** Writes skills.json, the registry the site builds from (git ignores it: it is built, never committed). */
 const index = () => {
-  const skills = allSkills();
-  fs.writeFileSync(INDEX, renderIndex(skills));
-  fs.writeFileSync(REGISTRY, renderRegistry(skills));
-  console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} (${skills.length} skills)`);
-};
-
-/** What changed since SKILLS.md and skills.json were written, or null when both are up to date. */
-const staleness = () => {
-  const skills = allSkills();
-  const old = fs.existsSync(INDEX) ? fs.readFileSync(INDEX, 'utf8') : '';
-  const oldRegistry = fs.existsSync(REGISTRY) ? fs.readFileSync(REGISTRY, 'utf8') : '';
-  const indexStale = old !== renderIndex(skills);
-  const registryStale = oldRegistry !== renderRegistry(skills);
-  if (!indexStale && !registryStale) return null;
-  let listed = new Set([...old.matchAll(/^\| \[?`([a-z0-9-]+)`/gm)].map(m => m[1]));
-  if (!indexStale) {
-    try {
-      listed = new Set(JSON.parse(oldRegistry).skills.map(s => s.name));
-    } catch {
-      listed = new Set();
-    }
-  }
-  const now = new Set(skills.map(s => s.name));
-  const added = [...now].filter(n => !listed.has(n));
-  const gone = [...listed].filter(n => !now.has(n));
-  const parts = [added.length && `not listed: ${added.join(', ')}`, gone.length && `listed but gone: ${gone.join(', ')}`].filter(Boolean);
-  const which = indexStale && registryStale ? 'SKILLS.md and skills.json are' : indexStale ? 'SKILLS.md is' : 'skills.json is';
-  return `${which} out of date with the skills folder (${parts.join('; ') || 'a summary, category, visibility or variant changed'}). Run: node tools/skills.mjs index`;
+  const reg = registry();
+  fs.writeFileSync(REGISTRY, `${JSON.stringify(reg, null, 2)}\n`);
+  if (!flags.includes('--quiet')) console.log(`✔ ${rel(REGISTRY)} (${reg.skills.length} skills)`);
 };
 
 /** Hook input from Claude Code: did this tool call touch a skill? */
@@ -563,8 +492,8 @@ const mcpTables = () => {
 const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
-  const stale = [staleness(), leaks(), mcpTables(), lessonLogs()].filter(Boolean).join('\n') || null;
-  if (!stale) return hook ? undefined : console.log(`✔ ${rel(INDEX)} and ${rel(REGISTRY)} are up to date`);
+  const stale = [leaks(), mcpTables(), lessonLogs()].filter(Boolean).join('\n') || null;
+  if (!stale) return hook ? undefined : console.log(`✔ ${allSkills().length} skills: no keys, tokens or machine paths, MCP tables readable, lessons in notes`);
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
     return console.log(JSON.stringify({ systemMessage: `⚠ ${stale}`, hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: stale } }));
@@ -690,7 +619,8 @@ const sameFiles = (a, b) => {
 /**
  * One of your skills (or a loose folder in .claude/skills) into the repo as a pull request: a branch
  * from origin/main in a temporary worktree with it in .agents/skills, linked from .claude/skills and
- * listed in SKILLS.md and skills.json. Your copy stays in use until the PR merges and you pull.
+ * (and, on a base from before skills.json was built, listed in it). Your copy stays in use until the PR
+ * merges and you pull.
  */
 const publish = () => {
   if (!a1) throw new Error('Usage: publish <name> [--yes] [--no-push] [--base=main]');
@@ -707,7 +637,7 @@ const publish = () => {
   const what = skill.variantOf ? `a variant of ${skill.variantOf}` : 'a new skill';
   if (!flags.includes('--yes')) {
     console.log(`${skill.name} (${what}, ${skill.own ? `yours, in ${tilde(skill.dir)}` : rel(skill.dir)}) can be published.`);
-    console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked and listed in SKILLS.md and skills.json, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
+    console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked from .claude/skills, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
     console.log('Every skill in the repo is public on GitHub: read it for anything private first (publish-skill).');
     return;
   }
@@ -726,9 +656,14 @@ const publish = () => {
       const links = path.join(wt, '.claude', 'skills');
       fs.mkdirSync(links, { recursive: true });
       fs.symlinkSync(path.relative(links, to), path.join(links, skill.name));
-      const ix = spawnSync(process.execPath, [path.join(wt, 'tools', 'skills.mjs'), 'index'], { cwd: wt, encoding: 'utf8' });
-      if (ix.status !== 0) throw new Error(`skills.mjs index: ${ix.stderr.trim()}`);
-      return [`.agents/skills/${skill.name}`, `.claude/skills/${skill.name}`, 'SKILLS.md', 'skills.json'];
+      const paths = [`.agents/skills/${skill.name}`, `.claude/skills/${skill.name}`];
+      // a base that still commits the generated index (before it was built instead) gets it updated
+      const generated = ['SKILLS.md', 'skills.json'].filter(f => fs.existsSync(path.join(wt, f)));
+      if (generated.length) {
+        const ix = spawnSync(process.execPath, [path.join(wt, 'tools', 'skills.mjs'), 'index'], { cwd: wt, encoding: 'utf8' });
+        if (ix.status !== 0) throw new Error(`skills.mjs index: ${ix.stderr.trim()}`);
+      }
+      return [...paths, ...generated];
     },
   });
   console.log(`✔ ${skill.name} on ${r.branch} (${r.commit.slice(0, 10)})`);

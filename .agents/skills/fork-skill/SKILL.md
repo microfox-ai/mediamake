@@ -31,7 +31,7 @@ as a pull request (step 6, and `publish-skill`).
    adds `metadata: variant-of: <base>`, `forked: <date>` and `forked-from: <base>@<commit>`, and puts
    a variant note and an empty **This variant** section under the title. It loads in sessions started
    from now on (not this one: read its SKILL.md to work with it here). `--repo` makes it in this
-   checkout's `.agents/skills` instead, linked and listed in `SKILLS.md`, for a branch and a PR you
+   checkout's `.agents/skills` instead, linked from `.claude/skills`, for a branch and a PR you
    make yourself. The variant's log points at its own notes (`mm notes add <variant>`);
    `mm notes <variant>` shows those and the base's, so general lessons logged for the base still reach it.
 3. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
@@ -44,8 +44,8 @@ as a pull request (step 6, and `publish-skill`).
 5. Show the user the new "This variant" section and the description; adjust on their notes.
 6. **Publish** once the user is happy with it: `node tools/skills.mjs publish <name>` runs the
    checks (a dry run), and with `--yes` sends it as a pull request from a temporary worktree (this
-   checkout is never touched), in `.agents/skills`, linked and listed in `SKILLS.md` and
-   `skills.json`. Give the user the PR link, and once it merges the variant's release page,
+   checkout is never touched), in `.agents/skills`, linked from `.claude/skills`. Give the user the
+   PR link, and once it merges the variant's release page,
    `https://mediamake.microfox.app/core/releases/skill/<name>`. Their copy keeps loading until they
    pull the merge; then `node tools/skills.mjs tidy --yes` drops it. Read it for anything private
    first, as `publish-skill` says. Until then, a channel's team gets it with `media sync` (see the

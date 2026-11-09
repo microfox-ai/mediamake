@@ -76,6 +76,8 @@ write(path.join(repo, '.agents', 'skills', 'make-demo', 'SKILL.md'), BASE);
 write(path.join(repo, '.agents', 'skills', 'make-demo', 'refs', 'cuts.md'), 'Cuts.\n');
 fs.mkdirSync(path.join(repo, '.claude', 'skills'), { recursive: true });
 fs.symlinkSync('../../.agents/skills/make-demo', path.join(repo, '.claude', 'skills', 'make-demo'));
+// skills.json is built, never committed
+write(path.join(repo, '.gitignore'), '/skills.json\n');
 
 const skills = (...a) => {
   const r = spawnSync(process.execPath, [path.join(repo, 'tools', 'skills.mjs'), ...a], { cwd: repo, encoding: 'utf8', env: ENV });
@@ -116,7 +118,7 @@ test('fork makes a variant yours, in the workspace and linked, without changing 
   assert.match(skills('fork', 'make-demo', 'make-demo-like-x').out, /exists already/);
 });
 
-test('publish: a dry run changes nothing; --yes pushes a branch with the skill linked and indexed, and never touches the checkout', () => {
+test('publish: a dry run changes nothing; --yes pushes a branch with the skill linked, and never touches the checkout', () => {
   const before = checkout();
   assert.match(ok('publish', 'make-demo-like-x'), /can be published[\s\S]*A dry run/);
   assert.equal(checkout(), before);
@@ -129,8 +131,7 @@ test('publish: a dry run changes nothing; --yes pushes a branch with the skill l
   assert.equal(git(repo, 'show', `${at}:.agents/skills/make-demo-like-x/SKILL.md`), fs.readFileSync(path.join(own, 'make-demo-like-x', 'SKILL.md'), 'utf8').trimEnd());
   assert.equal(git(repo, 'show', `${at}:.agents/skills/make-demo-like-x/refs/cuts.md`), 'Cuts.');
   assert.equal(git(repo, 'ls-tree', at, '.claude/skills/make-demo-like-x').split(/\s/)[0], '120000', 'linked from .claude/skills');
-  assert.match(git(repo, 'show', `${at}:SKILLS.md`), /make-demo-like-x/);
-  assert.ok(JSON.parse(git(repo, 'show', `${at}:skills.json`)).skills.some(s => s.name === 'make-demo-like-x'));
+  assert.equal(git(repo, 'ls-tree', '--name-only', at, 'skills.json', 'SKILLS.md'), '', 'the registry is built, not committed');
   assert.equal(git(repo, 'log', '-1', '--format=%s', at), 'skill(make-demo-like-x): a variant of make-demo');
   assert.match(skills('publish', 'make-demo', '--yes').out, /in the repo already/);
 });
@@ -169,6 +170,24 @@ test('a copy that differs from the repo is kept, and fork --repo still makes one
   ok('fork', 'make-demo', 'make-demo-like-y', '--repo');
   assert.ok(fs.existsSync(path.join(repo, '.agents', 'skills', 'make-demo-like-y', 'SKILL.md')));
   assert.ok(fs.lstatSync(path.join(repo, '.claude', 'skills', 'make-demo-like-y')).isSymbolicLink());
-  assert.match(fs.readFileSync(path.join(repo, 'SKILLS.md'), 'utf8'), /make-demo-like-y/);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(repo, 'skills.json'), 'utf8')).skills.some(s => s.name === 'make-demo-like-y'), 'the local registry lists it');
   assert.ok(!fs.existsSync(path.join(own, 'make-demo-like-y')));
+});
+
+test('publish onto a base that still commits the registry updates it there', () => {
+  // an older main, from before skills.json was built: it is committed there
+  const old = path.join(tmp, 'old');
+  git(repo, 'worktree', 'add', '--quiet', '-b', 'old', old, 'origin/main');
+  ok('index');
+  fs.copyFileSync(path.join(repo, 'skills.json'), path.join(old, 'skills.json'));
+  git(old, 'add', '-f', 'skills.json');
+  git(old, 'commit', '--quiet', '-m', 'the registry, committed');
+  git(old, 'push', '--quiet', 'origin', 'old');
+  git(repo, 'worktree', 'remove', '--force', old);
+  git(repo, 'branch', '-D', 'old');
+  write(path.join(own, 'make-demo-like-z', 'SKILL.md'), '---\nname: make-demo-like-z\ndescription: Z.\nmetadata:\n  variant-of: make-demo\n---\n\n# make-demo-like-z\n');
+  const out = ok('publish', 'make-demo-like-z', '--yes', '--base=old');
+  const [, branch] = out.match(/on (skill\/make-demo-like-z-\S+) /) ?? [];
+  git(repo, 'fetch', '--quiet', 'origin', branch);
+  assert.ok(JSON.parse(git(repo, 'show', `origin/${branch}:skills.json`)).skills.some(s => s.name === 'make-demo-like-z'));
 });

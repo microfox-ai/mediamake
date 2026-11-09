@@ -5,7 +5,7 @@ README is gitignored, and a CI check fails any pull request that commits a file
 under `private/`, so the content stays off the public repository.
 
 Skills don't go here: every skill is public and committed in `.agents/skills/`
-(see [SKILLS.md](../SKILLS.md)). Only apps and MCPs go through gated releases.
+(see https://mediamake.microfox.app/skills). Only apps and MCPs go through gated releases.
 
 ```
 private/

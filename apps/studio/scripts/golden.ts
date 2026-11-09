@@ -209,6 +209,13 @@ const worktree = (ref: string) => {
   };
   link(path.join(REPO, 'node_modules'), path.join(dir, 'node_modules'));
   link(path.join(HERE, 'node_modules'), path.join(appIn(dir), 'node_modules'));
+  // the mediamake presets are built, not committed (scripts/generated.mjs): a ref from after that
+  // builds its own, with its own script, before it is shot
+  const app = appIn(dir);
+  if (!fs.existsSync(path.join(app, 'src', 'mediamake', 'presets.json'))) {
+    const r = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', path.join(app, 'scripts', 'sync-presets.ts'), '--quiet'], { cwd: app, encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`Building ${ref}'s presets failed: ${(r.stderr || r.stdout).trim()}`);
+  }
   return { dir, sha };
 };
 

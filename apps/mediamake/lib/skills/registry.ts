@@ -1,6 +1,7 @@
 /**
- * The repo's skill registry, skills.json (mediamake.skills/v1, written by `node tools/skills.mjs
- * index`), for the skill pages, /library, the catalog and the releases dashboard. It is imported, so every
+ * The repo's skill registry, skills.json (mediamake.skills/v1), for the skill pages, /library, the
+ * catalog and the releases dashboard. It is built, never committed: this app's `build` and `dev`
+ * scripts write it first (`node tools/skills.mjs index`, from .agents/skills). It is imported, so every
  * build (pages and server routes alike) carries the copy it was built with. The registry is the one
  * list of skills; a skill's own page (/skills/<name>) only shows its SKILL.md text, read from GitHub.
  */
