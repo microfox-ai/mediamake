@@ -16,7 +16,8 @@
  * - A workspace is set by MEDIAMAKE_WORKSPACE, else by `workspace` in ~/.mediamake/config.json (next
  *   to `library`; MEDIAMAKE_CONFIG points at another file). When one is set, every folder is
  *   <workspace>/<folder>, so the workspace is laid out like apps/studio and the relative imports a
- *   project makes (../../../src/kit) still mean the same thing (workspace-webpack.ts).
+ *   project makes (../../../src/kit) still mean the same thing (workspace-webpack.ts for the bundles,
+ *   workspace-node.ts for project code that Node or esbuild loads).
  * - When none is set, the folders that were always in apps/studio (projects, out, brands,
  *   thumbnails/jobs, overlays) stay there: nothing moves until `mm migrate` moves it and sets the
  *   workspace. The folders that are new (notes, skills, extensions) are in ~/MediaMake already.

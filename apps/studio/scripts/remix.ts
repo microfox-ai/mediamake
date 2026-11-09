@@ -36,6 +36,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveAll, sourceTime, type Footage } from '../src/remix/resolve.ts';
 import { DIRS, shown } from './paths.ts';
+import './workspace-node.ts'; // the project's own code, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
