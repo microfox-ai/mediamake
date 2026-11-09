@@ -22,6 +22,10 @@ packages/*/codegen-report.md
 apps/**/public/assets/*
 apps/**/out/**
 
+# The studio's old folder (apps/studio was apps/lyrics_videos until 2026-11). What is left there after
+# pulling the rename is the user's work until `mm migrate` moves it, so git never offers to commit it.
+/apps/lyrics_videos/
+
 # SLS
 env.json
 .build
@@ -38,10 +42,13 @@ env.json
 /karcreativeworks/*
 
 apps/mediamake/docs/random/*
-# Local Claude Code settings stay out of git. Skills are all public: .claude/skills (links to
-# .agents/skills/) is committed in full. See SKILLS.md and tools/skills.mjs.
+# Local Claude Code settings stay out of git (.claude/settings.local.json). Two exceptions:
+# skills are all public, so .claude/skills (links to .agents/skills/) is committed in full (see
+# SKILLS.md and tools/skills.mjs), and .claude/settings.json holds the guard rails every session
+# runs (see tools/guard-rails.json).
 .claude/*
 !.claude/skills/
+!.claude/settings.json
 
 # Unreleased MCPs and apps live here, never in git. Release them to private
 # storage with `npm run catalog -- release private/mcps/<name>.mcpb`.

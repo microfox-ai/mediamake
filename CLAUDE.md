@@ -8,6 +8,26 @@ and `prepare-project` scripts). If the shell has no `mm`, run `npm run mm -- lin
 root (or use `npm run mm -- <command>` there). If `mm` says work is still in `apps/lyrics_videos`, show
 the user `mm migrate` (it only lists what would move) and run `mm migrate --yes` once they agree.
 
+## Git: main stays a clean copy of GitHub
+
+What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
+`overlays/`, `.claude/settings.local.json`); every file git tracks is the framework, shared by everyone who
+pulls. The guard rails in `.claude/settings.json` hold to this, with their paths and hints in one list,
+`tools/guard-rails.json` (change it there when a folder moves).
+
+- On main, never edit a framework file or commit: the change goes on a branch (`git switch -c <type>/<what>`,
+  or a worktree when other sessions share the checkout) and a PR. The pre-edit guard (`tools/guard-rails.mjs`)
+  stops edits and commits on main and says where each change belongs; a production's own feedback goes in
+  its `projects/<slug>/prefs.md`.
+- Every session starts with `tools/git-health.mjs` (`npm run git-health`): a half-done merge or rebase, edits
+  or local commits on main, a checkout behind GitHub, stashes and branches not on GitHub. Tell the user what
+  it found before starting, and fix it only with their OK.
+- Never drop work without asking: no `reset --hard`, `checkout --` or `restore` on changed files, `stash drop`
+  or `branch -D`, and never `git clean -x` or `-X`, which deletes the user's projects and renders (the guard
+  stops it).
+- Update with `git pull --ff-only` on a clean main.
+- Starting Claude with `MEDIAMAKE_GUARD=off` turns the guard off for one session; only the user decides that.
+
 ## Media files: the shared library
 
 Footage, pins, generated art, songs, stems, sound effects, overlays and fonts are kept once in the
