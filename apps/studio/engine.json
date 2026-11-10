@@ -1,7 +1,7 @@
 {
   "$comment": "The studio's engine by name (scripts/engine.ts). Your projects, brand graphics and thumbnail jobs import it as @mediamake/engine (the kit) or @mediamake/engine/<name>/<file>, never by path, so they work wherever the workspace is. Each name stands for one folder of this app. To move or rename a folder, change its line here: imports keep their meaning. version is semver: a change that breaks a project that worked bumps the major; projects record the version they were made with (input/project.json, engine). tsconfig.json's paths mirror this file (engine.test.ts checks).",
   "name": "@mediamake/engine",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "entry": "src/kit/index.ts",
   "names": {
     "kit": "src/kit",
