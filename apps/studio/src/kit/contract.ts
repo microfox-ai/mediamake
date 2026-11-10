@@ -54,6 +54,22 @@ export type ProjectDefinition = {
 export const defineProject = (project: ProjectDefinition): ProjectDefinition =>
   project;
 
+/**
+ * A layer's props reach its scene through a spread (`<Scene {...props} />`, ProjectVideo.tsx), and React
+ * takes a prop named `key` out of it before the scene sees it, in Studio and in renders alike (React 19:
+ * `ref` is an ordinary prop now). So a scene never names a prop `key`; this lists the layers that pass
+ * one anyway, for a warning.
+ */
+export const droppedPropWarnings = (layers: Layer[]): string[] =>
+  layers.flatMap((l, i) =>
+    l.props && typeof l.props === 'object' && 'key' in l.props
+      ? [
+          `layer ${i + 1}${l.name ? ` (${l.name})` : ''}: its \`key\` prop never reaches the scene (React keeps the ` +
+            "name for itself). OverlayVideo's luma key is `luma`: rename it there to key the clip.",
+        ]
+      : [],
+  );
+
 /** Typed layer helper: checks `props` against the scene's own prop type. */
 export const layer = <P>(l: Layer<P>): Layer<P> => l;
 
