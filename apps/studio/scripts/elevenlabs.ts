@@ -18,6 +18,8 @@ export const KEYS_PAGE = 'https://elevenlabs.io/app/settings/api-keys';
 type Server = { command?: string; args?: string[]; env?: Record<string, string> };
 type Servers = Record<string, Server> | undefined;
 export type KeySource = { key: string; from: string };
+/** The environment variables read here: process.env, or a test's own (which needn't have NODE_ENV, required by Next's ProcessEnv). */
+type Env = Readonly<Record<string, string | undefined>>;
 
 const readJson = (file: string) => {
   try {
@@ -37,14 +39,14 @@ const keyIn = (servers: Servers) => {
   }
 };
 
-export const desktopConfigFile = (home: string, platform: NodeJS.Platform, env: NodeJS.ProcessEnv) =>
+export const desktopConfigFile = (home: string, platform: NodeJS.Platform, env: Env) =>
   platform === 'darwin'
     ? path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
     : platform === 'win32'
       ? path.join(env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'Claude', 'claude_desktop_config.json')
       : path.join(home, '.config', 'Claude', 'claude_desktop_config.json');
 
-export function findElevenLabsKey(o: { env?: NodeJS.ProcessEnv; home?: string; platform?: NodeJS.Platform; cwd?: string } = {}): KeySource | undefined {
+export function findElevenLabsKey(o: { env?: Env; home?: string; platform?: NodeJS.Platform; cwd?: string } = {}): KeySource | undefined {
   const env = o.env ?? process.env;
   const home = o.home ?? os.homedir();
   const shown = (file: string) => (file.startsWith(home + path.sep) ? `~${file.slice(home.length)}` : file);
