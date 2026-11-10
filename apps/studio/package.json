@@ -84,7 +84,7 @@
     "remotion": "4.0.496",
     "tailwindcss": "^4.3.3",
     "three": "^0.176.0",
-    "zod": "^4.1.11"
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20",
