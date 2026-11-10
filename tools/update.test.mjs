@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { lockDrift, nodeOk, report } from './doctor.mjs';
+import { libraryRoot, lockDrift, nodeOk, report } from './doctor.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.realpathSync(
@@ -211,6 +211,34 @@ test('doctor: Node versions', () => {
   assert.equal(nodeOk('22.5.1'), false);
   assert.equal(nodeOk('20.18.0'), false);
   assert.equal(nodeOk('24.0.0'), true);
+});
+
+test('doctor: the media library in the config, as an object or a path', () => {
+  const home = os.homedir();
+  // the shape the media CLI writes (apps/studio/scripts/library/config.ts)
+  assert.equal(
+    libraryRoot({
+      root: '~/Downloads/_LIBRARY',
+      inbox: '~/Downloads/_INBOX',
+      deliverRoot: '~/Downloads',
+      channels: { amz: 'AMZ' },
+    }),
+    path.join(home, 'Downloads', '_LIBRARY'),
+  );
+  assert.equal(libraryRoot({ root: '/Volumes/X/lib' }), '/Volumes/X/lib');
+  // an object with no root has loadConfig's default
+  assert.equal(libraryRoot({}), path.join(home, 'Downloads', '_LIBRARY'));
+  assert.equal(
+    libraryRoot({ root: '  ' }),
+    path.join(home, 'Downloads', '_LIBRARY'),
+  );
+  // a plain path
+  assert.equal(libraryRoot('~/media'), path.join(home, 'media'));
+  assert.equal(libraryRoot('~'), home);
+  assert.equal(libraryRoot('/Volumes/X/lib'), '/Volumes/X/lib');
+  // no library
+  for (const none of [undefined, null, '', '  ', 3, [], true])
+    assert.equal(libraryRoot(none), null);
 });
 
 test('doctor: node_modules against the lockfile', () => {

@@ -51,6 +51,32 @@ export const nodeOk = (v = process.versions.node) => {
   return maj > MIN_NODE[0] || (maj === MIN_NODE[0] && min >= MIN_NODE[1]);
 };
 
+const expandHome = p =>
+  p === '~'
+    ? os.homedir()
+    : p.startsWith('~/')
+      ? path.join(os.homedir(), p.slice(2))
+      : p;
+/** Where the media library's root is when the config doesn't name one (library/config.ts's default). */
+const LIBRARY_ROOT = '~/Downloads/_LIBRARY';
+
+/**
+ * The media library's folder from the config's `library`, or null when it has none. The media CLI
+ * (apps/studio/scripts/library/config.ts, loadConfig) writes and reads an object, whose `root` falls
+ * back to ~/Downloads/_LIBRARY; a plain path string is taken as the root too.
+ */
+export const libraryRoot = library => {
+  const root =
+    typeof library === 'string'
+      ? library.trim()
+      : library && typeof library === 'object' && !Array.isArray(library)
+        ? typeof library.root === 'string' && library.root.trim()
+          ? library.root.trim()
+          : LIBRARY_ROOT
+        : '';
+  return root ? path.resolve(expandHome(root)) : null;
+};
+
 /**
  * Packages whose installed version isn't the lockfile's: the lockfile's `packages` against npm's own
  * record of node_modules (node_modules/.package-lock.json). Optional packages for other platforms
@@ -443,10 +469,7 @@ export async function checks({ top, fetch = true } = {}) {
     add('workspace', 'warn', `couldn't check the workspace: ${e.message}`);
   }
   if (config) {
-    const lib =
-      typeof config.library === 'string'
-        ? config.library.replace(/^~(?=$|\/)/, os.homedir())
-        : null;
+    const lib = libraryRoot(config.library);
     if (!lib)
       add(
         'library',
