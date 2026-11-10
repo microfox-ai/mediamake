@@ -21,7 +21,7 @@ timeline can be reused as is.
 | `Visualizers` | WaveformLayer kinds beyond bars and lines: `halo`, `horns` (a ring whose bass rises as two ears), `yantra`, `sparks`, `gather` (energy streaming into a point and an `orb` that grows over the song), `rings`, `bolt`, `flames`, from the same FFT and the song's onsets; `at` points follow the cover's motion (and its `jolt`); `when` windows. |
 | `TrackTitle` | Title plus a boxed artist line, the layout of the waveform scene preset. |
 | `OverlayText` | A text-overlay line with blur in/out: channel tags, titles, credits. |
-| `OverlayVideo` | A looping overlay clip in `screen` blend (particles, dust, light leaks); or luma-keyed (`key`) onto a light picture, in a `box` (`feather`, `rotate`, `flip`), played on the hits (`hits`, `cut`), in `when` windows, moving with the picture (`follow`), over the subject (`front`). |
+| `OverlayVideo` | A looping overlay clip in `screen` blend (particles, dust, light leaks); or luma-keyed (`luma`) onto a light picture, in a `box` (`feather`, `rotate`, `flip`), played on the hits (`hits`, `cut`), in `when` windows, moving with the picture (`follow`), over the subject (`front`). |
 | `look.ts` | A waveform lyric video as data: `Look` = picture + **wave** + **font set** + **caption setup** (+ title, texts, overlays). `Storyboard` = a project's candidates for each step and its picks; catalog ids or designs written out; `tintWave()` recolours a wave. Pure: Node scripts import it. |
 | `lookVideo()` / `storyboardVideo()` | A Look, or a storyboard's picks, as a project (`defineProject`). |
 | `WaveLab` | The `wave-lab` composition: any Look on any project's song, with an ID badge. `mm wave-lab` shoots it. |

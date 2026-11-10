@@ -8,7 +8,7 @@ import {
 } from 'remotion';
 import { Audio } from '@remotion/media';
 import { CompositionProvider } from '@microfox/remotion';
-import { resolveAt, type ProjectDefinition } from './contract';
+import { droppedPropWarnings, resolveAt, type ProjectDefinition } from './contract';
 import {
   applyPropEdits,
   editable,
@@ -43,6 +43,7 @@ export const makeProjectVideo = (
   project: ProjectDefinition,
 ): React.FC<ProjectVideoProps> => {
   const keys = layerKeys(project.layers);
+  for (const w of droppedPropWarnings(project.layers)) console.warn(`${project.id}: ${w}`);
   const ProjectVideo: React.FC<ProjectVideoProps> = ({ manifest: named, edits, liveEdits }) => {
     // swapped files first: scenes read them through asset() and the manifest while rendering
     setAssetSwaps(edits?.assets);

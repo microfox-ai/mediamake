@@ -7,6 +7,9 @@ import { useCoverMotion, type CoverBackdropProps } from './CoverBackdrop';
 import { hash } from './PictureLook';
 import { hitsOf } from './Subject';
 
+/** OverlayVideo's luma key (`luma`). */
+export type LumaKey = { gain?: number; floor?: number; boost?: number; color?: string };
+
 export type OverlayVideoProps = {
   /** A manifest asset name ("particles.mp4"), a manifest path or a URL. */
   src?: string;
@@ -22,7 +25,7 @@ export type OverlayVideoProps = {
   seed?: number;
   /** Start this many seconds into the clip (a media item's rangeString start). */
   offset?: number;
-  /** Default 'screen', like mediamake's overlay tracks ('normal' with a `key`). */
+  /** Default 'screen', like mediamake's overlay tracks ('normal' with a `luma` key). */
   blendMode?: React.CSSProperties['mixBlendMode'];
   opacity?: number;
   /** A mediamake filter name ('grayscale', 'saturate', 'vintage', …) or a CSS filter. */
@@ -47,7 +50,14 @@ export type OverlayVideoProps = {
    * can't show them: alpha = `gain` × (brightness − `floor`), the colour the clip's own × `boost`,
    * or `color` throughout.
    */
-  key?: { gain?: number; floor?: number; boost?: number; color?: string };
+  luma?: LumaKey;
+  /**
+   * @deprecated Use `luma`: this one never reaches the scene. React takes a prop named `key` out of
+   * the props (in Studio and in renders alike), so a clip given only `key` plays unkeyed, in `screen`
+   * (or, with `blendMode: 'normal'`, as a dark sheet). Kept in the type so older projects still type-check
+   * and render as they always have; the kit warns about it (contract.ts, droppedPropWarnings).
+   */
+  key?: LumaKey;
   /**
    * Play on the hits instead of looping: the clip starts over on each onset of `on` ('kick',
    * 'snare', 'hat', 'beat', 'downbeat') at or above `threshold`, at least `minGap` s apart, and
@@ -116,7 +126,7 @@ export const OverlayVideo: React.FC<SceneProps<OverlayVideoProps>> = ({
   fit = 'cover',
   flip,
   rotate,
-  key,
+  luma,
   hits,
   when,
   follow,
@@ -168,7 +178,7 @@ export const OverlayVideo: React.FC<SceneProps<OverlayVideoProps>> = ({
   const css = [
     isImageFilter(filter) ? filterCss(filter) : filter,
     colorTintFilter(tint),
-    key && `url(#${keyId})`,
+    luma && `url(#${keyId})`,
   ]
     .filter(Boolean)
     .join(' ');
@@ -221,9 +231,9 @@ export const OverlayVideo: React.FC<SceneProps<OverlayVideoProps>> = ({
         {video}
       </Loop>
     ));
-  const k = key ? { gain: key.gain ?? 2, floor: key.floor ?? 0.06, boost: key.boost ?? 1.2 } : undefined;
-  const c = key?.color
-    ? key.color
+  const k = luma ? { gain: luma.gain ?? 2, floor: luma.floor ?? 0.06, boost: luma.boost ?? 1.2 } : undefined;
+  const c = luma?.color
+    ? luma.color
         .replace('#', '')
         .match(/../g)!
         .map(h => parseInt(h, 16) / 255)
@@ -232,7 +242,7 @@ export const OverlayVideo: React.FC<SceneProps<OverlayVideoProps>> = ({
   return (
     <AbsoluteFill
       style={{
-        mixBlendMode: blendMode ?? (key ? 'normal' : 'screen'),
+        mixBlendMode: blendMode ?? (luma ? 'normal' : 'screen'),
         opacity: opacity * edge * env,
         // in the scene, so out of focus with it
         filter: defocus > 0.3 ? `blur(${defocus.toFixed(2)}px)` : undefined,
