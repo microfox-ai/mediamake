@@ -329,7 +329,7 @@ lesson (below).
 | `PictureLook` | grade, duotone, bloom, chroma, grain, vignette, exposure, heat, rays, leaks… |
 | `Subject` | the cutout over the plate: its grade, rim, echo, sweep, outline, tremor, `stages` |
 | `WaveformLayer` + `Visualizers` | bars and waves; `horns`, `halo`, `yantra`, `sparks`, `gather`, `rings`, `bolt`, `flames`, `eclipse`, `iris` |
-| `OverlayVideo` | a looping clip: blend, filter, box, feather, `when` windows, `hits`, `follow`, `front`, luma `key` |
+| `OverlayVideo` | a looping clip: blend, filter, box, feather, `when` windows, `hits`, `follow`, `front`, a luma key (`luma`) |
 | `SpinOverlay` | an overlay clip turning about a point and swelling on the beat (a ring of fire) |
 | `GlyphLyrics` · `StackedLyrics` · `KineticLyrics` | the lyric scenes (step 6) |
 | `LogoSting` · `ChannelTitle` | the logo animation in a box; the channel's name under it, spreading as it fades in |
@@ -361,10 +361,11 @@ Layer names for edits.json and the editor: `cover`, `overlay N`, `wave`, `subjec
   name, which also keeps the editor from showing a cached copy).
 - SVG filters: `feTurbulence` + `feOffset` slides the noise out of its region; the default
   linearRGB darkens noise (use `colorInterpolationFilters="sRGB"`).
-- OverlayVideo's luma `key` works in Remotion Studio but not in renders: layers reach their scene
-  through a props spread, and React's production build keeps a prop named `key` for itself, so a
-  keyed overlay renders unkeyed (Postcards from Tomorrow's "dark sheet"). On a pale picture invert the
-  clip and `multiply` it instead.
+- OverlayVideo's luma key is `luma` (`luma: { gain: 2.6, floor: 0.08, boost: 1.3 }`), never `key`:
+  layers reach their scene through a props spread, and React takes a prop named `key` out of it, in
+  Studio and in renders alike. A clip given `key` plays unkeyed: in `screen` (Genki Dama's, which looked
+  right on its darker picture) or, with `blendMode: 'normal'`, as Postcards from Tomorrow's "dark sheet".
+  The kit warns in the console when a layer passes `key`.
 - A style-only `containerProps` on a caption setup replaces the preset's box: the lyrics slide off.
 - When prepare warns that `analysis/lyrics.aligned.json` differs from `input/lyrics.json`, re-run
   `mm analyze <slug> --only align`, then prepare.
