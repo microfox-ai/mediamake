@@ -22,6 +22,8 @@
  *   clipping    a true peak above +1 dBTP in a section (a mastered song sits just under 0)
  *   quiet       a master below -20 LUFS (YouTube plays at -14 and does not turn quiet videos up)
  *   darker      with --source: the render 15% or more darker than the source; duller: 15% less saturated
+ *   editor      (a warning line, not a note) the project imports a package the hosted editor can't provide
+ *               (mm editor-check)
  * A fade from or to black of up to 1 s at either end, and a still end card of up to 2 s, are printed but not
  * noted. Loudness per section is printed for reference only: songs change level on purpose.
  *
@@ -61,6 +63,7 @@ import {
 } from './revision-files.ts';
 
 import { DIRS, fromStudio, shown } from './paths.ts';
+import { checkEditorImports, editorCheckLines } from './editor-check.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -354,6 +357,9 @@ if (sourceFile && !fs.existsSync(sourceFile)) {
 }
 const compared = sourceFile ? sourceChecks(sourceFile) : null;
 const all = [...picture, ...sound.findings, ...(compared?.findings ?? [])].sort((a, b) => a.from - b.from);
+// the project's code, not the render: will the hosted editor open it (a warning, never a machine note)
+const projectDir = slug ? path.join(DIRS.projects, slug) : null;
+const editorLines = projectDir && fs.existsSync(path.join(projectDir, 'video', 'index.tsx')) ? editorCheckLines(checkEditorImports(projectDir)) : [];
 
 // ------------------------------------------------------------------ machine notes
 
@@ -473,6 +479,7 @@ if (has('json')) {
         revision: written ? shown(path.join(revDir, `${written.id}.json`)) : null,
         open: open.map(c => c.id),
         link: reviewLink(video),
+        editor: editorLines,
       },
       null,
       2,
@@ -482,6 +489,7 @@ if (has('json')) {
   const scale = lastRender(video)?.scale;
   const kind = scale === undefined ? '' : scale < 1 ? ` · ${Math.round(scale * 100)}% review render` : ' · master';
   console.log(`Preflight · ${shown(video)} · ${width}×${height}${kind} · ${fps} fps · ${formatTime(duration)}`);
+  for (const l of editorLines) console.log(`  ⚠ editor     ${l} (mm editor-check ${slug})`);
   for (const f of all) {
     const when = f.whole ? 'whole video' : `${formatTime(f.from)}–${formatTime(f.to)}`;
     const why = intendedFor(f)?.why;

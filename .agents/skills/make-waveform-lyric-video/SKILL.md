@@ -1,146 +1,158 @@
 ---
 name: make-waveform-lyric-video
-description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed typography (stacked caps + a big hero word per line, placed in the picture's free space), the channel's logo animation over the intro and its end screen after. It transcribes the song itself and re-cuts the lines to the user's written lyrics, pitches a few high-level ideas from the picture and the track, then builds the picked one as whole looks shown with the song (a reference is the target to compare against, with creative liberty) until the user picks, gathers typography inspiration before designing the lyrics, previews in the Remotion editor, and renders only on request; reviewed through Revisions (revise-video). Builds in apps/studio with src/mediamake and scripts/wave-lab.ts. Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). New user feedback goes in your notes (mm notes add), never in this file.
+description: Make a one-picture lyric video in Remotion from a song (an audio file) and a poster or artwork — the picture alive on the beat (its subject cut out over a clean plate, so visualizers, light and effects sit between the world and the subject), an audio-reactive visualizer, the lyrics as designed kinetic typography placed in the picture's free space, the channel's logo animation and its end screen. It transcribes the song and re-cuts the lines into screens, starts from a target (a reference, or the channel's last approved recipe) instead of a blank page, builds a minimal first version with the extras offered as options, runs machine checks before the user sees anything (the cutout, looping clips, editor imports, timing, brightness), and reviews every section at once in a sampler of 10-second previews; the Remotion editor is the live preview and the master renders once, after sign-off; reviewed through Revisions (revise-video). Builds in apps/studio on the engine's lyrics part (@mediamake/engine/lyrics). Use when the user says "make a waveform lyric video", "lyric video with a waveform / audio visualizer / spectrum", "here's a song and a poster, make the video", "/make-waveform-lyric-video", or asks to change a project with a video/storyboard.ts. Not for storyboarded motion-graphics lyric videos built scene by scene (make-lyrics-video) or footage edits (make-video-music-remix). New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-waveform-lyric-video
 
-The channel lyric video: **a song and one picture in, a finished video out.** Rewritten on
-2026-10-31 after two projects (Mahishasura Mardini, Devil in the Details) where the first version
-of this skill — catalog menus, three separate picks (wave → fonts → caption preset), filter looks —
-produced round after round of "bland", "doesn't match", "yours is bad". What finally landed is the
-workflow below. Read the rules first; they are the user's own words turned into practice.
+The channel lyric video: **a song and one picture in, a finished video out.** First written around
+catalog menus, rewritten on 2026-10-31 around the user's rules (below), and reworked on 2026-11-10
+because the videos still took too many rounds (next section). Read the rules and the defaults first;
+they are the user's own words turned into practice.
 
-Everything lives in `apps/studio`; the engine is `src/mediamake` (read its `README.md`).
-Project folder, analysis, prepare, stills, Studio, render, the shot map, Revisions and the Remotion
-editor are shared with `make-lyrics-video` (its steps 1–3 and 7–11). Each project keeps a taste doc
-`projects/<slug>/prefs.md` (intake, picks, a dated log of every note): read the lessons log at the
-bottom of this file, your notes (`mm notes make-waveform-lyric-video`) and the last project's
-prefs.md before starting.
+`projects/<slug>/…`, `out/…`, `brands/…` and `overlays/…` are folders of the user's workspace (`mm
+workspace` prints where). The engine is `@mediamake/engine/lyrics` (`apps/studio/src/mediamake`, read
+its `README.md`). Analysis, prepare, stills, the shot map, Revisions and the Remotion editor are
+shared with `make-lyrics-video`. Each project keeps a taste doc `projects/<slug>/prefs.md` (intake,
+picks, a dated log of every note).
+
+**Before planning, read:** your notes (`mm notes make-waveform-lyric-video`), the lessons log at the
+bottom, the channel's recipe (`brands/<brand>/waveform-recipe.md`, step 10) and the prefs.md of the
+channel's last approved video.
+
+## Why it took so many rounds, and what changed (2026-11-10)
+
+Hollow Soul (AMZ, 2026-11-09) took 12 review rounds and about fifty notes before the user signed it
+off. Sorted by cause:
+
+| cause | Hollow Soul's notes | now |
+|---|---|---|
+| a machine could have caught it | the watermark still there (twice); the cutout not clean at the bottom left; the ring's loop seam; a jump 6 s into the ring clip; glitch boxes before the words; the editor showing nothing (the lyrics needed opentype.js) | the checks, step 7, before every showing |
+| an intake question never asked | the type's motion reference (came in round 6); their own overlay files ("use the file i gave"); the logo at the start or the end (moved in round 9); whose mark the watermark was | intake, step 0 |
+| a default the user had to correct | small words too small; lines late ("0.3 secs faster"); type with no motion; brackets on screen; all caps in verses; the logo too big | the house defaults and the channel's recipe, step 5 |
+| added, then taken out | circles, underlines, inverted impact frames, rays everywhere, an electric sparkle, a moss texture, loud particles | minimal first; extras are options the user ticks, step 5 |
+| taste only the user can set | the title card (four rounds: trace, fill, liquid, glitch); the ring only in the choruses | two or three treatments shown at once, step 6 |
+
+Across the channels' projects, the ones with a fixed target (a reference to match, or the channel's
+last approved video) settled in 5–6 entries of their prefs.md; the ones designed from a blank page
+took 13 to 55. So every video starts from a target, and every round shows every section.
 
 ## The rules
 
-The user's corrections of 2026-10-31 are part of each rule; where they soften an earlier note, they
-win.
-
-1. **The idea comes first.** From the picture and the track (what it says, how it sounds) — and a
-   reference when there is one — pitch a few high-level ideas for the whole video (the world, what
+1. **The idea comes first.** From the picture and the track (what it says, how it sounds), and a
+   reference when there is one, pitch a few high-level ideas for the whole video (the world, what
    moves on the beat, what happens to the subject, how the lyrics look) before building anything.
-   Every later choice (segmentation, colours, line breaks, type) serves the picked idea.
-2. **A reference is the target to beat, not a template.** When the user gives one (a video, a
-   picture, a channel), pull full-size frames through its strongest moment, name the devices that
-   make it work, and compare our frames **side by side with it** before asking. No need to copy it:
-   creative liberty is fine ("no need to copy, creative liberty is okay"), as long as ours holds up
-   next to it.
-3. **Show whole looks, never menus of parts.** One look = the picture's grade + the visualizer +
-   what happens to the subject + the wave (if any) + the lyric type, shown together at a hook moment.
-   Picking a wave, then fonts, then a caption preset from catalog stills produced bland results
-   twice. The catalog is a parts bin, not a menu.
-4. **Segmentation when the idea needs it.** If the idea puts things behind the subject or treats her
-   apart from the world, cut her out (BiRefNet, local, free) over a clean plate, and check the matte
-   at full size for missed limbs, claws, horns, a glove against the sky. If it doesn't, don't.
-5. **Colours mostly from the picture, contrast when it matters.** The picture's own hues by
-   default; a catalog wave keeps its shape, never its colours. Bring in a contrasting colour where
-   the idea needs separation or punch (an accent against the picture's dominant hue). Offer palette
-   variants side by side when asked.
-6. **Never duller than the source.** Measure a full-resolution frame against the cover-fitted
-   picture (`signalstats` YAVG / YHIGH / SATAVG): the render stays at least as bright and as
-   saturated as the picture unless the user asks for a grade. Judge quality on full-resolution
-   frames, never on the half-size wave-lab previews (they look soft).
-7. **Lyrics are designed type — extremely designed.** Not a caption preset: the presets are good
-   inspiration but most of them are boring. Before designing, gather inspiration — ask the user for
-   theirs, or search Pinterest (Browse Hack), YouTube lyric videos and kinetic-typography work —
-   and show a small inspiration board. Build it with the engine's `StackedLyrics`, a project scene
-   like `IgniteLyrics`, or a new scene the idea calls for.
-8. **Lines follow the written lyrics, unless the idea says otherwise.** Start from the user's
-   written lines, timed by singing (a line sung slower than ~3 s splits at its clause; a long line
-   sung fast stays whole), with the hero word chosen by meaning. Where the overall idea needs a
-   different cut (one word a screen, a phrase held across lines, a power-word outro), the idea wins.
-9. **Silence stays silent.** No lyric on screen over music-only stretches (a line leaves right after
-   the voice stops; nothing previews across an interlude). Whether the end screen has sound is the
-   user's choice: ask at intake, never at the end.
-10. **Preview in the Remotion editor; render only when asked.** The most important rule: renders the
-    user didn't ask for waste their time. Check your own work with stills; show the user the
-    project in the Remotion editor (https://mediamake.microfox.app) when they want to look; render a clip or the full video
-    only on request. Every earlier render is kept (`out/<slug>/v<N>/`).
-11. **Ask before paying.** Transcription is a paid ElevenLabs call (~$0.03 for 3 min); fal upscales
-    and edits cost money: say the estimate and wait for a yes. Segmentation, analysis and renders
-    are local and free.
+2. **A target, never a blank page.** A reference the user gives is the target to beat: pull
+   full-size frames through its strongest moment, name the devices that make it work, compare ours
+   **side by side**; creative liberty is fine ("no need to copy, creative liberty is okay"). Without
+   one, the channel's recipe (its last approved video) is the target; without that, the house
+   defaults (step 5).
+3. **Show whole looks, never menus of parts.** One look = the picture's grade + the visualizer + what
+   happens to the subject + the lyric type, shown together at a hook moment. The catalog is a parts
+   bin, not a menu.
+4. **Minimal first, extras as options.** The first build is the picture, the subject (when the idea
+   needs the cut), one visualizer, the lyrics, the logo and the end screen. Overlays, camera effects,
+   glitches, rings, flashes are offered as a list the user ticks; each one ticked is shown in the
+   next sampler. Never add an effect nobody asked for.
+5. **Segmentation when the idea needs it.** Cut the subject out (step 4) when the idea puts things
+   behind them or treats them apart from the world; check the cut on magenta at full size.
+6. **Colours mostly from the picture, contrast when it matters.** A catalog wave keeps its shape,
+   never its colours; bring in a contrasting colour where the idea needs separation or punch.
+7. **Never duller than the source.** The render stays at least as bright and as saturated as the
+   picture (`mm preflight --source=…`) unless the user asks for a grade. Judge on full-size frames.
+8. **Lyrics are designed, moving type.** Not a caption preset (good inspiration, mostly boring).
+   Gather inspiration first, a motion reference above all; words build as they are sung and the hero
+   word moves (no static type).
+9. **Lines follow the written lyrics, unless the idea says otherwise.** Timed by singing: a line
+   sung longer than ~3.3 s splits at its clause, a long line sung fast stays whole; the hero word
+   chosen by meaning.
+10. **Silence stays silent.** No lyric over music-only stretches. End-screen sound is asked at
+    intake, never at the end.
+11. **Check before the user does.** Every showing goes through step 7. Anything the user finds that a
+    command or a full-size still could have found is a round wasted.
+12. **Preview, don't render.** The user's live look is the Remotion editor
+    (`https://mediamake.microfox.app/remotion-editor?project=<slug>`; every link uses this base,
+    never localhost). A render for review is a sampler of 10-second previews (step 8), only when the
+    user asks; the master renders once, after they sign off. Earlier renders are kept (`v<N>/`).
+13. **Ask before paying.** Transcription (~$0.03 for 3 min), fal mattes, upscales and edits: say
+    the estimate and wait for a yes. Segmentation, analysis and renders are local and free.
 
-## What it needs
-
-1. **The song** (`.wav` preferred, `.mp3`, `.m4a`).
-2. **One picture** (a poster or artwork). Measure it (`sips -g pixelWidth -g pixelHeight`). It must
-   be 16:9 or outcropped to it (`midjourney-outcrop`): a portrait cover-fitted to 16:9 loses the
-   face. A source ≥ 1920 px wide needs no upscale.
-3. Optional, ask for them: **the written lyrics** (they set the line breaks), **a reference**
-   (video or image), the **channel** (a brand under `brands/`).
-
-An instrumental (no text on screen) goes through prepare with `input/lyrics.json` = `[]`: one
-"song" section, no lines; write the real sections into the video map yourself after the render.
-
-MCPs (check at intake which this session has; transcription calls ElevenLabs' API directly, step 1):
+## First: check the MCPs
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/elevenlabs` | required | Its API key: the song's timed words, every word's start and end (`mm transcribe --yes`, Scribe on the vocal stem's MP3; not its own `speech_to_text`) | The hosted ElevenLabs connector's `creative_transcribe_audio` then `--save` instead, or the user brings a timed `lyrics.json` |
-| `mcp/browse-hack` | recommended | Inspiration and backgrounds from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
-| `mcp/fal` | optional | Upscales and edits of a poster that doesn't satisfy (Topaz, Wonder: paid, asked first) | The poster is used as it is |
+| `mcp/browse-hack` | recommended | Type and look inspiration from Pinterest (`pinterest_bulk_start`), and outcropping a portrait poster to 16:9 with Midjourney (`midjourney_outcrop`), in the user's Chrome | Inspiration only from the user's own references, and a portrait poster needs fal or the user to outcrop it |
+| `mcp/fal` | optional | A sharper matte where the local cut loses dark edges (BiRefNet v2, ~$0.01), upscales and edits of a poster (paid, asked first) | The local cut and the poster as they are |
 | `mcp/elevenlabs-connector` | optional | The alternative where no local MCP runs (the Claude web or phone app): `creative_transcribe_audio` on the vocal stem's MP3 through its file picker widget, then `--save` | Nothing, while the ElevenLabs MCP's key is set up |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
 If one is missing, say what it costs before starting and offer to install it from MediaMake ("Set
 up mcp/<name> from MediaMake by following
-https://github.com/microfox-ai/mediamake/blob/main/install.md"; its tools show up in the next
-session), or go ahead without it.
+https://github.com/microfox-ai/mediamake/blob/main/install.md"), or go ahead without it.
 
-## 0. Intake (one short round)
+## What it needs
 
-`AskUserQuestion`, recommended option first; skip what the request already answers:
+1. **The song** (`.wav` preferred, `.mp3`, `.m4a`).
+2. **One picture** (a poster or artwork), 16:9 or outcropped to it (`midjourney-outcrop`): a portrait
+   cover-fitted to 16:9 loses the face. ≥ 1920 px wide needs no upscale.
+3. Optional, asked at intake: the written lyrics, a reference, the channel (a brand under `brands/`),
+   their own overlays and clips.
 
-1. **The song:** what it's about, the feeling it should leave; the channel.
-2. **Inspiration:** a reference video or picture for the look, and any for the lyric typography
-   (or "find some": Pinterest, YouTube), or "show me ideas".
-3. **Delivery:** 16:9 1920×1080 at 30 fps (default); the channel's logo animation over the intro
-   (ends before the first line); the channel's end screen (which one, or pick later) **and whether
-   it keeps its sound** (asked now, never at the end); a title card or not.
-4. **Transcription OK** (paid, ~$0.03 / 3 min), and whether they have the written lyrics.
-5. **Looks first or the whole video** (`revise-video` › Previews or the whole video): for a song of
-   a minute or more, ask whether to see 2–4 complete looks of the hook first, as clips side by side
-   in one grid (step 5), or to build the picked idea straight into the whole video and look at it in
-   the Remotion editor (step 7). Recommend looks when the idea is open, the whole video when a
-   reference sets the target. Under a minute, build the whole video and don't ask.
+An instrumental (no text on screen) goes through prepare with `input/lyrics.json` = `[]`.
 
-Write the answers to `brief.md`, start `prefs.md`.
+## 0. Intake: the questions that cost rounds when skipped
+
+`AskUserQuestion` (four questions a call, so two short calls at most), recommended option first; skip
+what the request or the channel's recipe already answers:
+
+1. **The song and the target:** what it is about, the feeling it should leave, the channel; what it
+   should be as good as (a reference video or picture, the channel's last video, or "show me ideas").
+2. **The type:** a lyric video whose **type motion** they like (a link or a file: the motion matters
+   more than the font), fonts they want, or "find some" (Pinterest).
+3. **Their own media:** overlays, clips or textures they want used (search the library first, `mm
+   media find`, and show what is there); otherwise none until they tick extras (rule 4).
+4. **The brand moments:** the logo sting at the start, at the end over the outro, or both, and small
+   (the default); a title card or not; the end screen, and whether it keeps its sound.
+5. **The picture:** a watermark or signature on it? Ask whose it is before touching it: the user's
+   own mark comes off when they ask, anyone else's never. Faces or details to keep clear.
+6. **Transcription OK** (paid, ~$0.03 / 3 min), and the written lyrics if they have them.
+7. **Looks first or the whole video** (`revise-video` › Previews or the whole video): looks when the
+   idea is open, the whole video when a reference or the recipe sets the target. Under a minute: the
+   whole video, don't ask.
+
+Write the answers to `projects/<slug>/brief.md`; start `prefs.md`.
 
 ## 1. Lyrics
 
-Copy the song and picture into `projects/<slug>/input/` (slug rules as make-lyrics-video step 1).
-Separate the vocals first (`mm analyze <slug> --only separate`, ~1 min,
-free) and **transcribe the vocal stem** with ElevenLabs Scribe, as CLAUDE.md › Transcription says. It
-is paid: the first run only gives back the song's cached words or prints the price; show it and ask.
+Put the song and picture in `projects/<slug>/input/` (from the library: `mm media use`; slug rules as
+make-lyrics-video step 1). Separate the vocals (`mm analyze <slug> --only separate`, ~1 min, free) and
+transcribe the vocal stem as CLAUDE.md › Transcription says (paid: the first run prints the price):
 
 ```bash
 mm transcribe <slug>                      # cached words, or the MP3 and the price
-mm transcribe <slug> --yes                # first choice: Scribe with the ElevenLabs MCP's key
-mm transcribe <slug> --save=<words.json>  # web only: after the ElevenLabs connector's widget
+mm transcribe <slug> --yes                # Scribe with the ElevenLabs MCP's key
 ```
 
-`--yes` writes every word's start and end to `input/lyrics.raw.json` and the media library's cache
-(`--lang=<code>` for a non-English song). Only where no local MCP runs, the hosted ElevenLabs connector's
-`creative_transcribe_audio` takes `analysis/stems/vocals.mp3` (the user picks it in its file picker widget)
-and `--save` keeps the words it gives the same way.
+Then write the screens, one a line, in `projects/<slug>/input/screens.txt` and re-cut with this
+skill's tool (it keeps every word's time, stops on a mismatch, flags screens sung longer than 3.3 s):
 
-Re-cut into lines with a small script in the project (`tools/recut.py`, copy Devil in the Details'):
-a list of lines, each its `htmlText` with the hero word in `<b>` and its rows split with `<br/>`; the
-script maps the transcribed words onto them in order (keeping every word's time), fails loudly on a
-mismatch, flags lines sung longer than ~3.3 s, and writes `input/lyrics.json`. Mark chorus lines with
-`metadata.section: "chorus"` (they can get their own placement and colour). If the user gave written
-lyrics, diff them word for word against the transcription and report only the real differences;
-their words win unless they say otherwise. Show the numbered lines with their hero words and let
-the user correct them. The picked idea may re-cut them later (rule 8): one word a screen, a phrase
-held across lines, a power-word outro.
+```bash
+python3 .agents/skills/make-waveform-lyric-video/tools/recut.py <project folder>
+```
+
+```text
+fix: they marked my -> they mocked my         # the written words win over what Scribe heard
+[verse]
+I was born<br/><b>white</b><br/>in the dark   # <b> the hero, <br/> the rows
+[chorus]
+<b>Hollow soul,</b>
+```
+
+Diff the written lyrics against the transcription word for word and report only the real
+differences (as `fix:` lines). No brackets on screen; repeats written out. Show the numbered screens
+with their hero words and let the user correct them.
 
 ## 2. Analysis and prepare
 
@@ -149,187 +161,215 @@ mm analyze <slug> --plots          # background: stems, beat grid, CTC alignment
 mm prepare <slug>
 ```
 
-Read the report (make-lyrics-video step 2): tempo, downbeats, lines marked `<-- check` — zoom into
-them (`analysis/zoom.py <slug> lines …`) and pin only what the spectrogram clearly shows in
-`analysis/fixes.json` (`"45:0": {"start": 103.9}`). Re-cutting the lines renumbers them: move the
-fixes. Check stanza-final held notes: the aligner can stretch them into the instrument that follows.
+Read the report (make-lyrics-video step 2): lines marked `<-- check` (zoom with `analysis/zoom.py`,
+pin only what the spectrogram shows in `analysis/fixes.json`); re-cutting renumbers the lines, so
+move the fixes. Note the section labels prepare prints: the sampler (step 8) names them.
 
 ## 3. The idea
 
-Look at the picture (Read it), listen through the analysis (energy curve, sections, the hook), read
-the lyrics, and study the references (frames side by side). Then pitch **3–5 ideas** for the whole
-video, each a few lines: the world (grade, palette, light), what moves on the beat (visualizer,
-camera, light), what happens to the subject, how the lyrics look and where they sit, and why it fits
-this song. Where it helps, show rather than tell: a quick still of the picture graded that way, a
-reference frame, an inspiration board. The user picks or mixes one; record it in `prefs.md`.
+Look at the picture, listen through the analysis (energy, sections, the hook), read the lyrics,
+study the target. Pitch **3–5 ideas**, each a few lines: the world, what moves on the beat, the
+subject, the lyrics and where they sit, and what it is measured against. Show rather than tell
+where it helps (a quick grade of the picture, a reference frame, a board). Record the pick in
+prefs.md.
 
-## 4. The picture (what the idea needs)
+## 4. The picture
 
-- **Segmentation**, when the idea puts things behind the subject or treats her apart: copy
-  `projects/devil-in-the-details/tools/cutout.py` (BiRefNet full at 1024 → `input/cutout/subject.png`
-  + `matte.png` + a clean `plate.png` with a thin inpaint margin + `check.jpg`). Look at the matte
-  over the poster at full size; `--fill x,y …` adds the dark pixels inside a polygon (a black glove
-  against a bright sky), `--patch crop:box` re-runs the model on a crop. Keep earlier cuts in
-  `input/cutout/v<N>/`.
-- **Free space**: cover-fit the subject's matte (or mark her by eye) at 1920×1080 and print her left
-  and right edge every 40 px of height, at the zoom loop's smallest, middle and largest scale (Devil
-  in the Details' prefs, 2026-10-30). Lyric columns centre between her edge and the frame edge where
-  there's room; the centre bottom sits over her body.
-- **Focal points** in frame px: her face, a held object, the light source. Effects lock to them.
+- **Marks:** zoom into the picture's corners at full size before anything else. Ask whose a mark is
+  (intake 5); a mark the user wants gone is inpainted into a new file beside the picture, and checked
+  in a full-size still of the render.
+- **Segmentation** (when the idea needs it), with this skill's tool:
 
-## 5. The look
+  ```bash
+  uv run --script .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder> [--src input/picture-clean.png]
+  ```
 
-**When the user chose looks first** (intake 5), build the picked idea as 2–4 **complete looks**
-(rule 3), each a `looks` entry in `video/storyboard.ts`, built from the parts below, and shoot them
-as clips. **When they chose the whole video**, build it as one look from the same parts and go on to
-the lyrics (step 6) and the editor preview (step 7), where the user judges it in the whole song.
+  It writes `input/cutout/` (`subject.png`, `matte.png`, a clean `plate.png`, `check.jpg`) and keeps
+  any earlier cut in `input/cutout/v<N>/`. **Look at check.jpg's magenta row** (and crops of it at
+  full size): a lost dark edge shows at once there. Fix it with `--patch crop:box` (the model again
+  on a crop), `--fill x,y …` (dark pixels inside a polygon), or a matte from fal's BiRefNet v2 at
+  2304 px (`--matte`, ~$0.01, ask first), which cut Hollow Soul's dark fur where the local model
+  couldn't.
+- **Free space:** where the lyrics go, between the subject's edge and the frame's, measured on the
+  matte at the zoom loop's extremes. **Focal points** in frame px (a face, a held object, a light,
+  a hole in the chest): effects lock to them.
 
-```bash
-mm wave-lab <slug> looks --only=L1,L2 --clip=6     # stills + 6 s clips + a reel + a grid of 2–4
-```
+## 5. The first build: target, recipe, minimal
 
-Pick the shoot moment (`at.looks`) just after a strong kick and snare in the hook so hit-driven
-effects show. Before showing: pull 3–4 frames of each clip around a kick (with a reference, put its
-frames in the same sheet), measure brightness against the source (rule 6), and fix what's off. Send
-the grid (`grid-L1-L2….mp4` beside the reel: the looks side by side, each labelled with its ID, with
-the review link wave-lab prints) and the sheet; the user picks, mixes ("rings from L1, sparks from
-L2"), or redirects. In `/file-revision` the storyboard set plays each look's clip too. New rounds get new IDs; nothing seen is renumbered.
+Start from the channel's recipe when there is one (`brands/<brand>/waveform-recipe.md`), else from
+the house defaults below; then build the idea in its **minimal** form (rule 4). When the user chose
+looks first, that is 2–4 complete looks in `video/storyboard.ts` (`mm wave-lab <slug> looks --only=L1,L2
+--clip=6`); otherwise one look, straight into the whole video.
 
-**The parts** (all in `src/mediamake`; a look is cover settings + `subject` + `layers` + `overlays`):
+**House defaults** (where rounds ended; a recipe or the user overrides them):
 
-| part | what it does | settings that mattered |
-|------|--------------|------------------------|
-| cover (`CoverBackdrop`) | the picture or the clean plate: zoom loop, beat kick, dim, fade | `image: 'cutout/plate.png'`, `origin` on the focal point, `kickOn: 'kick'`, `beatKick` 0.4–0.8, `dim: 0` |
-| `cover.jolt` | the camera jolts on strong kicks with a directional motion blur, shared by everything | `amount` 18, `threshold` 0.95, `decay` 8, `blur` 0.35 (higher reads as streaks) |
-| `cover.look` (`PictureLook`) | grade, duotone, curves, posterize, bloom, chroma, embers, rays, leak, grain, vignette, dust, flicker, halftone, paper, `exposure` (brightens on kicks, flashes on snares) | duotone in the picture's own dark → light; never lose the source's brightness |
-| `subject` (`Subject`) | the cutout over the plate: its own grade/duotone, `rim` light, `echo` copies on hits, a `sweep` sheen, a neon `outline`, a `wash` + `grain` so her own colours sit in a graded world | `depth` ≤ 0.15, `blur` 0.35 (crisp while the world smears), wash soft-light ~0.3 |
-| visualizers (`layers`) | `horns` (a hollow ring whose bass rises as two curling ears, echo lines), `halo`, `yantra`, `sparks` (from a point), `rings` (shockwaves), `bolt`, `flames` | horns: `shape: 'lobes'`, stroke-only layers, `floor` 0.33, `gap` 14, `contrast` 2.2, `curl` 55 — measure the band levels first |
-| bottom wave (`spectrum-fill`) | layered hills along the bottom | "vibration" means **height**, not peaks: 4 layers, ~30 points, low gain + noise floor so it rests low, `box.kick` 0.6 to leap on hits, a crest line, `box.glow` |
-| overlays (`OverlayVideo`) | particles, film flashes in `screen` / `hard-light` | flashes go olive over a drained world |
+| | default | learned from |
+|---|---|---|
+| timing | every line shows 0.3 s ahead of its singing; lines hand over back to back (one leaves in ~0.16 s as the next enters) | Hollow Soul, Postcards from Tomorrow |
+| size | small words ≥ 56 px at 1080p, the hero ≥ 2.5 × that, readable over the busiest frame | Hollow Soul ("the smaller words are not visible") |
+| motion | words build as sung; the hero slams or writes on; the held stack creeps; never static | Hollow Soul ("typo has no effect or animation at all") |
+| screens | short screens in choruses (a title phrase its own shot), a written line a screen in verses, no brackets | Hollow Soul |
+| not by default | underlines and swashes, glitch blocks between lines, inverted impact frames, shapes drawn round the words, smoke, rays everywhere | Hollow Soul, the no-smoke rule |
+| logo sting | small (about a third of the frame's width), where intake put it | Hollow Soul ("much smaller") |
+| overlays | the user's own clips first; tinted with a CSS filter (`sepia(1) saturate(6) hue-rotate(…)`), not `tint`, where a clip has white streaks; subtle | Hollow Soul |
+| looping clips | checked with `mm clip-loop` before use; a ping-pong up to the first jump when the ends don't meet | Hollow Soul (three rounds on one ring) |
+| the picture | never darker or duller than the source; `dim: 0`, text gets its own shadow | rule 7 |
 
-Measure before tuning a visualizer: compute the band levels at a few moments in Node with
-`packages/remotion/src/components/waveforms/spectrum-line-math.ts` (copy it to the scratchpad) and
-set `floor` / `gain` from the numbers, not by eye.
+**Extras** to offer once the minimal build stands (a multi-select; each one ticked appears in the
+next sampler): overlays (particles, light rays, sparkle, dust), camera (handheld shake, jolt, blur,
+defocus), exposure flashes on the hits, a glitch on the type, a ring or halo round the lyrics
+(`SpinOverlay`), sparks from a focal point, a title card, a second picture state (`cover.stages`).
 
-## 6. The lyrics on screen
+## 6. The type and the title card
 
-**Inspiration first** (rule 7): the user's references, or a search — Pinterest through Browse Hack
-(`pinterest_*` tools, the user's chosen profile), YouTube lyric videos of the genre, kinetic
-typography work — collected into a small labelled board in `out/<slug>/<slug>-type-inspo/` (an
-image set for `/file-revision`). Show it, ask what they like, then design. The caption presets
-(`catalog/captions.ts`, `mm wave-lab catalog captions`) are part of that inspiration, not the
-answer.
+**Inspiration first:** the user's motion reference (frames side by side at the hero's landing), or a
+board from Pinterest (Browse Hack, the user's profile) in `out/<slug>/<slug>-type-inspo/`
+(`/file-revision`). Then design from the engine's lyric scenes:
 
-The engine's **`StackedLyrics`** is one proven design (layer it in `video/index.tsx`; set the storyboard's caption
-pick to a `null` candidate so no preset draws). Each line is a stack: the caps face small and
-tracked, wrapping in its column; the hero word big in the hero face on its own row; a tiny word next
-to the hero joins it ("a lie"); the whole stack leans (`heroTilt`, default −5°). Words wait dim (the
-hero as an outline), fill in with a small punch on their start, and lines leave before music-only
-stretches.
+- **`GlyphLyrics`** — kinetic type drawn from font outlines: the house defaults above built in,
+  optional `glitch`, `chorusHero`, `verseCaps`, `drive` windows, and a `title` card (outline traced,
+  then a liquid fill, then out). It shows the same in the hosted editor, which can't load fonts from
+  outlines at run time: run `mm glyphs <slug>` (the fonts the code names, the lyrics and every string
+  in the code), then `registerGlyphs(GLYPHS)` in `video/index.tsx`.
+- **`StackedLyrics`** — stacked caps + a hero word in side columns, the centre bottom, or a `power`
+  outro; **`KineticLyrics`** — short screens whose hero moves by meaning (`metadata.fx`).
+- A project scene when the idea needs something else (copy one of these as a start).
 
 ```tsx
-layer({ scene: StackedLyrics, at: 'all', name: 'lyrics', props: {
-  fonts: { caps: { family: 'Bebas Neue', file: '<slug>/fonts/BebasNeue.ttf' },
-           hero: { family: 'Rock Salt', file: '<slug>/fonts/RockSalt.ttf' } },
-  size: { caps: 40, hero: 96 },                       // px at 1080p: small overall, the hero big
-  columns: { left: { x: 125, width: 560 }, right: { x: 1255, width: 560 } },   // from the free-space map
-  band: { center: 730, maxHeight: 300 },
-  center: { x: 960, width: 760, bottom: 885, hero: '#fff', heroOutline: 'rgba(255,255,255,0.7)' },
-  power: { from: 'break-1', y: 860, size: 96, heroSize: 220, hero: 'devil', color: '#fff' },
-  colors: { outline: 'rgba(255,236,230,0.42)', sung: '#fff', hero: '#ff2a1a', heroOutline: 'rgba(255,70,50,0.75)' },
+import { GlyphLyrics, registerGlyphs } from '@mediamake/engine/lyrics';
+import { GLYPHS } from './glyphs';   // mm glyphs <slug>
+registerGlyphs(GLYPHS);
+
+layer({ scene: GlyphLyrics, at: 'all', name: 'lyrics', props: {
+  fonts: { caps: '<slug>/fonts/CormorantSC-700.ttf', hero: '<slug>/fonts/PirataOne-400.ttf' },
+  box: { x: 1360, y: 540, width: 600 },             // the free space's centre and width
+  size: { caps: 62, hero: 160 },
+  colors: { hero: '#4dff7c', pen: '#c8ffd6', sung: '#ecfff1' },
+  heroCase: 'capitalize', chorusHero: { font: '<slug>/fonts/PirataOne-400.ttf', case: 'upper', size: 150 },
+  title: { text: 'Hollow Soul', from: 1.6, to: 13.02, scale: 1.25 },
 } }),
 ```
 
-- Other ideas get their own scene (copy `StackedLyrics` or `IgniteLyrics` as a start): one word a
-  screen, words drawn into the picture, type that reacts to the beat — whatever the idea needs, as
-  long as every word lights on its start, nothing covers a face, and the line is readable.
-- **Fonts** are files in the project (`projects/<slug>/fonts/*.ttf`, downloaded from Google Fonts'
-  CSS): a many-tab stills run times out loading Google fonts. Ask for the fonts; offer a pairing from
-  the song's world (a hand/script or display hero over condensed caps).
-- **Placement**: side columns alternate per line (centred between the subject's edge and the frame
-  edge, at the waist band); `center` puts every non-chorus line at the centre bottom (white);
-  `power` sets the lines from a section on alone at the centre bottom in the hero face, one word
-  very big. Choose from the free-space map; when the user moves things by name, do exactly what
-  they said, then check it.
-- **Check** stills at full resolution across every section (a verse, the chorus, the bridge, the
-  outro, an interlude with no text): words never touch, the hero reads, nothing over her face, rows
-  clear the tilted hero, nothing in the bottom wave's box at rest.
+**The title card** is taste only the user sets: show two or three treatments **at once** (written on,
+liquid fill, slam; a fade or a glitch out on a hit), as one sampler of the intro, never one per round.
 
-## 7. Preview (the main checkpoint)
+Fonts are files in the project (`projects/<slug>/fonts/`). Check full-size stills across every
+section: words never touch, the hero reads, nothing over a face, nothing in a visualizer's box.
 
-- **Your own checks**: stills (`mm stills <slug> <s,…> --only`) at full resolution.
-- **The user's look**: the **Remotion editor** at
-  `https://mediamake.microfox.app/remotion-editor?project=<slug>`. Every link the user gets uses this
-  base URL, never `localhost` (2026-11-02: "why are you creating wrong remotion urls, always use the
-  base url - mediamake.microfox.app"); a local server (`preview_start` with `mediamake`) is only for
-  your own checks. Say which timeline mark to jump to. The user's moves save to `video/edits.json` and
-  every render applies them.
-  They can also swap the cover, overlays or logo clip in the editor's Assets panel, and turn the
-  cover's and logo's knobs (picture, darken, kick, motion, tint; logo box and fades) in the
-  inspector, and retime sung words on the word lane (saved as `words` / `lyricsOffset`). A scene you write for a project loads its files with the kit's `asset()`, never
-  `staticFile()`, and declares its knobs with `withKnobs` (see make-lyrics-video).
-- **Clips and renders only when asked** (rule 10): `mm render <slug>
-  --frames=<a>-<b> --proxy` (half size, faster than the ≈ 1 min for 24 s at full size).
+## 7. Before every showing: the checks
 
-## 8. Render and deliver (only when asked)
+Run these before any link, still or file goes to the user, and fix what they find:
 
-1. **Logo intro**: copy the brand's logo animation (`brands/<brand>/logo/animated/*.webm`, VP9 with
-   alpha) into `input/brand/` and layer the engine's `LogoSting` over the intro (e.g.
-   `at: { from: 0.2, to: 4.2 }`, `box` half size over the subject's body), so it has faded before
-   the first line's entrance (its start − 0.35 s). Check stills before, during and after.
-2. **Render**: a render the user asked for to review is a preview, 10 s stretches at half size
-   around what changed (`mm render <slug> --preview`); the master is
-   `mm render <slug>` (≈ 10 min for 3 min, in the background; retry
-   once on a font timeout), once they sign off (`revise-video` step 1). The previous render moves to
-   `v<N>/` by itself. The end screen, the cover and the packs come from the master.
-3. **End screen**: keep the raw render in `v<N>/` first, then join the channel's end screen with
-   ffmpeg (60 → 30 fps, CRF 15, the concat filter) as the user chose at intake — with its sound at
-   its own level (never lifted), or silent (the INVERTED Devils end screens are silent at the source)
-   — and add an `end screen` section to the map.
-4. **Check the file**: duration, loudness of the song part unchanged (`ebur128`), frames across the
-   song (intro logo, verse, chorus, interlude empty, outro, end card), and
-   `mm preflight <slug> --source=projects/<slug>/input/<picture>` (black or
-   frozen frames, the sound, and rule 6 over the whole video: a render darker or duller than the
-   picture). Fix or answer what it finds, then give the `open -R` block and the Revisions link
-   (`revise-video`).
-5. **Then, when asked** (in parallel sessions when the user says so): the cover (`create-music-poster`),
-   thumbnails (`create-thumbnail`), then `pack-distrokid` and `pack-youtube`.
+```bash
+mm editor-check <slug>                 # the hosted editor can load every import (also in preflight)
+mm clip-loop <clip>                    # every looping overlay: its seam and any jump inside
+mm stills <slug> <s,…> --only --scale=1   # a frame per section: verse, chorus, bridge, outro, an interlude
+mm preflight <slug> --source=projects/<slug>/input/<picture>   # on any render: black, frozen, sound, duller
+```
 
-## Engine and commands
+- the cutout's magenta row (step 4) and the picture's corners (a mark the user asked to remove is gone);
+- the first line enters with the voice and lines leave before music-only stretches;
+- the logo and the title don't sit over the subject's face;
+- every extra the user ticked is visible, and nothing they didn't tick is there.
 
-- `video/storyboard.ts` (`Storyboard` in `look.ts`): `base`, `looks` (cover settings + `subject` +
-  `layers` + `overlays`), `waves`, `fonts`, `captions`, `pick`, `at`. `video/index.tsx`:
-  `storyboardVideo('<slug>', storyboard, [extra layers])`.
-- `wave-lab <slug> looks|waves|fonts|captions|final [--only=…] [--at=s] [--clip=6]` → labelled stills,
-  clips and a reel in `out/<slug>/<slug>-storyboard/`, reviewable in `/file-revision` (a still plays
-  its clip in the zoom view); for 2–4 clips also a labelled grid, printed with its `/video-revision` link.
-- `stills <slug> <s,s,…> --only [--scale=1]`: the folder is cleared on every run — copy the files
-  out between batches; batches of ≤ 6 avoid font timeouts.
-- The catalog (`catalog/`, shots in `out/waveform-catalog/`): waves, font sets and caption setups
-  from the user's old mediamake timelines. Use its waves as shapes; a new part the user picks goes
-  back in with `source: 'new <date>: <slug>'`.
-- Layer names for edits.json and the editor: `cover`, `overlay N`, `wave` (`wave N`), `subject`,
-  `lyrics`, `logo`.
+## 8. Review: the section sampler
+
+- **Live:** the Remotion editor link (rule 12); say which timeline mark to jump to. The user's moves
+  save to `video/edits.json`; a project scene loads files with the kit's `asset()` and declares its
+  knobs with `withKnobs`.
+- **A render to review** (when the user asks, or for your own check of motion stills can't show):
+  one file with the first 10 s of every section, so a round covers the whole song:
+
+  ```bash
+  mm render <slug> --preview=intro,verse-1,chorus-1,bridge,outro   # the labels prepare printed
+  mm render <slug> --preview                                       # next rounds: around what changed
+  mm render <slug> --look=L1,L2 --preview=chorus-1                 # looks side by side in one grid
+  ```
+
+- **One round = every note:** act on all of a revision's notes, run step 7, then one sampler. Record
+  each note in prefs.md with its round.
+
+## 9. Render and deliver (only when asked)
+
+1. **Master:** `mm render <slug>` once the user signs off (≈ 10 min for 3 min; retry once on a font
+   timeout). The previous render moves to `v<N>/`.
+2. **End screen:** keep the raw render in `v<N>/`, join the channel's end screen with ffmpeg (60 →
+   30 fps, CRF 15, the concat filter) as chosen at intake (its own level, or silent), and add an
+   `end screen` section to the map.
+3. **Check the file:** duration, the song's loudness unchanged (`ebur128`), frames across the song,
+   `mm preflight`. Then the `open -R` block and the Revisions link (`revise-video`).
+4. **Deliver** only what the user approved (`mm media deliver`); a variant they ask for is a look
+   (`--look=<id>`), rendered beside the final, never over it.
+5. **Then, when asked** (in parallel sessions when the user says so): the cover
+   (`create-music-poster`), the YouTube pack (`pack-youtube`), the DistroKid release.
+
+## 10. After sign-off: the channel's recipe
+
+Write or refresh `brands/<brand>/waveform-recipe.md` (the workspace's brands folder, not the repo):
+what the user approved, so the channel's next video starts there (rule 2). Then `mm notes add` each
+lesson (below).
+
+```markdown
+# <Channel> · waveform lyric video recipe (from <slug>, <date>)
+- picture: cutout over plate; grade …; camera (jolt, handheld, defocus at …)
+- visualizer: <kind and settings>, <side>, <colours from the picture>
+- type: GlyphLyrics; caps <face> <px>, hero <face> <px>, case verses/choruses; early 0.3; glitch …
+- screens: <how lines were cut>
+- overlays: <files from the library, blend, filter, opacity, when>
+- logo: <start or end>, <box>; channel name <face, tracking>; title card <treatment>
+- end screen: <file>, <sound or silent>
+- not wanted: <what the user took out>
+```
+
+## Engine parts and commands
+
+| part (`@mediamake/engine/lyrics`) | what it does |
+|---|---|
+| `CoverBackdrop` | the picture or the plate: zoom, beat kick, `jolt`, `handheld`, `defocus`, `offset`, `stages`, a clip as the cover |
+| `PictureLook` | grade, duotone, bloom, chroma, grain, vignette, exposure, heat, rays, leaks… |
+| `Subject` | the cutout over the plate: its grade, rim, echo, sweep, outline, tremor, `stages` |
+| `WaveformLayer` + `Visualizers` | bars and waves; `horns`, `halo`, `yantra`, `sparks`, `gather`, `rings`, `bolt`, `flames`, `eclipse`, `iris` |
+| `OverlayVideo` | a looping clip: blend, filter, box, feather, `when` windows, `hits`, `follow`, `front`, luma `key` |
+| `SpinOverlay` | an overlay clip turning about a point and swelling on the beat (a ring of fire) |
+| `GlyphLyrics` · `StackedLyrics` · `KineticLyrics` | the lyric scenes (step 6) |
+| `LogoSting` · `ChannelTitle` | the logo animation in a box; the channel's name under it, spreading as it fades in |
+| `OldTV` · `Stages` · `TrackTitle` · `OverlayText` | old-TV effects; picture states; title + artist; a text line |
+
+| command | for |
+|---|---|
+| `mm glyphs <slug>` | fonts as outline data for GlyphLyrics and ChannelTitle |
+| `mm clip-loop <clip> [--pingpong]` | a clip's seam and jumps; a ping-pong loop without either |
+| `mm editor-check <slug>` | packages the hosted editor can't provide |
+| `mm wave-lab <slug> looks\|waves\|final` | labelled stills, clips, a reel and a grid of looks |
+| `mm stills <slug> <s,…> --only` | full-size frames (the folder is cleared every run: copy them out) |
+| `mm render <slug> --preview=…` · `mm render <slug>` | the sampler · the master |
+| `mm preflight <slug>` | machine notes on a render before the user sees it |
+| `tools/recut.py` · `tools/cutout.py` · `tools/align_states.py` | screens → lyrics.json · the cutout and plate · several pictures of one frame aligned |
+
+Layer names for edits.json and the editor: `cover`, `overlay N`, `wave`, `subject`, `lyrics`, `logo`.
 
 ## Gotchas
 
 - Values are px for 1920×1080. For 9:16 or 1:1, set positions again; don't scale old values.
 - The waveform atoms read the song themselves. Never add an `<Audio>`.
-- A style-only `containerProps` on a caption setup replaces the preset's `inset-0` box: the lyrics
-  slide off-frame. Don't.
-- SVG `font-family` can't read an unquoted name with punctuation: register local fonts under plain
-  names (`StackedLyrics` does).
+- The hosted editor loads only its own packages (`mm editor-check`): precompute anything else in a
+  script and import the data (fonts → `mm glyphs`).
+- A ring turning about the wrong point orbits: fit the circle in the clip (its brightest pixels over
+  every frame) and put `about` on its centre.
+- An overlay clip whose first and last frames don't match flashes on every loop: `mm clip-loop`.
+  Remotion can't play a clip backwards: a ping-pong is a new file (the command writes it under a new
+  name, which also keeps the editor from showing a cached copy).
+- SVG filters: `feTurbulence` + `feOffset` slides the noise out of its region; the default
+  linearRGB darkens noise (use `colorInterpolationFilters="sRGB"`).
+- OverlayVideo's luma `key` works in Remotion Studio but not in renders: layers reach their scene
+  through a props spread, and React's production build keeps a prop named `key` for itself, so a
+  keyed overlay renders unkeyed (Postcards from Tomorrow's "dark sheet"). On a pale picture invert the
+  clip and `multiply` it instead.
+- A style-only `containerProps` on a caption setup replaces the preset's box: the lyrics slide off.
 - When prepare warns that `analysis/lyrics.aligned.json` differs from `input/lyrics.json`, re-run
-  `analyze --only align`, then prepare.
-- The Remotion editor reads `src/`, `catalog/` and `projects/<slug>/`: code imported from anywhere
-  else breaks it.
-- A dangling symlink under `projects/` used to crash every bundle (fixed in `scripts/bundle.ts` with
-  timestamp snapshots); still copy footage in rather than linking it.
-- `wave-lab` bundles all of `projects/` (~30 s before the first still).
-- A clip as the cover (`cover.image: 'loop.mp4'` + `clip` seconds, a motion poster made seamless like
-  projects/mahalakshmi/tools/loop.sh) plays as a real `<video>` in the Remotion editor, which Chrome draws
-  black under an SVG filter: CoverBackdrop keeps `url(#…)` filters on a wrapper, never on the video element.
-  Renders never show this (OffthreadVideo becomes a frame image), so check clip covers in the editor too.
+  `mm analyze <slug> --only align`, then prepare.
+- A clip as the cover plays as a real `<video>` in the editor, which Chrome draws black under an SVG
+  filter: CoverBackdrop keeps filters on a wrapper. Check clip covers in the editor too.
 
 ## Lessons log
 
@@ -634,3 +674,25 @@ When the user wants them shared, `mm notes promote make-waveform-lyric-video` of
   (she walks in place, the city slides past), the picture as first AND last frame; H3 Max walks and
   returns to the end frame, FLUX 3 Max barely moves or ignores end_image_url.
 - 2026-11-07 · Postcards from Tomorrow, on a picture with a black side ("remove the black strip, overlay on top of video … put the text scrolling at the center of the available black space … for highlighting last words if the line has 2 words in the appearance, highlight 2 words … in postcards from tomorrow all words should highlight") → when the picture leaves its own empty space, set the lyrics straight on it (no panel), centred in that space measured across every loop frame; take the highlight colour from the picture; pick hero words from the rows as they display (the whole last row when it is two words) and light the song's title phrase whole wherever it is sung.
+- 2026-11-09 · Hollow Soul (AMZ, project cifer: Ulquiorra outcropped to 16:9, the black right half
+  for the lyrics; FINAL = the variant with the ring only in the choruses, published 2026-11-09) → 12
+  rounds. What landed: green blackletter heroes (Pirata One; capitalised in verses, capitals in the
+  choruses) over Cormorant small words, built word by word and slammed in with a motion smear (from
+  the user's Benzz reference: "make typo kinetics have motion"), a 0.3 s lead, a glitch in and out;
+  the user's own fire ring turned green (CSS `hue-rotate`), turning about the lyric spot and swelling
+  on the beat, as a 6 s ping-pong (the clip jumps at 6.1 s); the title traced, filled with liquid and
+  glitched out on the intro's big kick inside the ring; the logo and the letter-spaced channel name at
+  the end, not the start. What cost rounds is the table at the top of this file. The editor can't
+  provide opentype.js: fonts became outline data. Promoted: `GlyphLyrics`, `SpinOverlay`,
+  `ChannelTitle`, `mm glyphs`.
+- 2026-11-09 · Hollow Soul: "remove this watermark" → declined twice as someone else's mark, then
+  "nah, that is mark, remove it … my mark" → ask once whose a mark is; the user's own comes off when
+  they ask (inpainted into a new file beside the picture), anyone else's never.
+- 2026-11-10 · "why is it that everytime the make waveform lyric video takes so many iterations, what
+  are we doing wrong with the skill" → "rework it" → the rework above: a target for every video (a
+  reference, else the channel's recipe in `brands/<brand>/waveform-recipe.md`, else the house
+  defaults), the intake questions that cost rounds, minimal first with extras as options, machine
+  checks before every showing (`mm editor-check`, `mm clip-loop`, the cutout on magenta, preflight),
+  and every round a sampler of every section (`mm render --preview=<sections>`). The cutout and the
+  re-cut, copied from project to project seven times, are this skill's tools now (`tools/cutout.py`,
+  `tools/recut.py` + `input/screens.txt`).
