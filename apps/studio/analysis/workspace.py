@@ -33,7 +33,8 @@ STUDIO_FOLDERS = ("projects", "out", "brands", "thumbnailJobs", "overlays")
 
 def _expand_home(p: str) -> str:
     home = os.path.expanduser("~")
-    return home if p == "~" else os.path.join(home, p[2:]) if p.startswith("~/") else p
+    windows_tilde = os.sep == "\\" and p.startswith("~\\")
+    return home if p == "~" else os.path.join(home, p[2:]) if p.startswith("~/") or windows_tilde else p
 
 
 def _absolute(p: str) -> Path:

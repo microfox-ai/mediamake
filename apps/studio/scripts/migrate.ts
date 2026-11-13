@@ -657,7 +657,8 @@ const main = () => {
     fs.copyFileSync(c.from, c.to);
   }
   setupWorkspace(ws, ROOT, true);
-  if (configWorkspace() !== ws) saveWorkspace(tilde(ws));
+  // with / even on Windows: "~\MediaMake" is no home-relative path to the readers (expandHome takes ~/)
+  if (configWorkspace() !== ws) saveWorkspace(tilde(ws).split(path.sep).join('/'));
   claudeAccess(ws, true);
   // planned again: the files are where they moved to
   const engineNow = planCodemod(ROOT);
