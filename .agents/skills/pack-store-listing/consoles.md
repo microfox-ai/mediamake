@@ -92,7 +92,9 @@ Product Page Information has two tabs:
     Pixelmator templates (the "Explore templates" link) hold the safe areas.
   - The assets are stored as soon as they upload: the page's Save stays grey.
   - **Preview** (top right of the box) shows the product page and the search results page on iPhone,
-    iPhone Duo and iPad, light or dark. An iPhone-only app's iPad preview stays grey.
+    iPhone Duo and iPad, portrait or landscape, light or dark. Its "App Store" picker (Product Page /
+    Search Results Page) is a native `<select>`: set it by script (the value setter, then a `change`
+    event). The iPad preview stays grey until the iPad 13" tab has screenshots.
   - Clicking near an uploaded thumbnail opens a full-screen lightbox: close it with its ×.
   - `file_upload` reads only this session's folders: copy the assets into the app's store-listing
     folder first.
@@ -102,6 +104,13 @@ Product Page Information has two tabs:
   Apple uses it for every iPhone size. One upload box takes up to 3 previews and 10 screenshots;
   files uploaded together keep their order. An info notice ("App Previews, Screenshots, and
   Localizations") opens after the first upload: OK.
+- **iPad 13"** (only when the build supports iPad, `supportsTablet`): screenshots **2064×2752**
+  (also 2048×2732 and landscape), previews 1200×1600. Apple uses the 13" set for every iPad. Open
+  the tab first: the page has one media file input, and it uploads to the tab that's open. Its
+  notice ("We'll use your 13" display … for all iPad display sizes") opens after the first upload: OK.
+- A version that's **Waiting for Review** is locked: no uploads, and no + for a new version until
+  it's released. To change its media, the user removes it from review (their call: it goes back
+  to Prepare for Submission and keeps everything). A first version has no "What's New" field.
 
 | Field | Limit | Input |
 | --- | --- | --- |
