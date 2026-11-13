@@ -8,7 +8,7 @@ Checks a store-listing folder against the App Store's and Google Play's rules, f
 
 Layout it expects (what pack-store-listing makes; missing optional items are only noted):
     ios/iphone-6.3/*.png (required)   ios/iphone-6.9/*.png   ios/iphone-6.5/*.png   ios/ipad-13/*.png
-    ios/app-icon-1024.png   ios/app-preview*.mp4
+    ios/app-icon-1024.png   ios/app-preview*.mp4   ios/creative/header-*.png   ios/creative/search-*.png
     android/play-icon-512.png   android/feature-graphic.(png|jpg)   android/phone/*.png
     android/tablet-7/*.png  android/tablet-10/*.png   android/promo-video*.mp4
 Prints one line per file (ok / FAIL with the reason) and exits 1 if anything required fails.
@@ -78,6 +78,16 @@ if os.path.exists(icon):
     im = Image.open(icon)
     say(im.size == (1024, 1024) and not has_alpha_channel(im), icon, f"{im.size} {im.mode}" + (' (Apple refuses an icon with an alpha channel)' if has_alpha_channel(im) else ''))
 else: note('ios/app-icon-1024.png: none (the build carries the icon)')
+
+def creative(pattern, sizes, label):
+    files = glob.glob(os.path.join(root, pattern))
+    if not files: return note(f'{pattern}: none ({label}, optional)')
+    for f in files:
+        im = Image.open(f)
+        ok = im.size in sizes and not has_alpha_channel(im)
+        say(ok, f, f"{im.size[0]}x{im.size[1]} {im.mode}" + ('' if im.size in sizes else ' (want ' + ' or '.join(f'{w}x{h}' for w, h in sizes) + ')'))
+creative('ios/creative/header-*.png', [(5244, 2950), (3840, 1646)], 'product page header')
+creative('ios/creative/search-*.png', [(5244, 2950), (3840, 2560), (1920, 1280)], 'search results asset')
 
 def apple_preview(v, a, dur, fps, size):
     p = []

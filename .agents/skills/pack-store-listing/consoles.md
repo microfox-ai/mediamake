@@ -82,7 +82,20 @@ On the channel the user named (check the channel name in Studio's top bar):
 
 Product Page Information has two tabs:
 
-- **Header and Search Results**: an optional custom header (new in 2026).
+- **Header and Search Results** (iOS 27 creative assets, optional but they lead the page):
+  - **Header**: 1 asset, PNG or video (.mp4/.m4v/.mov), **5244×2950 or 3840×1646**. It's the top of the
+    product page, behind the back and share buttons and above the icon, name and Get button, cropped
+    per device and orientation. Keep text out and the focal point in the middle.
+  - **Search Results**: 1 asset, **5244×2950, 3840×2560 or 1920×1280**. It's shown under the app's name
+    in search instead of the first screenshots (on iPhone, cropped to about 16:9).
+  - A single 5244×2950 image works for both (Apple calls it a universal asset). Apple's Photoshop and
+    Pixelmator templates (the "Explore templates" link) hold the safe areas.
+  - The assets are stored as soon as they upload: the page's Save stays grey.
+  - **Preview** (top right of the box) shows the product page and the search results page on iPhone,
+    iPhone Duo and iPad, light or dark. An iPhone-only app's iPad preview stays grey.
+  - Clicking near an uploaded thumbnail opens a full-screen lightbox: close it with its ×.
+  - `file_upload` reads only this session's folders: copy the assets into the app's store-listing
+    folder first.
 - **App Previews and Screenshots**: device tabs **iPhone with Dynamic Island (medium display)**,
   **iPhone Duo** (new; optional, earns a badge), **iPad 13"**, **Apple Watch**. The medium-display
   slot is for **6.1"/6.3" iPhones: screenshots 1206×2622 or 1179×2556, previews 886×1920**, and

@@ -17,6 +17,7 @@ every size, limit and rule, and `scripts/check-assets.py` checks files against i
 | Screenshots | iPhone 6.3" (App Store Connect's iPhone slot; 6.9"/6.5" optional), Android phone 1080×1920, iPad/tablets for tablet apps | `<app repo>/<web public>/store-listing/ios|android/…` |
 | Icons | `ios/app-icon-1024.png` (copy of the build's), `android/play-icon-512.png` | same |
 | Feature graphic | 1024×500 for Play | same |
+| App Store header and search results | 5244×2950 header (no text), 3840×2560 search asset (the headline), from real screens | `ios/creative/` (`template/creative/render.mjs`) |
 | App Store preview | 886×1920, 15–30 s, silent stereo AAC | MediaMake project `<app>-store-preview` → `ios/app-preview.mp4` |
 | Play promo video | 1920×1080, ~30 s, for YouTube | MediaMake project `<app>-store-promo` → `android/promo-video.mp4` |
 | Pages | Support (Apple requires it), privacy, account deletion (Play requires it) | The app's website |
@@ -126,6 +127,16 @@ the shapes differ), then 6.5" and 6.3" only if asked. The template's `Brand.tsx`
 captions) and `Phone.tsx` frame are the pieces; a still is one frame of a composition whose frame N is
 screen N (`mm stills <slug> 0,0.0334,…`). Portal's current set was framed in an earlier session and
 its stills composition isn't in the template yet: build it when first needed and add it here.
+
+## 5b. Header and search results (App Store, iOS 27)
+
+`template/creative/render.mjs` draws both in HTML from the shots (`record.mjs … shots`) and renders
+them at full size with headless Chrome. It has Portal's look: the dark ground and ring from the
+feature graphic, three phones, the mark and the screenshots' headline. Copy it into the project's
+`creative/` with the screens in `creative/screens/`, change the brand bits, run
+`node creative/render.mjs <out>`, and copy the PNGs into the store-listing folder's `ios/creative/`.
+The header has no text and keeps its focal point in the middle (Apple crops it per device). After
+uploading, check both in App Store Connect's Device Preview (consoles.md).
 
 ## 6. The videos
 
