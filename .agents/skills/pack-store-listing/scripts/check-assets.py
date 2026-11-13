@@ -7,7 +7,7 @@ Checks a store-listing folder against the App Store's and Google Play's rules, f
     uv run scripts/check-assets.py <store-listing folder> [--tablet]
 
 Layout it expects (what pack-store-listing makes; missing optional items are only noted):
-    ios/iphone-6.9/*.png    ios/iphone-6.5/*.png    ios/iphone-6.3/*.png    ios/ipad-13/*.png
+    ios/iphone-6.3/*.png (required)   ios/iphone-6.9/*.png   ios/iphone-6.5/*.png   ios/ipad-13/*.png
     ios/app-icon-1024.png   ios/app-preview*.mp4
     android/play-icon-512.png   android/feature-graphic.(png|jpg)   android/phone/*.png
     android/tablet-7/*.png  android/tablet-10/*.png   android/promo-video*.mp4
@@ -68,9 +68,10 @@ def video(pattern, check, label, required):
             f"audio={a['codec_name'] + ' ' + str(a.get('channels')) + 'ch' if a else 'none'} {size:.1f} MB" + (f" ({'; '.join(problems)})" if problems else ''))
 
 # ---------------- Apple ----------------
-shots('ios/iphone-6.9', [(1320, 2868), (1290, 2796), (1260, 2736), (2868, 1320), (2796, 1290), (2736, 1260)], 1, 10, '6.9" 1320x2868, 1290x2796 or 1260x2736', True)
+# App Store Connect's iPhone slot ("medium display") takes 6.1"/6.3" sizes only and uses them for every iPhone.
+shots('ios/iphone-6.3', [(1206, 2622), (1179, 2556), (2622, 1206), (2556, 1179)], 1, 10, '6.3" 1206x2622 or 1179x2556', True)
+shots('ios/iphone-6.9', [(1320, 2868), (1290, 2796), (1260, 2736), (2868, 1320), (2796, 1290), (2736, 1260)], 1, 10, '6.9" 1320x2868, 1290x2796 or 1260x2736', False)
 shots('ios/iphone-6.5', [(1284, 2778), (1242, 2688), (2778, 1284), (2688, 1242)], 1, 10, '6.5" 1284x2778 or 1242x2688', False)
-shots('ios/iphone-6.3', [(1206, 2622), (1179, 2556), (2622, 1206), (2556, 1179)], 1, 10, '6.3" 1206x2622 or 1179x2556', False)
 shots('ios/ipad-13', [(2064, 2752), (2048, 2732), (2752, 2064), (2732, 2048)], 1, 10, '13" iPad 2064x2752 or 2048x2732', tablet)
 icon = os.path.join(root, 'ios/app-icon-1024.png')
 if os.path.exists(icon):
@@ -87,6 +88,7 @@ def apple_preview(v, a, dur, fps, size):
     if not a: p.append('needs an audio track (silent is fine)')
     elif a.get('codec_name') != 'aac' or a.get('channels') != 2: p.append('audio: stereo AAC')
     if size > 500: p.append('500 MB at most')
+    if size > 10: note("the App Store preview is over 10 MB, so Claude in Chrome can't upload it: re-encode a smaller copy (consoles.md)")
     return p
 video('ios/app-preview*.mp4', apple_preview, 'App Store preview', False)
 

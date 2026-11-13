@@ -1,4 +1,4 @@
-# Store specs (checked 2026-11; scripts/check-assets.py follows this file)
+# Store specs (checked 2026-11-13 in both consoles; scripts/check-assets.py follows this file)
 
 The stores change sizes now and then. When App Store Connect or Play Console refuses a file, read the
 error, check the store's help page (App Store Connect Help → Screenshot specifications / App preview
@@ -8,11 +8,12 @@ specifications; Play Console Help → Add preview assets), and update this file 
 
 | Asset | Spec | Needed |
 | --- | --- | --- |
-| iPhone 6.9" screenshots | 1320×2868, 1290×2796 or 1260×2736 (or landscape). PNG or JPEG, RGB, **no transparency**. 1 to 10. | **Yes** for an iPhone app. Apple scales them down for smaller iPhones |
-| iPhone 6.5" / 6.3" screenshots | 1284×2778 or 1242×2688 / 1206×2622 or 1179×2556 | Only if App Store Connect asks |
+| iPhone 6.3" screenshots | **1206×2622** or 1179×2556 (or landscape). PNG or JPEG, RGB, **no transparency**. 1 to 10. | **Yes** for an iPhone app. App Store Connect's "iPhone with Dynamic Island (medium display)" slot takes only these sizes and uses them for every iPhone |
+| iPhone 6.9" / 6.5" screenshots | 1320×2868, 1290×2796 or 1260×2736 / 1284×2778 or 1242×2688 | Optional: only through Media Manager, to give big iPhones their own set |
+| iPhone Duo screenshots and previews | its own slot (new in 2026, iOS 27.1 SDK) | Optional; earns a "made for iPhone Duo" badge |
 | iPad 13" screenshots | 2064×2752 or 2048×2732 | **Yes** if the app runs on iPad (`supportsTablet`), else none |
 | App icon | 1024×1024 PNG, no alpha, square (Apple rounds it) | Comes from the build: nothing to upload |
-| App preview video | iPhone 6.9"/6.5"/6.3": **886×1920** (or 1920×886). iPad 13": 1200×1600. 15–30 s, at most 30 fps, H.264 or ProRes 422 HQ (.mov/.m4v/.mp4), **an audio track** (stereo AAC 256 kb/s, 44.1 or 48 kHz; silent is fine), up to 500 MB. Up to 3 per size | Optional. It autoplays muted before the screenshots |
+| App preview video | iPhone (the medium-display slot): **886×1920** (or 1920×886). iPad 13": 1200×1600. 15–30 s, at most 30 fps, H.264 or ProRes 422 HQ (.mov/.m4v/.mp4), **an audio track** (stereo AAC 256 kb/s, 44.1 or 48 kHz; silent is fine), up to 500 MB. Up to 3 per size | Optional. It autoplays muted before the screenshots |
 
 **Previews must be the app itself** (App Review guideline 2.3.4): screen captures of the app, with
 text overlays and narration allowed. No people holding the phone, no hands, no footage that isn't the
@@ -28,8 +29,13 @@ risks rejection. Pick the poster frame (the still before it plays) after upload.
 | Keywords | 100 bytes, comma separated, no spaces after commas; leave out words in the name and subtitle |
 | What's New | 4000 |
 
-URLs: **Privacy Policy** (required), **Support URL** (required: a page with a way to reach you),
-Marketing URL (optional). Forms: App Privacy (data types, linked to the person, tracking), age rating,
+URLs: **Privacy Policy** (required, on the App Privacy page), **Support URL** (required: a page with a
+way to reach you), Marketing URL (optional).
+
+Age rating (2026): a 7-step questionnaire (features and capabilities, then content frequencies), a
+calculated rating, and an optional override to 9+, 13+, 16+ or 18+. App Privacy: data types, then for
+each its purposes, whether it's linked to the person, and whether it's used for tracking. The fields
+and their answers: consoles.md. Forms: App Privacy (data types, linked to the person, tracking), age rating,
 export compliance (`ITSAppUsesNonExemptEncryption`), App Review sign-in (a demo account and steps).
 Sign in with Apple is required when another social sign-in is offered; in-app account deletion is
 required when accounts can be made.
@@ -50,6 +56,9 @@ required when accounts can be made.
 | Short description | 80 |
 | Full description | 4000 |
 
+The store listing's Review step asks for an **AI asset declaration** (label assets made or edited
+with AI, or not) before it saves.
+
 Required pages: a **privacy policy URL**, and an **account deletion URL** (a page saying how to delete
 an account and its data without the app) when people can make accounts. Forms (App content): app
 access (test sign-in for reviewers), ads, content rating, target audience, Data safety. A personal
@@ -59,7 +68,7 @@ an organisation account doesn't.
 ## What a store-listing folder holds (what check-assets.py reads)
 
 ```
-ios/iphone-6.9/1-<screen>.png …   ios/iphone-6.5/…   ios/iphone-6.3/…   ios/ipad-13/… (iPad apps)
+ios/iphone-6.3/1-<screen>.png …   ios/iphone-6.9/… ios/iphone-6.5/… (optional)   ios/ipad-13/… (iPad apps)
 ios/app-icon-1024.png             ios/app-preview.mp4
 android/play-icon-512.png         android/feature-graphic.png
 android/phone/1-<screen>.png …    android/tablet-7/… android/tablet-10/… (optional)

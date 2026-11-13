@@ -1,6 +1,6 @@
 ---
 name: pack-store-listing
-description: Make and check everything an app needs to publish on the App Store and Google Play. It audits what the app already has against both stores' rules (screenshots at every iPhone size, the 1024 and 512 icons, Play's feature graphic, phone screenshots), records the app itself for the App Store preview video (886×1920, 15–30 s) and the Google Play promo video (1920×1080 for YouTube), shoots its screens for screenshots, adds the pages the stores ask for (support, privacy, account deletion), and writes the listing guide with every field's text and limit. The footage is real: the app's web build on an iPhone-sized screen, signed in to a sample company with made-up people, served by a local mock API so nothing touches real data, edited in Remotion with an iOS status bar, push and sheet animations and the screenshots' headlines. Use when the user says "store listing", "App Store / Play Store assets", "publish the app on both stores", "app preview video", "promo video for Play", "feature graphic", "store screenshots", "make the brand materials for the stores", "/pack-store-listing", points to a STORE_LISTING.md, or asks to remake the store videos after the app changed. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make and check everything an app needs to publish on the App Store and Google Play. It audits what the app already has against both stores' rules (screenshots at every iPhone size, the 1024 and 512 icons, Play's feature graphic, phone screenshots), records the app itself for the App Store preview video (886×1920, 15–30 s) and the Google Play promo video (1920×1080 for YouTube), shoots its screens for screenshots, adds the pages the stores ask for (support, privacy, account deletion), and writes the listing guide with an answer for every field, then fills Google Play Console, YouTube (the promo, Unlisted) and App Store Connect from it with Claude in Chrome. The footage is real: the app's web build on an iPhone-sized screen, signed in to a sample company with made-up people, served by a local mock API so nothing touches real data, edited in Remotion with an iOS status bar, push and sheet animations and the screenshots' headlines. Use when the user says "store listing", "App Store / Play Store assets", "publish the app on both stores", "app preview video", "promo video for Play", "feature graphic", "store screenshots", "make the brand materials for the stores", "fill App Store Connect / Play Console", "fill the store pages", "/pack-store-listing", points to a STORE_LISTING.md, or asks to remake the store videos after the app changed. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: pack
   depends-on: revise-video
@@ -14,13 +14,14 @@ every size, limit and rule, and `scripts/check-assets.py` checks files against i
 | Part | What | Where it goes |
 | --- | --- | --- |
 | Audit | Every store asset checked, pass or fail, and what's missing | A table in chat |
-| Screenshots | iPhone 6.9" (+6.5", 6.3" if asked), Android phone 1080×1920, iPad/tablets for tablet apps | `<app repo>/<web public>/store-listing/ios|android/…` |
+| Screenshots | iPhone 6.3" (App Store Connect's iPhone slot; 6.9"/6.5" optional), Android phone 1080×1920, iPad/tablets for tablet apps | `<app repo>/<web public>/store-listing/ios|android/…` |
 | Icons | `ios/app-icon-1024.png` (copy of the build's), `android/play-icon-512.png` | same |
 | Feature graphic | 1024×500 for Play | same |
 | App Store preview | 886×1920, 15–30 s, silent stereo AAC | MediaMake project `<app>-store-preview` → `ios/app-preview.mp4` |
 | Play promo video | 1920×1080, ~30 s, for YouTube | MediaMake project `<app>-store-promo` → `android/promo-video.mp4` |
 | Pages | Support (Apple requires it), privacy, account deletion (Play requires it) | The app's website |
-| Guide | `STORE_LISTING.md`: each store's assets, text with limits, URLs, forms, reviewer sign-in | Beside the app (e.g. `mobile/`) |
+| Guide | `STORE_LISTING.md`: each store's assets, text with limits, URLs, forms, reviewer sign-in, an answer for every console field | Beside the app (e.g. `mobile/`) |
+| Consoles | Play Console, YouTube (the promo, Unlisted) and App Store Connect filled from the guide | The stores (`consoles.md`) |
 
 Portal (TheMoonDevs' work app) is the worked example: `projects/portal-store-preview` (the preview,
 its `lib/` cut and its `capture/` setup) and `projects/portal-store-promo`, and the guide at
@@ -165,10 +166,30 @@ its stills composition isn't in the template yet: build it when first needed and
 - `STORE_LISTING.md`: at a glance (store, asset, size, file, needed?), each store's images, text with
   limits and suggested copy, URLs, forms, reviewer sign-in, the description, the screenshots table
   and the videos table (time, headline, what it shows) and how to remake them (this skill).
+- **An answer for every console field**, so step 8 is copying: the app name for each store (with a
+  fallback when the plain name is taken in App Store Connect), subtitle, short description,
+  promotional text, keywords, categories, copyright, URLs, the age rating questionnaire answer by
+  answer and any override, App Privacy data types with purposes / linked / tracking, Play's app
+  content forms, the reviewer notes, the YouTube title and description, and what's left to the user.
+  `consoles.md` lists every field.
 
 Changes to the app's repo go on a branch with a PR (a worktree when other sessions share the
 checkout), never on main. Large videos: ask before committing them; they can live in the MediaMake
 out folder or ProjectSync (a release) instead.
+
+## 8. Fill the consoles
+
+With Claude in Chrome, in the user's profile signed in to the stores: **read `consoles.md`**. It has
+every page, field, limit and the way each takes input (some only take typing, Play's asset panel
+needs real clicks and an ordering pass, uploads stop at 10 MB). Fill from the guide, then:
+
+- Upload the promo to the YouTube channel the user names, as **Unlisted**, and put its link in Play.
+- Upload `iphone-6.3/` to App Store Connect's iPhone slot (it takes 6.1"/6.3" sizes only) and the
+  preview (under 10 MB for the upload).
+- Ask before each Save; leave passwords, declarations, Publish, Send for review and Add for Review to
+  the user, and say exactly which are left.
+- Afterwards, write what the consoles actually hold back into the guide (names, links, ratings), so
+  the next run starts from it.
 
 ## Checklist before handing over
 
@@ -178,3 +199,5 @@ out folder or ProjectSync (a release) instead.
 - [ ] Headlines match the screenshots; the end card has the store's name only where true.
 - [ ] Support, privacy and deletion URLs open without signing in.
 - [ ] The guide names every file and field, and how to remake the videos.
+- [ ] The consoles hold what the guide says, and the user knows which saves, declarations and
+      submissions are theirs.
