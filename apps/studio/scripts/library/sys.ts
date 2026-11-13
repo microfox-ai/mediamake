@@ -110,12 +110,26 @@ export const readJson = <T>(file: string): T | null => {
   }
 };
 
-/** Renders, stills and Studio (the same check cleanup-out uses before touching bundles). */
-export const rendering = () =>
-  execFileSync('ps', ['-axo', 'command='], { maxBuffer: 1 << 26 })
+/**
+ * Every running process's command line: `ps -axo` on macOS and Linux. Windows has no such ps (Git
+ * Bash's doesn't take -x), so there PowerShell gives each process's CommandLine.
+ */
+export const commandLines = (): string[] =>
+  (process.platform === 'win32'
+    ? execFileSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process | ForEach-Object { $_.CommandLine }'],
+        { maxBuffer: 1 << 26, windowsHide: true },
+      )
+    : execFileSync('ps', ['-axo', 'command='], { maxBuffer: 1 << 26 })
+  )
     .toString()
-    .split('\n')
-    .filter(l => /remotion (render|studio|still|bundle)|scripts\/(render|stills|wave-lab|thumbs|brand|logos|lyric-shorts|remix|shorts)\.ts|analysis\/pipeline\.py|matte\.py/.test(l));
+    .split(/\r?\n/)
+    .filter(Boolean);
+
+/** Renders, stills and Studio (the same check cleanup-out uses before touching bundles); paths with / or \. */
+export const rendering = () =>
+  commandLines().filter(l => /remotion (render|studio|still|bundle)|scripts[\\/](render|stills|wave-lab|thumbs|brand|logos|lyric-shorts|remix|shorts)\.ts|analysis[\\/]pipeline\.py|matte\.py/.test(l));
 
 /** Hold heavy work while something renders: two heavy jobs at once overheat the Mac. */
 export const waitForRenders = (log: (s: string) => void) => {

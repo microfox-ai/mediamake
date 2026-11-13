@@ -396,9 +396,10 @@ const freeBytes = (p: string) => {
     return Infinity;
   }
 };
+/** Through its links and in the disk's own case: where names ignore case (Windows, macOS) ~/MediaMake is ~/mediamake. */
 const real = (p: string) => {
   try {
-    return fs.realpathSync(p);
+    return fs.realpathSync.native(p);
   } catch {
     return p;
   }
@@ -458,6 +459,14 @@ const chooseTarget = (named: string | undefined) => {
   const set = workspaceSetting();
   if (set) return { root: set.root, why: set.from === 'env' ? 'MEDIAMAKE_WORKSPACE' : `"workspace" in ${shown(configFile())}` };
   const home = path.resolve(expandHome(DEFAULT_WORKSPACE));
+  // a checkout cloned as ~/mediamake is ~/MediaMake itself where names ignore case
+  const repo = realish(REPO);
+  if (inside(repo, realish(home)) || inside(realish(home), repo)) {
+    return {
+      root: path.join(path.dirname(REPO), 'MediaMake-work'),
+      why: `next to the checkout: ${DEFAULT_WORKSPACE} is the checkout itself (folder names ignore case here)`,
+    };
+  }
   if (disk(home) === disk(ROOT)) return { root: home, why: 'the default' };
   return {
     root: path.join(path.dirname(REPO), 'MediaMake'),
@@ -648,7 +657,8 @@ const main = () => {
     fs.copyFileSync(c.from, c.to);
   }
   setupWorkspace(ws, ROOT, true);
-  if (configWorkspace() !== ws) saveWorkspace(tilde(ws));
+  // with / even on Windows: "~\MediaMake" is no home-relative path to the readers (expandHome takes ~/)
+  if (configWorkspace() !== ws) saveWorkspace(tilde(ws).split(path.sep).join('/'));
   claudeAccess(ws, true);
   // planned again: the files are where they moved to
   const engineNow = planCodemod(ROOT);

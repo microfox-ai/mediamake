@@ -34,7 +34,7 @@ export type WorkspaceFolder = keyof typeof WORKSPACE_FOLDERS;
 const STUDIO_FOLDERS: readonly WorkspaceFolder[] = ['projects', 'out', 'brands', 'thumbnailJobs', 'overlays'];
 
 const expandHome = (p: string) =>
-  p === '~' ? os.homedir() : p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p;
+  p === '~' ? os.homedir() : p.startsWith('~/') || (path.sep === '\\' && p.startsWith('~\\')) ? path.join(os.homedir(), p.slice(2)) : p;
 
 const configFile = () =>
   process.env.MEDIAMAKE_CONFIG ?? path.join(os.homedir(), '.mediamake', 'config.json');

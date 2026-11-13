@@ -42,7 +42,9 @@ const DEFAULTS = {
   exclude: [] as string[],
 };
 
-export const expandHome = (p: string) => (p === '~' ? os.homedir() : p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : p);
+/** ~ and ~/… (and ~\… on Windows, as an older mm migrate wrote it) under the home folder. */
+export const expandHome = (p: string) =>
+  p === '~' ? os.homedir() : p.startsWith('~/') || (path.sep === '\\' && p.startsWith('~\\')) ? path.join(os.homedir(), p.slice(2)) : p;
 
 const readAll = (): Record<string, unknown> => {
   try {
