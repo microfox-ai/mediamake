@@ -13,6 +13,8 @@ specifications; Play Console Help → Add preview assets), and update this file 
 | iPhone Duo screenshots and previews | its own slot (new in 2026, iOS 27.1 SDK) | Optional; earns a "made for iPhone Duo" badge |
 | iPad 13" screenshots | 2064×2752 or 2048×2732 | **Yes** if the app runs on iPad (`supportsTablet`), else none |
 | App icon | 1024×1024 PNG, no alpha, square (Apple rounds it) | Comes from the build: nothing to upload |
+| Product page header (iOS 27) | **5244×2950** or 3840×1646, PNG or video. Cropped per device: no text, focal point in the middle | Optional; it leads the product page |
+| Search results asset (iOS 27) | **5244×2950**, 3840×2560 or 1920×1280 | Optional; replaces the first screenshots in search |
 | App preview video | iPhone (the medium-display slot): **886×1920** (or 1920×886). iPad 13": 1200×1600. 15–30 s, at most 30 fps, H.264 or ProRes 422 HQ (.mov/.m4v/.mp4), **an audio track** (stereo AAC 256 kb/s, 44.1 or 48 kHz; silent is fine), up to 500 MB. Up to 3 per size | Optional. It autoplays muted before the screenshots |
 
 **Previews must be the app itself** (App Review guideline 2.3.4): screen captures of the app, with
@@ -70,6 +72,7 @@ an organisation account doesn't.
 ```
 ios/iphone-6.3/1-<screen>.png …   ios/iphone-6.9/… ios/iphone-6.5/… (optional)   ios/ipad-13/… (iPad apps)
 ios/app-icon-1024.png             ios/app-preview.mp4
+ios/creative/header-5244x2950.png ios/creative/search-3840x2560.png  (optional)
 android/play-icon-512.png         android/feature-graphic.png
 android/phone/1-<screen>.png …    android/tablet-7/… android/tablet-10/… (optional)
 android/promo-video.mp4           (uploaded to YouTube; Play takes the link)
