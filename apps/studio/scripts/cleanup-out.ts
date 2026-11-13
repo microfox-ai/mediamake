@@ -34,6 +34,7 @@ import {
   DIRS, KINDS, LAYOUT, REPO, danglingLinks, fromRepoPath, fromStudio, isHeavy, isProtected, kindOf, productionDirs, productionNames, rebuildableDirs, repoPath, studioPath,
   type Kind,
 } from './paths.ts';
+import { commandLines } from './library/sys.ts';
 
 const args = process.argv.slice(2);
 const flags = args.filter(a => a.startsWith('--'));
@@ -95,9 +96,9 @@ const tracked = new Set(
 
 /** Processes that may be using temp bundles (renders, stills, Studio) or .next (the dev server). */
 const running = () => {
-  const lines = execFileSync('ps', ['-axo', 'command='], { maxBuffer: 1 << 26 }).toString().split('\n');
-  const rendering = lines.filter(l => /remotion (render|studio|still|bundle)|scripts\/(render|stills|wave-lab|thumbs|brand|logos|lyric-shorts|remix|shorts)\.ts/.test(l));
-  const serving = lines.filter(l => /next dev|next-server|next\/dist\/bin\/next/.test(l));
+  const lines = commandLines();
+  const rendering = lines.filter(l => /remotion (render|studio|still|bundle)|scripts[\\/](render|stills|wave-lab|thumbs|brand|logos|lyric-shorts|remix|shorts)\.ts/.test(l));
+  const serving = lines.filter(l => /next dev|next-server|next[\\/]dist[\\/]bin[\\/]next/.test(l));
   return { rendering, serving };
 };
 
