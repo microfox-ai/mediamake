@@ -11,6 +11,7 @@
  *        mm thumbs keep <job> B2            (lock thumbnails the user likes as they are)
  *        mm thumbs pick <poster-job> A3 [--to=<release folder>]   (the cover; --to also copies it there as cover.jpg)
  *        mm thumbs canvas <poster-job>      (the Spotify Canvas loop → out/posters/<job>/canvas/remotion.mp4)
+ *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
  *
  *   init     makes the job folder; with --brand copies the brand's logos, fonts and thumbnail
  *            profile (brands/<brand>/graphics/brand/thumbnail.json) into it
@@ -26,6 +27,11 @@
  *            for a poster, the one cover (3000×3000 JPEG) to out/posters/<job>/final/
  *   keep     snapshots IDs into out/thumbnails/<job>/kept/ (image + resolved spec); render then
  *            leaves them alone and warns if their spec has changed since
+ *   inspire  references for a kind of channel or one video (thumbnails/tools/inspire.py): lists each
+ *            channel's recent videos (yt-dlp, no key), scores them by views ÷ the channel's own
+ *            median, and keeps its hits and misses' thumbnails: filed in the media library
+ *            (references/youtube-thumbnails-<set>) and laid out as a labelled sheet and a review set
+ *            in out/thumbnail-inspiration/inspire-<set>/ (/file-revision?job=inspire-<set>)
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -42,6 +48,7 @@ import { TREATMENTS } from '../thumbnails/treatments.ts';
 import { features, pickTreatments, scoreTreatments } from '../thumbnails/look.ts';
 import { type ExposureFile, MOODS, type Mood, type Stats, fixFor, levelsFor, curve, summarize } from '../thumbnails/exposure.ts';
 import { DIRS, repoPath, shown } from './paths.ts';
+import { hasConfig, loadConfig } from './library/config.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JOBS = DIRS.thumbnailJobs;
@@ -582,9 +589,43 @@ const canvas = async () => {
   done(out);
 };
 
+/**
+ * References for a kind of channel (or one video's nearest channels): every channel's hits and
+ * misses by views ÷ its own median, filed in the media library when there is one
+ * (references/youtube-thumbnails-<set>) and laid out as a sheet and a /file-revision set.
+ */
+const inspire = () => {
+  const handles = args.filter(a => !a.startsWith('--')).slice(2);
+  if (!handles.length && !flag('search')) throw new Error('Usage: thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]');
+  if (spawnSync('yt-dlp', ['--version']).status !== 0) throw new Error('thumbs inspire lists videos with yt-dlp: install it first (brew install yt-dlp, or pipx install yt-dlp)');
+  const set = job.replace(/^inspire-/, '');
+  const dir = path.join(DIRS.out, 'thumbnail-inspiration', `inspire-${set}`);
+  const lib = hasConfig() ? loadConfig() : null;
+  const subject = `youtube-thumbnails-${set}`;
+  const filed = lib ? path.join(lib.root, 'references', subject) : path.join(dir, 'downloads');
+  const dest = lib ? path.join(lib.inbox, 'youtube-thumbnails', set) : filed;
+  const py = (...a: string[]) => {
+    const r = spawnSync('uv', ['run', '--quiet', '--with', 'pillow', 'python', 'thumbnails/tools/inspire.py', ...a], { cwd: ROOT, stdio: 'inherit' });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+  };
+  py('grab', `--dir=${dir}`, `--dest=${dest}`, `--have=${filed}`, ...flags.filter(f => /^--(winners|losers|search|limit)=/.test(f)), ...handles);
+  if (lib && fs.existsSync(dest) && fs.readdirSync(dest).some(f => f.endsWith('.jpg'))) {
+    // the library's rule: downloads land in the inbox, ingest files them
+    const r = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', 'scripts/media.ts', 'ingest', dest, '--kind=references', `--subject=${subject}`, `--tags=youtube-thumbnail,${set}`], { cwd: ROOT, encoding: 'utf8' });
+    if (r.status !== 0) {
+      console.error(`${r.stdout}\n${r.stderr}`.trim());
+      process.exit(r.status ?? 1);
+    }
+    console.log(`✔ filed in the media library: references/${subject}`);
+  }
+  py('board', `--dir=${dir}`, `--from=${filed}`, `--location=${rel(dir)}`, ...flags.filter(f => f.startsWith('--title=')));
+  done(path.join(dir, 'sheet.jpg'));
+  console.log(`Review: https://mediamake.microfox.app/file-revision?job=inspire-${set}`);
+};
+
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas <job> …');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -594,6 +635,7 @@ const main = async () => {
   else if (cmd === 'pick') pick();
   else if (cmd === 'keep') keep();
   else if (cmd === 'canvas') await canvas();
+  else if (cmd === 'inspire') inspire();
   else throw new Error(`Unknown command ${cmd}`);
 };
 

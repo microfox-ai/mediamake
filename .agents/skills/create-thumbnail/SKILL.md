@@ -1,6 +1,6 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript), built to be clicked: a giant word, a big lit subject, a simplified background and one accent colour, the channel's logo(s) placed where they strike, fonts chosen with care. It first shows a concept board of 6–8 genuinely different ideas (benchmarked side by side with the user's reference thumbnails at feed size), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / lyric video", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", or asks for a brand's thumbnail template or more thumbnail options for a job under thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make YouTube thumbnails (1280×720) in Remotion for any kind of channel (tech reviews, tutorials, explainers, documentaries, finance, gaming, cooking, travel, podcasts, fitness, news, music and edits) from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript). It reads three things first (what the video is about, what kind of video it is, whose channel it is on), works from that kind's playbook of what its hit thumbnails share (researched from leading channels' hits and misses), and pulls fresh references for a video on demand (mm thumbs inspire) when a kind is new or a board did not land. It first shows a concept board of 6–8 genuinely different ideas (benchmarked at feed size beside real hits of the kind), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / tutorial / podcast / review", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", "find thumbnail inspiration for <kind of channel>", or asks for a brand's or series' thumbnail template or more thumbnail options for a job under thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: pack-brand-kit
 ---
@@ -11,6 +11,8 @@ Thumbnails are built with the engine in `apps/studio/thumbnails/` (committed). *
 `thumbnails/README.md` once**: it has the spec format, the presets and the layers. Each job is a
 folder `thumbnails/jobs/<job>/` with one `thumbs.json`; renders go to `out/thumbnails/<job>/`.
 Jobs, renders and the inspiration folder are gitignored; commit engine changes only when asked.
+`playbooks/` holds one page per kind of channel (what its hit thumbnails share, and archetypes for
+the board): read the one for the video's kind, not all of them.
 
 **Keep it cheap.** A thumbnail is a preset plus a few params, so a whole job of 12 is one
 `thumbs.json` of ~80 lines and one 10-second render. Don't read the engine's source to make a
@@ -22,37 +24,53 @@ the labelled sheet rather than single files, and while iterating render only the
 idea — then **3 variants of each concept the user picks** (A2, A3 …). The user can ask for more or
 fewer; follow that.
 
-## What makes people click (read before designing)
+## The three reads (before anything else)
 
-Reworked on 2026-10-31. The user: "the thumbnail skill is comparatively better, but only
-comparatively; the youtube thumbnails I have given as reference or the ones out there in real world
-are much more click baity, attractive, ours is not up to the mark." Side by side, the Devil in the
-Details set was frames of the video with a small word on them; the references (`thumbnails/
-inspiration/`, 13 anime / motivation edits: ENDLESS BLADE, YOU'RE WRONG, RELEASE THE BEAST, ITACHI,
-I CAN, JUST GRIND, MONSTER OF GOD, URAHARA, GOAT, UNSTOPPABLE, ATOMIC, MONSTER) share these, and every
-thumbnail must pass them:
+A thumbnail is made of three things, and all three are read before a word is designed:
 
-1. **One giant word.** The hero word spans **60–100 % of the frame width** (≥ 770 px of 1280) or is
-   at least a third of its height, in a heavy or striking face. Ours ran 25–35 % and read as a caption.
-2. **A big, lit subject.** The face or figure fills at least half the frame height; the face is lit
-   (a rim of light, glowing eyes, a hard key light) against darkness, close enough that the
-   expression reads at 168 px wide. A mid shot with the face small doesn't sell.
-3. **A simplified background.** Dark, blurred, one flat colour field or one graphic shape (a red moon,
-   lightning, rain). Never the video's interface — its bottom wave, lyric type, busy rings — unless
-   that element *is* the hook. Recompose: plate + cutout, blur or darken the rest.
-4. **One dominant hue and one accent.** A near-monochrome picture (black and white, deep blue, black
-   and red) and one saturated accent (the word, the eyes, a moon). Red word on a red picture has no
-   accent: grade the picture away from the accent first.
-5. **The word and the subject interlock.** The subject in front of part of the word (still readable),
-   or the word across the lower third over the subject's body, or split either side of the head —
-   word and picture are one composition, not a label on a photo.
-6. **Three tiers of type, sparingly.** A small tracked kicker, the giant word, a sub in a contrasting
-   voice (script, serif italic, wide tracked caps). Most references use two tiers; none uses more
-   than three.
-7. **A question in the picture.** A gaze into the lens, a masked or half-hidden face, glowing eyes, a
-   clenched fist, a weapon — something that makes the viewer want the story.
-8. **Readable in the feed.** At 168×94 (phone feed) the word and the face still read; at 360×202
-   (desktop) the kicker may blur.
+1. **The video's subject**: what it is about and the one thing at stake in it (a product, a claim,
+   a place, a person, a result). It becomes the hero and the words.
+2. **The video's kind**: review, tutorial, explainer, documentary or essay, finance, gameplay,
+   recipe, travel vlog, podcast or interview, fitness, news or commentary, music or edit. It picks
+   the **playbook** (`playbooks/README.md` lists them): what the hero usually is, how many words,
+   which type voices, bright or dark, which devices, and 7–8 archetypes for the board.
+3. **The channel**: its brand (a `thumbnail.json`?), its series frame, its last thumbnails, who
+   watches it and which channels it sits beside in the feed. It sets the frame, the fonts and
+   colours, and what "different enough to notice" means.
+
+Write the three as the first line of `brief.md` ("tech review · a folding phone after 30 days ·
+Desk Notes: calm studio look, no host on camera") and **read that kind's playbook before
+sketching**. A video between two kinds reads both. No playbook for the kind, the user names
+channels they admire, or the board did not land: `mm thumbs inspire` (see "Inspiration on demand").
+
+## What makes people click (every kind)
+
+From YouTube's own guidance and the 2026-11-14 research (550 thumbnails over ten kinds, each
+channel's hits against its own misses: `playbooks/README.md`). Every thumbnail passes these; the
+playbook adds its kind's own.
+
+1. **One idea, read in a glance.** The one thing that separated hits from misses in every kind was
+   how fast the idea reads small. One hero, at most three elements, and at 168×94 (a phone's feed)
+   you can still say what the video is.
+2. **Show the subject itself.** The product, the dish, the place, the guest, the game's character,
+   the map: not a host talking about it. Misses are thumbnails about nothing concrete.
+3. **The hero is what this kind's viewer looks for**, and it is not always a face: a face is on
+   two thirds of hits and of misses alike, and leads only 30 % of hits. See the playbook.
+4. **Big.** Whatever leads (object, face, word, number) takes at least half the frame's height or
+   60 % of its width. A hero at a quarter of the frame is a caption on a photo.
+5. **Few words, and only words that add.** None to three for most kinds (a podcast's claim and a
+   finance explainer's question run longer). The thumbnail asks, reacts or proves and the title
+   tells; repeat the title only where search needs the name (a tool, a dish, a country, a game).
+6. **The hero comes off its ground**, bright or dark: by brightness, a clean field, a rim of light,
+   an outline or depth of field. A bright ground is as right as a dark one (tech, food, travel).
+7. **One accent colour**, used once or twice: the word, an arrow, a plate, the product itself.
+8. **A promise the video keeps.** YouTube picks a Test & Compare winner by watch-time share, and
+   its policy bars thumbnails that show what is not in the video: the real product, real numbers,
+   the guest's real words.
+9. **The channel's frame when it has one** (a badge, an episode number, a plate style, a corner):
+   same place every time, so the viewer knows whose video it is (see "Series").
+10. **Clear of YouTube's own marks**: nothing that matters in the bottom-right corner (the video
+    length) or the bottom 24 px (the progress bar).
 
 ## First: check the MCPs
 
@@ -73,8 +91,10 @@ session), or go ahead without it.
 Collect with `AskUserQuestion` (put the recommended option first; skip what the request or the
 folder already answers and say what you assumed):
 
-1. **The video:** title, what it is about, who it is for, the one feeling it should leave. Ask for
-   the **transcript** if they have one (optional; save it as `input/transcript.txt`).
+1. **The video and its kind:** title, what it is about, who it is for, the one feeling it should
+   leave, and **what kind of video on what kind of channel** (the three reads above; say which
+   playbook you took it to be). Ask for the **transcript** if they have one (optional; save it as
+   `input/transcript.txt`).
 2. **The picture:** their image(s) (best), frames from the video, a concept to generate, or a
    type-only thumbnail. See step 2.
 3. **The channel and its logo(s):** which channel (a brand under `brands/`?)
@@ -95,8 +115,11 @@ folder already answers and say what you assumed):
    or fonts they hate. Names often mean a family: "Nova" is Google's Nova Square, Cut, Flat,
    Round, Oval, Slim, Script and Mono. Check the names on Google Fonts, and say what you took the
    name to mean. Their choice **overrides the brand's fonts** for this job (the logo stays).
-6. **Taste:** moods or colours they want or hate, anything from earlier thumbnails. Point them at
-   `thumbnails/inspiration/` (their references) if it exists, and read it yourself.
+6. **Taste and references:** moods or colours they want or hate, anything from earlier thumbnails,
+   and **channels whose thumbnails they admire or compete with** (then `mm thumbs inspire <job>
+   @channel…` shows those channels' hits and misses before the board). Point them at the kind's
+   review set (`/file-revision?job=inspire-<kind>`) or `thumbnails/inspiration/` when there is one,
+   and read what they marked.
 
 Questions 3a, 4 and 5 are asked even when everything else is already answered (put them in the
 same `AskUserQuestion` call as the rest). Write the answers into `jobs/<job>/brief.md` (`init` makes a
@@ -120,6 +143,25 @@ In order of preference:
   (`apps/studio/scripts/library/README.md`).
 - **No picture:** the `poster` preset (type is the picture).
 
+**What the hero can be** (the playbook says which the kind expects):
+
+| hero | the picture it needs | built with |
+|---|---|---|
+| a face or a person | one sharp, lit frame with a real expression; a cutout | `side`, `behind`, `lower`, raw layers |
+| an object or product | the real thing, studio-clean; a cutout with room around it | cutout on a `fill`, a `glow`, a price `text` |
+| a place | the trip's own best frame, level and bright | full `photo`, a top line, an arrow or ring |
+| a screen | a real screenshot cropped to one control | `image` with `radius` and `shadow`, an arrow |
+| a number or a price | none: the figure is the picture | giant `text`, a plate, the thing it measures small |
+| two faces (interview, versus) | two portraits with the same crop and grade | two `photo` boxes, a centre `text`, plates |
+| before / after, A vs B | two frames with the same pose and light | two `photo` boxes, a split line, a label each |
+| a character, drawn or from a game | key art or the sharpest captured frame | full `photo` or cutout, the game's logo |
+| a map or a diagram | drawn for the thumbnail, 3–5 elements | SVG `image` or a job `custom/` component |
+| type only | none | `poster`, or raw `text` on a `fill` |
+
+A real thing is shown as it is (the reviewed product, the place visited, the guest): generated
+pictures are for concepts, invented scenes and backgrounds, never a stand-in for the real subject
+or a real person's face.
+
 Put pictures in `input/`. For anything that goes behind or in front of words, make a cutout:
 
 ```bash
@@ -140,8 +182,9 @@ from the lyrics or transcript may still go in as a small sub line.
 
 **Otherwise** the thumbnail and the title work together: **the words should not repeat the
 title.** From the title, the brief or the transcript, find the one thing that makes someone
-click (a claim, a feeling, a stake, a name) and say it in **1 to 3 words**, plus at most a small
-kicker and a sub line. Read the transcript for the moment with the most emotion or the biggest claim; quote its
+click (a claim, a feeling, a stake, a name, a number) and say it in **as few words as the kind
+uses** (the playbook's count: none for a product or a dish that speaks for itself, 1 to 3 for most,
+a 4–8 word claim in sentence case for a podcast), plus at most a small kicker and a sub line. Read the transcript for the moment with the most emotion or the biggest claim; quote its
 strongest word if it lands. Offer different word choices across variants: they are the cheapest
 and strongest thing to A/B test.
 
@@ -172,35 +215,53 @@ font-choosing skill is listed (e.g. `font-choose`), invoke it with the video's t
 and the brand, and use what it returns. Otherwise choose yourself:
 
 - A **brand's fonts** first, when the channel has a brand (its rules say where each goes).
-- Otherwise pick per style from Google Fonts by the feeling, and **try at least two families
-  across the variants** of a style. Starting points that work at thumbnail size:
+- Otherwise pick per style from Google Fonts by the voice the kind and the video call for, and
+  **try at least two families across the variants** of a style. Starting points that work at
+  thumbnail size:
 
-| feeling | hero fonts | kicker / sub |
-|---------|------------|--------------|
+| voice (where it fits) | hero fonts | second voice |
+|---|---|---|
+| clean, tech (reviews, tutorials, products) | Inter Tight 900, Manrope 800, Sora 800, Plus Jakarta Sans 800, Geist 900, Space Grotesk 700, Figtree 900, Onest 900 | Inter, DM Sans; thin wide-tracked caps |
+| friendly explainer (education, how-to) | Poppins 800, Montserrat 900, Outfit 800, Nunito 900, Lexend 800, Red Hat Display 900, Bricolage Grotesque 800 | Caveat 700, Patrick Hand |
+| code (developer tutorials) | JetBrains Mono 800, Space Mono 700, IBM Plex Mono 700, Fira Code 700 | Silkscreen 700, Pixelify Sans 700 (a pixel sub line) |
+| editorial, documentary (essays, history, a science question) | Playfair Display 900, DM Serif Display, Fraunces 900, Bodoni Moda 900, Instrument Serif, Newsreader 800, Libre Baskerville 700, EB Garamond 800 | Special Elite, Courier Prime 700 (case-file labels); Montserrat 600 tracked |
+| news, finance | Archivo Black, Archivo 900, Libre Franklin 900, Barlow 900, Roboto Condensed 900, IBM Plex Sans Condensed 700, Fjalla One | Roboto Slab 900, Zilla Slab 700 (a ticker line) |
+| tall, punchy (any loud headline) | Anton, Bebas Neue, League Gothic, Oswald 700, Big Shoulders Display 900, Barlow Condensed 800, Saira Extra Condensed 900, Antonio 700, Sofia Sans Extra Condensed 900 | Montserrat, Inter |
+| podcast, interview | Inter Tight 900, Libre Franklin 900, Archivo 900 (claims in title case); Barlow Condensed 800, Saira Condensed 900, Oswald 700 (names, numbers) | Caveat 700, Instrument Serif (a kicker) |
+| sport, fitness | Anton, Teko 700, Saira Condensed 900, Kanit 900 italic, Exo 2 900 italic, Squada One, Racing Sans One, Russo One | Barlow Condensed 800 |
+| gaming | Rubik 900, Rubik Mono One, Bungee, Lilita One, Chakra Petch 700, Orbitron 900, Black Ops One, Anybody 900; Press Start 2P, Pixelify Sans 700 (retro, block games) | Russo One, Silkscreen |
+| fun, loud (vlogs, challenges, kids) | Luckiest Guy, Bangers, Titan One, Bowlby One, Lilita One, Fredoka 700, Baloo 2 800, Chewy, Sniglet 800, Dongle 700 | Archivo Black |
+| food, lifestyle | Abril Fatface, Yeseva One, Fraunces 900, DM Serif Display, Gloock, Lobster Two 700, Pacifico | Poppins 800, Caveat Brush |
+| handwritten, personal (vlogs, notes, an arrow's label) | Permanent Marker, Rock Salt, Caveat Brush, Caveat 700, Gochi Hand, Patrick Hand, Kalam 700, Shadows Into Light | — |
+| calm, minimal (self-improvement, design, luxury) | Italiana, Tenor Sans, Cormorant Garamond 700, Bodoni Moda 900, Manrope 800 in lower case | thin wide-tracked caps |
+| retro, vintage | Monoton, Righteous, Shrikhand, Alfa Slab One, Rye, Bungee Shade | — |
+| horror, true crime | Creepster, Nosifer, Butcherman, Special Elite, Courier Prime 700 | Bebas Neue |
 | cinematic, epic | Cinzel 900, Playfair Display 900, Marcellus | Cormorant Garamond italic, Montserrat 600 tracked |
 | dark, legendary, demonic | Grenze Gotisch 800, Pirata One, UnifrakturCook, Metal Mania | Montserrat 600 tracked |
-| tall, punchy | Anton, Bebas Neue, League Gothic, Oswald 700, Big Shoulders Display 900 | Montserrat, Inter |
 | wide, modern, motivational | Michroma, Unbounded 900, Syncopate 700, Krona One, Lexend Zetta | wide tracked caps |
 | fast, aggressive | Kanit 900 italic, Archivo Black, Exo 2 900 italic, Russo One | Montserrat 800 |
-| fun, loud (vlogs, challenges) | Luckiest Guy, Bangers, Titan One, Bowlby One, Lilita One | Archivo Black |
-| handwritten, personal | Permanent Marker, Rock Salt, Caveat Brush | — |
-| Telugu / Hindi | Dhurjati, Ramabhadra, Suranna / Teko, Rozha One, Khand | Noto Sans Telugu / Devanagari |
+| Telugu / Hindi / Tamil / Bengali | Dhurjati, Ramabhadra, Suranna / Teko, Rozha One, Khand, Baloo 2 800, Mukta 800, Hind 700 / Noto Sans Tamil 900 / Noto Sans Bengali 900 | Noto Sans of the script |
+| Japanese / Korean / Arabic | Dela Gothic One, Reggae One, RocknRoll One, Noto Sans JP 900 / Black Han Sans, Do Hyeon / Cairo 900, Tajawal 900 | Noto Sans of the script |
+
+Every family above is on Google Fonts at the weight given (checked 2026-11-14). The kind's playbook
+names which voices its hits use; a voice from another row is a way to stand out, on purpose.
+Sentence or title case is right where the words are something a person said (a podcast's claim, a
+question in a serif); caps for labels, orders and names.
 
 List every family and weight in `thumbs.json` `fonts`; `render` downloads them into the job and
 warns about a layer using a font that isn't listed (it would fall back to a system font).
 
 ## 6. Styles and variants
 
-**The concept board: 6–8 styles that are genuinely different ideas** (composition, device, mood,
-crop), not one layout in several colours, each passing the click list above. Draw them from the
-reference archetypes: giant word behind the subject (GOAT, URAHARA) · word across the lower third
-over a big figure (MONSTER OF GOD, UNSTOPPABLE) · extreme close-up of the eyes with a side word
-(ENDLESS BLADE) · subject on a flat colour field or one shape (ITACHI's moon) · monochrome with one
-accent (YOU'RE WRONG, JUST GRIND) · energy effects around the subject (RELEASE THE BEAST) · a split
-or mirrored composition. Show the board (step 7), the user picks 2–4, then each picked concept
-gets **three variants** that change the things worth testing: the words, the font, the colour or
-grade, the crop, the logo spot. Give every style a `name` and an `idea`, and every variant a short
-`note`: the sheet prints them.
+**The concept board: 6–8 styles that are genuinely different ideas** (composition, hero, device,
+mood, crop), not one layout in several colours, each passing the click list above. **Draw them from
+the archetypes in the kind's playbook** (each lists seven or eight, with the channels that use
+them), and let at least one come from outside the kind: a quiet one on a loud kind's board, a
+type-only one, the channel's own signature moment. Show the board (step 7), the user picks 2–4,
+then each picked concept gets **three variants** that change the things worth testing: the words,
+the font, the colour or grade, the crop, the logo spot. Give every style a `name` and an `idea`,
+and every variant a short `note`: the sheet prints them. A pick straight from the board ends the
+round: no forced variants.
 
 Build from presets first (README), then `patch` / `add` / `remove`, then raw `layers`, and only
 as a last resort a `custom/` component. Treatments (`"treatment": "film"`, see the README) give a whole
@@ -209,27 +270,18 @@ square album artwork. When a new look works and could serve other videos,
 promote it into `thumbnails/presets/` (an engine change: keep it additive, re-render the demo jobs
 to check nothing else moved, and add it to the README table).
 
-What makes a thumbnail work (from the user's references, Oct 2026):
+Composition rules that hold in every kind (the music and edit rules, the giant word behind the
+subject and the rest, are in `playbooks/music-edit.md`):
 
-- **One dominant hue + contrast.** Grade the picture (`grade`: punch / dark / mono / duotone) and
-  let one saturated accent carry the eye (a red word, a red moon, a red bar). Saturated
-  colour against dark, or dark against a saturated field.
-- **The subject is the hero; the word is the second hero.** Big, heavy or striking type, often
-  across the full width.
-- **Words behind the subject** (`behind`): the cutout may hide part of the word, but **the word
-  must still read**: put it where the subject is narrowest (head and neck height, usually `y:
-  top`), keep the hidden part to about a third at most, and prefer words people can complete
-  (a name, a common word). If shoulders cover the middle, move the word up, zoom the hero out, or
-  use another style.
-- **Three-tier type:** a small, widely tracked kicker ("THE NAME MEANS", "I AM THE"), the hero
-  word, and a sub in a contrasting voice (serif italic, script, or wide tracked caps), or an
-  accent word spread between the lines (`overlay`). Thin tracked labels are only ever supporting
-  lines next to a heavy hero, never alone.
-- **Text on the calm side.** Subject on one side, words on the other (`side`), or the words in
-  the darkened lower third (`lower`).
-- **Faces and eyes stay clear** of words and logos.
-- **Readable at feed size:** the hero word must read in `sheet-small.jpg` (tiles ~250 px wide,
-  the size of YouTube's feed). Kickers may blur there; the hero may not.
+- **Text on the calm side.** Subject on one side, words on the other (`side`), or the words in a
+  darkened or clean band (`lower`); a stacked block sits centred top to bottom with equal gaps.
+- **Faces, eyes and the product stay clear** of words, plates and logos.
+- **Devices are drawn thick**: an arrow, a ring, an underline or a plate reads at 168 px only when
+  its stroke is ≥ 10 px on the 1280 canvas. One or two a thumbnail.
+- **Labels sit on what they name**: a price over its product, a year over its panel, a country
+  over its place.
+- **Readable at feed size:** the hero must read in `sheet-small.jpg` (tiles ~250 px wide, the
+  size of YouTube's feed). Kickers may blur there; the hero may not.
 
 ## 7. Render, check, show
 
@@ -244,11 +296,14 @@ Fix every warning `render` prints. Then **look at `out/thumbnails/<job>/sheet.jp
 cutout), faces are clear, nothing clips the frame edge, the logo sits in calm space, the styles
 really differ.
 
-**Benchmark against the references** every round: tile our thumbnails with 4–6 of the user's
-references (`thumbnails/inspiration/`, or ones they sent for this channel) at feed size (168×94 and
-360×202, ffmpeg `xstack`) and read it honestly. Measure the hero word's width (≥ 60 % of the frame)
-and the face's size; check one accent colour. If ours wouldn't be clicked over theirs, rework before
-showing — don't hand the user the comparison to do. Fix and re-render those IDs.
+**Benchmark against real hits of the kind** every round: tile our thumbnails with 4–6 hits from
+the kind's reference set (`mm media find "youtube-thumbnail <kind>" --kind=references`, or
+`out/thumbnail-inspiration/inspire-<kind>/`), or the user's own references for this channel
+(`thumbnails/inspiration/`), at feed size (168×94 and 360×202, ffmpeg `xstack`) and read it
+honestly. Check the click list: one idea, the hero's size, the word count, one accent, the hero
+off its ground. If ours wouldn't be clicked over theirs, rework before showing — don't hand the
+user the comparison to do. Fix and re-render those IDs. Match their standard, never their design:
+a thumbnail that could be mistaken for another channel's is a copy.
 
 Then send the user `sheet.jpg` (SendUserFile), list the IDs with one line each, and give them the
 `/file-revision?job=<job>` link (the `revise-image` skill). They pick **one
@@ -271,6 +326,53 @@ up to three) and comment there, or give feedback by ID in chat; both work.
 - **Three finals → three titles.** When they pick three for the A/B test, the video also gets three
   YouTube titles, one written for each thumbnail (it adds what that thumbnail doesn't say);
   `write-youtube-metadata` writes them (its step 3).
+
+## Series
+
+A show, a course or a podcast has a **frame** that never moves and a **slot** that changes every
+episode. Decide the frame once with the user and put it in the brand's `thumbnail.json` `rules`
+(or the job's `brief.md` when there is no brand): the badge or logo and its corner, where an
+episode number sits and how it is set, the plate style and the accent colour, which side the host
+is on. Every episode then changes only the slot: the subject, the words, the highlighted word.
+
+- The frame is small (under a fifth of the picture) and in the same place on every episode.
+- Inside it, **each episode still gets a layout made for its own story**: the frame is the
+  channel's signature, not last week's composition reused.
+- First episodes, part 1s and openers are the series' most-clicked thumbnails: they carry the
+  series' name large. Later episodes carry the episode's own hook large and the name small.
+
+## Inspiration on demand
+
+The playbooks are a start, not a ceiling. Pull fresh references whenever one of these holds:
+
+- the video's kind has **no playbook**, or sits in a corner of one (a woodworking channel, a
+  language-learning channel, a chess channel);
+- the user **names channels** they admire or compete with;
+- a **board did not land** ("none of these", "not good enough", "find better inspiration"): do
+  this before a second board, not after a third.
+
+```bash
+mm thumbs inspire <set> @channel @channel …        # each channel's hits and misses (views ÷ its median)
+mm thumbs inspire <set> --search="<what a viewer would type>"   # the most-viewed results for a search
+```
+
+It needs yt-dlp (no key) and takes a minute: the thumbnails are filed in the media library
+(`references/youtube-thumbnails-<set>`), and `out/thumbnail-inspiration/inspire-<set>/` gets a
+labelled `sheet.jpg` and a review set. Then:
+
+1. **Find the channels**: 3–5 that make this kind of video for this audience, large and mid-size
+   (the user's suggestions first; a web search or `--search` for the rest).
+2. **Read the sheet yourself**: what do the hits show that the misses don't; what is the hero; how
+   many words; which devices; what frame does each channel keep. Write five lines in `brief.md`.
+3. **Let the user mark it** when taste is the question: send the sheet and
+   `https://mediamake.microfox.app/file-revision?job=inspire-<set>` ("mark the ones you like"),
+   and build the next board from what they marked.
+4. For design ideas beyond YouTube (type treatments, poster layouts, colour), Pinterest and
+   Dribbble through Browse Hack's bulk tabs, into the library the same way.
+5. A kind that comes back gets its own playbook (a pull request; `playbooks/README.md` says how).
+
+References set the standard and the vocabulary. They are other people's work: never copy a
+layout whole, never reuse their pictures, never commit or publish them.
 
 ## Brands
 
@@ -329,3 +431,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-11 · Doomcat Shorts: 'create with jensen picture in the thumbnail somewhere, cat still stays predominant' → the subject as a ringed portrait (≈30% of the frame's width, face centred) in the free corner of the host's disc; the host stays the biggest thing
 - 2026-11-11 · Doomcat Shorts, revised: 'all thumbnails look bad … jensen … it is the hook … put cat smaller at bottom center and put the jensen at center circle (use cutouts)' → the story's subject cut out big in the centre disc as the hook, the host smaller in front at the bottom centre (not a small portrait in a corner)
 - 2026-11-12 · Final Showdown: 'no text in thumbnail' then 'i need youtube thumbnail with jiren in background image' → for a character poster, the no-text set includes the character's name-letters as art behind him (art + letters + cutout from the full-res layers), close and wide crops
+- 2026-11-14 · skill · "most of the thumbnails we designed is for music and song … it will not suit other kind of channels … the thumbnail is core to 3 things - the type/content/stuff of video, the type/style of video, the type/content/context of channel … search for better thumbnail inspiration if user is not satisfied … add more fonts" → the three reads; a playbook per kind of channel (`playbooks/`, from 550 hits and misses of 50 leading channels over ten kinds, plus news); `mm thumbs inspire` for references on demand; heroes beyond a lit face (object, place, screen, number, two faces, before/after, character, map); the font table by voice (21 rows, every family checked on Google Fonts); series frames. The music and edit rules moved to `playbooks/music-edit.md` unchanged. Finding that reshaped the click list: faces, words and dark grounds are as common on misses as on hits; what differs is how fast one concrete idea reads small.
