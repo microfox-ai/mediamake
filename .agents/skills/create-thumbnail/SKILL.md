@@ -243,7 +243,12 @@ and the brand, and use what it returns. Otherwise choose yourself:
 | Telugu / Hindi / Tamil / Bengali | Dhurjati, Ramabhadra, Suranna / Teko, Rozha One, Khand, Baloo 2 800, Mukta 800, Hind 700 / Noto Sans Tamil 900 / Noto Sans Bengali 900 | Noto Sans of the script |
 | Japanese / Korean / Arabic | Dela Gothic One, Reggae One, RocknRoll One, Noto Sans JP 900 / Black Han Sans, Do Hyeon / Cairo 900, Tajawal 900 | Noto Sans of the script |
 
-Every family above is on Google Fonts at the weight given (checked 2026-11-14). The kind's playbook
+Every family above is on Google Fonts at the weight given (checked 2026-11-14). A specimen of them
+all at a hero word's width was read at feed size the same day: the thin and the decorated ones
+(Rock Salt, Shadows Into Light, Italiana, Tenor Sans, Monoton, Bungee Shade, Nosifer) hold only as
+one short word across the full width, never as a three-word line or a label; everything else reads
+as a 2–3 word hero. To re-check a new family, add it to a throwaway job's text layer and look at
+`sheet-small.jpg`. The kind's playbook
 names which voices its hits use; a voice from another row is a way to stand out, on purpose.
 Sentence or title case is right where the words are something a person said (a podcast's claim, a
 question in a serif); caps for labels, orders and names.
