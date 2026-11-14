@@ -1,0 +1,1 @@
+Patch your WordPress sites to 7.1.4 today, because attackers are already exploiting this core bug in the wild.

@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: assemble-from-real-drafts
+expected_outcome: |
+  One clean, human-sounding paragraph built from the drafts that keeps every fact of the original (valid key, older default config, restart sshd), has none of the drafts' deliberate typos or added claims, and says what was restored.
+context:
+  scaffold_script: place-files.sh

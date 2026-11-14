@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: tags-narration-script
+expected_outcome: |
+  A script file ready for the voice tool (mm voice): the Techyon narrator's voice id, the newest model, the
+  narration's own wording split into lines with a few fitting audio tags each, numbers written as spoken, no SSML,
+  and the price from a dry run, with no audio generated.
+context:
+  scaffold_script: place-files.sh

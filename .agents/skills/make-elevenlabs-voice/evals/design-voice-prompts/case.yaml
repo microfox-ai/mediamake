@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: design-voice-prompts
+expected_outcome: |
+  Two or three distinct voice-design prompts written in the recipe's order, sample text of 100-1,000 characters in
+  the channel's calm style, the cost and the next steps (text_to_voice, compare, create_voice_from_preview, record
+  in the registry), with nothing created.

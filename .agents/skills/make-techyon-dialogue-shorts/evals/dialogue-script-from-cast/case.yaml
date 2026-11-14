@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: dialogue-script-from-cast
+expected_outcome: |
+  A dialogue script.json where Maya asks and Dev explains in short alternating turns (with reactions, an
+  interruption and sparing fillers, about 90 words or fewer), every fact from the explainer with vendor claims
+  labelled, the cast's voices on eleven_v4 at 0.35, a voice script or dry-run price with no credits spent, a
+  scene plan that leaves room for the avatars, and a description saying the characters are AI.
+context:
+  scaffold_script: place-files.sh

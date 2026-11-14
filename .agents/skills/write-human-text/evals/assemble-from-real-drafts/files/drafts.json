@@ -1,0 +1,36 @@
+{
+ "ok": true,
+ "wordsIn": 40,
+ "draftsWanted": 3,
+ "drafts": [
+  {
+   "draft": 1,
+   "text": "OpenSSH released a patch this week. Its allow you to bypass a check if you have a valid key and gain shell access to systems with the default configuration. It should be updated on most distro's by now update.",
+   "words": 39
+  },
+  {
+   "draft": 2,
+   "text": "A new patch was released this past week from openssh to fix a vulnerability. An user could use their key to bypass a check and get a shell if they were able to connect to a machine. This would only be possible on machines that have an older version of openssh with the default configuration. Most distros have already patched but make sure to update today.",
+   "words": 66
+  },
+  {
+   "draft": 3,
+   "text": "Openssh released an update this past week to address a vulnerability where you can use your public key to bypass one of there checks and gain a shell. If your using a default config this effects you. Make sure you update. Most distros have released the patch.",
+   "words": 47
+  }
+ ],
+ "settingsUsed": {
+  "model": "Phrasly Ultra",
+  "mode": "Max",
+  "sentences": "Shorter"
+ },
+ "defaults": {
+  "model": "Phrasly Ultra",
+  "mode": "Max",
+  "sentences": "Shorter"
+ },
+ "pageSettingsRestored": true,
+ "runsToday": 10,
+ "ultraToday": 10,
+ "ultraWarnAt": 40
+}

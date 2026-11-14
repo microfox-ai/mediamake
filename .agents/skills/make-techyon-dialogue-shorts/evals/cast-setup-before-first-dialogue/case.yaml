@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: cast-setup-before-first-dialogue
+expected_outcome: |
+  The response notices the channel has no cast yet and starts by setting it up for the user to pick: name
+  options, about three second voices that contrast clearly with Techyon Narrator E (heard in a short exchange
+  with E), and Midjourney face prompts in a few styles with plain backgrounds for the cut-out; nothing is
+  generated before the picks.
+context:
+  scaffold_script: place-files.sh

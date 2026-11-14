@@ -130,3 +130,69 @@ export async function scribe(key: string, file: string, o: ScribeOptions = {}): 
   }
   return (await res.json()) as ScribeResult;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Speech: text to speech and text to dialogue, both "with timestamps" (the make-elevenlabs-voice
+// skill's `npm run voice`). Every character comes back with its start and end, and a dialogue also
+// with the stretch each voice speaks, so captions and avatars can follow the words.
+
+export type Alignment = { characters: string[]; character_start_times_seconds: number[]; character_end_times_seconds: number[] };
+export type VoiceSegment = {
+  voice_id: string;
+  start_time_seconds: number;
+  end_time_seconds: number;
+  character_start_index: number;
+  character_end_index: number;
+  dialogue_input_index: number;
+};
+export type SpeechResult = { audio: Buffer; alignment?: Alignment; normalized?: Alignment; segments?: VoiceSegment[]; requestId?: string };
+
+/** Body of POST /v1/text-to-dialogue/with-timestamps (at most 10 voices, about 2,000 characters a request). */
+export type DialogueBody = {
+  inputs: { text: string; voice_id: string }[];
+  model_id?: string;
+  language_code?: string;
+  settings?: { stability?: number; similarity?: number };
+  seed?: number;
+  previous_text?: string;
+  future_text?: string;
+  previous_request_ids?: string[];
+  next_request_ids?: string[];
+};
+
+/** Body of POST /v1/text-to-speech/{voice_id}/with-timestamps. Request stitching works on eleven_v4, not eleven_v3. */
+export type SpeechBody = {
+  text: string;
+  model_id?: string;
+  language_code?: string;
+  voice_settings?: { stability?: number; similarity_boost?: number; style?: number; use_speaker_boost?: boolean; speed?: number };
+  seed?: number;
+  previous_text?: string;
+  next_text?: string;
+  previous_request_ids?: string[];
+  next_request_ids?: string[];
+};
+
+async function speechCall(key: string, url: string, body: unknown): Promise<SpeechResult> {
+  const res = await fetch(url, { method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const why = await failure(res);
+    throw new Error(res.status === 401 ? `${why}\nThe key was refused: check it at ${KEYS_PAGE} (a restricted key needs Text to Speech allowed).` : why);
+  }
+  const json = (await res.json()) as { audio_base64: string; alignment?: Alignment; normalized_alignment?: Alignment; voice_segments?: VoiceSegment[] };
+  return {
+    audio: Buffer.from(json.audio_base64, 'base64'),
+    alignment: json.alignment ?? undefined,
+    normalized: json.normalized_alignment ?? undefined,
+    segments: json.voice_segments,
+    requestId: res.headers.get('request-id') ?? undefined,
+  };
+}
+
+/** Several voices in one take, with natural turn-taking: POST /v1/text-to-dialogue/with-timestamps. */
+export const textToDialogue = (key: string, body: DialogueBody, format = 'mp3_44100_192') =>
+  speechCall(key, `${API}/text-to-dialogue/with-timestamps?output_format=${encodeURIComponent(format)}`, body);
+
+/** One voice: POST /v1/text-to-speech/{voice_id}/with-timestamps. */
+export const textToSpeech = (key: string, voiceId: string, body: SpeechBody, format = 'mp3_44100_192') =>
+  speechCall(key, `${API}/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=${encodeURIComponent(format)}`, body);

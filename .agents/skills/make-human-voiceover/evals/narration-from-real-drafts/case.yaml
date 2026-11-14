@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: narration-from-real-drafts
+expected_outcome: |
+  A facts list, a humanized text built from the drafts with every fact kept, then a voice script (eleven_v4, stability 0.35, Techyon Narrator E) with natural speech and tags, captions without fillers, and a dry-run price; nothing generated.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,1 @@
+Linux just merged almost twenty thousand commits in two weeks. The usual is about fifteen thousand. And Linus Torvalds says the reason is obvious: AI. About three thousand of those commits are tagged as AI-assisted, two point four times the last release. And Torvalds says he's much happier with that flood landing now than as bug fixes later.

@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: question-script-from-sources
+expected_outcome: |
+  A script.json for a 35-45 s question Short: the hook, settled facts, both sides attributed and of similar
+  length, the question at 60-70 % with 2-3 short neutral choices on a pick-a-side card, a twist, a loop line
+  back into the hook, voice settings for Techyon Narrator E (eleven_v4, 0.35) with tagged lines, no spoken call
+  to comment; and a post.md with a pinned comment that offers the choices and claims no results.
+context:
+  scaffold_script: place-files.sh

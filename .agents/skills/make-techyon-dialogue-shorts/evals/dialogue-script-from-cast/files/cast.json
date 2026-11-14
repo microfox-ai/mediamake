@@ -1,0 +1,33 @@
+{
+ "updated": "2026-11-12",
+ "cast": [
+  {
+   "id": "maya",
+   "name": "Maya",
+   "role": "asks",
+   "persona": "quick, curious, suspicious of hype",
+   "voice": "TESTVOICEmaya000000",
+   "voiceName": "Techyon Asker (Maya)",
+   "color": "cyan",
+   "side": "left",
+   "avatar": {
+    "library": "test",
+    "file": "maya.png"
+   }
+  },
+  {
+   "id": "dev",
+   "name": "Dev",
+   "role": "explains",
+   "persona": "dry, knows the receipts",
+   "voice": "r3CSRNuTBNTuPufjI9Vj",
+   "voiceName": "Techyon Narrator (young American, E)",
+   "color": "yellow",
+   "side": "right",
+   "avatar": {
+    "library": "test",
+    "file": "dev.png"
+   }
+  }
+ ]
+}

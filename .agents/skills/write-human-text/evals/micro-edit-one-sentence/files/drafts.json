@@ -1,0 +1,6 @@
+{"sent": "Deleting the commit doesn't fix it: a leaked key works until it's revoked or rotated. GitGuardian found that more than 64% of valid secrets leaked in 2022 still worked in January 2026.",
+ "drafts": [
+  {"draft": 1, "text": "Getting rid of the commit wont help you, the key that leaked will keep working until someone revokes it or rotates it. GitGuardian seen that over 64% of valid secrets that leaked in 2022 was still working in January 2026."},
+  {"draft": 2, "text": "Deleting the commit doesn't solve anything. A leaked key still works untill its revoked or rotated. According to GitGuardian, more than 60% of secrets leaked in 2022 still worked in early 2026."},
+  {"draft": 3, "text": "Removing the commit is not a fix. That key keeps working as long as nobody revokes or rotates it. GitGuardian says over 64 percent of the valid secrets leaked back in 2022 were still good in January 2026."}
+ ]}

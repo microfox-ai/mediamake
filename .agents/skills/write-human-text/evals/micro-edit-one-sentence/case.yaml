@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: micro-edit-one-sentence
+expected_outcome: |
+  script-final.txt differs from script.txt only in that one sentence, which reads more naturally, keeps its meaning and has no typos; the GitGuardian sentence and everything else are untouched.
+context:
+  scaffold_script: place-files.sh
