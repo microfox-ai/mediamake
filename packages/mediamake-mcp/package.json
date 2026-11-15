@@ -1,6 +1,6 @@
 {
   "name": "@microfox/mediamake-mcp",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "MediaMake's MCP servers: mm-release (admins: the catalog and releases), mm-use (every member: explore, install, usage, feedback) and the old video tools (deprecated).",
   "type": "module",

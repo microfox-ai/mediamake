@@ -1,5 +1,12 @@
 # @microfox/projectsync-mcp
 
+## 0.1.6
+
+### Patch Changes
+
+- 8c9ac73: Changes from PR #565: project-thread-ouw5d4
+- 5b91083: Cloud projects are described as needing a Plus membership or above (the tier that replaced community access).
+
 ## 0.1.5
 
 ### Patch Changes
