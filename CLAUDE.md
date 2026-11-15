@@ -1,5 +1,21 @@
 # MediaMake
 
+## The rule: we publish nothing we don't use
+
+Every skill, MCP and app here is published only after its maker used it for real work. Hold to it in
+every session:
+
+- Before publishing a skill (`publish-skill`), releasing an item or marking one Ready, ask the user
+  which finished production was made with it (its title, and its link when it has one). Never make one
+  up, and never count a test render or a demo as one.
+- With none, don't publish: the skill stays the user's own (in their workspace) and an item stays Beta,
+  until something real is made with it.
+- The production is the item's proof: `node tools/skills.mjs publish <name> --yes --made="…"` puts it in
+  the pull request, and Ready (`catalog_set_readiness`, `npm run catalog -- ready`) records it, shown on
+  the item's page as "Made with this".
+- A pull request that adds or changes a skill, MCP or app names the production in its "Made with this"
+  section (`.github/pull_request_template.md`).
+
 ## Videos: apps/studio and `mm`
 
 Every video is made in `apps/studio` (it was `apps/lyrics_videos` until 2026-11). Its scripts run from

@@ -122,7 +122,14 @@ test('publish: a dry run changes nothing; --yes pushes a branch with the skill l
   const before = checkout();
   assert.match(ok('publish', 'make-demo-like-x'), /can be published[\s\S]*A dry run/);
   assert.equal(checkout(), before);
-  const out = ok('publish', 'make-demo-like-x', '--yes');
+  // the rule: nothing is published without the production made with it
+  assert.match(ok('publish', 'make-demo-like-x'), /We publish nothing we don't use\. --yes needs the finished production/);
+  assert.match(skills('publish', 'make-demo-like-x', '--yes').out, /We publish nothing we don't use\. Name the finished production/);
+  assert.match(skills('publish', 'make-demo-like-x', '--yes', '--made-url=https://youtu.be/x').out, /--made-url needs --made/);
+  assert.match(skills('publish', 'make-demo-like-x', '--yes', '--made=X', '--made-url=soon').out, /--made-url is the production's link/);
+  assert.equal(checkout(), before);
+  const out = ok('publish', 'make-demo-like-x', '--yes', '--made=The X music video', '--made-url=https://youtu.be/x');
+  assert.match(out, /It enters as Beta[\s\S]*--proof "The X music video" --url https:\/\/youtu\.be\/x/);
   const [, branch] = out.match(/on (skill\/make-demo-like-x-\d{8}-\d{4}) /) ?? [];
   assert.ok(branch, out);
   assert.equal(checkout(), before, 'same commit, clean, no worktree or local branch left');
@@ -186,7 +193,7 @@ test('publish onto a base that still commits the registry updates it there', () 
   git(repo, 'worktree', 'remove', '--force', old);
   git(repo, 'branch', '-D', 'old');
   write(path.join(own, 'make-demo-like-z', 'SKILL.md'), '---\nname: make-demo-like-z\ndescription: Z.\nmetadata:\n  variant-of: make-demo\n---\n\n# make-demo-like-z\n');
-  const out = ok('publish', 'make-demo-like-z', '--yes', '--base=old');
+  const out = ok('publish', 'make-demo-like-z', '--yes', '--made=The Z short', '--base=old');
   const [, branch] = out.match(/on (skill\/make-demo-like-z-\S+) /) ?? [];
   git(repo, 'fetch', '--quiet', 'origin', branch);
   assert.ok(JSON.parse(git(repo, 'show', `origin/${branch}:skills.json`)).skills.some(s => s.name === 'make-demo-like-z'));

@@ -4,6 +4,7 @@ import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
 import { AccessActions } from '@/app/(public)/access/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MadeWithThis } from '@/components/catalog/made-with';
 import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
 import { YouTubeEmbed } from '@/components/catalog/video';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
@@ -11,7 +12,7 @@ import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type 
 import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf } from '@/lib/catalog/releases';
-import { accessRequestsDB, catalogArchiveDB, catalogVideosDB } from '@/lib/catalog/store';
+import { accessRequestsDB, catalogArchiveDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import type { CatalogKind } from '@/lib/catalog/types';
 import { registry } from '@/lib/skills/registry';
 
@@ -33,7 +34,7 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
 
 /**
  * An MCP's or an app's own page, the link to share, like a skill's (/skills/<name>): what it is,
- * its intro video, how to install or open it, what it works with, the skills that use it and its
+ * its intro video, what was made with it, how to install or open it, what it works with, the skills that use it and its
  * release notes. Who can see it follows the catalog: a locked item goes to its request-access page,
  * and one hidden from the viewer is not found.
  */
@@ -46,9 +47,10 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
     redirect(`/access?item=${encodeURIComponent(item.id)}`);
   }
 
-  const [video, archived, pendingIds] = await Promise.all([
+  const [video, archived, readiness, pendingIds] = await Promise.all([
     catalogVideosDB.get(item.id).catch(() => null),
     catalogArchiveDB.get(item.id).catch(() => null),
+    catalogReadinessDB.get(item.id).catch(() => null),
     viewer.clientId ? accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => []) : Promise.resolve([] as string[]),
   ]);
   const installable = isInstallable(record);
@@ -126,6 +128,8 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
               {video.description && <p className="whitespace-pre-line text-sm text-muted-foreground">{video.description}</p>}
             </section>
           )}
+
+          <MadeWithThis mark={readiness} />
 
           {uses.length > 0 && <UsesList uses={uses} />}
 

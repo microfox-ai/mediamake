@@ -458,6 +458,14 @@ export function isFailed(item: { health?: ItemHealth }): boolean {
 export type Readiness = 'beta' | 'ready';
 export const READINESS: Readiness[] = ['beta', 'ready'];
 
+/**
+ * The rule MediaMake is run by, in the owner's words. Readiness is how it is
+ * kept: an item is Ready only with a finished production made with it, shown
+ * on its page as "Made with this" (components/catalog/made-with.tsx). Also in
+ * the README, CLAUDE.md, the pull request template and publish-skill.
+ */
+export const RULE = "We publish nothing we don't use.";
+
 /** A finished production made with the item: what makes it Ready. */
 export interface ReadyProof {
   /** What was made, e.g. "The Microfox brand kit". */
@@ -484,6 +492,11 @@ export function withReadiness<T extends { id: string; readiness?: Readiness; rea
     const { readyProof: _proof, ...rest } = item;
     return { ...rest, readiness: 'beta' as const } as T;
   });
+}
+
+/** The productions that make an item Ready, from its mark; none while it is Beta. */
+export function proofOf(mark: ReadinessMark | null | undefined): ReadyProof[] {
+  return mark?.readiness === 'ready' ? (mark.proof ?? []).filter(entry => entry.title.trim()) : [];
 }
 
 /**

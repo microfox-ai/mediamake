@@ -284,6 +284,14 @@ Every item of every kind, ours or made by others, has both, shown as badges:
   link when it has one). An MCP also needs to be shown in use: a skill that
   uses it, or a video on it (`readyProblems`). Marks live in
   `catalog_readiness`. Today every skill is Beta except `pack-brand-kit`.
+  This is how the rule, "We publish nothing we don't use." (`RULE` in
+  `lib/catalog/types.ts`), is kept: every item's page (`/skills/<name>`,
+  `/mcps/<slug>`, `/apps/<slug>`) has a "Made with this" panel
+  (`components/catalog/made-with.tsx`) with the productions of a Ready item,
+  or, for a Beta one, the note that none is on record yet. A skill's
+  production is asked for when it is published
+  (`node tools/skills.mjs publish <name> --yes --made="…"`) and in every pull
+  request (`.github/pull_request_template.md`).
 - **Health** is healthy, inactive, archived or **failed**. Failed needs a
   reason, shown with the item; an admin marks it by hand. Marks live in
   `catalog_health`.

@@ -29,8 +29,9 @@
  *                                                               folder to .agents/skills and links it
  *        node tools/skills.mjs fork <base> <new-name> [--like=<ref>] [--repo]   a variant of a skill,
  *            yours in the workspace (--repo: in .agents/skills of this checkout, on a branch)
- *        node tools/skills.mjs publish <name> [--yes] [--no-push]   one of yours into the repo as a PR
- *            (a dry run without --yes)
+ *        node tools/skills.mjs publish <name> [--yes] [--made="<production>" [--made-url=<link>]] [--no-push]
+ *            one of yours into the repo as a PR (a dry run without --yes). --yes needs --made: the
+ *            finished production made with it, because we publish nothing we don't use
  *        node tools/skills.mjs tidy [--yes]                  drops your copies the repo has now, broken
  *            links in ~/.claude/skills, and moves loose .claude/skills folders into the workspace
  *        node tools/skills.mjs diff <variant> [--stat] [--json]   what the variant changed against its
@@ -130,6 +131,9 @@ export const CATEGORIES = [
   { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference (installed from remotion-dev/skills)', internal: true },
   { id: 'other', about: 'Everything else' },
 ];
+
+/** The rule MediaMake is run by (also RULE in apps/mediamake/lib/catalog/types.ts): publish asks for the production that proves it. */
+export const RULE = "We publish nothing we don't use.";
 
 const args = process.argv.slice(2);
 const flags = args.filter(a => a.startsWith('--'));
@@ -623,7 +627,7 @@ const sameFiles = (a, b) => {
  * merges and you pull.
  */
 const publish = () => {
-  if (!a1) throw new Error('Usage: publish <name> [--yes] [--no-push] [--base=main]');
+  if (!a1) throw new Error('Usage: publish <name> [--yes --made="<production>" [--made-url=<link>]] [--no-push] [--base=main]');
   const skill = find(a1);
   if (skill.moved && !skill.own) throw new Error(`${skill.name} is in the repo already: change it on a branch and a PR`);
   if (allSkills().some(s => s.name === skill.name && s.moved)) throw new Error(`the repo has ${skill.name} already: node tools/skills.mjs tidy drops your copy when they are the same`);
@@ -635,12 +639,20 @@ const publish = () => {
   const base = flag('base') ?? 'main';
   const push = !flags.includes('--no-push');
   const what = skill.variantOf ? `a variant of ${skill.variantOf}` : 'a new skill';
+  // the rule: a skill is published with the finished production that was made with it
+  const made = flag('made')?.trim();
+  const madeUrl = flag('made-url')?.trim();
+  if (madeUrl && !/^https?:\/\/\S+$/.test(madeUrl)) throw new Error(`--made-url is the production's link (https://…), not "${madeUrl}"`);
+  if (madeUrl && !made) throw new Error('--made-url needs --made="<the production\'s title>" with it');
+  const madeLine = made ? `${made}${madeUrl ? ` (${madeUrl})` : ''}` : '';
   if (!flags.includes('--yes')) {
     console.log(`${skill.name} (${what}, ${skill.own ? `yours, in ${tilde(skill.dir)}` : rel(skill.dir)}) can be published.`);
     console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked from .claude/skills, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
     console.log('Every skill in the repo is public on GitHub: read it for anything private first (publish-skill).');
+    console.log(made ? `Made with it: ${madeLine}` : `⚠ ${RULE} --yes needs the finished production made with it: --made="<its title>" [--made-url=<its link>]. Ask the user, never make one up.`);
     return;
   }
+  if (!made) throw new Error(`${RULE} Name the finished production made with ${skill.name}: --made="<its title>" [--made-url=<its link>]. Ask the user; a skill nothing was made with yet stays theirs until something is.`);
   const r = openPr({
     repo: ROOT,
     base,
@@ -648,7 +660,17 @@ const publish = () => {
     branch: `skill/${skill.name}-${stamp()}`,
     title: `skill(${skill.name}): ${what}`,
     message: `Published from ${skill.own ? 'the workspace' : '.claude/skills'} with \`node tools/skills.mjs publish\`.`,
-    body: [`**${skill.name}**, ${what}, published with \`node tools/skills.mjs publish\`.`, '', decode(skill.description)].join('\n'),
+    body: [
+      `**${skill.name}**, ${what}, published with \`node tools/skills.mjs publish\`.`,
+      '',
+      decode(skill.description),
+      '',
+      '## Made with this',
+      '',
+      `${RULE} The finished production made with it:`,
+      '',
+      `- ${madeUrl ? `[${made}](${madeUrl})` : made}`,
+    ].join('\n'),
     change: wt => {
       const to = path.join(wt, '.agents', 'skills', skill.name);
       if (fs.existsSync(to)) throw new Error(`origin/${base} has ${skill.name} already`);
@@ -671,6 +693,7 @@ const publish = () => {
   else if (r.compare) console.log(`  open the pull request: ${r.compare}`);
   else if (!r.pushed) console.log(`  not pushed: git push -u origin ${r.branch}, then open a pull request`);
   console.log(`  Your copy stays in use until it merges and you pull; then node tools/skills.mjs tidy --yes drops it.`);
+  console.log(`  It enters as Beta. Once merged, an admin marks it Ready with that production (catalog_set_readiness, or npm run catalog -- ready skill/${skill.name} --proof "${made}"${madeUrl ? ` --url ${madeUrl}` : ''}), which shows on its page as "Made with this".`);
 };
 
 /**
