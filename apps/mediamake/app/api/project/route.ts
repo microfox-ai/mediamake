@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { summarizeBrandKit, type BrandKit } from '@/lib/brand-kit';
 import { canWrite, getProjectRole } from '@/lib/editor/project-access';
+import { claimInvites } from '@/lib/projects/access-store';
 
 interface ProjectDocument {
   _id?: ObjectId;
@@ -51,6 +52,9 @@ export async function GET(request: NextRequest) {
 
     const id = searchParams.get('id');
     const skip = (page - 1) * limit;
+
+    // Invites sent to this account's email before it existed become memberships (lib/projects/access).
+    if (clientId) await claimInvites(db, clientId);
 
     // Build base access filter: owned OR shared with the requesting user
     const accessFilter: any = clientId

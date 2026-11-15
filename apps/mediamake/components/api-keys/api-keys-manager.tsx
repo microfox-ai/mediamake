@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Check,
@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
-  Search,
   Trash2,
   Power,
 } from 'lucide-react';
@@ -52,7 +51,6 @@ const TOAST_MS = 3000;
 
 interface KeysResponse {
   clientId: string;
-  isAdmin: boolean;
   keys: ApiKeyInfo[];
 }
 
@@ -76,7 +74,6 @@ function mask(key: string) {
 export function ApiKeysManager() {
   const [data, setData] = useState<KeysResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [fresh, setFresh] = useState<ApiKeyInfo | null>(null);
@@ -94,13 +91,8 @@ export function ApiKeysManager() {
     load();
   }, [load]);
 
-  const keys = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!data || !q) return data?.keys ?? [];
-    return data.keys.filter(
-      k => k.clientName?.toLowerCase().includes(q) || k.clientId.toLowerCase().includes(q),
-    );
-  }, [data, query]);
+  // The route answers with this account's keys only; nobody sees another account's.
+  const keys = data?.keys ?? [];
 
   const run = async (label: string, action: () => Promise<unknown>) => {
     try {
@@ -125,7 +117,7 @@ export function ApiKeysManager() {
       await run('Key deleted', () => call('DELETE', '/api/apikeys', { apiKey: key.apiKey }));
     } else {
       await run('Key rotated', async () => {
-        const rotated = await call<ApiKeyInfo>('POST', '/api/admin/apikeys/rotate', { apiKey: key.apiKey });
+        const { key: rotated } = await call<{ key: ApiKeyInfo }>('PUT', '/api/apikeys', { apiKey: key.apiKey });
         setFresh(rotated);
       });
     }
@@ -145,17 +137,14 @@ export function ApiKeysManager() {
     );
   }
 
-  const admin = data?.isAdmin ?? false;
-
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 md:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">API keys</h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {admin
-              ? 'Every key on this MediaMake. A key is also its client’s sign-in password, so share it only with that person.'
-              : 'Sign in, and connect tools to MediaMake, with any of your keys. Make one per app or computer, and disable it when you stop using it. Keep them private.'}
+            The keys of your account, and only yours. Connect tools to MediaMake with any of them: make one per app or
+            computer, and disable it when you stop using it. Keep them private.
           </p>
         </div>
         <Button onClick={() => setCreating(true)}>
@@ -163,18 +152,6 @@ export function ApiKeysManager() {
           New key
         </Button>
       </div>
-
-      {admin && (data?.keys.length ?? 0) > 5 && (
-        <div className="relative mt-6">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search by name or client id"
-            className="pl-9"
-          />
-        </div>
-      )}
 
       <div className="mt-6 overflow-hidden rounded-xl border bg-card">
         {!data ? (
@@ -193,13 +170,11 @@ export function ApiKeysManager() {
         ) : keys.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
             <KeyRound className="size-8 text-muted-foreground" />
-            <p className="font-medium">{query ? 'No keys match' : 'No API keys yet'}</p>
-            {!query && (
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => setCreating(true)}>
-                <Plus className="size-4" />
-                Create the first key
-              </Button>
-            )}
+            <p className="font-medium">No API keys yet</p>
+            <Button variant="outline" size="sm" className="mt-2" onClick={() => setCreating(true)}>
+              <Plus className="size-4" />
+              Create your first key
+            </Button>
           </div>
         ) : (
           <ul className="divide-y">
@@ -207,8 +182,6 @@ export function ApiKeysManager() {
               <KeyRow
                 key={key.apiKey}
                 apiKey={key}
-                mine={key.clientId === data.clientId}
-                admin={admin}
                 onRotate={() => setConfirm({ kind: 'rotate', key })}
                 onDelete={() => setConfirm({ kind: 'delete', key })}
                 onToggle={() => setValid(key, !key.isValid)}
@@ -219,7 +192,6 @@ export function ApiKeysManager() {
       </div>
 
       <CreateKeyDialog
-        admin={admin}
         open={creating}
         onOpenChange={setCreating}
         onCreated={async key => {
@@ -229,7 +201,7 @@ export function ApiKeysManager() {
         }}
       />
 
-      <NewKeyDialog apiKey={fresh} mine={fresh?.clientId === data?.clientId} onClose={() => setFresh(null)} />
+      <NewKeyDialog apiKey={fresh} onClose={() => setFresh(null)} />
 
       <AlertDialog open={!!confirm} onOpenChange={open => !open && setConfirm(null)}>
         <AlertDialogContent>
@@ -239,8 +211,8 @@ export function ApiKeysManager() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.kind === 'delete'
-                ? `${confirm.key.clientName || confirm.key.clientId} can no longer sign in or use tools with this key. This can't be undone.`
-                : `${confirm?.key.clientName || confirm?.key.clientId} gets a new key and the current one stops working right away, including for signing in.`}
+                ? `Tools that use “${confirm.key.clientName || 'this key'}” stop working. This can't be undone.`
+                : `“${confirm?.key.clientName || 'This key'}” gets a new secret and the current one stops working right away, so update the tools that use it.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -260,15 +232,11 @@ export function ApiKeysManager() {
 
 function KeyRow({
   apiKey: key,
-  mine,
-  admin,
   onRotate,
   onDelete,
   onToggle,
 }: {
   apiKey: ApiKeyInfo;
-  mine: boolean;
-  admin: boolean;
   onRotate: () => void;
   onDelete: () => void;
   onToggle: () => void;
@@ -285,7 +253,6 @@ function KeyRow({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="truncate font-medium">{key.clientName || key.clientId}</p>
-            {mine && <Badge variant="secondary">You</Badge>}
             {!key.isValid && <Badge variant="outline">Disabled</Badge>}
           </div>
           <p className="truncate font-mono text-xs text-muted-foreground">{key.clientId}</p>
@@ -307,20 +274,17 @@ function KeyRow({
         </Button>
         <CopyButton value={key.apiKey} />
 
-        {(admin || mine) && (
-          <DropdownMenu>
+        <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8" aria-label="More actions">
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {admin && (
-                <DropdownMenuItem onClick={onRotate}>
-                  <RefreshCw className="size-4" />
-                  Rotate
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={onRotate}>
+                <RefreshCw className="size-4" />
+                Rotate
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onToggle}>
                 <Power className="size-4" />
                 {key.isValid ? 'Disable' : 'Enable'}
@@ -331,8 +295,7 @@ function KeyRow({
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        </DropdownMenu>
       </div>
     </li>
   );
@@ -359,25 +322,21 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
 }
 
 function CreateKeyDialog({
-  admin,
   open,
   onOpenChange,
   onCreated,
 }: {
-  admin: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (key: ApiKeyInfo) => void;
 }) {
   const [name, setName] = useState('');
-  const [clientId, setClientId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setName('');
-      setClientId('');
       setError(null);
     }
   }, [open]);
@@ -387,7 +346,7 @@ function CreateKeyDialog({
     setBusy(true);
     setError(null);
     try {
-      const { key } = await call<{ key: ApiKeyInfo }>('POST', '/api/apikeys', { clientName: name, clientId });
+      const { key } = await call<{ key: ApiKeyInfo }>('POST', '/api/apikeys', { clientName: name });
       onCreated(key);
     } catch (err) {
       setError((err as Error).message);
@@ -403,9 +362,7 @@ function CreateKeyDialog({
           <DialogHeader>
             <DialogTitle>New API key</DialogTitle>
             <DialogDescription>
-              {admin
-                ? 'For a new person or app, or a second key for an existing client.'
-                : 'Another key for your account, e.g. for one app or computer. It works like your other keys.'}
+              Another key for your account, e.g. for one app or computer. It works like your other keys.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -415,26 +372,9 @@ function CreateKeyDialog({
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={admin ? 'e.g. Priya, or Render worker' : 'e.g. Laptop scripts'}
+              placeholder="e.g. Laptop scripts"
             />
           </div>
-          {admin && (
-            <div className="space-y-2">
-              <Label htmlFor="key-client">
-                Client id <span className="font-normal text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="key-client"
-                value={clientId}
-                onChange={e => setClientId(e.target.value)}
-                placeholder="Made from the name if empty"
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Use an existing client id to give that client another key. They sign in with the client id and the key.
-              </p>
-            </div>
-          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -450,24 +390,14 @@ function CreateKeyDialog({
   );
 }
 
-function NewKeyDialog({
-  apiKey,
-  mine,
-  onClose,
-}: {
-  apiKey: ApiKeyInfo | null;
-  mine: boolean;
-  onClose: () => void;
-}) {
+function NewKeyDialog({ apiKey, onClose }: { apiKey: ApiKeyInfo | null; onClose: () => void }) {
   return (
     <Dialog open={!!apiKey} onOpenChange={open => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Key ready</DialogTitle>
           <DialogDescription>
-            {mine
-              ? 'Use it wherever a MediaMake API key is asked for. It also signs you in, with your client id.'
-              : `Send these to ${apiKey?.clientName || 'them'} privately. They sign in with both.`}
+            Use it wherever a MediaMake API key is asked for. It also signs you in on Core, with your client id.
           </DialogDescription>
         </DialogHeader>
         {apiKey && (

@@ -8,7 +8,7 @@ export const metadata = { title: 'Project · MediaMake' };
 
 /**
  * /app/projects/<id>: one cloud project, with what it keeps on MediaMake
- * (productions, releases, media). Plus and above, like the list; the APIs it
+ * (productions, releases, media) and who can open it. Plus and above, like the list; the APIs it
  * reads check the membership and the project's sharing again.
  */
 export default async function AppProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +16,7 @@ export default async function AppProjectPage({ params }: { params: Promise<{ id:
   if (!canUseCloudProjects(viewer.tier)) redirect('/app/projects');
   return (
     <AppPage title="Projects">
-      <ProjectDetail projectId={id} oldEditor={viewer.isAdmin} />
+      <ProjectDetail projectId={id} me={viewer.clientId ?? undefined} oldEditor={viewer.isAdmin} />
     </AppPage>
   );
 }
