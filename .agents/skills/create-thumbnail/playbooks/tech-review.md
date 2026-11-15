@@ -13,6 +13,12 @@ Channels read: @mkbhd, @Mrwhosetheboss, @LinusTechTips, @UnboxTherapy, @Dave2D
   on a dark or white studio ground with a glowing edge (6).
 - **No series badge on any of the 40.** A channel is recognised by how it frames the product.
 
+## The kit (gather before the board)
+
+- the product, real (the user's photos, frames of the review, the maker's press images), cut out
+- the maker's logo; a price; the rival product for a versus
+- the reviewer cut out, when the channel shows one (hand-held or reacting)
+
 ## Archetypes for the board
 
 1. **Hand-held product, host behind**: the device fills the front, eyes peek over it or the face

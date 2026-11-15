@@ -12,6 +12,8 @@
  *        mm thumbs pick <poster-job> A3 [--to=<release folder>]   (the cover; --to also copies it there as cover.jpg)
  *        mm thumbs canvas <poster-job>      (the Spotify Canvas loop → out/posters/<job>/canvas/remotion.mp4)
  *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
+ *        mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h] [--width=1440 --height=900 --scale=2]
+ *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
  *
  *   init     makes the job folder; with --brand copies the brand's logos, fonts and thumbnail
  *            profile (brands/<brand>/graphics/brand/thumbnail.json) into it
@@ -32,6 +34,10 @@
  *            median, and keeps its hits and misses' thumbnails: filed in the media library
  *            (references/youtube-thumbnails-<set>) and laid out as a labelled sheet and a review set
  *            in out/thumbnail-inspiration/inspire-<set>/ (/file-revision?job=inspire-<set>)
+ *   shot     a real web page (a tool's screen, the result where it lives) captured at 2× in headless
+ *            Chrome with a throwaway profile → input/shots/<name>.png + its source
+ *   logo     an official logo from Wikimedia Commons → assets/logos/<name>.png + its page and licence
+ *            (thumbnails/tools/kit.py)
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -623,9 +629,18 @@ const inspire = () => {
   console.log(`Review: https://mediamake.microfox.app/file-revision?job=inspire-${set}`);
 };
 
+/** The real pieces of a thumbnail: a page's screenshot (`shot`) or an official logo (`logo`). */
+const kitTool = (sub: 'shot' | 'logo') => {
+  if (!third) throw new Error(sub === 'shot' ? 'Usage: thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h]' : 'Usage: thumbs logo <job> "<name> logo" [--pick=N] [--name=…]');
+  if (!fs.existsSync(jobDir(job))) throw new Error(`No job ${rel(jobDir(job))}: run init first`);
+  const main = sub === 'shot' ? `--url=${third}` : `--query=${third}`;
+  const r = spawnSync('uv', ['run', '--quiet', '--with', 'pillow', 'python', 'thumbnails/tools/kit.py', sub, `--dir=${jobDir(job)}`, main, ...flags], { cwd: ROOT, stdio: 'inherit' });
+  if (r.status !== 0) process.exit(r.status ?? 1);
+};
+
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas <job> … | mm thumbs inspire <set> @channel…');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -636,6 +651,7 @@ const main = async () => {
   else if (cmd === 'keep') keep();
   else if (cmd === 'canvas') await canvas();
   else if (cmd === 'inspire') inspire();
+  else if (cmd === 'shot' || cmd === 'logo') kitTool(cmd);
   else throw new Error(`Unknown command ${cmd}`);
 };
 

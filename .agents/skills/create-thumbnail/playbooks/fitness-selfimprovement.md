@@ -12,6 +12,12 @@ Channels read: @JeffNippard, @athleanx, @WillTennyson, @JesseJamesWest, @mattdav
   a red plate (11) or in the accent (7). A few calm ones use lower case (4).
 - **Dark gym grounds** (16) or bright natural scenes (14).
 
+## The kit (gather before the board)
+
+- the body doing or showing the thing, cut out; before / after frames in the same pose
+- drawn devices: a tier list, a ladder, a tinted muscle, a number on the bar
+- for the calm half: hands and one object, shot from above
+
 ## Archetypes for the board
 
 1. **Giant order + the trainer** (Athlean-X): FIX THIS, PLEASE STOP, DO THESE EXERCISES FOREVER in

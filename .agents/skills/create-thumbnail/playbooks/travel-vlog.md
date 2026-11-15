@@ -13,6 +13,12 @@ Channels read: @yestheory, @KaraandNate, @drewbinsky, @baldandbankrupt, @IndigoT
   the commonest miss.
 - The channel's logo sits bottom left on 8.
 
+## The kit (gather before the board)
+
+- the trip's best frame of the place
+- the traveller cut out from a frame with matching light
+- the country's flag (Commons); a price or a map pin
+
 ## Archetypes for the board
 
 1. **Place name + witness + the scene** (Indigo Traveller): the country in caps across the top,

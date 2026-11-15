@@ -12,6 +12,12 @@ Channels read: @johnnyharris, @Vox, @LEMMiNO, @Wendoverproductions, @RealLifeLor
 - **A composite, calmly graded** (23), or a dark ground with one accent (8), or one flat colour (4).
 - **The channel's mark** on 16 of 40, always in the same corner.
 
+## The kit (gather before the board)
+
+- a clean map drawn for the story, regions as separate layers
+- the evidence: documents, photographs, objects, cut out
+- portraits of the people in it (press or archive), circle-cropped; flags and logos from Commons
+
 ## Archetypes for the board
 
 1. **Host and the subject** (Johnny Harris): the host's serious face on one side, the person or the

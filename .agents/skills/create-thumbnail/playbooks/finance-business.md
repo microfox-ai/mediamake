@@ -13,6 +13,12 @@ Channels read: @GrahamStephan, @AndreiJikh, @HowMoneyWorks, @ThePlainBagel, @Mag
 - **A busy composite in alarm colours** (30 of 40): red, yellow, orange, with flames and charts.
 - **A fixed frame** on 11 (a news lower third).
 
+## The kit (gather before the board)
+
+- the host's worried or serious face, cut out
+- the person or company in the news: press portrait, official logo (`thumbs logo`)
+- the figure, a chart's real shape, a flag; a news lower third as layers
+
 ## Archetypes for the board
 
 1. **News lower third** (Graham Stephan, Andrei Jikh): the host beside a figure in the news, and

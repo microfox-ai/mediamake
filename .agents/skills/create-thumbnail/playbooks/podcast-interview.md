@@ -14,6 +14,12 @@ Channels read: @TheDiaryOfACEO, @lexfridman, @hubermanlab, @ChrisWillx, @Colinan
 - **A plate or one coloured word does the work** (15); strokes, glows and shadows are almost absent.
 - **Black grounds** (27 of 40) and a **fixed series frame**: a logo on 17, an episode number on 7.
 
+## The kit (gather before the board)
+
+- the guest's and the host's portraits, matched in crop and grade, cut out
+- the guest's real quote from the transcript
+- the show's badge and episode number
+
 ## Archetypes for the board
 
 1. **Claim between two faces** (The Diary Of A CEO): the guest left, the host right with a hand at

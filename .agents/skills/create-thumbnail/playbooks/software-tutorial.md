@@ -14,6 +14,13 @@ Channels read: @Fireship, @NetworkChuck, @KevinStratvert, @WebDevSimplified, @Je
 - **Dark or composite grounds** (27 of 40); white is rare.
 - **A fixed frame** on 16 of 40 (a logo or the same layout every time).
 
+## The kit (gather before the board)
+
+- the tool's **real screen at the moment of the result**, cropped to the one control or output (`thumbs shot`, or the user's screenshot of their own app)
+- the **official logo of the tool** and of every tool or destination in the story (`thumbs logo`): shown as a logo card or app tiles
+- **a figure that presents it**: the host cut out pointing; with no host, a character or object from the result, cut out
+- **the result itself**, where it lives (the output file, the page it went live on)
+
 ## Archetypes for the board
 
 1. **Stacked claim + a borrowed face** (Fireship): a 2–3 line word block on the left in cream and

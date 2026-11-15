@@ -39,6 +39,8 @@ mm thumbs init <job> --poster [--brand=…] [--mood=…]   # a poster job (poste
 mm thumbs pick <poster-job> A3 [--to=<release folder>]   # the cover → final/ (+ cover.jpg there)
 mm thumbs-studio                       # Studio, every job (hot-reloads the specs)
 mm thumbs inspire <set> @channel… [--search="…"] [--winners=8] [--losers=3]   # references: each channel's hits and misses
+mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h]   # a real page at 2× (throwaway profile) → input/shots/
+mm thumbs logo <job> "<name> logo" [--pick=N]             # an official logo from Wikimedia Commons → assets/logos/
 ```
 
 `render` checks the spec first (missing files, fonts not in the job, things under YouTube's

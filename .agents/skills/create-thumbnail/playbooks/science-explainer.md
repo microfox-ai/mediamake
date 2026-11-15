@@ -11,6 +11,12 @@ Channels read: @veritasium, @kurzgesagt, @MarkRober, @3blue1brown, @SteveMould
 - **Words are optional**: 16 of 40 have none; with words the median is 2 and the line is giant.
 - **Dark grounds lead** (17), then a real photo (8), then white (4).
 
+## The kit (gather before the board)
+
+- the real object or phenomenon, cut out clean; a hand for scale
+- the experiment's best frame; a simple diagram drawn for the thumbnail
+- arrows and rings as drawn layers, in the accent colour
+
 ## Archetypes for the board
 
 1. **A question over a dark photo** (Veritasium): a short sentence in a serif, sentence case, with

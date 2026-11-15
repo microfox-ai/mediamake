@@ -12,6 +12,12 @@ Channels read: @jacksepticeye, @markiplier, @Grian, @videogamedunkey, @GameTheor
 - **A scene from the game as the ground** (17), saturated; dark only for horror.
 - **Series marks**: the channel's logo (8) or an episode number (5).
 
+## The kit (gather before the board)
+
+- the game's key art and the sharpest captured frame; the character cut out
+- the game's official logo (press kit or `thumbs logo`)
+- the creator's face or avatar, cut out; an episode block
+
 ## Archetypes for the board
 
 1. **Key art + the game's logo** (videogamedunkey): official art or a striking captured frame, the

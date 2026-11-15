@@ -127,6 +127,26 @@ template).
 
 ## 2. The picture
 
+**The kit comes before the board** (the user, 2026-11-15: "thumbnail is not just typography and
+placement but also picking the right cutouts, logos, and screenshots"). The hits are built from
+real pieces; gather them first and design with them. The kind's playbook lists the pieces its hits
+use ("The kit"); for most kinds:
+
+- **the subject's real picture** (below: "Real and accurate pictures first");
+- **cutouts**: the person, character or object that reacts or presents, and the result itself
+  (`mm thumbs cutout`);
+- **screenshots**: the tool's real screen at the moment of the result, and the result where it
+  lives (a store page, a Spotify track, a search result, a map): `mm thumbs shot <job> <url>
+  [--crop=x,y,w,h]` captures a page at 2× in a throwaway browser profile. Never a vendor's sample
+  content that is not this video, never a mock-up of a screen; a screen only the user can open
+  (their app, a signed-in page) they send as a screenshot;
+- **logos**: the official mark of every tool, brand and destination in the story: `mm thumbs logo
+  <job> "<name> logo"` (Wikimedia Commons, with its licence) or the maker's press kit;
+- **the channel's own pieces**: its logo, series frame and signature object.
+
+Lay the kit out on one sheet and look at it before sketching. A board without the screenshot, logo
+or cutout that the kind's hits are built from is not ready to show.
+
 In order of preference:
 
 - **The user's image.** Measure it (`sips -g pixelWidth -g pixelHeight`). Portrait or square
@@ -458,3 +478,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-14 · skill · "most of the thumbnails we designed is for music and song … it will not suit other kind of channels … the thumbnail is core to 3 things - the type/content/stuff of video, the type/style of video, the type/content/context of channel … search for better thumbnail inspiration if user is not satisfied … add more fonts" → the three reads; a playbook per kind of channel (`playbooks/`, from 550 hits and misses of 50 leading channels over ten kinds, plus news); `mm thumbs inspire` for references on demand; heroes beyond a lit face (object, place, screen, number, two faces, before/after, character, map); the font table by voice (21 rows, every family checked on Google Fonts); series frames. The music and edit rules moved to `playbooks/music-edit.md` unchanged. Finding that reshaped the click list: faces, words and dark grounds are as common on misses as on hits; what differs is how fast one concrete idea reads small.
 - 2026-11-15 · iteration 1 (tech review, invented $99 phone) · "move on the next" + "real images and accurate should be used (for example user can give or you can use google images & then upscale/variate using midjourney/fal)" → "Real and accurate pictures first" in step 2.
 - 2026-11-15 · iteration 2 (Cook with Claude, /create-music-poster) · "No, rework it" without notes. Own check against real tutorial hits: round 1's words were puns and process words at a third of the width, the output was spread over three to six small covers, and the series' spark was missing → round 2 named the output in two giant words (ALBUM / COVER.), showed one cover at ~78 % of the height, and kept episode 1's composition with this episode's dish. Rules: the hero keeps its edge; a before/after only when the change shows small; a series' signature object on every board.
+- 2026-11-15 · iteration 2, round 2 · "they are still not good enough (the source ideas u picked were 100% more engaging) thumbnail is not just typography and placement but also picking the right cutouts, logos, and screenshots to show in a software tutorial" → "The kit comes before the board" in step 2, a kit list in every playbook, and two commands to gather it: `thumbs shot` (a real page at 2×) and `thumbs logo` (an official logo from Commons). Round 3 was rebuilt from a kit: the released songs' real Spotify pages, the official Claude, Spotify and DistroKid logos, and the cover characters cut out, composed on the hits' recipes (a title plate, the tool's logo card, a real screen and a figure presenting it; a figure breaking out of the screen; a borrowed face under the tool's badge; logos as app tiles around a figure).

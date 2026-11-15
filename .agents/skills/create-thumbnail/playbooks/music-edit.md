@@ -26,6 +26,12 @@ were frames of the video with a small word; theirs share the eight points below.
    a clenched fist, a weapon.
 8. **Readable in the feed.** At 168×94 the word and the face still read.
 
+## The kit (gather before the board)
+
+- the sharpest frame of the best source file; the subject cut out
+- the video's own graphic moments (title card, word pops) and fonts
+- the channels' logos for the watermarks; a franchise logo (Commons)
+
 ## Archetypes for the board
 
 Giant word behind the subject (GOAT, URAHARA) · word across the lower third over a big figure

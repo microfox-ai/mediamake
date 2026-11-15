@@ -14,6 +14,12 @@ feedback log.
 - **The strongest frames of any kind**: each of the five shows could be named from a blurred
   thumbnail. The frame is the brand; the story changes inside it.
 
+## The kit (gather before the board)
+
+- the person or thing in the news: press photos, cut out; the company's official logo
+- the host cut out, reacting
+- the show's frame; a map or chart drawn for the story
+
 ## Archetypes for the board
 
 1. **The show's own frame** (Last Week Tonight): the host at the desk with the over-the-shoulder
