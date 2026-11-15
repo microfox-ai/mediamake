@@ -159,3 +159,21 @@ export function inviteMail(to: string, input: { tier: string; url: string; note?
     footer: `The link works once${input.days ? `, for ${input.days} days` : ''}. If you were not expecting it, ignore this mail and nothing happens.`,
   });
 }
+
+/** Someone was given a cloud project, or invited to one before they have an account. */
+export function projectSharedMail(to: string, input: { project: string; by: string; role: 'editor' | 'viewer'; url: string; hasAccount: boolean }): Mail {
+  const can = input.role === 'editor' ? 'open everything in it, and add or change its productions, releases, media and brand kit' : 'open and download everything in it';
+  return layout({
+    to,
+    subject: `${input.by} shared ${input.project} with you on MediaMake`,
+    heading: `You were added to ${input.project}`,
+    lines: [
+      `${input.by} shared the project ${input.project} with you as ${input.role === 'editor' ? 'an editor' : 'a viewer'}: you can ${can}.`,
+      input.hasAccount
+        ? 'It is on your Projects page now. Cloud projects open with a Plus membership or above.'
+        : `Make a MediaMake account with this address (${to}) and the project is on your Projects page. Cloud projects open with a Plus membership or above.`,
+    ],
+    button: { label: input.hasAccount ? 'Open the project' : 'Join MediaMake', url: input.url },
+    footer: `Sent because ${input.by} added this address to a MediaMake project. If that is a mistake, ignore this mail.`,
+  });
+}

@@ -3,7 +3,8 @@ import { AppPage } from '@/components/app-shell/app-page';
 import { ProjectsPage } from '@/components/projects/projects-page';
 import { canUseCloudProjects } from '@/lib/access';
 import { getAppViewer } from '@/lib/app-shell/viewer';
-import { FEATURE_TIERS, tierLabel } from '@/lib/memberships/tiers';
+import { ProjectSyncExplainer } from '@/components/projects/projectsync-explainer';
+import { FEATURE_TIERS, tierLabel, tierOpens } from '@/lib/memberships/tiers';
 import { capsByTier, formatBytes } from '@/lib/projects/storage';
 
 export const metadata = { title: 'Projects · MediaMake' };
@@ -16,7 +17,9 @@ export const metadata = { title: 'Projects · MediaMake' };
  */
 export default async function AppProjectsPage() {
   const { tier, isAdmin } = await getAppViewer();
-  if (canUseCloudProjects(tier)) return <ProjectsPage isAdmin={isAdmin} />;
+  // the ProjectSync MCP, which fills projects from a computer, is Pro (the page is Plus)
+  const canSync = tierOpens(tier, 'pro');
+  if (canUseCloudProjects(tier)) return <ProjectsPage isAdmin={isAdmin} canSync={canSync} />;
 
   const needed = tierLabel(FEATURE_TIERS.cloudProjects);
   return (
@@ -57,6 +60,9 @@ export default async function AppProjectsPage() {
           </Link>
           .
         </p>
+      </div>
+      <div className="mx-auto w-full max-w-6xl px-4 pb-10 lg:px-6">
+        <ProjectSyncExplainer canSync={canSync} />
       </div>
     </AppPage>
   );
