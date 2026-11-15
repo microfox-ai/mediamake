@@ -215,6 +215,12 @@ real screen, the dish that was cooked, the place visited, the guest, the game. G
 2. **Found**, when they have none: Google Images through Browse Hack (`google_images_bulk_start`
    with `largeOnly`, into the library's inbox), the maker's press kit, Wikimedia Commons. Check it
    is the right model, version, place or person before using it, and keep its source in `brief.md`.
+   For anything public (space, science, history, museums, landmarks, public figures' press
+   pictures), `mm thumbs pic <job> "<what>" [--pick=N] --subject=<library subject>` lists Commons'
+   matches with size and licence, files the pick in the library and clones it into
+   `input/pictures/`; public domain and CC0 need nothing, a CC BY(-SA) picture needs its credit
+   line (in its `.source.json`) in the video's description. A real photo's own words must stay
+   true: a museum twin is "one like this", a beam aimed at something else is not the one in the story.
 3. **Then improve it, never replace it**: upscale a small one, outcrop it to 16:9, clean its
    ground or vary its light with Midjourney (`midjourney-outcrop`, `--edit`, upscale) or fal (ask
    first: it costs money), and compare the result with the original: the thing must still be

@@ -14,6 +14,7 @@
  *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
  *        mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h] [--width=1440 --height=900 --scale=2]
  *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
+ *        mm thumbs pic <job> "<what>" [--pick=2] [--name=…] [--width=3000] [--subject=<library subject>]
  *        mm thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]
  *
  *   init     makes the job folder; with --brand copies the brand's logos, fonts, host (a mascot) and thumbnail
@@ -39,6 +40,9 @@
  *            Chrome with a throwaway profile → input/shots/<name>.png + its source
  *   logo     an official logo from Wikimedia Commons → assets/logos/<name>.png + its page and licence
  *            (thumbnails/tools/kit.py)
+ *   pic      a real photo from Wikimedia Commons (NASA, museums, free press pictures), filed in the
+ *            media library (images/<subject>) with its licence and credit, cloned into
+ *            input/pictures/<name>.<ext> + <name>.source.json
  *   swap     a generated host (a mascot, a hand) holding a chroma-green card gets the real picture on
  *            the card, warped and lit like it → input/held/<name>.png, then its cutout with the
  *            picture kept solid → cutouts/<name>.png
@@ -656,6 +660,48 @@ const kitTool = (sub: 'shot' | 'logo') => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 
+/** A real photo from Wikimedia Commons, through the library's inbox (the library's rule), cloned into the job. */
+const picTool = () => {
+  if (!third) throw new Error('Usage: thumbs pic <job> "<what>" [--pick=N] [--name=…] [--width=3000] [--subject=<library subject>]');
+  const dir = jobDir(job);
+  if (!fs.existsSync(dir)) throw new Error(`No job ${rel(dir)}: run init first`);
+  const lib = hasConfig() ? loadConfig() : null;
+  const subject = flag('subject') ?? `thumbnail-kit/${job}`;
+  const to = path.join(dir, 'input', 'pictures');
+  const dest = lib ? path.join(lib.inbox, 'commons') : to;
+  const have = lib ? path.join(lib.root, 'images', ...subject.split('/')) : to;
+  const r = spawnSync('uv', ['run', '--quiet', '--with', 'pillow', 'python', 'thumbnails/tools/kit.py', 'pic', `--query=${third}`, `--dest=${dest}`, `--have=${have}`, ...flags.filter(f => /^--(pick|name|width)=/.test(f))], { cwd: ROOT, encoding: 'utf8' });
+  process.stdout.write(r.stdout.replace(/^FILE .*\n?/m, ''));
+  if (r.status !== 0) {
+    console.error(r.stderr.trim());
+    process.exit(r.status ?? 1);
+  }
+  const name = /^FILE (.+)$/m.exec(r.stdout)?.[1];
+  if (!lib || !name) return;
+  const file = fs.existsSync(dest) ? fs.readdirSync(dest).find(f => f.startsWith(`${name}.`) && !f.endsWith('.json')) : undefined;
+  const sidecar = file ? fs.readFileSync(path.join(dest, `${file}.source.json`), 'utf8') : undefined;
+  let filed: string | undefined;
+  if (file) {
+    const ing = spawnSync(process.execPath, ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', 'scripts/media.ts', 'ingest', path.join(dest, file), `--kind=images`, `--subject=${subject}`, '--tags=commons,thumbnail-kit'], { cwd: ROOT, encoding: 'utf8' });
+    if (ing.status !== 0) {
+      console.error(`${ing.stdout}\n${ing.stderr}`.trim());
+      process.exit(ing.status ?? 1);
+    }
+    const at = /(?:filed →|already have it:|known:) (.+)$/m.exec(ing.stdout)?.[1]?.trim();
+    filed = at ? path.join(lib.root, at) : undefined;
+  } else {
+    const f = fs.readdirSync(have).find(f => f.startsWith(`${name}.`) && !f.endsWith('.json'));
+    filed = f ? path.join(have, f) : undefined;
+  }
+  if (!filed || !fs.existsSync(filed)) throw new Error(`${name} went into the library, but its place there was not found: media find ${name}`);
+  fs.mkdirSync(to, { recursive: true });
+  const into = path.join(to, `${name}${path.extname(filed)}`);
+  fs.copyFileSync(filed, into, fs.constants.COPYFILE_FICLONE);
+  if (sidecar) fs.writeFileSync(path.join(to, `${name}.source.json`), sidecar);
+  console.log(`✔ filed in the media library: ${path.relative(lib.root, filed)}`);
+  done(into);
+};
+
 /** The real product in a generated host's hands: swap it onto the green card, cut the pair out, keep the product solid. */
 const swapTool = () => {
   const pic = args.filter(a => !a.startsWith('--'))[3];
@@ -673,7 +719,7 @@ const swapTool = () => {
 
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|swap <job> … | mm thumbs inspire <set> @channel…');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|pic|swap <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -685,6 +731,7 @@ const main = async () => {
   else if (cmd === 'canvas') await canvas();
   else if (cmd === 'inspire') inspire();
   else if (cmd === 'shot' || cmd === 'logo') kitTool(cmd);
+  else if (cmd === 'pic') picTool();
   else if (cmd === 'swap') swapTool();
   else throw new Error(`Unknown command ${cmd}`);
 };

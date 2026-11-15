@@ -14,6 +14,8 @@ Channels read: @veritasium, @kurzgesagt, @MarkRober, @3blue1brown, @SteveMould
 ## The kit (gather before the board)
 
 - the real object or phenomenon, cut out clean; a hand for scale
+- public science pictures come free: NASA, ESA and museum photos on Commons are public domain or
+  CC0 (`mm thumbs pic`); the object's museum twin cuts out cleaner than the field photo
 - the experiment's best frame; a simple diagram drawn for the thumbnail
 - arrows and rings as drawn layers, in the accent colour
 

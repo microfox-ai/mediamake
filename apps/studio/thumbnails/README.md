@@ -41,6 +41,7 @@ mm thumbs-studio                       # Studio, every job (hot-reloads the spec
 mm thumbs inspire <set> @channel… [--search="…"] [--winners=8] [--losers=3]   # references: each channel's hits and misses
 mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h]   # a real page at 2× (throwaway profile) → input/shots/
 mm thumbs logo <job> "<name> logo" [--pick=N]             # an official logo from Wikimedia Commons → assets/logos/
+mm thumbs pic <job> "<what>" [--pick=N] [--subject=…]     # a real photo from Wikimedia Commons, filed in the library → input/pictures/ (+ licence, credit)
 mm thumbs swap <job> <generated.png> <real picture> --name=<n>   # the real product on a host's green card → input/held/ + cutouts/
 ```
 

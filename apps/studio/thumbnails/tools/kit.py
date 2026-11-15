@@ -10,6 +10,10 @@
       an official logo from Wikimedia Commons: lists the best matches, downloads the picked one as a
       1200 px PNG render → assets/logos/<name>.png with <name>.source.json (page, licence, author),
       and says whether it is transparent
+  kit.py pic --query="<what>" --dest=<folder> [--have=<library folder>] [--pick=1] [--name=…] [--width=3000]
+      a real photo from Wikimedia Commons (NASA, museums, free press pictures): lists the matches
+      with size and licence, downloads the picked one with <file>.source.json (page, author,
+      licence, the credit line a CC licence asks for); skips it when the library already has it
   kit.py swap --dir=<job dir> --gen=<generated image> --pic=<real picture> --name=<name>
       a generated host holding a solid chroma-green card (a mascot, a hand): the real picture is
       centre-cropped to the card's shape, warped onto it (its corners from the green region), lit
@@ -115,6 +119,51 @@ def logo(o):
     print(f"✔ assets/logos/{name}.png  ({title}; licence: {strip('LicenseShortName') or '?'}; transparent: {transparent})")
 
 
+def pic(o):
+    """A real photo from Wikimedia Commons (NASA, museums, press pictures under free licences): the
+    best matches with their size and licence, the picked one at `width` px (or its original size)
+    into `dest` with the library's <file>.source.json, and a credit line when the licence asks for one."""
+    query, dest = o["query"], o["dest"]
+    hits = api({"action": "query", "list": "search", "srnamespace": 6, "srlimit": 12, "srsearch": query})["query"]["search"]
+    titles = [h["title"] for h in hits if re.search(r"\.(jpe?g|png|tiff?)$", h["title"], re.I)]
+    if not titles:
+        sys.exit(f"nothing on Wikimedia Commons for \"{query}\": try other words, the maker's press kit or Google Images (Browse Hack)")
+    width = int(o.get("width", 3000))
+    pages = api({"action": "query", "prop": "imageinfo", "iiprop": "url|size|extmetadata", "iiurlwidth": width,
+                 "titles": "|".join(titles)})["query"]["pages"].values()
+    info = {p["title"]: p["imageinfo"][0] for p in pages if p.get("imageinfo")}
+    strip = lambda m, v: re.sub(r"<[^>]+>", "", (m.get(v) or {}).get("value", "")).strip()
+    titles = [t for t in titles if t in info]
+    for i, t in enumerate(titles, 1):
+        ii = info[t]
+        print(f"  {i}. {t}  {ii['width']}×{ii['height']}  {strip(ii.get('extmetadata', {}), 'LicenseShortName') or '?'}")
+    title = titles[int(o.get("pick", 1)) - 1]
+    ii, meta = info[title], info[title].get("extmetadata", {})
+    url = ii.get("thumburl") if ii["width"] > width and ii.get("thumburl") else ii["url"]
+    ext = os.path.splitext(urllib.parse.urlparse(url).path)[1].lower()
+    ext = ".jpg" if ext in (".jpeg", ".tif", ".tiff") else ext
+    name = (o.get("name") or slug(re.sub(r"^File:|\.(jpe?g|png|tiff?)$", "", title, flags=re.I)))[:60]
+    have = o.get("have")
+    if have and os.path.isdir(have) and any(f.startswith(name + ".") and not f.endswith(".json") for f in os.listdir(have)):
+        print(f"✔ {name}: already in the library ({have})")
+        print(f"FILE {name}")
+        return
+    os.makedirs(dest, exist_ok=True)
+    out = os.path.join(dest, name + ext)
+    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120) as r, open(out, "wb") as f:
+        f.write(r.read())
+    licence, author = strip(meta, "LicenseShortName"), strip(meta, "Artist")
+    free = re.search(r"public domain|^pd|cc0", licence, re.I) is not None
+    credit = None if free else f"{title[5:]} by {author or 'unknown'}, {licence or 'licence unknown'}, via Wikimedia Commons"
+    with open(out + ".source.json", "w") as f:
+        json.dump({"schema": "mediamake.source/v1", "tool": "wikimedia-commons", "query": query,
+                   "title": re.sub(r"^File:|\.(jpe?g|png|tiff?)$", "", title, flags=re.I), "file": title,
+                   "pageUrl": ii.get("descriptionurl"), "url": url, "author": author or None, "licence": licence or None,
+                   "credit": credit, "downloadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, f, indent=1)
+    print(f"✔ {name}{ext}  ({title}; {licence or '?'}{'' if free else '; credit it in the description: ' + credit})")
+    print(f"FILE {name}")
+
+
 def swap(o):
     import numpy as np
     from PIL import Image, ImageDraw
@@ -190,4 +239,4 @@ def solid(o):
 
 
 if __name__ == "__main__":
-    {"shot": shot, "logo": logo, "swap": swap, "solid": solid}[sys.argv[1]](opts(sys.argv[2:]))
+    {"shot": shot, "logo": logo, "pic": pic, "swap": swap, "solid": solid}[sys.argv[1]](opts(sys.argv[2:]))
