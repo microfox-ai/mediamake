@@ -42,6 +42,7 @@ mm thumbs inspire <set> @channel… [--search="…"] [--winners=8] [--losers=3] 
 mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h]   # a real page at 2× (throwaway profile) → input/shots/
 mm thumbs logo <job> "<name> logo" [--pick=N]             # an official logo from Wikimedia Commons → assets/logos/
 mm thumbs pic <job> "<what>" [--pick=N] [--subject=…]     # a real photo from Wikimedia Commons, filed in the library → input/pictures/ (+ licence, credit)
+mm thumbs globe <job> <lat> <lon> --name=<n>                # the Earth turned to a place (NASA Blue Marble) → cutouts/<n>.png
 mm thumbs swap <job> <generated.png> <real picture> --name=<n>   # the real product on a host's green card → input/held/ + cutouts/
 ```
 

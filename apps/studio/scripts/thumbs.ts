@@ -14,6 +14,7 @@
  *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
  *        mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h] [--width=1440 --height=900 --scale=2]
  *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
+ *        mm thumbs globe <job> <lat> <lon> --name=<name> [--size=2000] [--texture=…]
  *        mm thumbs pic <job> "<what>" [--pick=2] [--name=…] [--width=3000] [--subject=<library subject>]
  *        mm thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]
  *
@@ -43,6 +44,8 @@
  *   pic      a real photo from Wikimedia Commons (NASA, museums, free press pictures), filed in the
  *            media library (images/<subject>) with its licence and credit, cloned into
  *            input/pictures/<name>.<ext> + <name>.source.json
+ *   globe    the Earth turned to a place (NASA's Blue Marble, public domain, fetched with `pic` as
+ *            input/pictures/earth-texture.jpg) → cutouts/<name>.png, the place at the disc's centre
  *   swap     a generated host (a mascot, a hand) holding a chroma-green card gets the real picture on
  *            the card, warped and lit like it → input/held/<name>.png, then its cutout with the
  *            picture kept solid → cutouts/<name>.png
@@ -702,6 +705,15 @@ const picTool = () => {
   done(into);
 };
 
+/** The Earth turned to a place, for a map-led thumbnail. */
+const globeTool = () => {
+  const [lat, lon] = args.filter(a => !/^--/.test(a)).slice(2, 4);
+  const name = flag('name');
+  if (!lat || !lon || !name) throw new Error('Usage: thumbs globe <job> <lat> <lon> --name=<name> [--size=2000] [--texture=…] [--gamma=0.62]');
+  const r = spawnSync('uv', ['run', '--quiet', '--with', 'numpy', '--with', 'pillow', 'python', 'thumbnails/tools/kit.py', 'globe', `--dir=${jobDir(job)}`, `--lat=${lat}`, `--lon=${lon}`, ...flags], { cwd: ROOT, stdio: 'inherit' });
+  if (r.status !== 0) process.exit(r.status ?? 1);
+};
+
 /** The real product in a generated host's hands: swap it onto the green card, cut the pair out, keep the product solid. */
 const swapTool = () => {
   const pic = args.filter(a => !a.startsWith('--'))[3];
@@ -719,7 +731,7 @@ const swapTool = () => {
 
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|pic|swap <job> … | mm thumbs inspire <set> @channel…');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|pic|globe|swap <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -732,6 +744,7 @@ const main = async () => {
   else if (cmd === 'inspire') inspire();
   else if (cmd === 'shot' || cmd === 'logo') kitTool(cmd);
   else if (cmd === 'pic') picTool();
+  else if (cmd === 'globe') globeTool();
   else if (cmd === 'swap') swapTool();
   else throw new Error(`Unknown command ${cmd}`);
 };

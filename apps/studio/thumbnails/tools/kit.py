@@ -14,6 +14,8 @@
       a real photo from Wikimedia Commons (NASA, museums, free press pictures): lists the matches
       with size and licence, downloads the picked one with <file>.source.json (page, author,
       licence, the credit line a CC licence asks for); skips it when the library already has it
+  kit.py globe --dir=<job dir> --lat=<°> --lon=<°> --name=<name> [--texture=…] [--size=2000] [--gamma=0.62]
+      the Earth as a globe with that place at the centre, from NASA's Blue Marble → cutouts/<name>.png
   kit.py swap --dir=<job dir> --gen=<generated image> --pic=<real picture> --name=<name>
       a generated host holding a solid chroma-green card (a mascot, a hand): the real picture is
       centre-cropped to the card's shape, warped onto it (its corners from the green region), lit
@@ -23,7 +25,7 @@
       after `thumbs cutout` of input/held/<name>.png: the card's area stays opaque in the cutout
       (background removal reads a picture's black parts as background) and its rim loses any green
 """
-import json, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse, urllib.request
+import json, os, re, shutil, subprocess, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 
 UA = {"User-Agent": "mediamake-thumbnails/1.0 (thumbnail kit)"}
 
@@ -81,10 +83,23 @@ def shot(o):
     print(f"✔ input/shots/{name}.png  (look at it: a sign-in wall or a cookie banner is not the page)")
 
 
+def get(url, timeout=60, tries=5):
+    """Wikimedia answers 429 when asked too fast: wait as long as it says (or 5, 10, 20… s) and retry."""
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 503) or i == tries - 1:
+                raise
+            wait = int(e.headers.get("Retry-After") or 0) or 5 * 2 ** i
+            print(f"  (Wikimedia asks to slow down: waiting {wait} s)", flush=True)
+            time.sleep(min(wait, 120))
+
+
 def api(params):
     q = urllib.parse.urlencode({**params, "format": "json"})
-    with urllib.request.urlopen(urllib.request.Request(f"https://commons.wikimedia.org/w/api.php?{q}", headers=UA), timeout=30) as r:
-        return json.load(r)
+    return json.loads(get(f"https://commons.wikimedia.org/w/api.php?{q}", 30))
 
 
 def logo(o):
@@ -103,8 +118,9 @@ def logo(o):
     out_dir = os.path.join(d, "assets", "logos")
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, f"{name}.png")
-    with urllib.request.urlopen(urllib.request.Request(ii.get("thumburl") or ii["url"], headers=UA), timeout=60) as r, open(out, "wb") as f:
-        f.write(r.read())
+    data = get(ii.get("thumburl") or ii["url"])
+    with open(out, "wb") as f:
+        f.write(data)
     strip = lambda v: re.sub(r"<[^>]+>", "", (meta.get(v) or {}).get("value", "")).strip()
     with open(os.path.join(out_dir, f"{name}.source.json"), "w") as f:
         json.dump({"schema": "mediamake.source/v1", "tool": "thumbs logo", "query": query, "title": title,
@@ -150,8 +166,9 @@ def pic(o):
         return
     os.makedirs(dest, exist_ok=True)
     out = os.path.join(dest, name + ext)
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120) as r, open(out, "wb") as f:
-        f.write(r.read())
+    data = get(url, 120)
+    with open(out, "wb") as f:
+        f.write(data)
     licence, author = strip(meta, "LicenseShortName"), strip(meta, "Artist")
     free = re.search(r"public domain|^pd|cc0", licence, re.I) is not None
     credit = None if free else f"{title[5:]} by {author or 'unknown'}, {licence or 'licence unknown'}, via Wikimedia Commons"
@@ -162,6 +179,38 @@ def pic(o):
                    "credit": credit, "downloadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, f, indent=1)
     print(f"✔ {name}{ext}  ({title}; {licence or '?'}{'' if free else '; credit it in the description: ' + credit})")
     print(f"FILE {name}")
+
+
+def globe(o):
+    """The Earth as a globe turned to a place: NASA's Blue Marble (an equirectangular texture, public
+    domain) projected orthographically with the place at the centre, the dark ocean lifted, the limb
+    shaded and a thin atmosphere rim → cutouts/<name>.png (transparent outside the disc).
+    `--lat`/`--lon` put that point at the centre; a point elsewhere on the globe sits at
+    (sin of its angular distance north of the centre) × radius above the centre."""
+    import numpy as np
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    d, name, N = o["dir"], o["name"], int(o.get("size", 2000))
+    texture = o.get("texture") or os.path.join(d, "input", "pictures", "earth-texture.jpg")
+    if not os.path.isfile(texture):
+        sys.exit('no Earth texture: mm thumbs pic <job> "Land shallow topo 2048" --name=earth-texture --subject=space/earth')
+    tex = (np.asarray(Image.open(texture).convert("RGB")).astype(np.float32) / 255) ** float(o.get("gamma", 0.62))
+    TH, TW = tex.shape[:2]
+    y, x = np.mgrid[0:N, 0:N].astype(np.float32)
+    u, v = (x - N / 2 + 0.5) / (N / 2), -(y - N / 2 + 0.5) / (N / 2)
+    r2 = u * u + v * v
+    z = np.sqrt(np.clip(1 - r2, 0, 1))
+    p0, l0 = np.radians(float(o["lat"])), np.radians(float(o["lon"]))
+    lat = np.arcsin(np.clip(z * np.sin(p0) + v * np.cos(p0), -1, 1))
+    lon = (l0 + np.arctan2(u, z * np.cos(p0) - v * np.sin(p0)) + np.pi) % (2 * np.pi) - np.pi
+    rgb = tex[((np.pi / 2 - lat) / np.pi * TH).astype(int).clip(0, TH - 1), ((lon + np.pi) / (2 * np.pi) * TW).astype(int).clip(0, TW - 1)]
+    rgb = rgb * (0.6 + 0.4 * z)[..., None]
+    rim = np.clip((np.sqrt(r2) - 0.9) / 0.1, 0, 1)[..., None]
+    rgb = rgb * (1 - 0.35 * rim) + np.array([0.45, 0.7, 1.0]) * 0.35 * rim
+    a = np.clip((1 - np.sqrt(r2)) * N / 2, 0, 1)
+    os.makedirs(os.path.join(d, "cutouts"), exist_ok=True)
+    Image.fromarray((np.dstack([rgb.clip(0, 1), a]) * 255).astype(np.uint8), "RGBA").save(os.path.join(d, "cutouts", f"{name}.png"))
+    print(f"✔ cutouts/{name}.png  ({o['lat']}, {o['lon']} at the centre of a {N} px disc)")
 
 
 def swap(o):
@@ -239,4 +288,4 @@ def solid(o):
 
 
 if __name__ == "__main__":
-    {"shot": shot, "logo": logo, "pic": pic, "swap": swap, "solid": solid}[sys.argv[1]](opts(sys.argv[2:]))
+    {"shot": shot, "logo": logo, "pic": pic, "globe": globe, "swap": swap, "solid": solid}[sys.argv[1]](opts(sys.argv[2:]))

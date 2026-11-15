@@ -221,6 +221,7 @@ real screen, the dish that was cooked, the place visited, the guest, the game. G
    `input/pictures/`; public domain and CC0 need nothing, a CC BY(-SA) picture needs its credit
    line (in its `.source.json`) in the video's description. A real photo's own words must stay
    true: a museum twin is "one like this", a beam aimed at something else is not the one in the story.
+   A place on Earth comes as a real globe: `mm thumbs globe <job> <lat> <lon> --name=…`.
 3. **Then improve it, never replace it**: upscale a small one, outcrop it to 16:9, clean its
    ground or vary its light with Midjourney (`midjourney-outcrop`, `--edit`, upscale) or fal (ask
    first: it costs money), and compare the result with the original: the thing must still be

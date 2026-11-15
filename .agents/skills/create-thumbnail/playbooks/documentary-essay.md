@@ -62,6 +62,11 @@ untitled host photos, compilations, the channel's own announcements.
 
 - Maps: draw or generate a clean one for the thumbnail and colour the region as a separate layer;
   never a screenshot of a mapping app.
+- A place on Earth: `mm thumbs globe <job> <lat> <lon> --name=…` renders NASA's Blue Marble as a
+  globe with the place at the centre (fetch the texture once with `thumbs pic <job> "Land shallow
+  topo 2048" --name=earth-texture`); a red dot and ring on the centre, a label plate beside it.
+  Centre it south of the place to have the place sit on the top arc of a globe rising from the
+  bottom edge.
 - A plate is the `text` layer's `plate` (`color`, `padX`, `padY`); stack one text layer a line so
   every plate fits its own words.
 - A series frame (logo corner, stripe, plate style) goes in the brand's `thumbnail.json`.
