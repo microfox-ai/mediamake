@@ -33,6 +33,21 @@ Channels read: @GrahamStephan, @AndreiJikh, @HowMoneyWorks, @ThePlainBagel, @Mag
 6. **A person and a verdict**: a tycoon's portrait with DARK TRUTH or LEVELS OF WEALTH in red or gold.
 7. **The number is the picture**: `$31.4 TRILLION` across the frame over the building it belongs to.
 
+## Approved in the rounds
+
+Iteration 5, "The Penny Is Dead: Why 1¢ Cost 3.7¢ to Make" (2026-11-15): the user approved the
+whole board of six straight away. What held:
+
+- **Facts checked first** (the last circulating penny struck 12 Nov 2025; 3.69¢ each in the
+  Mint's 2024 report; first cents 1793), with the sources in `brief.md`.
+- **The official object as the product** (the U.S. Mint's penny image) and **a host with a true
+  relation** on a faceless channel (Lincoln, whose face is on it): `ABE IS / RETIRED.`;
+  `IT COST / 3.7¢ / TO MAKE 1¢.` with the penny held between the words and Lincoln.
+- **The kind's own devices**: a news lower third (`BREAKING` + `THE PENNY IS DEAD`), a red
+  strike-through on `1¢` beside a giant yellow `3.7¢`, a full-width question above and below a band
+  of real coins, the coin alone lit red with `R.I.P. 1793–2025`.
+- Nothing on the picture claims more than it shows (a 2013 coin is never "the last penny").
+
 ## Type
 
 Heavy or tall condensed sans, caps, white with a black outline or on a red or yellow plate. A
