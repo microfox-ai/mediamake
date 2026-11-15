@@ -59,6 +59,15 @@ The guest. Also: the short "essentials" cut loses to the full episode in the sam
 a tweet screenshot or a third element makes the claim layout too busy; a topic with no person
 loses to a person.
 
+## Tried in the rounds
+
+Iteration 9, "Tesla Predicted the Smartphone in 1926" (2026-11-15, run autonomously; not yet
+reviewed): an archive-interview show, Tesla as the guest, his real 1926 words checked first
+(Snopes; only the short, consistently transcribed part quoted). The kind is the easiest to match:
+black, one lit face, a show badge and episode plate, a line on a red or yellow plate. A cutout of
+a phone held in a hand lost the thumb and left a hole in the screen: cut the object alone or frame
+the whole photo.
+
 ## Build notes
 
 - Two portraits must match: same crop height, same grade (`grade: mono` for both, or both colour),

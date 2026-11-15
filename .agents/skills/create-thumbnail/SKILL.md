@@ -222,6 +222,10 @@ real screen, the dish that was cooked, the place visited, the guest, the game. G
    line (in its `.source.json`) in the video's description. A real photo's own words must stay
    true: a museum twin is "one like this", a beam aimed at something else is not the one in the story.
    A place on Earth comes as a real globe: `mm thumbs globe <job> <lat> <lon> --name=…`.
+   A faceless channel's host can come from the same archives: a famous person with a true relation
+   to the story (the face on the coin, the explorer, the maker of the game), a public-domain or CC
+   portrait. Leave out any picture YouTube would flag (nudity, gore) whatever its licence, and list
+   every CC BY(-SA) credit line in `brief.md` for the description.
 3. **Then improve it, never replace it**: upscale a small one, outcrop it to 16:9, clean its
    ground or vary its light with Midjourney (`midjourney-outcrop`, `--edit`, upscale) or fal (ask
    first: it costs money), and compare the result with the original: the thing must still be
@@ -349,6 +353,9 @@ subject and the rest, are in `playbooks/music-edit.md`):
 - **Text on the calm side.** Subject on one side, words on the other (`side`), or the words in a
   darkened or clean band (`lower`); a stacked block sits centred top to bottom with equal gaps.
 - **Faces, eyes and the product stay clear** of words, plates and logos.
+- **A ring or an arrow lands on what it means**, something the eye can find at feed size (a word
+  on a plaque, a building on a ridge); check it in the render, not in the plan.
+- **A big line near the bottom ends before x 1080** (the timestamp corner), centred or not.
 - **Devices are drawn thick**: an arrow, a ring, an underline or a plate reads at 168 px only when
   its stroke is ≥ 10 px on the 1280 canvas. One or two a thumbnail.
 - **Labels sit on what they name**: a price over its product, a year over its panel, a country
@@ -529,3 +536,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-15 · iteration 3 (science explainer, "We Left a Mirror on the Moon", invented faceless channel) · board of seven on real NASA and Smithsonian pictures, fetched with the new `thumbs pic`; the user picked A, B, C, E, G, then "i like all of them" for all fifteen variants → approved. The kit was all public domain or CC0, the host a famous person with a real relation (Aldrin, the crew) with the product in front, one giant word everywhere, and words kept true to the picture (the museum unit is "one like this"). Passed over: a real laser photo aimed at something else, and drawn beams on a composite (`playbooks/science-explainer.md`, "Approved in the rounds").
 - 2026-11-15 · iteration 4 (documentary essay, "Point Nemo: Where Spacecraft Go to Die", invented map-led channel) · board of seven on real NASA pictures, globes rendered with the new `thumbs globe`, Jules Verne as the host; "all look good" → approved straight from the board, no variants. What held is in `playbooks/documentary-essay.md` ("Approved in the rounds").
 - 2026-11-15 · iteration 5 (finance, "The Penny Is Dead", invented money-news channel) · board of six on the U.S. Mint's penny, Lincoln's 1863 portrait as the host and real coin photos, every figure checked first; "All look good" → approved straight from the board. What held is in `playbooks/finance-business.md` ("Approved in the rounds").
+- 2026-11-15 · iterations 6–10 · "do all the iterations autonomously" → gaming (Atari's buried E.T.), cooking (pizza Margherita), travel (Machu Picchu), podcast (Tesla's 1926 interview) and fitness (Eugen Sandow) ran end to end without picks: facts and quotes checked, a real kit from Commons for each (every CC credit in its `brief.md`), a host with a true relation on every faceless channel, a board of six, the feed benchmark against the kind's hits, own fixes. What the runs taught is in each playbook's "Tried in the rounds" and in two composition rules (rings land on what they mean; big lines end before the timestamp corner). Awaiting the user's review.

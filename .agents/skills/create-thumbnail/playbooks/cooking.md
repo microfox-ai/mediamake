@@ -58,6 +58,15 @@ thumbnail are the proof the title promises ("Is Parmigiano Reggiano actually wor
 Misses are the talk and vlog videos (a microphone, a thin title on a plain ground, time-of-day
 panels), a guest at a desk with no food, four people with no dish.
 
+## Tried in the rounds
+
+Iteration 7, "The Pizza Named After a Queen" (2026-11-15, run autonomously; not yet reviewed):
+real Neapolitan Margherita photos, the Brandi plaque, the ingredients, and Queen Margherita's
+portrait as the host. Own checks: a historical host can't hold the food to the lens, so the dish
+stays the biggest thing and the host presents from the side, cropped to head and shoulders (a
+full-length portrait made a tiny host); a disputed origin story is asked, never stated (`TRUE?`,
+`NAMED AFTER HER?`); `3 INGREDIENTS, / 1 FLAG.` on the flag's colours is the kind's own claim device.
+
 ## Build notes
 
 - Food pictures must be appetising first: sharp, lit from the side or back, saturated but true.

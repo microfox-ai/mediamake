@@ -55,6 +55,15 @@ word that adds something is the minority and works ("My Biggest Acting Role Yet"
 The game and the moment decide: a season opener, a famous franchise, part 1. Visible misses: dark
 moody frames with no face and no hook, a calm face, a bare vista, part 2s, off-topic videos.
 
+## Tried in the rounds
+
+Iteration 6, "The Game So Bad Atari Buried It in the Desert" (2026-11-15, run autonomously; not yet
+reviewed by the user): a retro-history story built from real artefacts (a dug-up E.T. cartridge,
+the 2014 landfill dig, Evan-Amos's public-domain Atari 2600, the Atari logo) and its maker,
+Howard Scott Warshaw, as the host (`HE MADE IT IN / 5 WEEKS.`). Own checks: beside character-led
+hits, real artefacts on a brown ground looked flat → push the ground to a hot retro orange-red and
+the photos' saturation; a pixel face (Press Start 2P) holds only as a short line at a fixed size.
+
 ## Build notes
 
 - Capture at the game's highest quality and pick the sharpest frame; UI and HUD cropped out unless

@@ -55,6 +55,14 @@ The picture warns or proves; the title promises: "Most EFFECTIVE Way to Get Abs"
 Misses are Q&As, training-week diaries and plain gym poses with no question. A thumbnail with no
 problem to fix and no result to show has nothing to click.
 
+## Tried in the rounds
+
+Iteration 10, "The First Bodybuilder Had No Steroids" (2026-11-15, run autonomously; not yet
+reviewed): Eugen Sandow's public-domain photographs, the 1894 "human dumbbell" poster and his
+1897 book. Own checks: the genre's slang and devices (NATTY OR NOT?, a red or green plate, a
+number on the feat, an arrow) make an archive photo read as fitness; nude archive studies were
+left out whatever their licence; `upper` must be off on a line with a year like "1890s."
+
 ## Build notes
 
 - A tier list, a ladder and a tinted muscle are drawn layers: `shape` rects with `text`, and a
