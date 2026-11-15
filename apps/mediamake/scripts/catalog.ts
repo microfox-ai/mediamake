@@ -440,7 +440,7 @@ async function main() {
       });
       const lasts = !membership ? '' : membership.permanent ? ', permanent' : membership.expiresAt ? `, until ${membership.expiresAt.slice(0, 10)}` : ', until an admin removes it';
       console.log(`✅ ${clientId} is ${membership ? `${membership.tier} (${membership.source}${lasts})` : 'public'}`);
-      return console.log(`   🔗 ${BASE_URL}/app/releases?tab=people`);
+      return console.log(`   🔗 ${BASE_URL}/app/memberships`);
     }
 
     case 'members': {
@@ -457,7 +457,7 @@ async function main() {
       for (const group of groups.filter(g => ['private', 'network'].includes(g.groupId) && g.members.length)) {
         console.log(`earlier group ${group.groupId}: ${group.members.join(', ')}  (run migrate-tiers)`);
       }
-      return console.log(`\n🔗 ${BASE_URL}/app/releases?tab=people`);
+      return console.log(`\n🔗 ${BASE_URL}/app/memberships`);
     }
 
     case 'migrate-tiers': {

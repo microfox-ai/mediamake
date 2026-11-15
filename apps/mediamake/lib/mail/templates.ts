@@ -1,7 +1,7 @@
 import type { Mail } from './send';
 
 /**
- * The sign-in mails: one layout, one button, and the same words as plain text.
+ * Every mail (sign-in, then memberships): one layout, one button, and the same words as plain text.
  * Sentence case and short sentences, as the brand guide asks.
  */
 
@@ -85,5 +85,77 @@ export function existingAccountMail(to: string, url: string): Mail {
     ],
     button: { label: 'Choose a new password', url },
     footer: 'The link works once, for 1 hour. If it was not you, ignore this mail and nothing changes.',
+  });
+}
+
+// ── Memberships ──────────────────────────────────────────────────────────────
+
+/** Sent once, when an account is made. */
+export function welcomeMail(to: string, input: { name?: string; appUrl: string }): Mail {
+  return layout({
+    to,
+    subject: 'Welcome to MediaMake',
+    heading: input.name ? `Welcome, ${input.name}` : 'Welcome to MediaMake',
+    lines: [
+      'Your account is ready. MediaMake is skills, MCPs and apps for making videos, music and more inside Claude.',
+      'We publish nothing we don\'t use: everything in Explore was used for real work by the person who made it.',
+      'You start as a Public member. Plus and Pro come from contributing something you made and used, or from an admin. There is nothing to pay.',
+    ],
+    button: { label: 'Open MediaMake', url: input.appUrl },
+    footer: 'You get this mail because an account was made with this address. Reply to it if that was not you.',
+  });
+}
+
+export interface MembershipChange {
+  /** The tier's name before and after, e.g. "Public" and "Pro". */
+  from: string;
+  to: string;
+  /** How long it lasts, in words: "until 15 Feb 2027", "with no end date". None for a move to Public. */
+  lasts?: string;
+  /** Why, in the admin's words. */
+  reason?: string;
+  /** The Subscription page. */
+  url: string;
+}
+
+/** Sent when a person's membership changes: given, raised, lowered, removed or made permanent. */
+export function membershipChangedMail(to: string, change: MembershipChange): Mail {
+  const same = change.from === change.to;
+  const ended = change.to === 'Public' && !same;
+  const lines = [
+    same
+      ? `Your ${change.to} membership now lasts ${change.lasts ?? 'as before'}.`
+      : ended
+        ? `Your ${change.from} membership has ended. You are a Public member now, and everything Public stays open to you.`
+        : `You are a ${change.to} member now${change.from === 'Public' ? '' : ` (you were ${change.from})`}${change.lasts ? `, ${change.lasts}` : ''}.`,
+  ];
+  if (change.reason) lines.push(`The reason given: ${change.reason}`);
+  lines.push(
+    ended
+      ? 'Contributing something you made and used earns a membership again.'
+      : 'Your Subscription page shows what it opens and how long it lasts.',
+  );
+  return layout({
+    to,
+    subject: same ? `Your MediaMake membership: ${change.to}, ${change.lasts ?? 'updated'}` : ended ? `Your ${change.from} membership has ended` : `You are now a ${change.to} member of MediaMake`,
+    heading: same ? 'Your membership changed' : ended ? `Your ${change.from} membership has ended` : `You are now ${change.to}`,
+    lines,
+    button: { label: 'See your membership', url: change.url },
+    footer: 'Memberships come from contributing or from an admin. There is nothing to pay. Reply to this mail with any question.',
+  });
+}
+
+/** Sent to someone an admin invites into a membership. The link works once. */
+export function inviteMail(to: string, input: { tier: string; url: string; note?: string; days?: number }): Mail {
+  const lines = [`You are invited to MediaMake as a ${input.tier} member.`];
+  if (input.note) lines.push(input.note);
+  lines.push('Open the link, sign in or make an account, and the membership is yours.');
+  return layout({
+    to,
+    subject: `Your invite to MediaMake (${input.tier})`,
+    heading: 'You are invited to MediaMake',
+    lines,
+    button: { label: 'Accept the invite', url: input.url },
+    footer: `The link works once${input.days ? `, for ${input.days} days` : ''}. If you were not expecting it, ignore this mail and nothing happens.`,
   });
 }

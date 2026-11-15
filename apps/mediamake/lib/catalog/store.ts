@@ -595,6 +595,7 @@ export const accessInvitesDB = {
     itemIds: (string | '*')[];
     groupId?: string;
     tier?: GrantableTier;
+    email?: string;
     maxUses?: number;
     grantDays?: number;
     expiresAt?: string;
@@ -608,6 +609,7 @@ export const accessInvitesDB = {
       itemIds: input.itemIds,
       groupId: input.groupId,
       tier: input.tier,
+      email: input.email,
       maxUses: input.maxUses ?? 1,
       uses: 0,
       redeemedBy: [],

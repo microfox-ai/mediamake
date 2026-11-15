@@ -262,6 +262,11 @@ describe('email and password', () => {
     assert.deepEqual(await accounts.describeVerification(token), { type: 'signup', email: 'dana@example.com' });
     const confirmed = await browser.post(routes.verify, '/api/auth/verify', { token });
     assert.equal(confirmed.body.signedIn, true);
+    // the account exists now: one welcome, to the confirmed address
+    assert.equal(mails.length, 2);
+    assert.equal(mails[1].to, 'dana@example.com');
+    assert.equal(mails[1].subject, 'Welcome to MediaMake');
+    assert.match(mails[1].text, /^Welcome, Dana Doe/);
 
     const [user] = [...users.values()];
     assert.match(user.clientId, /^dana-doe-[0-9a-f]{6}$/);
@@ -329,7 +334,7 @@ describe('email and password', () => {
     const browser = new Browser();
 
     assert.equal((await browser.post(routes.forgot, '/api/auth/password/forgot', { email: 'nobody@example.com' })).status, 200);
-    assert.equal(mails.length, 1, 'no mail for an address without an account');
+    assert.deepEqual(mails.map(mail => mail.subject), ['Confirm your email for MediaMake', 'Welcome to MediaMake'], 'no mail for an address without an account');
 
     assert.equal((await browser.post(routes.forgot, '/api/auth/password/forgot', { email: 'dana@example.com' })).status, 200);
     const { path, token } = linkIn(mails.at(-1)!);

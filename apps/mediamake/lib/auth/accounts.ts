@@ -3,7 +3,8 @@ import { CrudHash } from '@microfox/db-upstash';
 import { randomBytes } from 'crypto';
 import { z } from 'zod';
 import type { ApiKeyInfo } from '@/app/types/db';
-import { existingAccountMail, resetPasswordMail, verifyEmailMail } from '@/lib/mail/templates';
+import { CANONICAL_SITE, siteUrl } from '@/lib/catalog/install-prompt';
+import { existingAccountMail, resetPasswordMail, verifyEmailMail, welcomeMail } from '@/lib/mail/templates';
 import { sendMail } from '@/lib/mail/send';
 import { hashPassword, passwordProblem, verifyPassword } from './password';
 import {
@@ -109,6 +110,16 @@ export const SIGNUP_CLOSED = 'Sign-up is invite only for now. Open your invite l
 
 /** Swapped in tests, which have no database. */
 export const authDeps = {
+  /** The welcome mail, once, when an account is made. It never fails the sign-up. */
+  async welcome(user: Pick<User, 'email' | 'name'>): Promise<void> {
+    if (!user.email) return;
+    try {
+      await sendMail(welcomeMail(user.email, { name: user.name, appUrl: `${siteUrl() ?? CANONICAL_SITE}/app` }));
+    } catch (error) {
+      console.error('[auth] Could not send the welcome mail:', error);
+    }
+  },
+
   async inviteIsLive(code: string): Promise<boolean> {
     try {
       const { accessInvitesDB } = await import('@/lib/catalog/store');
@@ -189,6 +200,7 @@ async function createAccount(input: {
     clientName: name ?? email ?? user.clientId,
     isValid: true,
   });
+  await authDeps.welcome(user);
   return user;
 }
 

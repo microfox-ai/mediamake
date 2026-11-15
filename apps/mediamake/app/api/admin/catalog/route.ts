@@ -1,9 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
-import { CrudHash } from '@microfox/db-upstash';
-import { Redis } from '@upstash/redis';
 import { z } from 'zod';
-import type { ApiKeyInfo } from '@/app/types/db';
 import { publicReleasesOpen } from '@/lib/access';
 import { requireAdmin } from '@/lib/admin-utils';
 import {
@@ -23,7 +20,9 @@ import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
 import { usedByOf } from '@/lib/catalog/summary';
 import { isMembershipSource } from '@/lib/memberships/membership';
+import { changeTier, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
 import { membershipsDB } from '@/lib/memberships/store';
+import { publicOrigin } from '@/lib/mcp/oauth';
 import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, TIER_LADDER, isGrantableTier, type GrantableTier } from '@/lib/memberships/tiers';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import { parseYouTubeId, summaryFrom, withVideos } from '@/lib/catalog/video';
@@ -58,27 +57,6 @@ import {
   type Visibility,
 } from '@/lib/catalog/types';
 
-/** Everyone with an API key, by client, without the keys themselves. */
-async function listPeople() {
-  try {
-    const redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
-    const keys = await new CrudHash<ApiKeyInfo>(redis, 'apiKeys').list();
-    const byClient = new Map<string, { clientId: string; name: string; activeKeys: number }>();
-    for (const key of keys.filter(Boolean)) {
-      const person = byClient.get(key.clientId) ?? { clientId: key.clientId, name: key.clientName || key.clientId, activeKeys: 0 };
-      if (key.isValid) person.activeKeys += 1;
-      byClient.set(key.clientId, person);
-    }
-    return [...byClient.values()].sort((a, b) => a.name.localeCompare(b.name));
-  } catch (error) {
-    console.error('[admin/catalog] Could not list API key holders:', error);
-    return [];
-  }
-}
-
 /**
  * GET /api/admin/catalog
  * Everything an admin needs to manage releases: items (with versions),
@@ -103,7 +81,7 @@ export async function GET(req: NextRequest) {
     accessGroupsDB.list(),
     accessInvitesDB.list(),
     accessRequestsDB.list('pending'),
-    listPeople(),
+    listKeyHolders(),
     catalogArchiveDB.list(),
     catalogVideosDB.list(),
     catalogHealthDB.list(),
@@ -688,18 +666,18 @@ export async function POST(req: NextRequest) {
         if (tier === 'public') return bad('Public is having no membership: use set_tier to take someone back to it');
         return NextResponse.json({ membership: await membershipsDB.grant({ ...record, tier }) });
       }
-      const membership = await membershipsDB.setTier({ ...record, tier });
-      // the earlier tiers go, so the new one holds: out of both groups, and no grant of everything
-      await accessGroupsDB.removeMembers(PRIVATE_GROUP, [clientId]);
-      await accessGroupsDB.removeMembers(NETWORK_GROUP, [clientId]);
-      await accessGrantsDB.revokeFor('*', { kind: 'client', id: clientId }, adminId);
-      return NextResponse.json({ success: true, tier, membership });
+      // the earlier tiers go with it (both groups, a grant of everything), and the person is mailed unless `notify` is false
+      const changed = await changeTier({ ...record, by: adminId, tier, origin: publicOrigin(req), notify: body.notify !== false });
+      return NextResponse.json({ success: true, ...changed });
     }
 
     case 'membership_permanent': {
-      const membership = typeof body.membershipId === 'string' ? await membershipsDB.makePermanent(body.membershipId, adminId) : null;
-      if (!membership) return NextResponse.json({ error: 'No live membership with that id' }, { status: 404 });
-      return NextResponse.json({ membership });
+      const made =
+        typeof body.membershipId === 'string'
+          ? await makePermanent({ membershipId: body.membershipId, by: adminId, origin: publicOrigin(req), notify: body.notify !== false })
+          : null;
+      if (!made) return NextResponse.json({ error: 'No live membership with that id' }, { status: 404 });
+      return NextResponse.json(made);
     }
 
     case 'revoke_membership': {
@@ -784,18 +762,18 @@ export async function POST(req: NextRequest) {
     }
 
     case 'resolve_request': {
-      const request = await accessRequestsDB.resolve(body.requestId, body.approve ? 'approved' : 'rejected', adminId);
-      if (!request) return NextResponse.json({ error: 'No pending request with that id' }, { status: 404 });
-      const grant = body.approve
-        ? await accessGrantsDB.create({
-            itemId: request.itemId,
-            subject: { kind: 'client', id: request.clientId },
-            grantedBy: adminId,
-            expiresAt: daysFromNow(body.days),
-            note: `Approved request ${request.requestId}`,
-          })
-        : undefined;
-      return NextResponse.json({ request, grant });
+      // a request for a tier (from Subscription) gives the membership, one for an item a grant of it
+      const resolved = await resolveRequest({
+        requestId: body.requestId,
+        approve: !!body.approve,
+        by: adminId,
+        days: body.days,
+        note: typeof body.note === 'string' ? body.note.trim() || undefined : undefined,
+        origin: publicOrigin(req),
+        notify: body.notify !== false,
+      });
+      if (!resolved) return NextResponse.json({ error: 'No pending request with that id' }, { status: 404 });
+      return NextResponse.json(resolved);
     }
 
     case 'init_indexes': {
