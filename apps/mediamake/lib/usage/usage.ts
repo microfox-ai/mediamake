@@ -103,6 +103,32 @@ export function summarizeRuns(runs: SkillRun[]): SkillUsage[] {
   return [...bySkill.values()].sort((a, b) => b.runs - a.runs || b.lastAt.localeCompare(a.lastAt) || a.skill.localeCompare(b.skill));
 }
 
+export interface AppOpen {
+  /** The app's catalog id, e.g. `app/skill-library`. */
+  app: string;
+  /** ISO 8601, UTC. */
+  at: string;
+}
+
+export interface AppUsage {
+  app: string;
+  opens: number;
+  lastAt: string;
+}
+
+/** An app's catalog id: `app/<slug>`. Never an address or a path. */
+const APP_ID = /^app\/[a-z0-9][a-z0-9-]{0,63}$/;
+
+/**
+ * An app opened from the app (Home, Explore or Mine): `{ app }`. Only the
+ * app's id is read; the time is the server's. Home's Apps column counts them.
+ */
+export function parseAppOpen(body: unknown, now = Date.now()): AppOpen | { error: string } {
+  const app = (body as { app?: unknown })?.app;
+  if (typeof app !== 'string' || !APP_ID.test(app)) return { error: 'Send { app }: an app\'s catalog id, e.g. app/skill-library' };
+  return { app, at: new Date(now).toISOString() };
+}
+
 /** `days` from a query string: 1 to RUN_MAX_AGE_DAYS, 90 without one. */
 export function daysParam(value: string | null): number {
   const days = Number(value);

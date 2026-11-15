@@ -1,13 +1,15 @@
 import { getDatabase } from '../mongodb';
-import type { LocalSkill, SkillRun, SkillUsage } from './usage';
+import type { AppOpen, AppUsage, LocalSkill, SkillRun, SkillUsage } from './usage';
 
 /**
  * Usage in MongoDB (see ./usage for what it is):
  * - `skill_runs`: one document per run, `{ clientId, skill, at }` and nothing more.
  * - `local_skills`: the last list each of an account's devices reported,
  *   `{ clientId, device, skills: [{ name, version }], reportedAt }`.
+ * - `app_opens`: one document each time an account opens an app from the
+ *   app, `{ clientId, app, at }` and nothing more.
  */
-const COL = { runs: 'skill_runs', local: 'local_skills' } as const;
+const COL = { runs: 'skill_runs', local: 'local_skills', opens: 'app_opens' } as const;
 
 interface RunDoc extends SkillRun {
   clientId: string;
@@ -29,6 +31,7 @@ export function ensureUsageIndexes() {
     await db.collection(COL.runs).createIndex({ clientId: 1, skill: 1, at: 1 }, { unique: true });
     await db.collection(COL.runs).createIndex({ clientId: 1, at: -1 });
     await db.collection(COL.local).createIndex({ clientId: 1, device: 1 }, { unique: true });
+    await db.collection(COL.opens).createIndex({ clientId: 1, at: -1 });
   })().catch(error => {
     indexed = null;
     throw error;
@@ -80,10 +83,33 @@ export const usageDB = {
       .toArray();
   },
 
+  /** Saves one app opened from the app. */
+  async addOpen(clientId: string, open: AppOpen): Promise<void> {
+    await ensureUsageIndexes();
+    await (await getDatabase()).collection<AppOpen & { clientId: string }>(COL.opens).insertOne({ clientId, app: open.app, at: open.at });
+  },
+
+  /** An account's apps by how often it opened them since `since`, most opened first. */
+  async opensOf(clientId: string, since: string): Promise<AppUsage[]> {
+    const rows = await (await getDatabase())
+      .collection(COL.opens)
+      .aggregate<{ _id: string; opens: number; lastAt: string }>([
+        { $match: { clientId, at: { $gte: since } } },
+        { $group: { _id: '$app', opens: { $sum: 1 }, lastAt: { $max: '$at' } } },
+        { $sort: { opens: -1, lastAt: -1, _id: 1 } },
+      ])
+      .toArray();
+    return rows.map(row => ({ app: row._id, opens: row.opens, lastAt: row.lastAt }));
+  },
+
   /** Deletes everything usage holds of an account. */
-  async forget(clientId: string): Promise<{ runs: number; devices: number }> {
+  async forget(clientId: string): Promise<{ runs: number; devices: number; opens: number }> {
     const db = await getDatabase();
-    const [runs, devices] = await Promise.all([db.collection(COL.runs).deleteMany({ clientId }), db.collection(COL.local).deleteMany({ clientId })]);
-    return { runs: runs.deletedCount, devices: devices.deletedCount };
+    const [runs, devices, opens] = await Promise.all([
+      db.collection(COL.runs).deleteMany({ clientId }),
+      db.collection(COL.local).deleteMany({ clientId }),
+      db.collection(COL.opens).deleteMany({ clientId }),
+    ]);
+    return { runs: runs.deletedCount, devices: devices.deletedCount, opens: opens.deletedCount };
   },
 };

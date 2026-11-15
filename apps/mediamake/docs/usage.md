@@ -1,6 +1,6 @@
 # Usage: what MediaMake knows about the skills you run
 
-MediaMake keeps two things about how an account uses skills, so the app can
+MediaMake keeps three things about how an account uses it, so the app can
 show "what you use most" on Home and "skills on your computer" under Mine.
 Nothing else about your work is sent or stored.
 
@@ -8,6 +8,7 @@ Nothing else about your work is sent or stored.
 | --- | --- | --- |
 | A skill run | The skill's name and the time it ran | `skill_runs`: `{ clientId, skill, at }` |
 | The skills on a computer | Each skill's name and version | `local_skills`: `{ clientId, device, skills: [{ name, version }], reportedAt }` |
+| An app opened from the app | The app's catalog id (`app/skill-library`) and the time | `app_opens`: `{ clientId, app, at }` |
 
 Never sent: a skill's arguments, the folder or project it ran in, the
 session, file names or contents, what it made, or your computer's name. The
@@ -29,6 +30,23 @@ version is the SKILL.md's `version`, else a short hash of the SKILL.md.
 - **mm-use**, the members' MCP (`/mcp/use`), where no hook runs (the Claude
   apps on the web or a phone): `report_skill_run` and `report_local_skills`.
 
+- **The app itself**, for apps: an app is a page of this site, so no hook or
+  MCP can report it. Pressing Open on an app in Home, Explore or Mine (signed
+  in) saves its id and the time, nothing about what is done in it.
+
+## What the app shows from it
+
+- **Home** (`/app`): three columns. Skills by their runs in the last 90 days;
+  MCPs by the runs of the skills that work with them (an MCP reports nothing
+  itself: a run of a skill counts once for each MCP in its
+  `## First: check the MCPs` table); apps by how often they were opened from
+  the app. Then what was installed lately, from the catalog's install records.
+- **Mine** (`/app/mine`): what the account installed, and from the skill lists
+  its computers reported: MediaMake's skills there, its own variants
+  (`<skill>-like-<ref>`, `<skill>-v<N>`), and its other skills.
+
+The lists are worked out in `lib/app-shell/member.ts`.
+
 ## Turning it off
 
 | | |
@@ -38,7 +56,7 @@ version is the SKILL.md's `version`, else a short hash of the SKILL.md.
 | `MEDIAMAKE_USAGE=off` | The same for one shell or session; it wins over the config |
 | `mm usage on` | Send again |
 | `mm usage skills --dry` | Show the skill list that would be sent, without sending |
-| `mm usage forget` | Delete every run and skill list MediaMake holds of the account |
+| `mm usage forget` | Delete every run, skill list and app open MediaMake holds of the account |
 
 Off is local to the computer and stops the hook's reports and
 `mm usage skills`. Claude is told never to call `report_skill_run` for a user
@@ -53,9 +71,11 @@ account reads and deletes only its own.
 | --- | --- |
 | `POST /api/usage/skill-runs` `{ runs: [{ skill, at }] }` | Report up to 200 runs. A run reported twice counts once. Answers `{ saved, known, dropped }` |
 | `GET /api/usage/skill-runs?days=90` | The account's skills by how often they ran, most used first: `{ skills: [{ skill, runs, lastAt }] }` |
-| `DELETE /api/usage/skill-runs` | Forget the account's runs and skill lists |
+| `DELETE /api/usage/skill-runs` | Forget the account's runs, skill lists and app opens |
 | `PUT /api/usage/local-skills` `{ device, skills: [{ name, version }] }` | What one computer has now; replaces that device's last list |
 | `GET /api/usage/local-skills` | Each device's last list |
+| `POST /api/usage/app-opens` `{ app }` | One app opened from the app: its catalog id. The time is the server's |
+| `GET /api/usage/app-opens?days=90` | The account's apps by how often it opened them |
 
 ## Feedback
 

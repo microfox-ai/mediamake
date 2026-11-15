@@ -1,31 +1,27 @@
-import Link from 'next/link';
-import { ComingSoon } from '@/components/app-shell/app-page';
+import { AppPage } from '@/components/app-shell/app-page';
+import { Explore } from '@/components/app-shell/explore';
+import { exploreFiltersFrom } from '@/lib/app-shell/member';
+import { categoryInfo, getAppItems } from '@/lib/app-shell/member-data';
+import { getAppViewer } from '@/lib/app-shell/viewer';
+import { RULE } from '@/lib/catalog/types';
+import { tierLabel } from '@/lib/memberships/tiers';
 
 export const metadata = { title: 'Explore · MediaMake' };
 
-/** /app/explore: every skill, MCP and app the person can open. Until it is built, the public lists stand in. */
-export default function ExplorePage() {
+/**
+ * /app/explore: every skill, MCP and app the member's membership opens, with
+ * search, kind and category, Beta and membership badges. What a higher
+ * membership opens is shown locked, saying which; the cohort's stays out.
+ * Failed items are behind a filter, each with its reason.
+ */
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { clientId, tier } = await getAppViewer();
+  if (!clientId) return null;
+  const [items, params] = await Promise.all([getAppItems(clientId), searchParams]);
+
   return (
-    <ComingSoon
-      title="Explore"
-      about="Explore will list every skill, MCP and app you can open, with search, kind and field (music, anime, film and so on), and Beta and membership badges. Locked items will say which membership opens them."
-    >
-      <p className="text-sm">
-        Until then, browse them on the site:{' '}
-        {[
-          ['Skills', '/?tab=skills'],
-          ['MCPs', '/?tab=mcps'],
-          ['Apps', '/?tab=apps'],
-        ].map(([label, href], index) => (
-          <span key={href}>
-            {index > 0 && ', '}
-            <Link href={href} className="font-medium underline underline-offset-4">
-              {label}
-            </Link>
-          </span>
-        ))}
-        .
-      </p>
-    </ComingSoon>
+    <AppPage title="Explore">
+      <Explore items={items} categories={categoryInfo()} initial={exploreFiltersFrom(params)} rule={RULE} membership={tierLabel(tier)} />
+    </AppPage>
   );
 }

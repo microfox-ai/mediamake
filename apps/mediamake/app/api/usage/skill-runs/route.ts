@@ -12,8 +12,8 @@ import { daysParam, parseRuns, sinceDays } from '@/lib/usage/usage';
  *                                     twice counts it once. What the repo's hook
  *                                     (tools/skill-runs.mjs) and mm-use's report_skill_run send.
  * GET    ?days=90                     the account's skills by how often they ran, most used first.
- * DELETE                              forget everything usage holds of the account (runs and
- *                                     local skills).
+ * DELETE                              forget everything usage holds of the account (runs,
+ *                                     local skills and apps opened).
  */
 export async function POST(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');

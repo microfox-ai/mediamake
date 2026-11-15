@@ -170,7 +170,7 @@ test('mm usage keeps the rest of the config, shows the list without sending, sen
   assert.deepEqual([got[0].method, got[0].path, got[0].body.skills.length], ['PUT', '/api/usage/local-skills', 3]);
 
   const forget = await usageAsync(['forget']);
-  assert.match(forget.stdout, /Deleted 3 runs and 1 skill lists/);
+  assert.match(forget.stdout, /Deleted 3 runs, 1 skill lists and 0 app opens/);
   assert.deepEqual([got[1].method, got[1].path], ['DELETE', '/api/usage/skill-runs']);
   assert.equal(usage(['nonsense']).status, 1);
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { daysParam, parseLocalSkills, parseRuns, summarizeRuns } from './usage';
+import { daysParam, parseAppOpen, parseLocalSkills, parseRuns, summarizeRuns } from './usage';
 import { parseFeedback } from '../feedback/feedback';
 
 const NOW = Date.parse('2026-11-15T12:00:00.000Z');
@@ -113,5 +113,15 @@ describe('feedback', () => {
     assert.ok('error' in parseFeedback({ text: 'x'.repeat(4001) }));
     assert.ok('error' in parseFeedback({ text: 'fine', itemId: 'pack-brand-kit' }));
     assert.ok('error' in parseFeedback(null));
+  });
+});
+
+describe('apps opened from the app', () => {
+  it('keeps the app id and the server time, and nothing else', () => {
+    assert.deepEqual(parseAppOpen({ app: 'app/skill-library', at: '2020-01-01T00:00:00Z', page: '/library?folder=/Users/me' }, NOW), { app: 'app/skill-library', at: '2026-11-15T12:00:00.000Z' });
+  });
+
+  it('refuses anything that is not an app id', () => {
+    for (const app of ['skill/make-lyrics-video', '/library', 'app/../x', 'https://example.com', '', undefined]) assert.ok('error' in parseAppOpen({ app }, NOW));
   });
 });
