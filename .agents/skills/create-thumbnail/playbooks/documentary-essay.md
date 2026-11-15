@@ -35,6 +35,20 @@ Channels read: @johnnyharris, @Vox, @LEMMiNO, @Wendoverproductions, @RealLifeLor
 7. **Evidence board**: a document, a redacted photo, a red circle, a typewriter question (COVER-UP?).
 8. **Picture-filled lettering**: a place name whose letters hold photographs (a postcard word).
 
+## Approved in the rounds
+
+Iteration 4, "Point Nemo: Where Spacecraft Go to Die" (2026-11-15): the user approved the whole
+board of seven straight away ("all look good"). What held:
+
+- **The place as a real globe** (`thumbs globe`), the point ringed in red: `NOWHERE.` in yellow
+  across the top; the point on the arc of a globe rising from the bottom under the ISS, `Next.`
+- **Real objects on plates**: Mir over the Earth's curve with `THE SPACECRAFT / GRAVEYARD` on a
+  black and a yellow plate; three panels with a year plate each and `NEXT?` on a red plate.
+- **A famous host with a true relation**: Jules Verne (the point is named after his Nemo; ESA's
+  cargo ship "Jules Verne" burned up there), words → globe or ship → Verne cropped at the edge.
+- **A case-file card**: the coordinates typed, a giant typewriter `NEMO.`, a red stamp.
+- The channel's small mark in the same corner on every one.
+
 ## Type
 
 Heavy sans caps on plates is the default. The voices that set this kind apart: **mono or
