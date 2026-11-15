@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CatalogEntry, CatalogKind } from '@/lib/catalog/types';
 import { CatalogCard } from './catalog-card';
 import { SKILL_FILTER_PARAMS, type SkillCategoryInfo, type SkillFacet, type SkillFilters } from './skill-filters';
+import { homeFonts } from './fonts';
+import { EnterAppButton, Landing, RULE } from './landing';
 import { SetupBanner } from './setup-banner';
 import { SkillsTab } from './skills-tab';
 import { homeTabs, type HomeTab } from './tabs';
@@ -47,17 +48,13 @@ export function HomePage({
     if (name && cards.some((c) => c.id === `skill/${name}`)) window.location.replace(`/skills/${encodeURIComponent(name)}`);
   }, [cards]);
 
-  // every skill in the repo is a card (always public, never released through a gate): they have
-  // their own tab, so Latest releases stays the apps, MCPs and tutorials. Archived items stay
-  // installable by their link but are left off every tab.
+  // Home is the scrolling site (see Landing); the other tabs list one kind each. Archived items
+  // stay installable by their link but are left off every tab.
   const listed = cards.filter((c) => !c.archivedAt);
-  const visible =
-    'kinds' in active
-      ? listed.filter((c) => (active.kinds as readonly CatalogKind[]).includes(c.kind))
-      : listed.filter((c) => c.kind !== 'skill');
+  const visible = 'kinds' in active ? listed.filter((c) => (active.kinds as readonly CatalogKind[]).includes(c.kind)) : [];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className={cn('mf-site flex min-h-screen flex-col bg-background text-foreground', homeFonts)}>
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <SetupBanner />
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
@@ -75,12 +72,7 @@ export function HomePage({
           </nav>
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
-            <Button asChild size="sm">
-              <Link href="/apps">
-                Open App
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
+            <EnterAppButton />
             <Button asChild variant="ghost" size="icon" className="size-8">
               <a href={MEDIAMAKE_REPO} target="_blank" rel="noreferrer" aria-label="MediaMake on GitHub" title="MediaMake on GitHub">
                 <GitHubMark className="size-5" />
@@ -93,53 +85,49 @@ export function HomePage({
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4">
-        {tab === 'home' && (
-          // Hero is intentionally minimal for now.
-          <section className="flex min-h-[40vh] flex-col items-center justify-center gap-3 py-16 text-center">
-            <img src="/brand/mediamake-mark-glow.svg" alt="" className="h-20 w-auto" />
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">MediaMake</h1>
-            <p className="max-w-xl text-muted-foreground">
-              MCPs, skills, apps, tutorials and courses for making content.
-            </p>
+      {tab === 'home' ? (
+        <main className="flex-1">
+          <Landing cards={cards} onSelectTab={selectTab} />
+        </main>
+      ) : (
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4">
+          <section className="pb-16 pt-10">
+            {tab !== 'skills' && <h2 className="mb-4 text-sm font-medium text-muted-foreground">{active.label}</h2>}
+            {tab === 'skills' ? (
+              <SkillsTab cards={cards.filter((c) => c.kind === 'skill')} {...skills} />
+            ) : visible.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visible.map((card) => (
+                  <CatalogCard key={card.id} card={card} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+                {signedIn ? (
+                  'Nothing shared with you here yet.'
+                ) : (
+                  <>
+                    Releases are invite only for now.{' '}
+                    <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
+                      Sign in
+                    </Link>{' '}
+                    to see what's shared with you.
+                  </>
+                )}
+              </div>
+            )}
           </section>
-        )}
-
-        <section className={cn('pb-16', tab !== 'home' && 'pt-10')}>
-          {tab !== 'skills' && (
-            <h2 className="mb-4 text-sm font-medium text-muted-foreground">
-              {tab === 'home' ? 'Latest releases' : active.label}
-            </h2>
-          )}
-          {tab === 'skills' ? (
-            <SkillsTab cards={cards.filter((c) => c.kind === 'skill')} {...skills} />
-          ) : visible.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visible.map((card) => (
-                <CatalogCard key={card.id} card={card} />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-              {signedIn ? (
-                'Nothing shared with you here yet.'
-              ) : (
-                <>
-                  Releases are invite only for now.{' '}
-                  <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
-                    Sign in
-                  </Link>{' '}
-                  to see what's shared with you.
-                </>
-              )}
-            </div>
-          )}
-        </section>
-      </main>
+        </main>
+      )}
 
       <footer className="border-t py-6 text-sm text-muted-foreground">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 sm:flex-row sm:justify-between">
-          <span>Built by the Microfox team</span>
+          <span className="flex items-center gap-2">
+            <img src="/brand/microfox-mark.svg" alt="" className="h-6 w-auto" />
+            <span>
+              <span className="font-medium text-foreground">{RULE}</span> Built by the Microfox team.
+            </span>
+          </span>
           <nav className="flex items-center gap-4">
             <a href={MEDIAMAKE_REPO} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-foreground">
               <GitHubMark className="size-4" />

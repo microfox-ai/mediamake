@@ -132,3 +132,101 @@
     transform: translateX(100%);
   }
 }
+
+/* ── The homepage: the Microfox brand kit (palette, type) ───────────────────────────────────────
+   Colours are the kit's colors.css; `.mf-site` re-points the shared theme tokens at them, so the
+   header, the tabs and the cards under it take the brand without their own styles. */
+@theme {
+  --color-mf-fox: #f28b2a;
+  --color-mf-ember: #c4621f;
+  --color-mf-rust: #8a4520;
+  --color-mf-honey: #f7d397;
+  --color-mf-cream: #faead4;
+  --color-mf-paper: #fff8ef;
+  --color-mf-sand: #b19681;
+  --color-mf-ink: #28292a;
+  --color-mf-bark: #36211c;
+  --color-mf-night: #17120f;
+}
+@theme inline {
+  --font-marker: var(--font-permanent-marker), 'Permanent Marker', cursive;
+}
+
+.mf-site {
+  --background: #fff8ef;
+  --foreground: #28292a;
+  --card: #fffdf9;
+  --card-foreground: #28292a;
+  --popover: #fffdf9;
+  --popover-foreground: #28292a;
+  /* ink, not ember: small text on ember misses AA. Ember is for the big buttons (see .mf-button). */
+  --primary: #28292a;
+  --primary-foreground: #fff8ef;
+  --secondary: #faead4;
+  --secondary-foreground: #36211c;
+  --muted: #faead4;
+  --muted-foreground: #6b5a4e;
+  --accent: #faead4;
+  --accent-foreground: #36211c;
+  --border: #eddcc5;
+  --input: #eddcc5;
+  --ring: #f28b2a;
+  font-family: var(--font-lexend-deca), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Sections ease in as they scroll into view (components/home/reveal.tsx adds .is-in). */
+.mf-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--mf-delay, 0ms);
+}
+.mf-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes mf-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes mf-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes mf-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.mf-underline path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.is-in .mf-underline path,
+.mf-underline.is-in path {
+  animation: mf-draw 0.9s 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .mf-underline path {
+    stroke-dashoffset: 0;
+    animation: none !important;
+  }
+  .mf-motion {
+    animation: none !important;
+  }
+}
