@@ -3,12 +3,12 @@
  * and client components can share it.
  */
 
-/** After /login and /signup. Becomes /app when the signed-in app ships. */
-export const AFTER_SIGN_IN = '/';
+/** After /login and /signup: the app. */
+export const AFTER_SIGN_IN = '/app';
 /** After Core's own form. */
-export const AFTER_CORE_SIGN_IN = '/core/projects';
+export const AFTER_CORE_SIGN_IN = '/core';
 /** Where a signed-in person manages how they sign in. */
-export const ACCOUNT_PAGE = '/core/api-keys';
+export const ACCOUNT_PAGE = '/app/api-keys';
 
 /** `value` when it is a path on this site, else `fallback`. Never another site. */
 export function safeRedirect(value: string | null | undefined, fallback: string = AFTER_SIGN_IN): string {

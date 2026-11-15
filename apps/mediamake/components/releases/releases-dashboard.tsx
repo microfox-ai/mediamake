@@ -45,7 +45,7 @@ const ACTION_LABEL: Record<ItemTier | 'cancel_release', string> = {
 
 /**
  * Admin dashboard for release tiers: every item and what it connects to
- * (each opens its own page, /core/releases/<kind>/<slug>); which items sit in
+ * (each opens its own page, /app/releases/<kind>/<slug>); which items sit in
  * the vault, with the cohort, Pro, Plus or public; the gates
  * that turn gated items public by themselves; and who holds each
  * tier. Tutorials and courses are added here (New tutorial, New course).

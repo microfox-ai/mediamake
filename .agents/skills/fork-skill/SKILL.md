@@ -46,7 +46,7 @@ as a pull request (step 6, and `publish-skill`).
    checks (a dry run), and with `--yes` sends it as a pull request from a temporary worktree (this
    checkout is never touched), in `.agents/skills`, linked from `.claude/skills`. Give the user the
    PR link, and once it merges the variant's release page,
-   `https://mediamake.microfox.app/core/releases/skill/<name>`. Their copy keeps loading until they
+   `https://mediamake.microfox.app/app/releases/skill/<name>`. Their copy keeps loading until they
    pull the merge; then `node tools/skills.mjs tidy --yes` drops it. Read it for anything private
    first, as `publish-skill` says. Until then, a channel's team gets it with `media sync` (see the
    library README).

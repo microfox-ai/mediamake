@@ -157,9 +157,9 @@ export function EditorHeader() {
 
   return (
     <header className="flex h-9 shrink-0 items-center gap-3 border-b px-2">
-      <Hint label="Back to projects" side="bottom">
+      <Hint label="Back to the app" side="bottom">
         <Button asChild variant="ghost" size="sm" className="h-7 px-2">
-          <Link href="/core/projects">
+          <Link href="/app">
             <ArrowLeftIcon className="size-4" />
           </Link>
         </Button>

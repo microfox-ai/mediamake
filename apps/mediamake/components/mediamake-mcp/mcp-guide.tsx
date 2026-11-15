@@ -120,7 +120,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
             </p>
             <CopyBlock text={projectJson} label="Copy" />
             <p className="text-sm text-muted-foreground">
-              No browser handy? Connect with an API key from <Link href="/core/api-keys" className="underline">API keys</Link>{' '}
+              No browser handy? Connect with an API key from <Link href="/app/api-keys" className="underline">API keys</Link>{' '}
               instead of signing in: add <Kbd>--header &quot;Authorization: Bearer YOUR_API_KEY&quot;</Kbd> to the command. A key
               is a password: keep it out of chats and repos.
             </p>
@@ -219,11 +219,11 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
         <ul className="flex list-disc flex-col gap-2 pl-5">
           <li>Remove the connector in Claude, or sign out of it there: its sign-in ends at once.</li>
           <li>
-            Or sign it out on <Link href="/core/devices" className="underline">Signed-in devices</Link>, where it is listed
+            Or sign it out on <Link href="/app/devices" className="underline">Signed-in devices</Link>, where it is listed
             with your apps.
           </li>
           <li>
-            Disabling the API key it uses on <Link href="/core/api-keys" className="underline">API keys</Link> cuts it off
+            Disabling the API key it uses on <Link href="/app/api-keys" className="underline">API keys</Link> cuts it off
             too (a signed-in connector within the hour).
           </li>
         </ul>
@@ -257,7 +257,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
           <p>
             Admins, and anyone granted <Kbd>mcp/mediamake</Kbd> by name (Releases → its access sheet). It is in the vault,
             so no membership opens it, the cohort's included. Who can connect follows the item:{' '}
-            <Link href="/core/releases/mcp/mediamake" className="underline">
+            <Link href="/app/releases/mcp/mediamake" className="underline">
               mcp/mediamake
             </Link>
             .
@@ -277,7 +277,7 @@ function AccessNote({ clientId, tier, canConnect, stage }: Pick<McpGuideProps, '
         <AlertDescription>
           <p>
             The MCP signs in with your MediaMake account.{' '}
-            <Link href="/login?redirectTo=/core/mediamake-mcp" className="underline">
+            <Link href="/login?redirectTo=/app/mediamake-mcp" className="underline">
               Sign in
             </Link>{' '}
             to see whether it is open to you.

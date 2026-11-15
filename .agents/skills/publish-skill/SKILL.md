@@ -10,7 +10,7 @@ metadata:
 **Every skill in this repo is public.** Nothing about a skill is hidden: its files live in
 `.agents/skills/<name>/` (committed) and `.claude/skills/<name>` is a committed symlink to them,
 so the skill loads for anyone who opens the repo in Claude Code and shows on GitHub. Apps and MCPs
-are the gated ones (`private/` and the catalog releases at `/core/releases`); skills never go
+are the gated ones (`private/` and the catalog releases at `/app/releases`); skills never go
 through a gate.
 
 A skill starts as the user's own when it isn't in the repo yet: a variant from `fork-skill`, or one
@@ -98,7 +98,7 @@ one). The user's checkout, branch and edits are never
 touched, so it is safe on main. `--no-push` keeps the commit on a local branch instead.
 
 Give the user the PR link, and once it merges the skill's release page,
-`https://mediamake.microfox.app/core/releases/skill/<name>`. Their own copy keeps loading until they
+`https://mediamake.microfox.app/app/releases/skill/<name>`. Their own copy keeps loading until they
 pull the merge; then `node tools/skills.mjs tidy --yes` drops it (only when the repo's files are the
 same; a copy that differs is kept, and `list` warns that it shadows the repo's).
 

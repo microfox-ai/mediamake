@@ -109,15 +109,15 @@ download from.
 ## Releases: always give the item's link
 
 Every catalog item (skill, MCP, app, tutorial) has a page for admins,
-`https://mediamake.microfox.app/core/releases/<kind>/<slug>` (e.g. `/core/releases/mcp/browse-hack`):
+`https://mediamake.microfox.app/app/releases/<kind>/<slug>` (e.g. `/app/releases/mcp/browse-hack`):
 what it is, who can open it, where it lives, what installing it does, and what needs or uses it.
-`/core/releases` lists every item.
+`/app/releases` lists every item.
 
 - After any release step, give the user the link of each item it touched: `npm run catalog --
   release | add | promote | schedule | vault | grant | archive` and the MediaMake MCP's `catalog_*`
   tools (they print or return it), a workflow that publishes a release, a new or changed skill, or an
   edit to `apps/mediamake/lib/catalog/third-party.json`. For a new version, link
-  `…/core/releases/<kind>/<slug>#v<version>`.
+  `…/app/releases/<kind>/<slug>#v<version>`.
 - With the MediaMake MCP connected, manage releases through its tools: `catalog_items` to see what is
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,

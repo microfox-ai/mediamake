@@ -7,7 +7,7 @@ interface ReleaseItemPageProps {
 }
 
 /**
- * /core/releases/<kind>/<slug>, e.g. /core/releases/mcp/browse-hack: one
+ * /app/releases/<kind>/<slug>, e.g. /app/releases/mcp/browse-hack: one
  * catalog item and where everything about it lives. `npm run catalog` prints
  * this link after each release step.
  */

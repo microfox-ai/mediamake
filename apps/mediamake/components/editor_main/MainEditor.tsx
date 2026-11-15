@@ -126,18 +126,18 @@ export const MainEditor = () => {
 
     return (
         <RenderProvider initialSettings={{ projectId: projectId || undefined }}>
-            <div className="flex h-screen flex-col overflow-hidden">
+            <div className="flex h-full flex-col overflow-hidden">
                 {/* Conflict-resolution dialogs (open on a publish conflict) */}
                 <TimelineMergeDialog />
                 <LayerMergeDialog />
 
-                {/* Fixed Menubar at the top */}
-                <div className="fixed top-0 left-0 right-0 z-50">
+                {/* Menubar at the top (below Core's deprecated banner) */}
+                <div className="relative z-50 shrink-0">
                     <EditorMenubar />
                 </div>
 
                 {/* Main content area with resizable panels */}
-                <div className="flex-1 pt-8">
+                <div className="min-h-0 flex-1">
                     <ResizablePanelGroup direction="vertical" className="h-full">
                         {/* Top section: Horizontal panels (FilterTree, Preview, Props) */}
                         <ResizablePanel defaultSize={topPanelSize} minSize={30} className="flex">

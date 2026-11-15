@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'MediaMake MCP · MediaMake' };
 
 /**
- * /core/mediamake-mcp: how admins connect the hosted MediaMake MCP (/mcp) to
+ * /app/mediamake-mcp: how admins connect the hosted MediaMake MCP (/mcp) to
  * Claude, and whether the person looking may. Who may follows the
  * mcp/mediamake catalog item (lib/mcp/access: the vault, admins only), so this
  * page needs no change if that ever moves.

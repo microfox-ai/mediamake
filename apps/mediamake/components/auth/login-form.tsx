@@ -70,12 +70,6 @@ export function LoginForm({
               </Link>
             </p>
           )}
-          <p className="mt-2">
-            Have a client ID and key?{' '}
-            <Link href={withRedirect('/core/login', redirectTo)} className="underline underline-offset-4">
-              Sign in with them
-            </Link>
-          </p>
         </>
       }
     >

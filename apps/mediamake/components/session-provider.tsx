@@ -14,12 +14,24 @@ export const useSession = () => {
   return useContext(SessionContext);
 };
 
-export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+/**
+ * Core's pages check the session in the browser and send signed-out people to
+ * /core/login. The app at /app checks on the server (app/app/layout.tsx) and
+ * passes who is signed in as `initialSession`, so nothing is fetched here.
+ */
+export const SessionProvider = ({
+  children,
+  initialSession,
+}: {
+  children: React.ReactNode;
+  initialSession?: Session;
+}) => {
+  const [session, setSession] = useState<Session | null>(initialSession ?? null);
+  const [loading, setLoading] = useState(!initialSession);
   const router = useRouter();
 
   useEffect(() => {
+    if (initialSession) return;
     const redirectToLogin = () => {
       setSession({ isAuthenticated: false });
       const params = new URLSearchParams(window.location.search);
@@ -61,7 +73,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     };
 
     checkSession();
-  }, [router]);
+  }, [router, initialSession]);
 
   if (loading) {
     // You can replace this with a beautiful loading spinner

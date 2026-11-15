@@ -6,7 +6,7 @@ import { getViewer } from '@/lib/access';
 
 export const metadata: Metadata = { title: 'Apps · MediaMake' };
 
-// Who is signed in decides the Core card's label.
+// Who is signed in decides the app card's label.
 export const dynamic = 'force-dynamic';
 
 interface AppCard {
@@ -14,19 +14,19 @@ interface AppCard {
   summary: string;
   href: string;
   icon: LucideIcon;
-  /** Needs a MediaMake account (everything under /core). */
+  /** Needs a MediaMake account (everything under /app). */
   signIn?: boolean;
   tags: string[];
 }
 
 const apps: AppCard[] = [
   {
-    title: 'MediaMake Core',
-    summary: 'Projects, the editor, presets, media, transcriber, renders, workers and agents, with the sidebar.',
-    href: '/core/projects',
+    title: 'MediaMake App',
+    summary: 'Your skills, MCPs and apps in one place, with your projects, API keys, devices and membership.',
+    href: '/app',
     icon: LayoutDashboard,
     signIn: true,
-    tags: ['projects', 'render'],
+    tags: ['account', 'projects'],
   },
   {
     title: 'Remotion Editor',
@@ -65,7 +65,7 @@ const apps: AppCard[] = [
   },
 ];
 
-/** Where "Open App" leads: the public pages and the signed-in Core app, as cards. */
+/** The public pages and the signed-in app, as cards. */
 export default async function AppsPage() {
   const { clientId } = await getViewer();
 
