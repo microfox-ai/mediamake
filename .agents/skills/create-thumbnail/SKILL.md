@@ -59,7 +59,10 @@ it once, keep it in the brand kit, and use it in every episode. **The product is
 (the user, 2026-11-15: "putting the poster behind the character is bad … none of the ideas you
 picked did that"): it sits beside them or is held out in front of them, whole and unblocked, as in
 the hits (a UI card in front of the presenter, an object on an open palm, an object beside the
-face).
+face). Order the frame **words → product → host**: the product next to the words, the host on the
+far side, scaled up and cropped at the frame's edge as the hits crop their presenters, so the
+product is at least 300 px wide. A generated pose holding its card on the wrong side is mirrored
+(the generated image, never the product) before `thumbs swap`.
 
 From YouTube's own guidance and the 2026-11-14 research (550 thumbnails over ten kinds, each
 channel's hits against its own misses: `playbooks/README.md`). Every thumbnail passes these; the
