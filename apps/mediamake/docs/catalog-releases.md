@@ -28,7 +28,7 @@ installs from where it lives, not from a package of ours. See
 | --- | --- | --- |
 | Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
 | MCPs and skills made by others | `lib/catalog/third-party.json` (committed), or MongoDB `catalog_items` for ones added with `npm run catalog -- add` | Yes, always |
-| Cards for our apps and the MediaMake MCP | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: the MediaMake MCP installs its hosted connector (`/mcp`), for admins only (its card is in the vault: it runs the catalog); grants and invites can name a card too | As each card says |
+| Cards for our apps and our hosted MCPs | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: mm-use installs its hosted connector (`/mcp/use`) for every member, mm-release (`/mcp/release`, it runs the catalog) and the old, deprecated MediaMake MCP (`/mcp`) theirs for admins only (their cards are in the vault); grants and invites can name a card too | As each card says |
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
@@ -143,7 +143,7 @@ once.
 - On the item's release page: **Archive** / **Unarchive**.
 - From a terminal: `npm run catalog -- archive skill/a skill/b [--note "why"]`,
   and `--off` to bring them back.
-- From Claude: the MediaMake MCP's `catalog_archive` (below).
+- From Claude: mm-release's `catalog_archive` (below).
 - Admin API: `{ type: 'set_archived', itemIds, archived, note? }`.
 
 ## Videos: intros, tutorials and courses
@@ -189,12 +189,12 @@ Admin API (`POST /api/admin/catalog`):
 - `{ type: 'create_thumbnail_upload', itemId, filename, contentType }`: a signed
   link to upload a thumbnail image to.
 
-From Claude, the MediaMake MCP's `catalog_set_video` and `catalog_add_video_item`
+From Claude, mm-release's `catalog_set_video` and `catalog_add_video_item`
 do the same (see below).
 
-## From Claude: the MediaMake MCP's catalog tools
+## From Claude: mm-release's catalog tools
 
-The MediaMake MCP (the hosted connector at `/mcp`, or the local `.mcpb`)
+mm-release (the hosted connector at `/mcp/release`, or the local stdio server run as `release`; until the split of 2026-11 these tools were in the MediaMake MCP at `/mcp`)
 manages the catalog for admins, so releases can be run by asking Claude.
 They call the admin API with the person's own key, so they work only for
 admins, and each answers with the release page of every item it touched.
@@ -262,12 +262,18 @@ Admins set it under **People** on the dashboard, with
 add records with `source: 'paid'`: no access code changes.
 
 An API key only signs someone in; it opens nothing beyond public items by
-itself. That includes the hosted MediaMake MCP (`/mcp`): who may connect
-follows the `mcp/mediamake` item like any other release. It is in the vault,
-because it runs the catalog, so only admins and people granted it by name get
-past the consent screen and the endpoint (others see why, and a 403, and are
-pointed at ProjectSync for their projects). Moving it down the ladder opens
-the connector with no code change (`lib/mcp/access.ts`).
+itself. That includes the hosted MCPs: who may connect to each follows its
+catalog item like any other release (`lib/mcp/connectors.ts`).
+
+| Connector | Address | Item | Who |
+| --- | --- | --- | --- |
+| mm-use | `/mcp/use` | `mcp/mm-use` | Every signed-in account: explore, install, usage, feedback |
+| mm-release | `/mcp/release` | `mcp/mm-release` | In the vault, because it runs the catalog: admins and people granted it by name |
+| MediaMake MCP (deprecated) | `/mcp` | `mcp/mediamake` | In the vault, with Core: the old video tools |
+
+Anyone else sees why on the consent screen and gets a 403 from the endpoint.
+A sign-in is the account's, not one connector's, so each endpoint checks on
+every request. What mm-use sends about usage is in [usage.md](usage.md).
 
 `viewerTier(entitlements)` / `getViewerTier(viewer)` in `lib/access` return a
 person's tier for features that depend on who someone is (render routing,
@@ -284,6 +290,22 @@ Every item of every kind, ours or made by others, has both, shown as badges:
   link when it has one). An MCP also needs to be shown in use: a skill that
   uses it, or a video on it (`readyProblems`). Marks live in
   `catalog_readiness`. Today every skill is Beta except `pack-brand-kit`.
+  This is how the rule, "We publish nothing we don't use." (`RULE` in
+  `lib/catalog/types.ts`), is kept: every item's page (`/skills/<name>`,
+  `/mcps/<slug>`, `/apps/<slug>`) has a "Made with this" panel
+  (`components/catalog/made-with.tsx`), laid out like a store listing: a
+  gallery whose big first tile is the item's trailer (its intro video), then
+  the productions of a Ready item. Each production (`ReadyProof`) has a
+  title and, optionally, a link (`url`: a YouTube link plays in place, any
+  other opens from its tile), a picture (`image`) and a clip (`video`, MP4
+  or WebM). An admin adds them on the item's release page (**Mark Ready** or
+  **Made with this**: uploads go through `create_proof_upload`, public once
+  uploaded), or as links with `catalog_set_readiness` and
+  `npm run catalog -- ready … --url --image --video`. A Beta item shows its
+  trailer and the note that no production is on record yet. A skill's
+  production is asked for when it is published
+  (`node tools/skills.mjs publish <name> --yes --made="…"`) and in every pull
+  request (`.github/pull_request_template.md`).
 - **Health** is healthy, inactive, archived or **failed**. Failed needs a
   reason, shown with the item; an admin marks it by hand. Marks live in
   `catalog_health`.

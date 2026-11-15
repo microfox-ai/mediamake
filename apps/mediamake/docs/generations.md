@@ -4,7 +4,7 @@ Every take a channel makes with an AI music tool is kept on its cloud project, s
 
 - **Browse Hack** records each Suno take as it is made (`POST /api/generations`), files the keepers into the local media library and then sets their `libraryItem`.
 - **The Projects page** has a Generations button on each project card. Its sheet plays each take, shows its styles, settings and lyrics, links to it and its parent on suno.com, and lets owners and editors rate it, add notes and keep its styles as a preset. Copy for Claude puts the take on the clipboard with a request to make more from it.
-- **The MediaMake MCP** lists takes with `list_generations` and rates them with `rate_generation`.
+- **The old MediaMake MCP** (`/mcp`, deprecated, admins) lists takes with `list_generations` and rates them with `rate_generation`.
 - **Channel team sync** pulls the keepers with `GET /api/generations?projectId=<id>&rating=keeper`.
 
 ## Access

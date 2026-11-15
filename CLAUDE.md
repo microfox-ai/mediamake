@@ -1,5 +1,21 @@
 # MediaMake
 
+## The rule: we publish nothing we don't use
+
+Every skill, MCP and app here is published only after its maker used it for real work. Hold to it in
+every session:
+
+- Before publishing a skill (`publish-skill`), releasing an item or marking one Ready, ask the user
+  which finished production was made with it (its title, and its link when it has one). Never make one
+  up, and never count a test render or a demo as one.
+- With none, don't publish: the skill stays the user's own (in their workspace) and an item stays Beta,
+  until something real is made with it.
+- The production is the item's proof: `node tools/skills.mjs publish <name> --yes --made="…"` puts it in
+  the pull request, and Ready (`catalog_set_readiness`, `npm run catalog -- ready`) records it, shown on
+  the item's page as "Made with this".
+- A pull request that adds or changes a skill, MCP or app names the production in its "Made with this"
+  section (`.github/pull_request_template.md`).
+
 ## Videos: apps/studio and `mm`
 
 Every video is made in `apps/studio` (it was `apps/lyrics_videos` until 2026-11). Its scripts run from
@@ -114,11 +130,12 @@ what it is, who can open it, where it lives, what installing it does, and what n
 `/app/releases` lists every item.
 
 - After any release step, give the user the link of each item it touched: `npm run catalog --
-  release | add | promote | schedule | vault | grant | archive` and the MediaMake MCP's `catalog_*`
+  release | add | promote | schedule | vault | grant | archive` and mm-release's `catalog_*`
   tools (they print or return it), a workflow that publishes a release, a new or changed skill, or an
   edit to `apps/mediamake/lib/catalog/third-party.json`. For a new version, link
   `…/app/releases/<kind>/<slug>#v<version>`.
-- With the MediaMake MCP connected, manage releases through its tools: `catalog_items` to see what is
+- With mm-release connected (the admins' MCP, `/mcp/release`; the old MediaMake MCP at `/mcp` no longer has
+  them), manage releases through its tools: `catalog_items` to see what is
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
   plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
@@ -129,3 +146,12 @@ what it is, who can open it, where it lives, what installing it does, and what n
   each opening everything below it; a membership earned by contributing lasts 3 months unless an admin
   makes it permanent).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
+
+## Usage: names and times only
+
+Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`
+hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
+versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
+sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. When
+a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
+send more than this from a skill or a script.

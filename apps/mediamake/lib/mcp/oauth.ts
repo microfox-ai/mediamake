@@ -155,7 +155,13 @@ export function publicOrigin(req: Request | NextRequest) {
   return `${proto}://${host}`;
 }
 
-export const mcpResourceUrl = (origin: string) => `${origin}/mcp`;
+/** The hosted MCP addresses a client may sign in for: the old MCP, mm-release and mm-use (lib/mcp/access). */
+export const MCP_RESOURCE_PATHS = ['/mcp', '/mcp/release', '/mcp/use'] as const;
+
+export const mcpResourceUrl = (origin: string, path: string = '/mcp') => `${origin}${path}`;
+
+/** Where a client reads the RFC 9728 metadata of one MCP address. */
+export const protectedResourceMetadataUrl = (origin: string, path: string = '/mcp') => `${origin}/.well-known/oauth-protected-resource${path}`;
 
 export function authorizationServerMetadata(origin: string) {
   return {
@@ -174,13 +180,19 @@ export function authorizationServerMetadata(origin: string) {
   };
 }
 
-export function protectedResourceMetadata(origin: string) {
+/**
+ * RFC 9728 metadata for one hosted MCP address. `path` is what follows
+ * /.well-known/oauth-protected-resource in the request; anything that isn't
+ * one of ours answers for the old MCP, as the root always has.
+ */
+export function protectedResourceMetadata(origin: string, path: string = '/mcp') {
+  const known = (MCP_RESOURCE_PATHS as readonly string[]).includes(path) ? path : '/mcp';
   return {
-    resource: mcpResourceUrl(origin),
+    resource: mcpResourceUrl(origin, known),
     authorization_servers: [origin],
     scopes_supported: [SCOPE],
     bearer_methods_supported: ['header'],
-    resource_name: 'Mediamake',
+    resource_name: known === '/mcp/release' ? 'MediaMake Release' : known === '/mcp/use' ? 'MediaMake' : 'Mediamake (deprecated)',
     resource_documentation: 'https://github.com/microfox-ai/mediamake/tree/main/packages/mediamake-mcp',
   };
 }

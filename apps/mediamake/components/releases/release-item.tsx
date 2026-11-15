@@ -17,13 +17,15 @@ import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
 import { ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './parts';
 import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, reachOf, tierOf, type ItemDetail } from './model';
+import { ReadinessButton } from './proof-dialog';
 import { CoursePanel, VideoPanel } from './video-panel';
 
 /**
  * One catalog item's release page (/app/releases/<kind>/<slug>): what it is,
  * who can open it, where it lives, what installing it does, what it needs and
  * what uses it, its video, and its history. Its actions are Archive /
- * Unarchive and editing its video (a skill's intro, a tutorial, a course's
+ * Unarchive, marking it Ready with what was made with it (proof-dialog) and
+ * editing its video (a skill's intro, a tutorial, a course's
  * lessons); moving it along stays on the board, in the access sheet, in
  * `npm run catalog` and in the MediaMake MCP's catalog tools.
  */
@@ -278,7 +280,7 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ItemTi
       <div className="flex flex-wrap gap-2 xl:shrink-0">
         {installPrompt && <CopyPrompt prompt={installPrompt} />}
         <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
-        <ReadinessButton id={item.id} ready={item.readiness === 'ready'} onDone={onArchived} />
+        <ReadinessButton detail={detail} onDone={onArchived} />
         <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health ?? 'healthy'} onDone={onArchived} />
         {VIDEO_KINDS.includes(item.kind) ? (
           <Button variant="outline" size="sm" asChild>
@@ -325,38 +327,6 @@ function About({ summary, description }: { summary: string; description?: string
         </button>
       )}
     </p>
-  );
-}
-
-/**
- * Marks the item Ready, with the production made with it as proof (the rule:
- * we publish nothing we don't use), or takes it back to Beta.
- */
-function ReadinessButton({ id, ready, onDone }: { id: string; ready: boolean; onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const toggle = async () => {
-    let proof: { title: string; url?: string }[] | undefined;
-    if (!ready) {
-      const title = window.prompt('Ready needs proof. What finished production was made with it?')?.trim();
-      if (!title) return;
-      const url = window.prompt('A link to it (https), if it has one')?.trim();
-      proof = [{ title, ...(url && { url }) }];
-    }
-    setBusy(true);
-    try {
-      await adminCall({ type: 'set_readiness', itemIds: [id], readiness: ready ? 'beta' : 'ready', proof });
-      toast.success(ready ? 'Back to Beta' : 'Marked Ready');
-      onDone();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Button variant="outline" size="sm" disabled={busy} onClick={toggle}>
-      {ready ? 'Back to Beta' : 'Mark Ready'}
-    </Button>
   );
 }
 

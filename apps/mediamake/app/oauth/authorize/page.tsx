@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { HOSTED_MCP_LOCKED, canUseHostedMcp } from '@/lib/mcp/access';
+import { MCP_CONNECTORS, canUseConnector, connectorOfResource } from '@/lib/mcp/access';
 import { SCOPE, apiKeyForClient, getClient, saveAuthorizeRequest, sessionClientId } from '@/lib/mcp/oauth';
 
 export const dynamic = 'force-dynamic';
@@ -76,13 +76,22 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
     );
   }
 
-  if (!(await canUseHostedMcp(viewer.clientId))) {
+  // Which connector this sign-in is for: mm-use is every member's, mm-release
+  // and the old MCP are for admins. A token is the account's, and each /mcp
+  // route checks who may use it on every request; this only stops a sign-in
+  // that would go nowhere. An app that names no connector (the Browse Hack
+  // extension, an older MCP client) gets a token for the account, which opens
+  // nothing its API keys don't: before the split it was held to the old
+  // MCP's admins-only rule, which would now keep members out of mm-use.
+  const kind = connectorOfResource(one(params.resource));
+  if (kind && !(await canUseConnector(kind, viewer.clientId))) {
     return (
       <Message title="Not open to you yet">
-        {HOSTED_MCP_LOCKED} You are signed in as {viewer.clientId}.
+        {MCP_CONNECTORS[kind].locked} You are signed in as {viewer.clientId}.
       </Message>
     );
   }
+  const does = kind ? MCP_CONNECTORS[kind].does : 'call MediaMake as you';
 
   const pending = await saveAuthorizeRequest({
     oauthClientId: client.id,
@@ -101,9 +110,8 @@ export default async function AuthorizePage({ searchParams }: { searchParams: Pr
         <CardHeader>
           <CardTitle className="text-2xl">Connect {client.clientName} to Mediamake</CardTitle>
           <CardDescription>
-            {client.clientName} will be able to use Mediamake as <strong>{viewer.clientId}</strong>: read and create
-            projects, timelines and media, transcribe, run workers and agents, and start renders. It gets the same access
-            as your account, and workers and renders it starts can cost credits.
+            {client.clientName} will be able to use Mediamake as <strong>{viewer.clientId}</strong>: {does}. It
+            signs in as your account, so it gets the same access as you.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

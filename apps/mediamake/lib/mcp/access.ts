@@ -1,23 +1,22 @@
-import { accessLevel, getEntitlements, type Entitlements, type GatedItem } from '@/lib/access';
+import { getEntitlements, type Entitlements, type GatedItem } from '@/lib/access';
 import { getCatalogRecord } from '@/lib/catalog/records';
+import { MCP_CONNECTORS, mayUseConnector, type McpConnector } from './connectors';
 
-/** The catalog item the hosted connector is released as. */
-export const HOSTED_MCP_ITEM = 'mcp/mediamake';
+export * from './connectors';
 
-/**
- * Who may use the hosted connector follows its catalog item, like any other
- * release. It is in the vault (admins only: it runs the catalog), which opens
- * to admins and grants that name it; taking it out of the vault and moving it
- * along opens it further with no change here.
- */
+/** Whether an account may use one of the hosted connectors (./connectors has the rules). */
+export async function canUseConnector(kind: McpConnector, clientId: string): Promise<boolean> {
+  const [entitlements, item] = await Promise.all([getEntitlements({ clientId }), getCatalogRecord(MCP_CONNECTORS[kind].item)]);
+  return mayUseConnector(kind, entitlements, item);
+}
+
+/** The old MediaMake MCP's item: what /app/mediamake-mcp reads. */
+export const HOSTED_MCP_ITEM = MCP_CONNECTORS.legacy.item;
+
 export function mayUseHostedMcp(entitlements: Entitlements, item: GatedItem | null): boolean {
-  return accessLevel(entitlements, item ?? { id: HOSTED_MCP_ITEM, visibility: 'private', neverPublish: true }) !== 'locked';
+  return mayUseConnector('legacy', entitlements, item);
 }
 
-export async function canUseHostedMcp(clientId: string): Promise<boolean> {
-  const [entitlements, item] = await Promise.all([getEntitlements({ clientId }), getCatalogRecord(HOSTED_MCP_ITEM)]);
-  return mayUseHostedMcp(entitlements, item);
-}
+export const canUseHostedMcp = (clientId: string) => canUseConnector('legacy', clientId);
 
-export const HOSTED_MCP_LOCKED =
-  'The MediaMake MCP is for MediaMake admins: it runs the catalog releases. For your projects, brand kits, productions, releases and media, install ProjectSync (mcp/projectsync).';
+export const HOSTED_MCP_LOCKED: string = MCP_CONNECTORS.legacy.locked;

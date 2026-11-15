@@ -59,6 +59,7 @@ const ABOUT = {
   engine: 'the engine by name (@mediamake/engine): its version, your pins, kept engines; codemod gives old imports its names',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
   update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
+  usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
 
