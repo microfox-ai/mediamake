@@ -61,12 +61,14 @@ The tool decides: a hot consumer tool beats a niche one in the same layout. Visi
 word at all, seven small words, a blurred screen as the picture, the channel's podcast or event
 videos.
 
-## A series with no face (Cook with Claude, 2026-11-15)
+## A channel with no face (Cook with Claude, 2026-11-15)
 
-When the channel shows no host, the **output is the hero** (one result, at least half the frame's
-height) and the words are **its plain name, the term a viewer would search for** (ALBUM COVER.),
-not a pun or a step of the process: puns read as decoration beside the hits' tool names. The
-series' frame (tag, logo, ground, one accent word) and its signature object stay.
+The output is the **product**, never the host, and a character inside it (the art on a cover) is
+part of the product. A faceless channel still needs a host beside it: **its mascot** (Cook with
+Claude: Chef Claude, the series' 3D spark as a character) or a famous person with a real relation
+to the video. The host presents the product (holds, serves, points at it), the product is real and
+big, and the words say the relation (CLAUDE MADE MY ALBUM COVER), in the plain words a viewer would
+search for, never a pun alone. The series' frame (tag, logo, ground, one accent word) stays.
 
 ## Build notes
 
