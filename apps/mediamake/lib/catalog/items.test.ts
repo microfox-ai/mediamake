@@ -7,7 +7,7 @@ import { updatePromptFor } from './install-prompt';
 import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth, type ItemHealth } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
-const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']);
+const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/mm-release', 'mcp/mm-use', 'mcp/projectsync']);
 
 describe('third-party.json', () => {
   const items = thirdPartyRecords([]);

@@ -1,10 +1,10 @@
 {
   "manifest_version": "0.3",
   "name": "mediamake",
-  "display_name": "Mediamake",
-  "version": "0.1.0",
-  "description": "For MediaMake admins: run the catalog (skill, MCP and app releases) and drive Mediamake's timelines, presets, transcription, workers, agents and renders.",
-  "long_description": "Connects Claude to Mediamake with an admin's Mediamake API key. Run the catalog (skills, MCPs, apps, tutorials, their videos and who can open them), read saved timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda. Projects, brand kits and media are in ProjectSync.",
+  "display_name": "Mediamake (deprecated)",
+  "version": "0.2.0",
+  "description": "Deprecated, for MediaMake admins: the old video tools (timelines, presets, transcription, workers, agents and renders). The catalog is mm-release's and everyday use is mm-use's.",
+  "long_description": "The old MediaMake MCP, kept for admins who still use MediaMake Core's video pipeline: read saved timelines (tagged as tree, flat or legacy format), browse presets and their input schemas, build timelines, transcribe songs into timed captions, run generation workers (video, image, audio) and agents, and render on AWS Lambda. Nothing new is added here. The catalog and releases moved to mm-release (admins), and exploring, installing, usage and feedback are in mm-use (every member): both are hosted on MediaMake. Projects, brand kits and media are in ProjectSync.",
   "icon": "icon.png",
   "author": {
     "name": "Microfox",
@@ -21,7 +21,8 @@
     "mcp_config": {
       "command": "node",
       "args": [
-        "${__dirname}/server/index.js"
+        "${__dirname}/server/index.js",
+        "legacy"
       ],
       "env": {
         "MEDIAMAKE_API_URL": "${user_config.api_url}",
@@ -133,62 +134,6 @@
     {
       "name": "get_render_input_props",
       "description": "The exact inputProps a past render used (the compiled composition JSON)."
-    },
-    {
-      "name": "catalog_versions",
-      "description": "Live version numbers and release notes of MediaMake catalog items (skills, MCPs, apps)."
-    },
-    {
-      "name": "catalog_items",
-      "description": "Admins: every catalog item with the lowest membership that opens it, whether it is Beta or Ready, its health, where it comes from, and its release page."
-    },
-    {
-      "name": "catalog_item",
-      "description": "Admins: everything about one catalog item: access, where it lives, what installing it does, what uses it, its versions."
-    },
-    {
-      "name": "catalog_archive",
-      "description": "Admins: archive unused items (left off the homepage, still installable) or bring them back."
-    },
-    {
-      "name": "catalog_set_health",
-      "description": "Admins: say whether items of any kind work (healthy, inactive, archived, or failed with the reason), shown on their cards and pages."
-    },
-    {
-      "name": "catalog_set_readiness",
-      "description": "Admins: mark items Ready, with the finished productions that prove it, or back to Beta."
-    },
-    {
-      "name": "catalog_set_stage",
-      "description": "Admins: set the lowest membership that opens one of our items: public, plus, pro, cohort or the vault."
-    },
-    {
-      "name": "catalog_add_third_party",
-      "description": "Admins: list an open-source or hosted MCP or skill made by others, with where it installs from."
-    },
-    {
-      "name": "catalog_set_video",
-      "description": "Admins: set, change or remove a catalog item's YouTube video: a skill's intro, a tutorial's video, a course's lessons."
-    },
-    {
-      "name": "catalog_add_video_item",
-      "description": "Admins: add a tutorial (one YouTube video) or a course (tutorials played in order); it starts with the cohort."
-    },
-    {
-      "name": "catalog_invite",
-      "description": "Admins: make an invite link that opens gated catalog items, or gives whoever redeems it a Plus, Pro or Cohort membership."
-    },
-    {
-      "name": "catalog_people",
-      "description": "Admins: who holds each membership (Cohort, Pro, Plus), how they got it and how long it lasts, with tier invite links and pending requests."
-    },
-    {
-      "name": "catalog_set_tier",
-      "description": "Admins: give people a Plus, Pro or Cohort membership, or take it away, by client id or name."
-    },
-    {
-      "name": "catalog_membership",
-      "description": "Admins: make one membership permanent, renew it for a new contribution, or end it."
     }
   ],
   "keywords": [

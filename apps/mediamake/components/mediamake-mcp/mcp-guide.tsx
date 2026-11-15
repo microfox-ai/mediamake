@@ -25,13 +25,8 @@ const stageLabel: Record<Stage, string> = {
 /** Where people go for their own projects: the tools that moved out of this MCP. */
 const PROJECTSYNC = '/access?item=mcp/projectsync';
 
-/** What the hosted connector offers, by area (packages/mediamake-mcp/src/tools). */
+/** What the old connector still offers, by area (packages/mediamake-mcp/src/tools); the catalog is mm-release's. */
 const TOOL_AREAS: { area: string; does: string; tools: string[] }[] = [
-  {
-    area: 'Catalog',
-    does: 'Run releases from Claude: skills, MCPs, apps, tutorials and courses, their videos, and who can open them.',
-    tools: ['catalog_items', 'catalog_item', 'catalog_archive', 'catalog_set_stage', 'catalog_set_health', 'catalog_set_readiness', 'catalog_add_third_party', 'catalog_invite', 'catalog_set_video', 'catalog_add_video_item', 'catalog_people', 'catalog_set_tier', 'catalog_membership', 'catalog_versions'],
-  },
   {
     area: 'Timelines',
     does: "Read how videos are built and make new timelines (the project ids come from ProjectSync's list_projects).",
@@ -65,10 +60,29 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
           <Badge variant="secondary">{stageLabel[stage]}</Badge>
         </div>
         <h2 className="text-2xl font-semibold tracking-tight">Connect MediaMake to Claude</h2>
+        <Alert>
+          <ShieldCheck />
+          <AlertTitle>The MediaMake MCP is now two connectors</AlertTitle>
+          <AlertDescription>
+            <div className="flex flex-col gap-3">
+              <p>
+                <b>mm-release</b>, for admins: the catalog and releases (every <Kbd>catalog_*</Kbd> tool). Add this
+                address the same way as below, under the name <Kbd>mm-release</Kbd>:
+              </p>
+              <CopyBlock text={`${mcpUrl}/release`} label="Copy address" />
+              <p>
+                <b>mm-use</b>, for every member: explore and install skills, MCPs and apps, usage and feedback. Under
+                the name <Kbd>mm-use</Kbd>:
+              </p>
+              <CopyBlock text={`${mcpUrl}/use`} label="Copy address" />
+            </div>
+          </AlertDescription>
+        </Alert>
         <p className="text-muted-foreground">
-          The MediaMake MCP is for MediaMake admins. It runs the catalog from Claude (skill, MCP, app and tutorial
-          releases) and works with timelines, presets, transcriptions, Suno takes, workers and renders. It runs here on
-          MediaMake, so there is nothing to install: add this address to Claude and sign in with your MediaMake account.
+          The address on this page is the old MediaMake MCP. It is deprecated with Core and stays for admins only: it
+          keeps the video tools (timelines, presets, transcriptions, Suno takes, workers and renders) and nothing new is
+          added to it. It runs here on MediaMake, so there is nothing to install: add the address to Claude and sign in
+          with your MediaMake account.
         </p>
         <p className="text-sm text-muted-foreground">
           Projects, brand kits, productions, releases and media are in{' '}
@@ -160,8 +174,8 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
 
       <Section title="Check it works">
         <p>
-          Ask Claude: <i>&ldquo;List the MediaMake catalog&apos;s MCPs.&rdquo;</i> It calls <Kbd>catalog_items</Kbd> and shows
-          them with their release pages. If it says MediaMake isn&apos;t connected, see{' '}
+          Ask Claude: <i>&ldquo;List my MediaMake transcriptions.&rdquo;</i> It calls <Kbd>list_transcriptions</Kbd> and
+          shows them. If it says MediaMake isn&apos;t connected, see{' '}
           <a href="#trouble" className="underline">Trouble</a> below.
         </p>
       </Section>

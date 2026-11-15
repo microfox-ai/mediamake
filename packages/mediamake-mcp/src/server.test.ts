@@ -5,10 +5,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MediamakeClient } from './client';
-import { createServer } from './server';
+import { createServer, type ServerKind } from './server';
 
-async function connect(localFiles: boolean) {
+async function connect(localFiles: boolean, kind: ServerKind = 'release') {
   const server = createServer(
+    kind,
     new MediamakeClient({ baseUrl: 'http://mm.test', timeoutMs: 1000 }),
     { localFiles },
   );
@@ -24,16 +25,18 @@ const MOVED_TO_PROJECTSYNC = [
   'list_media', 'search_media', 'get_media', 'upload_media',
 ];
 
-describe('createServer', () => {
-  it('offers local file arguments on the local server', async () => {
-    const { tools } = await (await connect(true)).listTools();
+describe('the three servers', () => {
+  const names = async (kind: ServerKind, localFiles = false) => (await (await connect(localFiles, kind)).listTools()).tools.map(t => t.name);
+
+  it('offers local file arguments on the local legacy server', async () => {
+    const { tools } = await (await connect(true, 'legacy')).listTools();
     const byName = Object.fromEntries(tools.map(t => [t.name, t]));
     expect(byName.transcribe.inputSchema.properties).toHaveProperty('filePath');
     expect(byName.transcribe.inputSchema.properties).toHaveProperty('saveTo');
   });
 
   it('leaves out every local file argument when hosted', async () => {
-    const { tools } = await (await connect(false)).listTools();
+    const { tools } = await (await connect(false, 'legacy')).listTools();
     const byName = Object.fromEntries(tools.map(t => [t.name, t]));
     expect(byName.transcribe.inputSchema.properties).not.toHaveProperty('filePath');
     expect(byName.transcribe.inputSchema.properties).not.toHaveProperty('saveTo');
@@ -42,11 +45,34 @@ describe('createServer', () => {
   });
 
   it("leaves projects, brand kits and media to ProjectSync", async () => {
-    for (const localFiles of [true, false]) {
-      const names = (await (await connect(localFiles)).listTools()).tools.map(t => t.name);
-      for (const moved of MOVED_TO_PROJECTSYNC) expect(names).not.toContain(moved);
-      expect(names).toContain('catalog_items');
+    for (const kind of ['release', 'use', 'legacy'] as const) {
+      const all = await names(kind);
+      for (const moved of MOVED_TO_PROJECTSYNC) expect(all).not.toContain(moved);
     }
+  });
+
+  it('gives mm-release the catalog and nothing else', async () => {
+    const all = await names('release');
+    expect(all).toContain('catalog_items');
+    expect(all).toContain('catalog_set_tier');
+    expect(all.filter(name => !name.startsWith('catalog_'))).toEqual([]);
+  });
+
+  it('gives mm-use what a member does, with no admin or video tool', async () => {
+    expect((await names('use')).sort()).toEqual(
+      ['explore', 'get_item', 'install_item', 'item_versions', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback'].sort(),
+    );
+  });
+
+  it('keeps the old video tools in the deprecated server, without the catalog', async () => {
+    const all = await names('legacy');
+    for (const kept of ['list_timelines', 'list_presets', 'transcribe', 'render', 'run_worker', 'list_generations']) expect(all).toContain(kept);
+    expect(all.filter(name => name.startsWith('catalog_'))).toEqual([]);
+    const client = await connect(false, 'legacy');
+    expect(client.getInstructions()).toContain('Deprecated');
+    expect(client.getServerVersion()?.name).toBe('mediamake');
+    expect((await connect(false, 'release')).getServerVersion()?.name).toBe('mm-release');
+    expect((await connect(false, 'use')).getServerVersion()?.name).toBe('mm-use');
   });
 });
 
@@ -530,7 +556,7 @@ describe('generations', () => {
       urls.push(String(input));
       return Response.json({ items: [{ id: 'g1', ref: REF, title: 'Rain', lyrics: '[Verse]' }], nextCursor: 'next', role: 'owner' });
     });
-    const result: any = await (await connect(false)).callTool({
+    const result: any = await (await connect(false, 'legacy')).callTool({
       name: 'list_generations',
       arguments: { projectId: 'p1', rating: ['keeper', 'unrated'], kind: ['cover'], parentRef: `https://suno.com/song/${REF}`, lyrics: false },
     });
@@ -546,7 +572,7 @@ describe('generations', () => {
       calls.push({ method: init.method ?? 'GET', url: String(input), body: JSON.parse(String(init.body)) });
       return Response.json({ id: 'g1', ref: REF, rating: 'keeper' });
     });
-    const result: any = await (await connect(true)).callTool({
+    const result: any = await (await connect(true, 'legacy')).callTool({
       name: 'rate_generation',
       arguments: { id: `https://suno.com/song/${REF}?sh=x`, rating: 'keeper', note: 'Use for the gojo edit' },
     });
@@ -554,5 +580,96 @@ describe('generations', () => {
     expect(calls).toEqual([
       { method: 'PATCH', url: `http://mm.test/api/generations/${REF}`, body: { rating: 'keeper', note: 'Use for the gojo edit' } },
     ]);
+  });
+});
+
+describe('mm-use', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubApi(reply: (method: string, path: string, body: any) => unknown) {
+    const calls: { method: string; url: URL; body?: any }[] = [];
+    vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? 'GET';
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      calls.push({ method, url, body });
+      return Response.json(reply(method, url.pathname, body) ?? {});
+    });
+    return calls;
+  }
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const result: any = await (await connect(false, 'use')).callTool({ name, arguments: args });
+    return { isError: !!result.isError, out: result.isError ? result.content[0].text : JSON.parse(result.content[0].text) };
+  };
+
+  const ITEMS = [
+    { id: 'skill/pack-brand-kit', kind: 'skill', title: 'pack-brand-kit', summary: 'A brand kit', tier: 'public', access: 'open', readiness: 'ready', tags: ['brand'], installPrompt: 'Set up…' },
+    { id: 'mcp/browse-hack', kind: 'mcp', title: 'Browse Hack', summary: 'Drive Chrome', tier: 'pro', access: 'locked', version: '0.15.1' },
+    { id: 'mcp/broken', kind: 'mcp', title: 'Broken', tier: 'public', access: 'open', health: 'failed', healthNote: 'its API changed' },
+  ];
+
+  it('explores with the locked items shown, and leaves failed ones out unless asked', async () => {
+    const calls = stubApi(() => ({ signedIn: true, items: ITEMS }));
+    const { out } = await call('explore', {});
+    expect(Object.fromEntries(calls[0].url.searchParams)).toEqual({ locked: 'show' });
+    expect(out.items.map((i: any) => [i.id, i.open, i.readiness])).toEqual([
+      ['skill/pack-brand-kit', true, 'ready'],
+      ['mcp/browse-hack', false, 'beta'],
+    ]);
+    expect(out.items[0]).not.toHaveProperty('installPrompt');
+    expect((await call('explore', { query: 'brand kit', open: true })).out.items.map((i: any) => i.id)).toEqual(['skill/pack-brand-kit']);
+    const failed = (await call('explore', { includeFailed: true, kind: 'mcp' })).out.items.find((i: any) => i.id === 'mcp/broken');
+    expect([failed.health, failed.healthNote]).toEqual(['failed', 'its API changed']);
+  });
+
+  it('shows one item, and says which membership opens a locked one', async () => {
+    stubApi((_m, path) => (path === '/api/catalog' ? { items: ITEMS } : { items: [{ id: 'skill/pack-brand-kit', version: '1.0.0' }] }));
+    const open = (await call('get_item', { item: 'skill/pack-brand-kit' })).out;
+    expect(open.open).toBe(true);
+    expect(open.page).toBe('http://mm.test/access?item=skill%2Fpack-brand-kit');
+    expect(open.releases).toEqual({ id: 'skill/pack-brand-kit', version: '1.0.0' });
+    const locked = (await call('get_item', { item: 'mcp/browse-hack' })).out;
+    expect(locked.open).toBe(false);
+    expect(locked.locked).toContain('pro membership');
+    expect(locked).not.toHaveProperty('releases');
+    expect((await call('get_item', { item: 'skill/none' })).isError).toBe(true);
+  });
+
+  it("gets an item's install plan with the caller's key", async () => {
+    const calls = stubApi(() => ({ ok: true, steps: [{ type: 'repo', repo: 'microfox-ai/mediamake' }] }));
+    const { out } = await call('install_item', { item: 'skill/pack-brand-kit' });
+    expect(calls[0].url.pathname + calls[0].url.search).toBe('/api/catalog/install?item=skill%2Fpack-brand-kit');
+    expect(out.plan.steps).toHaveLength(1);
+    expect(out.guide).toContain('install.md');
+  });
+
+  it("reports a skill run as its name and time, and nothing else", async () => {
+    const calls = stubApi(() => ({ saved: 1 }));
+    await call('report_skill_run', { skill: 'make-lyrics-video', at: '2026-11-15T10:00:00Z' });
+    expect(calls[0].url.pathname).toBe('/api/usage/skill-runs');
+    expect(calls[0].body).toEqual({ runs: [{ skill: 'make-lyrics-video', at: '2026-11-15T10:00:00Z' }] });
+    // no argument for anything more exists
+    const result: any = await (await connect(false, 'use')).listTools();
+    const tool = result.tools.find((t: any) => t.name === 'report_skill_run');
+    expect(Object.keys(tool.inputSchema.properties).sort()).toEqual(['at', 'skill']);
+    expect((await call('report_skill_run', { skill: '/Users/me/secret path' })).isError).toBe(true);
+  });
+
+  it("reports local skills as names and versions", async () => {
+    const calls = stubApi(() => ({ saved: 2 }));
+    await call('report_local_skills', { skills: [{ name: 'pack-brand-kit', version: '1.2.0' }, { name: 'my-own' }], device: 'MacBook' });
+    expect([calls[0].method, calls[0].url.pathname]).toEqual(['PUT', '/api/usage/local-skills']);
+    expect(calls[0].body).toEqual({ device: 'MacBook', skills: [{ name: 'pack-brand-kit', version: '1.2.0' }, { name: 'my-own' }] });
+  });
+
+  it('reads usage back, and sends feedback about an item', async () => {
+    const calls = stubApi((method, path) => (path === '/api/feedback' ? { feedbackId: 'fb_1' } : path === '/api/usage/local-skills' ? { devices: [] } : { skills: [{ skill: 'x', runs: 3 }] }));
+    expect((await call('my_usage', {})).out).toEqual({ skills: [{ skill: 'x', runs: 3 }], local: { devices: [] } });
+    const { out } = await call('send_feedback', { text: 'The render step crashes', item: 'skill/make-lyrics-video', version: '2.0.0' });
+    const sent = calls.find(c => c.url.pathname === '/api/feedback')!;
+    expect(sent.body).toEqual({ text: 'The render step crashes', itemId: 'skill/make-lyrics-video', version: '2.0.0', source: 'mm-use' });
+    expect(out.feedbackId).toBe('fb_1');
   });
 });

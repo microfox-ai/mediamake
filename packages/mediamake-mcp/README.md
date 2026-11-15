@@ -1,34 +1,48 @@
 # @microfox/mediamake-mcp
 
-An MCP server for **MediaMake admins**: it runs the catalog from Claude (skill, MCP, app and tutorial releases, their videos, and who can open them) and drives Mediamake's video pipeline through its HTTP API: saved timelines, presets, transcription, Suno takes, generation workers and agents, and renders. Projects, brand kits, productions, release kits and media are **ProjectSync**'s ([`packages/projectsync-mcp`](../projectsync-mcp/README.md)), the local MCP for everyone on a project.
+MediaMake's MCP servers. One package builds three, each a thin wrapper over the `/api/*` routes in `apps/mediamake`:
 
-It is a thin wrapper over the existing `/api/*` routes in `apps/mediamake`, authenticated with a Mediamake API key, so it works against production or a local dev server. It comes two ways:
+| Server | For | Hosted at | What it does |
+| --- | --- | --- | --- |
+| **mm-use** | every member | `https://<your-mediamake-host>/mcp/use` | Explore the skills, MCPs and apps, get install plans, check versions, report usage (a skill's name and time; local skill names and versions), send feedback |
+| **mm-release** | admins | `https://<your-mediamake-host>/mcp/release` | The catalog and releases: every `catalog_*` tool |
+| **mediamake** (deprecated) | admins | `https://<your-mediamake-host>/mcp` | The old video tools of MediaMake Core: timelines, presets, transcription, Suno takes, workers, agents and renders. Nothing new is added |
 
-- **Hosted, by URL** (easiest): the Mediamake app serves it at `https://<your-mediamake-host>/mcp`. Add that URL as a connector and sign in with your Mediamake account. Nothing to install.
-- **Local** (stdio, `.mcpb` or `node dist/index.js`): runs on your machine with an API key, and is the one to use when Claude should read or write files on your computer.
+Until 0.5.0 these were one server, the MediaMake MCP. Projects, brand kits, productions, release kits and media are **ProjectSync**'s ([`packages/projectsync-mcp`](../projectsync-mcp/README.md)), the local MCP for everyone on a project.
 
-## Add by URL (hosted connector)
+Each comes two ways:
 
-Step by step, with who can connect right now: [mediamake.microfox.app/core/mediamake-mcp](https://mediamake.microfox.app/core/mediamake-mcp). The quickest way, for admins: paste "Set up mcp/mediamake from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md" into Claude, or copy that prompt from the MediaMake MCP's card. By hand:
+- **Hosted, by URL** (easiest): add the address as a connector and sign in with your MediaMake account. Nothing to install.
+- **Local** (stdio): `node dist/index.js release|use|legacy` with an API key. `release` is the one to run locally when a catalog tool should read a file on your computer (`thumbnailFile`); `legacy` when the old video tools should (`filePath`, `saveTo`), which is also what the `.mcpb` runs.
 
-- **Claude (claude.ai and Claude Desktop)**: Settings → Connectors → Add custom connector, URL `https://<your-mediamake-host>/mcp`. Claude opens the Mediamake sign-in page; log in with your client ID and key, then press Allow.
-- **Claude Code**: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`, then `/mcp` in a session to sign in. Or skip the sign-in with a key: `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp --header "Authorization: Bearer <api key>"`.
+## Add by URL (hosted connectors)
+
+- **Claude (claude.ai and Claude Desktop)**: Settings → Connectors → Add custom connector, with the address from the table. Claude opens the MediaMake sign-in page; sign in, then press Allow.
+- **Claude Code**: `claude mcp add --transport http mm-use https://<your-mediamake-host>/mcp/use` (or `mm-release … /mcp/release`), then `/mcp` in a session to sign in. Or skip the sign-in with a key: add `--header "Authorization: Bearer <api key>"`.
 - **Any other MCP client** that speaks Streamable HTTP and OAuth works the same way.
+- From MediaMake: paste "Set up mcp/mm-use from MediaMake by following https://github.com/microfox-ai/mediamake/blob/main/install.md" into Claude (or `mcp/mm-release`).
 
-Who may connect follows the `mcp/mediamake` catalog item. It is in the vault (`neverPublish`): admins, and anyone granted it by name; private testers and the community don't get it, and everyone else is told so on the consent screen and gets a 403 from `/mcp`.
+Who may connect follows each connector's catalog item (`apps/mediamake/lib/mcp/connectors.ts`):
 
-The connector acts as your account: it calls the API with one of your API keys, so your tier (public, community, private, admin) and access grants apply exactly as they do with the `.mcpb`. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
+- `mcp/mm-use` is open to every signed-in account, Public members included.
+- `mcp/mm-release` and `mcp/mediamake` are in the vault (`neverPublish`): admins, and anyone granted the item by name. Everyone else is told so on the consent screen and gets a 403 from the endpoint.
 
-It has the same tools, adapted for a server that can't see your files:
+A sign-in is the account's, not one connector's: the consent screen reads which connector the client asked for (the `resource` it sends) to explain what it will do, and each endpoint checks who may use it on every request.
+
+A connector acts as your account: it calls the API with one of your API keys, so your membership and access grants apply exactly as they do anywhere else. Disabling that key on the API keys page disconnects it within the hour (when its access token expires); signing out of the connector in the client revokes its tokens straight away.
+
+The hosted servers can't see your files:
 
 - `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
+- `catalog_set_video` and `catalog_add_video_item` take an https thumbnail link (no `thumbnailFile`).
+- mm-use installs nothing itself: `install_item` gives the plan and Claude carries it out on your computer as [install.md](../../install.md) says.
 
 How it works, in `apps/mediamake`:
 
 | Path | What it is |
 | --- | --- |
-| `/mcp` | The MCP server (Streamable HTTP, stateless JSON responses). Accepts an OAuth access token or a plain API key as `Authorization: Bearer`. |
-| `/.well-known/oauth-protected-resource[/mcp]` | RFC 9728 metadata pointing clients at the OAuth server |
+| `/mcp/use`, `/mcp/release`, `/mcp` | The three MCP servers (Streamable HTTP, stateless JSON responses), all through `lib/mcp/serve.ts`. Each accepts an OAuth access token or a plain API key as `Authorization: Bearer`. |
+| `/.well-known/oauth-protected-resource[/mcp[/use\|/release]]` | RFC 9728 metadata pointing clients at the OAuth server, naming the address asked for as its `resource` |
 | `/.well-known/oauth-authorization-server` | RFC 8414 OAuth server metadata |
 | `/oauth/register` | Dynamic client registration (RFC 7591), which is how Claude registers itself |
 | `/oauth/authorize` | Sends signed-out users to `/login`, then shows an Allow / Cancel screen (authorization code + PKCE S256) |
@@ -39,9 +53,9 @@ Clients, codes and tokens live in Upstash Redis (`oauthClients`, `oauthCodes`, `
 | Variable | Default | |
 | --- | --- | --- |
 | `MEDIAMAKE_PUBLIC_URL` | the request's host | The public origin used in the OAuth metadata. Set it behind a custom domain or proxy. |
-| `MCP_API_BASE_URL` | the public origin | Where `/mcp` sends its `/api/*` calls. Set it when the public URL can't call itself, for example a preview deployment behind Vercel Deployment Protection. |
+| `MCP_API_BASE_URL` | the public origin | Where the MCP routes send their `/api/*` calls. Set it when the public URL can't call itself, for example a preview deployment behind Vercel Deployment Protection. |
 
-Tool calls run inside the `/mcp` function, so each one is bounded by its `maxDuration` (300 s). A render with `wait: true` stops waiting after about four and a half minutes and returns its progress; `render_status` picks it up from there.
+Tool calls run inside the route's function, so each one is bounded by its `maxDuration` (300 s for `/mcp`, 60 s for the other two). A render with `wait: true` stops waiting after about four and a half minutes and returns its progress; `render_status` picks it up from there.
 
 ## Local setup
 
@@ -55,10 +69,12 @@ npm run build --workspace @microfox/mediamake-mcp
 | `MEDIAMAKE_API_KEY`    | none                    | API key from Settings → API keys. Not needed against a dev server that sets `DEV_API_KEY` |
 | `MEDIAMAKE_TIMEOUT_MS` | `300000`                | Per-request timeout                                                                       |
 
-The repo's `.mcp.json` already registers it for Claude Code sessions opened at the repo root (build it first). Elsewhere:
+| `MEDIAMAKE_MCP_SERVER` | `legacy`                | Which server the stdio entry runs when no argument names one: `release`, `use` or `legacy`  |
+
+The repo's `.mcp.json` already registers all three (`mm-release`, `mm-use`, `mediamake`) for Claude Code sessions opened at the repo root (build the package first). Elsewhere:
 
 ```bash
-claude mcp add mediamake -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MEDIAMAKE_API_KEY=... -- node /path/to/mediamake/packages/mediamake-mcp/dist/index.js
+claude mcp add mm-release -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MEDIAMAKE_API_KEY=... -- node /path/to/mediamake/packages/mediamake-mcp/dist/index.js release
 ```
 
 ### Install in Claude Desktop (.mcpb)
@@ -67,9 +83,26 @@ claude mcp add mediamake -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MED
 npm run build:mcpb --workspace @microfox/mediamake-mcp   # writes packages/mediamake-mcp/mediamake.mcpb
 ```
 
-Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Extensions). It asks for the Mediamake URL and API key, and the key is stored in the OS keychain. The bundle is one self-contained `server/index.js` and needs only the Node runtime Claude Desktop ships with.
+The bundle is the deprecated server (the old video tools). Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Extensions). It asks for the Mediamake URL and API key, and the key is stored in the OS keychain. The bundle is one self-contained `server/index.js` and needs only the Node runtime Claude Desktop ships with.
 
 ## Tools
+
+### mm-use (every member)
+
+| Area | Tools |
+| --- | --- |
+| Explore | `explore` (every item with the membership that opens it, whether this account can open it, Beta or Ready), `get_item`, `item_versions` |
+| Install | `install_item` (the item's install plan for this account; Claude carries it out) |
+| Usage | `report_skill_run` (a skill's name and the time, nothing else), `my_usage`, `report_local_skills` (names and versions) |
+| Feedback | `send_feedback` (the user's words, about one item or MediaMake as a whole) |
+
+Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is sent, where it is kept, and how to turn it off (`mm usage off`).
+
+### mm-release (admins)
+
+`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_invite`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
+
+### mediamake (deprecated, admins)
 
 | Area                   | Tools                                                                                                                                                                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -79,14 +112,12 @@ Double-click `mediamake.mcpb` (or drag it into Claude Desktop's Settings → Ext
 | Transcription          | `transcribe`, `list_transcriptions`, `get_transcription`                                                                                                                                     |
 | Workers and agents     | `list_workers`, `get_worker_schema`, `run_worker`, `get_worker_job`, `list_agents`, `run_agent`                                                                                              |
 | Renders                | `plan_render`, `render`, `render_presets`, `render_status`, `list_renders`, `get_render_input_props`                                                                                                        |
-| Catalog                | `catalog_versions` (live version numbers and release notes of skills, MCPs and apps)                                                                                                        |
-| Catalog, admins only   | `catalog_items`, `catalog_item`, `catalog_archive`, `catalog_set_health`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_invite`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog") |
 
 There are no delete tools on purpose.
 
 ### Managing the catalog
 
-Admins run MediaMake's releases from Claude with the catalog tools; for anyone else the API answers
+Admins run MediaMake's releases from Claude with mm-release's catalog tools; for anyone else the API answers
 403. `catalog_items` lists every skill, MCP, app, tutorial and course with the lowest membership that opens it,
 whether it is Beta or Ready, its health, where it comes from and whether it is archived; `catalog_item` shows one in full. `catalog_archive` takes unused items off
 the homepage (they stay public and installable by their link), `catalog_set_health` says whether items of any kind work (healthy,

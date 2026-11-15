@@ -108,19 +108,72 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
 
   // MCPs
   {
+    id: 'mcp/mm-use',
+    kind: 'mcp',
+    title: 'mm-use',
+    summary:
+      'MediaMake for every member, from Claude: explore the skills, MCPs and apps, see which membership opens each, get install plans, check for updates, and send feedback. It also keeps your "most used" list: the names of the skills you run and when, never their arguments or files. The hosted connector: sign in with your MediaMake account.',
+    visibility: 'public',
+    tier: 'public',
+    // every signed-in account, also while public releases are locked
+    openToAll: true,
+    status: 'beta',
+    tags: ['mcp', 'claude'],
+    releasedAt: '2026-11-15',
+    install: {
+      source: {
+        type: 'mcp-server',
+        name: 'mm-use',
+        remote: { url: `${MEDIAMAKE_SITE}/mcp/use` },
+        setup: [
+          'Claude Code: run /mcp, pick mm-use and sign in to MediaMake in the browser window that opens, then click Allow.',
+          'The Claude apps: the connector asks them to sign in to MediaMake and click Allow when they first use it.',
+        ],
+      },
+      notes:
+        "Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files. It signs in with their MediaMake account, no API key. Usage reports are a skill's name and time only; `mm usage off` (or MEDIAMAKE_USAGE=off) stops the ones sent from their computer.",
+    },
+  },
+  {
+    id: 'mcp/mm-release',
+    kind: 'mcp',
+    title: 'mm-release',
+    summary:
+      'For MediaMake admins: run the catalog from Claude. Skill, MCP, app, tutorial and course releases, who can open them, Beta and Ready, health, videos, memberships and invites. The hosted connector: sign in with your MediaMake account.',
+    // Admins only: it runs the releases. In the vault, so the cohort doesn't get it; a grant naming it does
+    visibility: 'private',
+    tier: 'admin',
+    neverPublish: true,
+    status: 'beta',
+    tags: ['mcp', 'claude', 'admin'],
+    releasedAt: '2026-11-15',
+    install: {
+      source: {
+        type: 'mcp-server',
+        name: 'mm-release',
+        remote: { url: `${MEDIAMAKE_SITE}/mcp/release` },
+        setup: [
+          'Claude Code: run /mcp, pick mm-release and sign in to MediaMake in the browser window that opens, then click Allow.',
+          'The Claude apps: the connector asks them to sign in to MediaMake and click Allow when they first use it.',
+        ],
+      },
+      notes: "Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files. It signs in with their MediaMake account, no API key.",
+    },
+  },
+  {
     id: 'mcp/mediamake',
     kind: 'mcp',
-    title: 'MediaMake MCP',
+    title: 'MediaMake MCP (deprecated)',
     summary:
-      "For MediaMake admins: run the catalog (skill, MCP, app and tutorial releases) from Claude, and work with timelines, presets, transcriptions, Suno takes, workers and renders. The hosted connector: sign in with your MediaMake account. Projects, brand kits and media are ProjectSync's.",
-    // Admins only: it runs the releases. In the vault, so the cohort doesn't get it; a grant naming it does
+      "Deprecated, for MediaMake admins: the old video tools of MediaMake Core (timelines, presets, transcriptions, Suno takes, workers and renders). The catalog moved to mm-release, and exploring, installing, usage and feedback are in mm-use. Projects, brand kits and media are ProjectSync's.",
+    // Admins only, with Core. In the vault, so the cohort doesn't get it; a grant naming it does
     visibility: 'private',
     tier: 'admin',
     neverPublish: true,
     status: 'beta',
     // the card opens the step-by-step page for connecting it
     href: '/core/mediamake-mcp',
-    tags: ['mcp', 'claude'],
+    tags: ['mcp', 'claude', 'deprecated'],
     releasedAt: '2026-10-24',
     install: {
       source: {
@@ -134,7 +187,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
         guide: `${MEDIAMAKE_SITE}/core/mediamake-mcp`,
       },
       notes:
-        "Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files (bring media in by https link). It signs in with their MediaMake account, no API key.",
+        "Deprecated: only for the old video pipeline. Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files (bring media in by https link). It signs in with their MediaMake account, no API key.",
     },
   },
 

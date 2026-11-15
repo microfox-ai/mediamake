@@ -4,9 +4,25 @@
       "command": "/opt/homebrew/bin/uvx",
       "args": ["blender-mcp"]
     },
+    "mm-release": {
+      "command": "node",
+      "args": ["packages/mediamake-mcp/dist/index.js", "release"],
+      "env": {
+        "MEDIAMAKE_API_URL": "${MEDIAMAKE_API_URL:-http://localhost:3000}",
+        "MEDIAMAKE_API_KEY": "${MEDIAMAKE_API_KEY:-}"
+      }
+    },
+    "mm-use": {
+      "command": "node",
+      "args": ["packages/mediamake-mcp/dist/index.js", "use"],
+      "env": {
+        "MEDIAMAKE_API_URL": "${MEDIAMAKE_API_URL:-http://localhost:3000}",
+        "MEDIAMAKE_API_KEY": "${MEDIAMAKE_API_KEY:-}"
+      }
+    },
     "mediamake": {
       "command": "node",
-      "args": ["packages/mediamake-mcp/dist/index.js"],
+      "args": ["packages/mediamake-mcp/dist/index.js", "legacy"],
       "env": {
         "MEDIAMAKE_API_URL": "${MEDIAMAKE_API_URL:-http://localhost:3000}",
         "MEDIAMAKE_API_KEY": "${MEDIAMAKE_API_KEY:-}"

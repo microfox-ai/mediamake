@@ -10,6 +10,11 @@
  * of the skill it used; it is null for a skill with no folder here (a plugin's). The media CLI reads
  * the file into its catalog and the Library export.
  *
+ * When you are signed in to MediaMake it also tells the site that the skill ran: the skill's name
+ * and the time, nothing else (never args, cwd, session or the hash, which stay in the line above).
+ * tools/usage.mjs sends it from a detached process, so the skill never waits on the network, and
+ * says what is sent; `mm usage off` (or MEDIAMAKE_USAGE=off) stops it.
+ *
  * It never gets in the way: no config, no library folder or input it can't read, and it does
  * nothing. It prints nothing and always exits 0.
  */
@@ -17,6 +22,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { sendRunDetached } from './usage.mjs';
 
 const SCHEMA = 'mediamake.skill-run/v1';
 /** Long args are cut, so a line stays one small append. */
@@ -75,12 +81,25 @@ const hashOf = dir => {
 
 const main = () => {
   if (process.stdin.isTTY) return; // run by hand without hook input
-  const root = libraryRoot();
-  if (!root || !fs.existsSync(root)) return;
   const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
   const t = input.tool_input ?? {};
   const skill = typeof t.skill === 'string' ? t.skill.trim().replace(/^\//, '') : '';
   if (!skill) return;
+  const at = new Date().toISOString();
+  try {
+    record(input, skill, at);
+  } catch {
+    // no library, or one it can't write: the site can still hear of the run
+  }
+  // the name and the time, to MediaMake, unless usage is off or nobody is signed in
+  sendRunDetached(skill, at);
+};
+
+/** The full line, in the library on this computer. */
+const record = (input, skill, at) => {
+  const root = libraryRoot();
+  if (!root || !fs.existsSync(root)) return;
+  const t = input.tool_input ?? {};
   const cwd = typeof input.cwd === 'string' ? input.cwd : process.cwd();
   const args = typeof t.args === 'string' ? t.args : t.args == null ? '' : JSON.stringify(t.args);
   let skillHash = null;
@@ -95,7 +114,7 @@ const main = () => {
     skill,
     args: args.length > MAX_ARGS ? `${args.slice(0, MAX_ARGS)}…` : args,
     session: typeof input.session_id === 'string' ? input.session_id : null,
-    at: new Date().toISOString(),
+    at,
     cwd,
     skillHash,
   };
