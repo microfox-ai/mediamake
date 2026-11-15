@@ -43,7 +43,7 @@ lead to `/access?code=…`, and sign-in carries that address along as `redirectT
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Continue with Google. Redirect URI: `<site>/api/auth/google/callback` |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Continue with GitHub. Callback URL: `<site>/api/auth/github/callback` |
 | `RESEND_API_KEY` | Verification and reset mail. Without it, production answers 503 and `next dev` prints the mail to the server log. |
-| `MAIL_FROM` | Optional. Default `MediaMake <hello@mediamake.microfox.app>`; the domain must be verified in Resend. |
+| `MAIL_FROM` | Optional. Default `MediaMake <mediamake@reply-bots.com>`; the domain must be verified in Resend. |
 | `MEDIAMAKE_SIGNUP` | `open` to let anyone sign up. |
 | `MEDIAMAKE_PUBLIC_URL` | Optional. The site's public origin, used in mailed links and callbacks. |
 

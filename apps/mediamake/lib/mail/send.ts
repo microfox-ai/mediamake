@@ -1,11 +1,11 @@
 /**
  * Mail through Resend's HTTP API. On when RESEND_API_KEY is set; the sender is
- * MAIL_FROM, or hello@mediamake.microfox.app (that domain must be verified in
+ * MAIL_FROM, or mediamake@reply-bots.com (that domain must be verified in
  * Resend). Without a key, `next dev` prints the mail to the server log so a
  * link can still be followed, and production refuses.
  */
 
-export const DEFAULT_MAIL_FROM = 'MediaMake <hello@mediamake.microfox.app>';
+export const DEFAULT_MAIL_FROM = 'MediaMake <mediamake@reply-bots.com>';
 
 export interface Mail {
   to: string;

@@ -48,7 +48,7 @@ const outside = (async (input: RequestInfo | URL, init?: RequestInit) => {
   }
   if (url === 'https://api.resend.com/emails') {
     const mail = JSON.parse(String(init?.body));
-    assert.equal(mail.from, 'MediaMake <hello@mediamake.microfox.app>');
+    assert.equal(mail.from, 'MediaMake <mediamake@reply-bots.com>');
     mails.push({ to: mail.to[0], subject: mail.subject, text: mail.text });
     return json({ id: 'mail' });
   }
