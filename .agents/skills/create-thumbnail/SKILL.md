@@ -158,9 +158,21 @@ In order of preference:
 | a map or a diagram | drawn for the thumbnail, 3–5 elements | SVG `image` or a job `custom/` component |
 | type only | none | `poster`, or raw `text` on a `fill` |
 
-A real thing is shown as it is (the reviewed product, the place visited, the guest): generated
-pictures are for concepts, invented scenes and backgrounds, never a stand-in for the real subject
-or a real person's face.
+**Real and accurate pictures first** (the user, 2026-11-15: "real images and accurate should be
+used"). The subject of a thumbnail is the real one, shown as it is: the reviewed product, the tool's
+real screen, the dish that was cooked, the place visited, the guest, the game. Get it in this order:
+
+1. **The user's own** pictures, frames of their video, or the real output of the work.
+2. **Found**, when they have none: Google Images through Browse Hack (`google_images_bulk_start`
+   with `largeOnly`, into the library's inbox), the maker's press kit, Wikimedia Commons. Check it
+   is the right model, version, place or person before using it, and keep its source in `brief.md`.
+3. **Then improve it, never replace it**: upscale a small one, outcrop it to 16:9, clean its
+   ground or vary its light with Midjourney (`midjourney-outcrop`, `--edit`, upscale) or fal (ask
+   first: it costs money), and compare the result with the original: the thing must still be
+   exactly what it was (the same buttons, cameras, label, face).
+
+Generated pictures are for concepts, invented scenes and subjects, and grounds, never a stand-in
+for a real product, person, place or tool.
 
 Put pictures in `input/`. For anything that goes behind or in front of words, make a cutout:
 
