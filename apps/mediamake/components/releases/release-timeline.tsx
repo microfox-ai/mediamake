@@ -30,14 +30,14 @@ export function ReleaseTimeline({
     .filter(item => tierOf(item, now) === 'public')
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt))
     .slice(0, 12);
-  const ungated = items.filter(item => tierOf(item, now) === 'community' && !item.publicAt);
+  const ungated = items.filter(item => ['plus', 'pro'].includes(tierOf(item, now)) && !item.publicAt);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <section className="rounded-2xl border bg-card">
         <header className="border-b px-5 py-4">
           <h3 className="text-sm font-semibold">Going public</h3>
-          <p className="text-xs text-muted-foreground">Community items with a gate. Each turns public by itself on its date.</p>
+          <p className="text-xs text-muted-foreground">Gated items. Each turns public by itself on its date.</p>
         </header>
         {upcoming.length ? (
           <ol className="relative px-5 py-4">
@@ -48,7 +48,7 @@ export function ReleaseTimeline({
                 <li key={item.id} className="relative flex items-center gap-4 py-3">
                   <span className="relative z-10 flex size-5 items-center justify-center rounded-full border-2 border-violet-500 bg-card" />
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className={cn('flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg', TIER_META.community.soft)}>
+                    <span className={cn('flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg', TIER_META[tierOf(item, now)].soft)}>
                       {item.cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={item.cover} alt="" onError={e => (e.currentTarget.style.display = 'none')} className="size-full object-cover" />
@@ -88,7 +88,7 @@ export function ReleaseTimeline({
         {ungated.length > 0 && (
           <section className="rounded-2xl border bg-card">
             <header className="border-b px-5 py-4">
-              <h3 className="text-sm font-semibold">Community, no date</h3>
+              <h3 className="text-sm font-semibold">Plus and Pro, no date</h3>
               <p className="text-xs text-muted-foreground">Ready, but not scheduled to go public.</p>
             </header>
             <ul className="divide-y">

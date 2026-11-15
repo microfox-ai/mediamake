@@ -8,7 +8,7 @@ export type GenerationsAccess =
 
 /**
  * Who may read or change a project's generations and presets: the brand kit
- * rule. Cloud projects are for community, private and admin users; then the
+ * rule. Cloud projects are for Plus members and above; then the
  * project role decides: anyone it is shared with may read, owners and editors
  * may write.
  */
@@ -18,7 +18,7 @@ export async function generationsAccess(db: Db, projectId: string | null, client
   if (process.env.NODE_ENV !== 'development') {
     const tier = await getViewerTier({ clientId });
     if (!canUseCloudProjects(tier)) {
-      return { ok: false, status: 403, error: 'Generations on cloud projects need community access or above.' };
+      return { ok: false, status: 403, error: 'Generations on cloud projects need a Plus membership or above.' };
     }
   }
   const role = await getProjectRole(db, projectId, clientId);

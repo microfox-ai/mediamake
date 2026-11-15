@@ -10,12 +10,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { HEALTH, HealthBadge } from '@/components/catalog/health';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { MCP_HEALTH, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type McpHealth, type ReleaseTier } from '@/lib/catalog/types';
+import { ITEM_HEALTH, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemHealth, type ItemTier } from '@/lib/catalog/types';
+import { tierLabel } from '@/lib/memberships/tiers';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
-import { ArchivedPill, GroupLabel, Panel, TierPill } from './parts';
-import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, tierOf, type ItemDetail } from './model';
+import { ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './parts';
+import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, reachOf, tierOf, type ItemDetail } from './model';
 import { CoursePanel, VideoPanel } from './video-panel';
 
 /**
@@ -204,8 +205,8 @@ export function ReleaseItem({ id }: { id: string }) {
   );
 }
 
-function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ReleaseTier; onArchived: () => void }) {
-  const { item, installPrompt, code, archive, healthMark } = detail;
+function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ItemTier; onArchived: () => void }) {
+  const { item, installPrompt, code, archive, healthMark, readinessMark } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
   const cover = item.cover ?? item.video?.thumbnail;
@@ -231,16 +232,35 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
             <TierPill tier={tier} />
+            <ReadinessPill readiness={item.readiness} />
             {archive && <ArchivedPill />}
             <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />
           </div>
           <p className="text-sm text-muted-foreground">
             <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
             {version ? ` · v${version}` : ''}
-            {item.status !== 'live' ? ` · ${STATUS_LABEL[item.status]}` : ''}
+            {item.status === 'coming-soon' ? ` · ${STATUS_LABEL[item.status]}` : ''}
           </p>
           <About summary={item.summary} description={detail.description} />
           {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+          {readinessMark?.proof?.length ? (
+            <p className="text-xs text-muted-foreground">
+              Ready since {formatDate(readinessMark.at)}. Made with it:{' '}
+              {readinessMark.proof.map((proof, i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  {proof.url ? (
+                    <a href={proof.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                      {proof.title}
+                    </a>
+                  ) : (
+                    proof.title
+                  )}
+                </span>
+              ))}
+              .
+            </p>
+          ) : null}
           {healthMark && (
             <p className="text-xs text-muted-foreground">
               {HEALTH[healthMark.health].label} since {formatDate(healthMark.at)}
@@ -258,7 +278,8 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: Releas
       <div className="flex flex-wrap gap-2 xl:shrink-0">
         {installPrompt && <CopyPrompt prompt={installPrompt} />}
         <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
-        {item.kind === 'mcp' && <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health} onDone={onArchived} />}
+        <ReadinessButton id={item.id} ready={item.readiness === 'ready'} onDone={onArchived} />
+        <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health ?? 'healthy'} onDone={onArchived} />
         {VIDEO_KINDS.includes(item.kind) ? (
           <Button variant="outline" size="sm" asChild>
             <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
@@ -308,15 +329,51 @@ function About({ summary, description }: { summary: string; description?: string
 }
 
 /**
- * An MCP's health (see McpHealth), shown on its card and install page. "Default"
- * clears the mark: back to the repo's default, healthy when it has none. A
- * health other than healthy asks why, shown with it on its page.
+ * Marks the item Ready, with the production made with it as proof (the rule:
+ * we publish nothing we don't use), or takes it back to Beta.
  */
-function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: McpHealth; shown?: McpHealth; onDone: () => void }) {
+function ReadinessButton({ id, ready, onDone }: { id: string; ready: boolean; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    let proof: { title: string; url?: string }[] | undefined;
+    if (!ready) {
+      const title = window.prompt('Ready needs proof. What finished production was made with it?')?.trim();
+      if (!title) return;
+      const url = window.prompt('A link to it (https), if it has one')?.trim();
+      proof = [{ title, ...(url && { url }) }];
+    }
+    setBusy(true);
+    try {
+      await adminCall({ type: 'set_readiness', itemIds: [id], readiness: ready ? 'beta' : 'ready', proof });
+      toast.success(ready ? 'Back to Beta' : 'Marked Ready');
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" disabled={busy} onClick={toggle}>
+      {ready ? 'Back to Beta' : 'Mark Ready'}
+    </Button>
+  );
+}
+
+/**
+ * An item's health (see ItemHealth), shown on its card and install page. "Default"
+ * clears the mark: back to the repo's default, healthy when it has none. A
+ * health other than healthy asks why, shown with it on its page; failed needs it.
+ */
+function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: ItemHealth; shown?: ItemHealth; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const set = async (value: string) => {
-    const health = value === 'default' ? null : (value as McpHealth);
-    const note = health && health !== 'healthy' ? window.prompt(`Why is it ${HEALTH[health].label.toLowerCase()}? Shown on its page (optional)`) : null;
+    const health = value === 'default' ? null : (value as ItemHealth);
+    const note =
+      health && health !== 'healthy'
+        ? window.prompt(`Why is it ${HEALTH[health].label.toLowerCase()}? Shown on its page${health === 'failed' ? '' : ' (optional)'}`)
+        : null;
+    if (health === 'failed' && !note?.trim()) return toast.error('A failed item needs its reason');
     setBusy(true);
     try {
       await adminCall({ type: 'set_health', itemIds: [id], health, note: note?.trim() || undefined });
@@ -330,12 +387,12 @@ function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: McpH
   };
   return (
     <Select value={marked ?? 'default'} onValueChange={set} disabled={busy}>
-      <SelectTrigger size="sm" className="h-8 w-auto gap-1.5 text-xs" title="How this MCP is doing, on its card and install page">
+      <SelectTrigger size="sm" className="h-8 w-auto gap-1.5 text-xs" title="Whether it works right now, on its card and install page">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="default">Default{!marked && shown ? ` (${HEALTH[shown].label})` : ''}</SelectItem>
-        {MCP_HEALTH.map(health => (
+        {ITEM_HEALTH.map(health => (
           <SelectItem key={health} value={health}>
             {HEALTH[health].label}
           </SelectItem>
@@ -560,11 +617,20 @@ function ConnectionsPanel({ detail }: { detail: ItemDetail }) {
   );
 }
 
+/** A change of tier in the history; entries from before the ladder carry a stage only. */
 const STAGE_TEXT: Record<CatalogItemRecord['visibility'], string> = {
-  private: 'Moved to development',
-  network: 'Ready: opened to the community',
+  private: 'Moved to development (now the cohort)',
+  network: 'Opened to the community (now Pro)',
   public: 'Released to the public',
 };
+
+function stageTitle(stage: NonNullable<CatalogItemRecord['stageHistory']>[number], first: boolean) {
+  const why =
+    stage.by === 'gate' ? ' (its gate ended)' : stage.by === 'migration' ? ' (moved onto the membership ladder)' : stage.by === 'skills-public' || stage.by === 'made-by-others' ? ' (always public)' : '';
+  if (!stage.tier) return (first && stage.visibility === 'private' ? 'Added, in development' : STAGE_TEXT[stage.visibility]) + why;
+  const where = stage.tier === 'admin' ? 'the vault' : tierLabel(stage.tier);
+  return `${first ? 'Added, in' : stage.tier === 'public' ? 'Released to' : 'Moved to'} ${where}${why}`;
+}
 
 function HistoryPanel({ item }: { item: CatalogItemRecord }) {
   const events = [
@@ -578,10 +644,7 @@ function HistoryPanel({ item }: { item: CatalogItemRecord }) {
     ...(item.stageHistory ?? []).map((stage, i) => ({
       key: `stage-${i}`,
       at: stage.at,
-      title:
-        i === 0 && stage.visibility === 'private'
-          ? 'Added, in development'
-          : `${STAGE_TEXT[stage.visibility]}${stage.by === 'gate' ? ' (its gate ended)' : stage.by === 'skills-public' ? ' (always public)' : ''}`,
+      title: stageTitle(stage, i === 0),
       body: undefined as string | undefined,
       meta: undefined as string | undefined,
     })),
@@ -610,15 +673,14 @@ function HistoryPanel({ item }: { item: CatalogItemRecord }) {
   );
 }
 
-function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ReleaseTier; now: number }) {
-  const { item, groups, grants, publicReleasesOpen } = detail;
+function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier; now: number }) {
+  const { item, members, grants, publicReleasesOpen } = detail;
   const always = isAlwaysPublic(item);
   const inCode = detail.definedIn === 'items.ts';
   const gate = gateOf(item, now);
   const rows = [
     { label: 'Admins', on: true },
-    { label: `Private testers · ${groups.private}`, on: tier !== 'vault' },
-    { label: `Community · ${groups.community}`, on: tier === 'community' || tier === 'public' },
+    ...reachOf(members, tier).map(row => ({ label: `${tierLabel(row.tier)} · ${row.count}`, on: row.on })),
     {
       label:
         always || item.openToAll
@@ -632,7 +694,7 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ReleaseTi
   const description = always
     ? item.madeBy
       ? 'Made by others: always public, never gated.'
-      : 'A skill: always public, never gated.'
+      : 'A skill in the public repo: always public, never gated.'
     : item.openToAll
       ? 'A page anyone can open, even while public releases are locked.'
       : TIER_META[tier].who;

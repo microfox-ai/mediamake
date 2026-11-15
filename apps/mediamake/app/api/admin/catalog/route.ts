@@ -14,10 +14,17 @@ import {
   catalogArchiveDB,
   catalogHealthDB,
   catalogItemsDB,
+  catalogReadinessDB,
   catalogVideosDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
-import { cardRecords, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
+import { catalogIndex } from '@/lib/catalog/admin-index';
+import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
+import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
+import { usedByOf } from '@/lib/catalog/summary';
+import { isMembershipSource } from '@/lib/memberships/membership';
+import { membershipsDB } from '@/lib/memberships/store';
+import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, TIER_LADDER, isGrantableTier, type GrantableTier } from '@/lib/memberships/tiers';
 import { createPackageUpload, packageKey } from '@/lib/catalog/storage';
 import { parseYouTubeId, summaryFrom, withVideos } from '@/lib/catalog/video';
 import { createPresignedUpload } from '@/lib/spaces-upload';
@@ -25,7 +32,9 @@ import {
   CATALOG_KINDS,
   CATALOG_STATUSES,
   DEFAULT_GATE_DAYS,
-  MCP_HEALTH,
+  ALWAYS_PUBLIC_ERROR,
+  ITEM_HEALTH,
+  ITEM_TIERS,
   NETWORK_GROUP,
   PRIVATE_GROUP,
   USE_NEEDS,
@@ -34,12 +43,17 @@ import {
   catalogItemId,
   parseCatalogItemId,
   isValidSlug,
+  parseHealth,
+  readyProblems,
   withArchive,
   withHealth,
+  withReadiness,
   type CatalogKind,
   type CatalogStatus,
   type CatalogVideo,
   type GrantSubject,
+  type ItemTier,
+  type ReadyProof,
   type UseNeed,
   type Visibility,
 } from '@/lib/catalog/types';
@@ -70,9 +84,10 @@ async function listPeople() {
  * Everything an admin needs to manage releases: items (with versions),
  * the repo's skills from skills.json, the third-party items from
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
- * aren't stored as items (archived ones carry `archivedAt`, ones with a
- * video `video`, MCPs their `health`), live grants,
+ * aren't stored as items (each with its `tier`'s fields, its `readiness`,
+ * `archivedAt` when archived, its `video` and its `health`), live grants,
  * groups, invites, pending access requests, the people who hold API keys,
+ * every membership record (ended ones too: the audit log), the tier ladder,
  * and whether public releases are open site-wide.
  */
 export async function GET(req: NextRequest) {
@@ -82,7 +97,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, invites, requests, people, archived, videos, health] = await Promise.all([
+  const [items, grants, groups, invites, requests, people, archived, videos, health, readiness, memberships] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
@@ -92,8 +107,14 @@ export async function GET(req: NextRequest) {
     catalogArchiveDB.list(),
     catalogVideosDB.list(),
     catalogHealthDB.list(),
+    catalogReadinessDB.list(),
+    membershipsDB.list({ includeEnded: true }).catch(error => {
+      console.error('[admin/catalog] Could not list memberships:', error);
+      return [];
+    }),
   ]);
-  const marked = <T extends { id: string; kind: CatalogKind }>(records: T[]) => withHealth(withVideos(withArchive(records, archived), videos), health);
+  const marked = <T extends { id: string; kind: CatalogKind }>(records: T[]) =>
+    withReadiness(withHealth(withVideos(withArchive(records, archived), videos), health), readiness);
   return NextResponse.json({
     items: marked(items.map(withRegistryUses)),
     skills: marked(skillRecords(items)),
@@ -104,6 +125,8 @@ export async function GET(req: NextRequest) {
     invites,
     requests,
     people,
+    memberships,
+    tiers: TIER_LADDER,
     publicReleasesOpen: publicReleasesOpen(),
     defaultGateDays: DEFAULT_GATE_DAYS,
   });
@@ -183,6 +206,8 @@ const itemSchema = z
     slug: z.string().refine(isValidSlug, 'slug must be lowercase letters, digits and dashes'),
     title: z.string().min(1).max(120),
     summary: z.string().max(500).default(''),
+    /** The lowest membership that opens it; `visibility` is the older way to say it (private: cohort, network: pro). */
+    tier: z.enum(ITEM_TIERS as [ItemTier, ...ItemTier[]]).optional(),
     visibility: z.enum(VISIBILITIES as [Visibility, ...Visibility[]]).optional(),
     status: z.enum(CATALOG_STATUSES as [CatalogStatus, ...CatalogStatus[]]).optional(),
     listed: z.boolean().optional(),
@@ -260,18 +285,43 @@ function daysFromNow(days?: number) {
   return days && days > 0 ? new Date(Date.now() + days * 86_400_000).toISOString() : undefined;
 }
 
+/** A person's tier as typed: the ladder's, or the earlier names (community is Pro, private is the cohort). */
+function personTier(value: unknown): GrantableTier | 'public' | null {
+  if (value === 'public' || isGrantableTier(value)) return value;
+  if (value === 'community' || value === 'private') return LEGACY_PERSON_TIER[value];
+  return null;
+}
+
+/** Productions as typed with a Ready mark: each a title, and an https link when it has one. */
+const proofSchema = z
+  .array(z.object({ title: z.string().trim().min(1).max(200), url: z.string().trim().url().startsWith('https://').max(500).optional() }))
+  .max(20);
+
+/** Item ids from `itemIds` or `itemId`, each once. */
+function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null {
+  const ids = [...new Set<unknown>(Array.isArray(body.itemIds) ? body.itemIds : body.itemId ? [body.itemId] : [])];
+  return ids.length && ids.length <= 200 && ids.every(id => typeof id === 'string') ? (ids as string[]) : null;
+}
+
 /**
  * POST /api/admin/catalog
  *
  * Body variants:
- *  { type: 'upsert_item',     item: { kind, slug, title, summary, visibility?, status?, listed?, href?, cover?, tags?, madeBy?, install? } }
- *                             (visibility/status left out keep the current value; new items start private, beta;
- *                             skills and items made by others (madeBy, with install.source) are always public)
- *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }
+ *  { type: 'upsert_item',     item: { kind, slug, title, summary, tier?, status?, listed?, href?, cover?, tags?, madeBy?, install? } }
+ *                             (tier/status left out keep the current value; new items start with the cohort;
+ *                             skills in the public repo and items made by others (madeBy, with install.source) are always Public)
+ *  { type: 'set_item_tier',   itemId, tier: 'public' | 'plus' | 'pro' | 'cohort' | 'admin' }
+ *                             (the lowest membership that opens it; admin is the vault: admins and explicit grants only)
+ *  { type: 'set_visibility',  itemId, visibility: 'private' | 'network' | 'public' }  (older: cohort, pro, public)
  *  { type: 'schedule_release', itemId, days? (default 30) | at? (ISO) }
- *                             (moves a development item to community now; it goes public by itself at that time)
- *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays a community item)
- *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (vault: admins and explicit grants only)
+ *                             (a gate: the item keeps its tier now and goes Public by itself at that time)
+ *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays where it is)
+ *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (older: into the vault, or out of it to the cohort)
+ *  { type: 'set_readiness',   itemIds: string[] (or itemId), readiness: 'ready' | 'beta', proof?: [{ title, url? }], note? }
+ *                             (Ready needs proof: at least one finished production made with it; an MCP also
+ *                             needs a skill that uses it or a video. Beta drops the mark. Any kind)
+ *  { type: 'set_health',      itemIds: string[] (or itemId), health: 'healthy' | 'inactive' | 'archived' | 'failed' | null, note? }
+ *                             (any kind; failed needs the reason in note; null clears an admin's mark)
  *  { type: 'set_archived',    itemIds: string[] (or itemId), archived: boolean, note? }
  *                             (archived items keep their access and install by link, but leave the homepage;
  *                             any item, a skill from the repo too)
@@ -284,8 +334,16 @@ function daysFromNow(days?: number) {
  *  { type: 'create_thumbnail_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
  *                             (a signed PUT for a thumbnail image, public once uploaded; send
  *                             Content-Type and x-amz-acl: public-read with it)
- *  { type: 'set_tier',        clientId, tier: 'public' | 'community' | 'private' }
- *                             (moves a person between the private and network groups)
+ *  { type: 'set_tier',        clientId, tier: 'public' | 'plus' | 'pro' | 'cohort', source?, ref?, note?, days?, permanent? }
+ *                             (puts a person at one tier: their live memberships end and one new record gives
+ *                             the tier, saying how they got it. source defaults to admin; a contribution lasts
+ *                             3 months unless permanent)
+ *  { type: 'add_membership',  clientId, tier, source, ref?, note?, days?, permanent? }
+ *                             (adds a record beside the ones they have: contributing again renews this way)
+ *  { type: 'membership_permanent', membershipId }         (no expiry, until an admin removes it)
+ *  { type: 'revoke_membership', membershipId, note? }
+ *  { type: 'migrate_tiers',   apply?: boolean }           (the move from the earlier tiers to the ladder: a dry
+ *                             run that answers with the plan, unless apply is true)
  *  { type: 'remove_item',     itemId }
  *  { type: 'create_upload',   itemId, version }             → { uploadUrl, storageKey }
  *  { type: 'publish_version', itemId, version, storageKey, sha256, bytes, notes }
@@ -295,7 +353,7 @@ function daysFromNow(days?: number) {
  *  { type: 'revoke',          grantId } | { type: 'revoke', itemId | '*', clientId | groupId }
  *  { type: 'group_add',       groupId, clientIds: string[], name? }
  *  { type: 'group_remove',    groupId, clientIds: string[] }
- *  { type: 'create_invite',   itemIds?: string[], groupId?, maxUses?, grantDays?, expiresInDays?, note? }
+ *  { type: 'create_invite',   itemIds?: string[], tier?: 'plus' | 'pro' | 'cohort', groupId?, maxUses?, grantDays?, expiresInDays?, note? }
  *  { type: 'disable_invite',  code }
  *  { type: 'resolve_request', requestId, approve: boolean, days? }
  *  { type: 'init_indexes' }
@@ -316,8 +374,24 @@ export async function POST(req: NextRequest) {
       const parsed = itemSchema.safeParse(body.item);
       if (!parsed.success) return bad(parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
       const data = parsed.data;
+      const id = catalogItemId(data.kind, data.slug);
+      const inRepo = isRepoSkill(id);
+      const asked = data.tier ?? (data.visibility === 'public' ? 'public' : data.visibility ? 'gated' : undefined);
+      if ((inRepo || data.madeBy) && asked && asked !== 'public') return bad(ALWAYS_PUBLIC_ERROR);
       try {
-        const item = await catalogItemsDB.upsert({ ...data, id: catalogItemId(data.kind, data.slug) }, adminId);
+        const item = await catalogItemsDB.upsert({ ...data, id, ...(inRepo && { inRepo }) }, adminId);
+        return NextResponse.json({ item });
+      } catch (error) {
+        return bad((error as Error).message);
+      }
+    }
+
+    case 'set_item_tier': {
+      if (!ITEM_TIERS.includes(body.tier)) return bad(`tier must be one of ${ITEM_TIERS.join(', ')}`);
+      if (typeof body.itemId !== 'string') return bad('itemId is required');
+      try {
+        const item = await catalogItemsDB.setTier(body.itemId, body.tier, adminId, { alwaysPublic: isRepoSkill(body.itemId) });
+        if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
         return NextResponse.json({ item });
       } catch (error) {
         return bad((error as Error).message);
@@ -326,6 +400,7 @@ export async function POST(req: NextRequest) {
 
     case 'set_visibility': {
       if (!VISIBILITIES.includes(body.visibility)) return bad(`visibility must be one of ${VISIBILITIES.join(', ')}`);
+      if (body.visibility !== 'public' && typeof body.itemId === 'string' && isRepoSkill(body.itemId)) return bad(ALWAYS_PUBLIC_ERROR);
       try {
         const item = await catalogItemsDB.setVisibility(body.itemId, body.visibility, adminId);
         if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -336,6 +411,7 @@ export async function POST(req: NextRequest) {
     }
 
     case 'schedule_release': {
+      if (typeof body.itemId === 'string' && isRepoSkill(body.itemId)) return bad(ALWAYS_PUBLIC_ERROR);
       let publicAt: string;
       if (body.at) {
         const at = Date.parse(body.at);
@@ -363,6 +439,7 @@ export async function POST(req: NextRequest) {
     }
 
     case 'set_never_publish': {
+      if (body.neverPublish && typeof body.itemId === 'string' && isRepoSkill(body.itemId)) return bad(ALWAYS_PUBLIC_ERROR);
       try {
         const item = await catalogItemsDB.setNeverPublish(body.itemId, Boolean(body.neverPublish), adminId);
         if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -387,22 +464,45 @@ export async function POST(req: NextRequest) {
     }
 
     case 'set_health': {
-      const ids = [...new Set<string>(Array.isArray(body.itemIds) ? body.itemIds : body.itemId ? [body.itemId] : [])];
-      if (!ids.length || ids.length > 200 || ids.some(id => typeof id !== 'string')) return bad('itemIds is required: 1 to 200 MCP ids');
-      // null clears an admin's mark: the MCP goes back to the repo's default (healthy when it has none)
-      const health = body.health === null ? null : body.health;
-      if (health !== null && !MCP_HEALTH.includes(health)) return bad(`health must be one of ${MCP_HEALTH.join(', ')}, or null to clear it`);
+      const ids = idsFrom(body);
+      if (!ids) return bad('itemIds is required: 1 to 200 item ids');
+      // null clears an admin's mark: the item goes back to the repo's default (healthy when it has none)
+      const health = body.health === null ? null : parseHealth(body.health);
+      if (body.health !== null && !health) return bad(`health must be one of ${ITEM_HEALTH.join(', ')}, or null to clear it`);
       if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return bad('note must be text of 500 characters or fewer');
-      const notMcps: string[] = [];
+      const note = body.note?.trim() || undefined;
+      if (health === 'failed' && !note) return bad('A failed item needs its reason: say what is broken in note');
       for (const id of ids) {
-        const item = staticRecord(id) ?? (await catalogItemsDB.get(id));
-        if (!item) return NextResponse.json({ error: `Unknown item: ${id}` }, { status: 404 });
-        if (item.kind !== 'mcp') notMcps.push(id);
+        if (!staticRecord(id) && !(await catalogItemsDB.get(id))) return NextResponse.json({ error: `Unknown item: ${id}` }, { status: 404 });
       }
-      if (notMcps.length) return bad(`Only MCPs have a health: ${notMcps.join(', ')}`);
-      await catalogHealthDB.set(ids, health, adminId, body.note?.trim() || undefined);
+      await catalogHealthDB.set(ids, health, adminId, note);
       revalidatePath('/');
+      refreshSkillPages(ids);
       return NextResponse.json({ health, itemIds: ids });
+    }
+
+    case 'set_readiness': {
+      const ids = idsFrom(body);
+      if (!ids) return bad('itemIds is required: 1 to 200 item ids');
+      if (body.readiness !== 'ready' && body.readiness !== 'beta') return bad('readiness must be ready or beta');
+      if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return bad('note must be text of 500 characters or fewer');
+      const { byId } = await catalogIndex();
+      const unknown = ids.filter(id => !byId.has(id));
+      if (unknown.length) return NextResponse.json({ error: `Unknown item${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}` }, { status: 404 });
+      if (body.readiness === 'beta') {
+        await catalogReadinessDB.setBeta(ids);
+      } else {
+        const parsed = proofSchema.safeParse(body.proof ?? []);
+        if (!parsed.success) return bad(parsed.error.issues.map(i => `proof.${i.path.join('.')}: ${i.message}`).join('; '));
+        const proof: ReadyProof[] = parsed.data.map(entry => ({ title: entry.title, ...(entry.url && { url: entry.url }) }));
+        // the rule turned into a check: nothing is Ready without a production made with it
+        const problems = ids.flatMap(id => readyProblems(byId.get(id)!, proof, usedByOf(byId.values(), id).length).map(problem => `${id}: ${problem}`));
+        if (problems.length) return bad(problems.join('; '));
+        await catalogReadinessDB.setReady(ids, proof, adminId, body.note?.trim() || undefined);
+      }
+      revalidatePath('/');
+      refreshSkillPages(ids);
+      return NextResponse.json({ readiness: body.readiness, itemIds: ids });
     }
 
     case 'set_video': {
@@ -431,13 +531,14 @@ export async function POST(req: NextRequest) {
       if (!VIDEO_KINDS.includes(kind)) return bad(`kind must be one of ${VIDEO_KINDS.join(', ')}`);
       if (typeof body.slug !== 'string' || !isValidSlug(body.slug)) return bad('slug must be lowercase letters, digits and dashes');
       if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) return bad(`visibility must be one of ${VISIBILITIES.join(', ')}`);
+      if (body.tier !== undefined && !ITEM_TIERS.includes(body.tier)) return bad(`tier must be one of ${ITEM_TIERS.join(', ')}`);
       const id = catalogItemId(kind, body.slug);
       if (await catalogItemsDB.get(id)) return bad(`${id} already exists: edit it on its page`);
       const checked = await checkVideo(kind, body.video);
       if ('error' in checked) return bad(checked.error);
       try {
         const item = await catalogItemsDB.upsert(
-          { id, kind, slug: body.slug, title: checked.video.title, summary: summaryFrom(checked.video.description), visibility: body.visibility },
+          { id, kind, slug: body.slug, title: checked.video.title, summary: summaryFrom(checked.video.description), tier: body.tier, visibility: body.visibility },
           adminId,
         );
         const video = await catalogVideosDB.set({ id, ...checked.video }, adminId);
@@ -529,17 +630,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ revoked: await accessGrantsDB.revokeFor(body.itemId, subject, adminId) });
     }
 
-    case 'set_tier': {
+    case 'set_tier':
+    case 'add_membership': {
       const clientId = (body.clientId as string | undefined)?.trim();
-      const tier = body.tier as string;
-      if (!clientId || !['public', 'community', 'private'].includes(tier)) {
-        return bad('clientId and tier (public, community or private) are required');
+      const tier = personTier(body.tier);
+      if (!clientId || !tier) return bad(`clientId and tier (public, ${GRANTABLE_TIERS.join(', ')}) are required`);
+      const source = body.source === undefined ? 'admin' : body.source;
+      if (!isMembershipSource(source)) return bad('source must be one of signup, admin, contribution, invite, migration, paid');
+      if (body.days !== undefined && !(Number(body.days) > 0 && Number(body.days) <= 3650)) return bad('days must be between 1 and 3650');
+      for (const field of ['ref', 'note'] as const) {
+        if (body[field] !== undefined && (typeof body[field] !== 'string' || body[field].length > 500)) return bad(`${field} must be text of 500 characters or fewer`);
       }
+      const record = {
+        clientId,
+        source,
+        ref: body.ref?.trim() || undefined,
+        note: body.note?.trim() || undefined,
+        grantedBy: adminId,
+        days: body.days === undefined ? undefined : Number(body.days),
+        permanent: body.permanent === true,
+      };
+      if (body.type === 'add_membership') {
+        if (tier === 'public') return bad('Public is having no membership: use set_tier to take someone back to it');
+        return NextResponse.json({ membership: await membershipsDB.grant({ ...record, tier }) });
+      }
+      const membership = await membershipsDB.setTier({ ...record, tier });
+      // the earlier tiers go, so the new one holds: out of both groups, and no grant of everything
       await accessGroupsDB.removeMembers(PRIVATE_GROUP, [clientId]);
       await accessGroupsDB.removeMembers(NETWORK_GROUP, [clientId]);
-      if (tier === 'private') await accessGroupsDB.addMembers(PRIVATE_GROUP, [clientId], 'Private testers');
-      if (tier === 'community') await accessGroupsDB.addMembers(NETWORK_GROUP, [clientId], 'Community');
-      return NextResponse.json({ success: true });
+      await accessGrantsDB.revokeFor('*', { kind: 'client', id: clientId }, adminId);
+      return NextResponse.json({ success: true, tier, membership });
+    }
+
+    case 'membership_permanent': {
+      const membership = typeof body.membershipId === 'string' ? await membershipsDB.makePermanent(body.membershipId, adminId) : null;
+      if (!membership) return NextResponse.json({ error: 'No live membership with that id' }, { status: 404 });
+      return NextResponse.json({ membership });
+    }
+
+    case 'revoke_membership': {
+      if (typeof body.membershipId !== 'string') return bad('membershipId is required');
+      const revoked = await membershipsDB.revoke(body.membershipId, adminId, typeof body.note === 'string' ? body.note.trim() || undefined : undefined);
+      if (!revoked) return NextResponse.json({ error: 'No live membership with that id' }, { status: 404 });
+      return NextResponse.json({ revoked: 1 });
+    }
+
+    case 'migrate_tiers': {
+      const [{ byId, readiness }, stored, groups, grants, memberships] = await Promise.all([
+        catalogIndex(),
+        catalogItemsDB.list(),
+        accessGroupsDB.list(),
+        accessGrantsDB.list(),
+        membershipsDB.list(),
+      ]);
+      const now = new Date().toISOString();
+      const plan = planTierMigration({
+        items: stored.map(withRegistryUses),
+        groups,
+        grants: grants.filter(grant => !grant.expiresAt || grant.expiresAt > now),
+        memberships,
+        readiness: [...readiness.values()],
+        knownIds: byId.keys(),
+      });
+      if (body.apply !== true || isEmptyPlan(plan)) return NextResponse.json({ applied: false, plan });
+
+      await membershipsDB.ensureIndexes();
+      await ensureCatalogIndexes();
+      // memberships first: nobody is without their tier in between
+      for (const person of plan.people) {
+        await membershipsDB.grant({ clientId: person.clientId, tier: person.tier, source: 'migration', note: `Was: ${person.from}`, grantedBy: adminId });
+      }
+      for (const group of plan.leaveGroups) await accessGroupsDB.removeMembers(group.groupId, group.clientIds);
+      for (const grant of plan.revokeGrants) await accessGrantsDB.revoke(grant.grantId, adminId);
+      for (const item of plan.items) await catalogItemsDB.recordTier(item.id, item.tier, 'migration');
+      for (const item of plan.ready) await catalogReadinessDB.setReady([item.id], item.proof, adminId, 'Decided on 2026-11-15');
+      revalidatePath('/');
+      refreshSkillPages(plan.ready.map(item => item.id));
+      return NextResponse.json({ applied: true, plan });
     }
 
     case 'group_add':
@@ -553,7 +720,12 @@ export async function POST(req: NextRequest) {
 
     case 'create_invite': {
       const itemIds = (body.itemIds as string[] | undefined) ?? [];
-      if (!itemIds.length && !body.groupId) return bad('itemIds or groupId is required');
+      // the earlier groups name a tier now: private is the cohort, network is Pro
+      const legacyTier = body.groupId === PRIVATE_GROUP ? LEGACY_PERSON_TIER.private : body.groupId === NETWORK_GROUP ? LEGACY_PERSON_TIER.community : undefined;
+      const inviteTier = body.tier === undefined ? legacyTier : personTier(body.tier);
+      if (body.tier !== undefined && (!inviteTier || inviteTier === 'public')) return bad(`tier must be one of ${GRANTABLE_TIERS.join(', ')}`);
+      const groupId = legacyTier ? undefined : body.groupId;
+      if (!itemIds.length && !groupId && !inviteTier) return bad('itemIds, tier or groupId is required');
       for (const id of itemIds) {
         if (id !== '*' && !staticRecord(id) && !(await catalogItemsDB.get(id))) {
           return NextResponse.json({ error: `Unknown item ${id}` }, { status: 404 });
@@ -561,7 +733,8 @@ export async function POST(req: NextRequest) {
       }
       const invite = await accessInvitesDB.create({
         itemIds,
-        groupId: body.groupId,
+        groupId,
+        tier: inviteTier && inviteTier !== 'public' ? inviteTier : undefined,
         maxUses: Math.max(1, Number(body.maxUses) || 1),
         grantDays: body.grantDays,
         expiresAt: daysFromNow(body.expiresInDays),
@@ -593,6 +766,7 @@ export async function POST(req: NextRequest) {
 
     case 'init_indexes': {
       await ensureCatalogIndexes();
+      await membershipsDB.ensureIndexes();
       return NextResponse.json({ success: true });
     }
 
@@ -601,7 +775,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** A skill's page is cached for a few minutes: show a new intro video or archive mark at once. */
+/** A skill's page is cached for a few minutes: show a new intro video, archive mark, health or readiness at once. */
 function refreshSkillPages(ids: string[]) {
   for (const id of ids) if (id.startsWith('skill/')) revalidatePath(`/skills/${id.slice('skill/'.length)}`);
 }

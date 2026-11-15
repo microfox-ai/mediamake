@@ -5,53 +5,37 @@ import type { NextRequest } from 'next/server';
 import type { ApiKeyInfo } from '@/app/types/db';
 import { isAdmin } from '@/lib/admin-utils';
 import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
-import {
-  NETWORK_GROUP,
-  PRIVATE_GROUP,
-  effectiveVisibility,
-  isAlwaysPublic,
-  type AccessLevel,
-  type CatalogItem,
-  type ViewerTier,
-} from '@/lib/catalog/types';
+import type { ViewerTier } from '@/lib/catalog/types';
+import { membershipsDB } from '@/lib/memberships/store';
+import { accessLevel, openToEveryone, viewerTier, type Entitlements, type GatedItem, type Viewer } from './rules';
+
+export * from './rules';
 
 /**
- * Access control for gated catalog items.
+ * Access control for catalog items, on the membership ladder (Public, Plus,
+ * Pro, Cohort, Admin: see lib/memberships/tiers).
  *
- * Skills are always public and open to everyone, signed in or not, even
- * while public releases are locked (their files are committed in the repo).
- * Other public items are open to everyone once public releases are turned on
- * (see publicReleasesOpen). A gated item counts as public once its
- * `publicAt` has passed. Otherwise a viewer may open an item when any of
- * these holds:
- *  - they are an admin (`isAdmin` on their Redis user profile);
- *  - a live grant names the item itself, for them or a group they are in;
- *  - the item is not never-publish, and a grant names its whole kind
- *    (`skill/*`) or everything (`*`), or they are in the `private` group;
- *  - the item is `network` or `public` and they are in the `network` group.
- * Grants, groups and invites are stored in MongoDB (lib/catalog/store) and
- * managed with `npm run catalog` or /api/admin/catalog.
+ * Every item names the lowest tier that opens it (itemTier), and every
+ * viewer holds one tier (viewerTier): an admin by the `isAdmin` flag on
+ * their Redis user profile, else the highest of their live membership
+ * records (lib/memberships), else Public. The ladder is strict, so a viewer
+ * opens every item at their tier or below.
+ *
+ * A Public item is open to everyone, signed in or not, once public releases
+ * are turned on (see publicReleasesOpen); a skill in the public repo and an
+ * item made by others are open even before that. Beside the ladder, a viewer
+ * may open an item when a live grant names it, for them or a group they are
+ * in, or, outside the vault, names its whole kind (`skill/*`) or everything
+ * (`*`). The vault (tier Admin) opens to admins and to grants that name the
+ * item, nothing else.
+ *
+ * Grants, groups and invites are stored in MongoDB (lib/catalog/store),
+ * memberships in lib/memberships/store; all are managed with
+ * `npm run catalog`, the MediaMake MCP or /api/admin/catalog.
+ *
+ * The rules themselves are in ./rules (pure, so they can be tested); this
+ * file finds out who is looking and loads what they hold.
  */
-
-/**
- * Who is looking. `clientId` is null for signed-out visitors.
- */
-export interface Viewer {
-  clientId: string | null;
-}
-
-/** The fields access depends on; any other catalog fields may ride along. */
-export type GatedItem = Pick<CatalogItem, 'id' | 'visibility'> & Partial<CatalogItem>;
-
-/** Everything that decides what one viewer may open, resolved once. */
-export interface Entitlements {
-  clientId: string | null;
-  isAdmin: boolean;
-  groups: string[];
-  /** Every item is granted (a `'*'` grant). */
-  all: boolean;
-  itemIds: Set<string>;
-}
 
 function redis() {
   return new Redis({
@@ -118,7 +102,7 @@ function envGrants(clientId: string): string[] {
 /** Resolves a viewer's admin flag, groups and grants. */
 export async function getEntitlements(viewer: Viewer): Promise<Entitlements> {
   const { clientId } = viewer;
-  const result: Entitlements = { clientId, isAdmin: false, groups: [], all: false, itemIds: new Set() };
+  const result: Entitlements = { clientId, isAdmin: false, groups: [], all: false, itemIds: new Set(), memberships: [] };
   if (!clientId) return result;
 
   const fromEnv = envGrants(clientId);
@@ -144,35 +128,13 @@ export async function getEntitlements(viewer: Viewer): Promise<Entitlements> {
     // No database configured, or it is down: fall back to env grants only.
     console.error('[access] Could not load grants:', error);
   }
-  return result;
-}
 
-/**
- * Whether `public` items are open to everyone. Releases are locked until
- * MEDIAMAKE_PUBLIC_RELEASES=open: until then a public item needs a grant
- * like a private one, and nothing is shown to signed-out visitors.
- */
-export function publicReleasesOpen(): boolean {
-  return process.env.MEDIAMAKE_PUBLIC_RELEASES === 'open';
-}
-
-/** What `entitlements` can do with `item`. */
-export function accessLevel(
-  entitlements: Entitlements,
-  item: GatedItem,
-): AccessLevel {
-  const visibility = effectiveVisibility(item);
-  if (visibility === 'public' && (publicReleasesOpen() || item.openToAll || isAlwaysPublic(item))) return 'open';
-  if (entitlements.isAdmin || entitlements.itemIds.has(item.id)) return 'granted';
-  // The vault only opens to admins and grants that name the item.
-  if (item.neverPublish) return 'locked';
-  const kindWildcard = `${item.id.split('/')[0]}/*`;
-  if (entitlements.all || entitlements.itemIds.has(kindWildcard) || entitlements.groups.includes(PRIVATE_GROUP)) {
-    return 'granted';
+  try {
+    result.memberships = await membershipsDB.liveFor(clientId);
+  } catch (error) {
+    console.error('[access] Could not load memberships:', error);
   }
-  // The community also sees public items while public releases are locked.
-  if (visibility !== 'private' && entitlements.groups.includes(NETWORK_GROUP)) return 'granted';
-  return 'locked';
+  return result;
 }
 
 /** True when `viewer` may open `item`. */
@@ -180,31 +142,11 @@ export async function canAccess(
   viewer: Viewer,
   item: GatedItem,
 ): Promise<boolean> {
-  if (effectiveVisibility(item) === 'public' && (publicReleasesOpen() || item.openToAll || isAlwaysPublic(item))) return true;
+  if (openToEveryone(item)) return true;
   return accessLevel(await getEntitlements(viewer), item) !== 'locked';
-}
-
-/**
- * The tier a viewer belongs to (see ViewerTier). Item access still goes
- * through accessLevel; this is for features that depend on who someone is,
- * such as which render paths they get.
- */
-export function viewerTier(entitlements: Entitlements): ViewerTier {
-  if (entitlements.isAdmin) return 'admin';
-  if (entitlements.all || entitlements.groups.includes(PRIVATE_GROUP)) return 'private';
-  if (entitlements.groups.includes(NETWORK_GROUP)) return 'community';
-  return 'public';
 }
 
 export async function getViewerTier(viewer: Viewer): Promise<ViewerTier> {
   return viewerTier(await getEntitlements(viewer));
 }
 
-/**
- * Whether a tier may keep projects in the cloud and reach them through the
- * MediaMake MCP (which also needs an API key). Public users keep projects
- * local.
- */
-export function canUseCloudProjects(tier: ViewerTier): boolean {
-  return tier !== 'public';
-}

@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import { getEntitlements } from '@/lib/access';
+import { canRenderOnLambda, getEntitlements, viewerTier } from '@/lib/access';
 import { userRedisKey } from '@/lib/admin-utils';
 import type { LambdaAccess } from './plan';
 
@@ -7,8 +7,7 @@ import type { LambdaAccess } from './plan';
  * Who may render on Remotion Lambda. Lambda costs us money per render, so it
  * is for clients holding a mediamake API key with render access, not for
  * everyone who signed up:
- *  - admins;
- *  - private-tier clients: the `private` access group, or a `'*'` grant;
+ *  - admins and the cohort (see FEATURE_TIERS in lib/memberships/tiers);
  *  - clients with `lambdaRender` on their Redis user profile
  *    (HSET user:{clientId} lambdaRender true, or POST /api/admin/user-config
  *    { type: 'lambda_render', clientId, allowed });
@@ -16,9 +15,6 @@ import type { LambdaAccess } from './plan';
  *    everyone in development.
  * Everyone else renders locally (browser or CLI).
  */
-
-/** Same id as PRIVATE_GROUP in the release tiers (lib/catalog/types). */
-const PRIVATE_GROUP = 'private';
 
 const DENIED_REASON =
   'Lambda renders are for mediamake API keys with render access. Render it locally, or ask for Lambda access.';
@@ -46,7 +42,7 @@ export async function getLambdaAccess(clientId: string | null | undefined): Prom
 
   try {
     const entitlements = await getEntitlements({ clientId });
-    if (entitlements.isAdmin || entitlements.all || entitlements.groups.includes(PRIVATE_GROUP)) return { allowed: true };
+    if (canRenderOnLambda(viewerTier(entitlements))) return { allowed: true };
     if (await hasLambdaFlag(clientId)) return { allowed: true };
   } catch (error) {
     console.error('[render-routing] Could not check Lambda access:', error);

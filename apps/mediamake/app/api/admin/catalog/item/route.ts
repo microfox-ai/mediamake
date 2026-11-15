@@ -8,13 +8,16 @@ import { planInstall } from '@/lib/catalog/plan';
 import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
 import { usedByOf } from '@/lib/catalog/summary';
 import { registry } from '@/lib/skills/registry';
-import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, releaseTier, type CatalogItemRecord } from '@/lib/catalog/types';
+import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, type CatalogItemRecord } from '@/lib/catalog/types';
+import { currentMembership } from '@/lib/memberships/membership';
+import { membershipsDB } from '@/lib/memberships/store';
+import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
 
 /**
  * GET /api/admin/catalog/item?id=mcp/browse-hack
  * One item as its release page shows it (/core/releases/<kind>/<slug>): the
- * record, where it is defined, whether it is archived, an MCP's health mark, the grants and groups
- * that reach it, what installing it does (the plan an admin would get,
+ * record, where it is defined, whether it is archived, its health mark, its Ready mark with
+ * its proof, the grants that reach it, how many people hold each membership, what installing it does (the plan an admin would get,
  * everything shared, no package links), what needs or uses it, and its
  * video (with the tutorials a course can play, and the courses a tutorial is in).
  * Read-only: unlike GET /api/admin/catalog, it settles no gates.
@@ -28,7 +31,12 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required, e.g. ?id=mcp/browse-hack' }, { status: 400 });
 
-  const [{ byId, storedIds, archive, videos, health }, grants, groups] = await Promise.all([catalogIndex(), accessGrantsDB.list(), accessGroupsDB.list()]);
+  const [{ byId, storedIds, archive, videos, health, readiness }, grants, groups, memberships] = await Promise.all([
+    catalogIndex(),
+    accessGrantsDB.list(),
+    accessGroupsDB.list(),
+    membershipsDB.list().catch(() => []),
+  ]);
   const item = byId.get(id);
   if (!item) return NextResponse.json({ error: `No item ${id}` }, { status: 404 });
 
@@ -40,19 +48,28 @@ export async function GET(req: NextRequest) {
 
   const now = new Date().toISOString();
   const kindWildcard = `${item.kind}/*`;
-  const members = (groupId: string) => groups.find(group => group.groupId === groupId)?.members.length ?? 0;
+  // each person once, at their tier: the highest of their memberships and, until the migration, their earlier group
+  const members = Object.fromEntries(GRANTABLE_TIERS.map(tier => [tier, 0])) as Record<GrantableTier, number>;
+  const inGroup = (groupId: string) => groups.find(group => group.groupId === groupId)?.members ?? [];
+  for (const clientId of new Set([...memberships.map(m => m.clientId), ...inGroup(PRIVATE_GROUP), ...inGroup(NETWORK_GROUP)])) {
+    let tier: MemberTier = currentMembership(memberships.filter(m => m.clientId === clientId))?.tier ?? 'public';
+    if (inGroup(PRIVATE_GROUP).includes(clientId)) tier = higherTier(tier, LEGACY_PERSON_TIER.private);
+    if (inGroup(NETWORK_GROUP).includes(clientId)) tier = higherTier(tier, LEGACY_PERSON_TIER.community);
+    if (tier !== 'public' && tier !== 'admin') members[tier] += 1;
+  }
 
   return NextResponse.json({
     item,
     definedIn: storedIds.has(id) ? 'database' : staticOrigin(id),
     archive: archive.get(id) ?? null,
     healthMark: health.get(id) ?? null,
+    readinessMark: readiness.get(id) ?? null,
     grants: grants.filter(
       grant =>
         (!grant.expiresAt || grant.expiresAt > now) &&
         (grant.itemId === id || (!item.neverPublish && (grant.itemId === '*' || grant.itemId === kindWildcard))),
     ),
-    groups: { private: members(PRIVATE_GROUP), community: members(NETWORK_GROUP) },
+    members,
     publicReleasesOpen: publicReleasesOpen(),
     plan,
     usedBy: usedByOf(byId.values(), id),
@@ -72,5 +89,5 @@ export async function GET(req: NextRequest) {
 
 /** A tutorial as a course's lesson picker shows it. */
 function lessonOf(record: CatalogItemRecord) {
-  return { id: record.id, title: record.title, tier: releaseTier(record), thumbnail: record.video?.thumbnail, archivedAt: record.archivedAt };
+  return { id: record.id, title: record.title, tier: itemTier(record), thumbnail: record.video?.thumbnail, archivedAt: record.archivedAt };
 }

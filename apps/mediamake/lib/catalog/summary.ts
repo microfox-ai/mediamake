@@ -1,4 +1,4 @@
-import { releaseTier, type CatalogItemRecord, type ReleaseTier, type UseNeed } from './types';
+import { itemTier, type CatalogItemRecord, type ItemTier, type Readiness, type ReadyProof, type UseNeed } from './types';
 
 /**
  * Items in a few words, for the release pages, the admin API and the
@@ -19,11 +19,15 @@ export interface ItemSummary {
   id: string;
   title: string;
   kind: CatalogItemRecord['kind'];
-  tier: ReleaseTier;
+  /** The lowest membership that opens it: public, plus, pro, cohort, or admin (the vault). */
+  tier: ItemTier;
+  /** Beta, or Ready with the productions that prove it. */
+  readiness: Readiness;
+  readyProof?: ReadyProof[];
   status: CatalogItemRecord['status'];
   version?: string;
   archivedAt?: string;
-  /** An MCP's health (see McpHealth), and why when an admin said. */
+  /** Its health (see ItemHealth) when it says one, and why when an admin said. */
   health?: CatalogItemRecord['health'];
   healthNote?: string;
   /** Where it comes from, e.g. "Our package · v0.8.0", "Open source · ElevenLabs". */
@@ -85,7 +89,9 @@ export function summarize(records: CatalogItemRecord[], now = Date.now()): ItemS
     id: record.id,
     title: record.title,
     kind: record.kind,
-    tier: releaseTier(record, now),
+    tier: itemTier(record, now),
+    readiness: record.readiness ?? 'beta',
+    ...(record.readyProof?.length && { readyProof: record.readyProof }),
     status: record.status,
     ...((record.versions.at(-1)?.version ?? record.version) && { version: record.versions.at(-1)?.version ?? record.version }),
     ...(record.archivedAt && { archivedAt: record.archivedAt }),

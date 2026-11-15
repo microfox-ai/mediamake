@@ -4,10 +4,10 @@ import { registry } from '@/lib/skills/registry';
 import { getStaticRecords, staticRecord, thirdPartyRecords } from './items';
 import { UNAVAILABLE, planInstall } from './plan';
 import { updatePromptFor } from './install-prompt';
-import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth } from './types';
+import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth, type ItemHealth } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
-const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake']);
+const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']);
 
 describe('third-party.json', () => {
   const items = thirdPartyRecords([]);
@@ -54,7 +54,7 @@ describe('third-party.json', () => {
     assert.deepEqual(mcpRunsOf({ ...bundle, kind: 'skill' }), []);
   });
 
-  it("gives every MCP a health: an admin's mark, else the repo's default, else healthy", () => {
+  it("gives every MCP a health: an admin's mark, else the repo's default, else healthy; other kinds only when marked", () => {
     const elevenlabs = staticRecord('mcp/elevenlabs')!;
     assert.equal(elevenlabs.title, 'ElevenLabs');
     assert.equal(elevenlabs.health, undefined);
@@ -64,12 +64,17 @@ describe('third-party.json', () => {
     const archivedByRepo = { ...elevenlabs, id: 'mcp/old', health: 'archived' as const };
     const skill = { id: 'skill/x', kind: 'skill' as const };
     const [archived, healthy, broken, untouched] = withHealth([archivedByRepo, connector, { ...connector, id: 'mcp/fal' }, skill], [
-      { id: 'mcp/fal', health: 'not-working', note: 'its API changed', at: '2026-11-03' },
+      // a mark stored under the earlier name reads as failed
+      { id: 'mcp/fal', health: 'not-working' as never, note: 'its API changed', at: '2026-11-03' },
     ]);
     assert.equal(archived.health, 'archived');
     assert.equal(healthy.health, 'healthy');
-    assert.deepEqual([broken.health, broken.healthNote], ['not-working', 'its API changed']);
+    assert.deepEqual([broken.health, broken.healthNote], ['failed', 'its API changed']);
     assert.equal('health' in untouched, false);
+    // health is for every kind: a skill can fail too, with the reason
+    const plain: { id: string; kind: 'skill'; health?: ItemHealth; healthNote?: string } = { id: 'skill/x', kind: 'skill' };
+    const [failedSkill] = withHealth([plain], [{ id: 'skill/x', health: 'failed', note: 'its MCP was retired', at: '2026-11-15' }]);
+    assert.deepEqual([failedSkill.health, failedSkill.healthNote], ['failed', 'its MCP was retired']);
     // a mark beats the repo's default
     assert.equal(withHealth([archivedByRepo], [{ id: 'mcp/old', health: 'healthy', at: '2026-11-03' }])[0].health, 'healthy');
     assert.equal(withHealth([elevenlabs], [])[0].health, 'healthy');

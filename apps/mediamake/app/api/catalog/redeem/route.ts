@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveViewer } from '@/lib/access';
 import { accessGrantsDB, accessGroupsDB, accessInvitesDB } from '@/lib/catalog/store';
 import { NETWORK_GROUP, PRIVATE_GROUP } from '@/lib/catalog/types';
+import { membershipsDB } from '@/lib/memberships/store';
+import { LEGACY_PERSON_TIER, type GrantableTier } from '@/lib/memberships/tiers';
 
 /**
  * POST /api/catalog/redeem  { code }
- * Redeems an invite for the signed-in caller: grants its items and/or adds
- * the caller to its group.
+ * Redeems an invite for the signed-in caller: grants its items, gives its
+ * membership (a tier, with source `invite`) and/or adds the caller to its group.
  */
 export async function POST(req: NextRequest) {
   const viewer = await resolveViewer(req);
@@ -32,17 +34,24 @@ export async function POST(req: NextRequest) {
       note: invite.note,
     });
   }
-  // A person is in one tier: a private-tester invite moves them up out of the
-  // community, and a community invite leaves a private tester where they are.
-  if (invite.groupId === PRIVATE_GROUP) {
-    await accessGroupsDB.addMembers(PRIVATE_GROUP, [viewer.clientId], 'Private testers');
-    await accessGroupsDB.removeMembers(NETWORK_GROUP, [viewer.clientId]);
-  } else if (invite.groupId === NETWORK_GROUP) {
-    const groups = await accessGroupsDB.groupsOf(viewer.clientId);
-    if (!groups.includes(PRIVATE_GROUP)) await accessGroupsDB.addMembers(NETWORK_GROUP, [viewer.clientId], 'Community');
+  // An invite into a tier gives a membership record. The person's tier is the
+  // highest of their live records, so an invite never moves anyone down. The
+  // earlier group invites name a tier now: private is the cohort, network is Pro.
+  const tier: GrantableTier | undefined =
+    invite.tier ?? (invite.groupId === PRIVATE_GROUP ? LEGACY_PERSON_TIER.private : invite.groupId === NETWORK_GROUP ? LEGACY_PERSON_TIER.community : undefined);
+  if (tier) {
+    await membershipsDB.grant({
+      clientId: viewer.clientId,
+      tier,
+      source: 'invite',
+      ref: invite.code,
+      note: invite.note,
+      grantedBy: invite.createdBy,
+      expiresAt,
+    });
   } else if (invite.groupId) {
     await accessGroupsDB.addMembers(invite.groupId, [viewer.clientId]);
   }
 
-  return NextResponse.json({ success: true, itemIds: invite.itemIds, groupId: invite.groupId, expiresAt });
+  return NextResponse.json({ success: true, itemIds: invite.itemIds, tier, groupId: tier ? undefined : invite.groupId, expiresAt });
 }

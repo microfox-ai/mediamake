@@ -93,7 +93,7 @@ export function UsesLine({ uses, className }: { uses: UseShown[]; className?: st
           <span className="font-medium text-foreground/80">{slugOf(use.id)}</span>
           {use.need === 'required' && ' (required)'}
           {use.alternativeTo && ' (old)'}
-          {use.health === 'not-working' && ' (not working)'}
+          {use.health === 'failed' && ' (failed)'}
         </span>
       ))}
     </p>

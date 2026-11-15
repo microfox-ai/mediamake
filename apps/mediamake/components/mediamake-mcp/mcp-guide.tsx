@@ -30,7 +30,7 @@ const TOOL_AREAS: { area: string; does: string; tools: string[] }[] = [
   {
     area: 'Catalog',
     does: 'Run releases from Claude: skills, MCPs, apps, tutorials and courses, their videos, and who can open them.',
-    tools: ['catalog_items', 'catalog_item', 'catalog_archive', 'catalog_set_stage', 'catalog_add_third_party', 'catalog_invite', 'catalog_set_video', 'catalog_add_video_item', 'catalog_people', 'catalog_set_tier', 'catalog_versions'],
+    tools: ['catalog_items', 'catalog_item', 'catalog_archive', 'catalog_set_stage', 'catalog_set_health', 'catalog_set_readiness', 'catalog_add_third_party', 'catalog_invite', 'catalog_set_video', 'catalog_add_video_item', 'catalog_people', 'catalog_set_tier', 'catalog_membership', 'catalog_versions'],
   },
   {
     area: 'Timelines',
@@ -256,7 +256,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
         <Section title="Who can connect">
           <p>
             Admins, and anyone granted <Kbd>mcp/mediamake</Kbd> by name (Releases → its access sheet). It is in the vault,
-            so private testers and the community don&apos;t get it. Who can connect follows the item:{' '}
+            so no membership opens it, the cohort's included. Who can connect follows the item:{' '}
             <Link href="/core/releases/mcp/mediamake" className="underline">
               mcp/mediamake
             </Link>

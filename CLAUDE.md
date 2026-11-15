@@ -120,8 +120,12 @@ what it is, who can open it, where it lives, what installing it does, and what n
   `…/core/releases/<kind>/<slug>#v<version>`.
 - With the MediaMake MCP connected, manage releases through its tools: `catalog_items` to see what is
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
-  stay public and installable), `catalog_set_stage`, `catalog_add_third_party`, `catalog_invite`, `catalog_set_video` (a skill's
+  stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
+  plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
+  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_invite`, `catalog_set_video` (a skill's
   intro, a tutorial's video, a course's lessons; YouTube only) and `catalog_add_video_item` (a new
-  tutorial or course), and for people `catalog_people`
-  and `catalog_set_tier` (private testers get every MCP in development, no per-item grants).
+  tutorial or course), and for people `catalog_people`,
+  `catalog_set_tier` and `catalog_membership` (the ladder is strict: Public, Plus, Pro, Cohort, Admin,
+  each opening everything below it; a membership earned by contributing lasts 3 months unless an admin
+  makes it permanent).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.

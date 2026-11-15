@@ -6,8 +6,8 @@ import { canDelete, canWrite, getProjectRole, type ProjectRole } from '@/lib/edi
 export type ProjectSyncAccess = { ok: true; role: ProjectRole } | { ok: false; status: number; error: string };
 
 /**
- * Who may use a project's productions, releases and media. They live on cloud projects (community
- * access and above, like brand kits); then the project role decides: anyone the project is shared
+ * Who may use a project's productions, releases and media. They live on cloud projects (a Plus
+ * membership and above, like brand kits); then the project role decides: anyone the project is shared
  * with reads, owners and editors write, and only the owner deletes.
  */
 export async function projectSyncAccess(
@@ -22,7 +22,7 @@ export async function projectSyncAccess(
   if (process.env.NODE_ENV !== 'development') {
     const tier = await getViewerTier({ clientId });
     if (!canUseCloudProjects(tier)) {
-      return { ok: false, status: 403, error: 'Cloud projects need community access or above. Public accounts keep their work on their own computer.' };
+      return { ok: false, status: 403, error: 'Cloud projects need a Plus membership or above. Public accounts keep their work on their own computer.' };
     }
   }
   const role = await getProjectRole(db, projectId, clientId);

@@ -19,7 +19,7 @@ import {
   Users,
   Wand2,
 } from 'lucide-react';
-import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
+import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type ItemTier } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -41,7 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MadeByLine } from '@/components/catalog/uses';
 import type { ItemAction } from './releases-dashboard';
-import { TIER_META, formatDate, formatLeft, gateOf, grantsFor, itemPath, tierOf, type AdminCatalog } from './model';
+import { TIER_META, TIER_ORDER, formatDate, formatLeft, gateOf, grantsFor, itemPath, tierOf, type AdminCatalog } from './model';
 
 export const KIND_ICON: Record<CatalogKind, React.ComponentType<{ className?: string }>> = {
   skill: Wand2,
@@ -62,7 +62,7 @@ export function ReleaseBoard({
 }: {
   data: AdminCatalog;
   items: CatalogItemRecord[];
-  tiers: ReleaseTier[];
+  tiers: ItemTier[];
   now: number;
   onAction: (item: CatalogItemRecord, action: ItemAction) => void;
   /** Show the skills as one card, so the repo's skills don't bury the apps and MCPs. */
@@ -70,7 +70,7 @@ export function ReleaseBoard({
   onShowSkills?: () => void;
 }) {
   return (
-    <div className={cn('grid gap-4', tiers.length > 1 ? 'md:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1')}>
+    <div className={cn('grid gap-4', tiers.length > 1 ? 'md:grid-cols-2 xl:grid-cols-5' : 'grid-cols-1')}>
       {tiers.map(tier => {
         const all = items.filter(item => tierOf(item, now) === tier);
         const skills = collapseSkills ? all.filter(item => item.kind === 'skill') : [];
@@ -199,7 +199,8 @@ export function ItemCard({
             <Users className="size-3" />
             {grants} grant{grants === 1 ? '' : 's'}
           </span>
-          {item.status !== 'live' && <span className="capitalize">{item.status.replace('-', ' ')}</span>}
+          <span>{item.readiness === 'ready' ? 'Ready' : 'Beta'}</span>
+          {item.health && item.health !== 'healthy' && <span className="capitalize" title={item.healthNote}>{item.health}</span>}
           {item.listed === false && <span>Unlisted</span>}
           {item.archivedAt && <span title="Left off the homepage; still installs by its link">Archived</span>}
           {item.install?.uses?.length ? <span title={item.install.uses.map(u => `${u.id} (${u.need})`).join('\n')}>Uses {item.install.uses.length}</span> : null}
@@ -211,13 +212,13 @@ export function ItemCard({
           <AlertDialogHeader>
             <AlertDialogTitle>Release {item.title} now?</AlertDialogTitle>
             <AlertDialogDescription>
-              It skips {gate ? 'the rest of its gate' : 'the community gate'} and becomes public
+              It {gate ? 'skips the rest of its gate and ' : ''}becomes public
               {data.publicReleasesOpen ? ' to everyone right away.' : ' (it opens to everyone once public releases are unlocked site-wide).'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onAction(item, { type: 'set_visibility', visibility: 'public' })}>Release now</AlertDialogAction>
+            <AlertDialogAction onClick={() => onAction(item, { type: 'set_item_tier', tier: 'public' })}>Release now</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -233,14 +234,16 @@ function ItemMenu({
   onRelease,
 }: {
   item: CatalogItemRecord;
-  tier: ReleaseTier;
+  tier: ItemTier;
   gated: boolean;
   onAction: (item: CatalogItemRecord, action: ItemAction) => void;
   onRelease: () => void;
 }) {
   const act = (action: ItemAction) => () => onAction(item, action);
-  // Skills and items made by others are always public: no stages, gate or vault to move them through.
+  // A skill in the public repo and an item made by others are always public: no tier, gate or vault to move them through.
   const alwaysPublic = isAlwaysPublic(item);
+  // where it can move: every other tier but Public (that is "Release now") and the vault (kept last, apart)
+  const moves = TIER_ORDER.filter(other => other !== tier && other !== 'public' && other !== 'admin');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -249,22 +252,7 @@ function ItemMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        {tier === 'vault' && (
-          <DropdownMenuItem onClick={act({ type: 'set_never_publish', neverPublish: false })}>
-            <ArchiveRestore /> Take out of the vault
-          </DropdownMenuItem>
-        )}
-        {tier === 'development' && (
-          <>
-            <DropdownMenuItem onClick={act({ type: 'schedule' })}>
-              <CalendarClock /> Mark ready and start gate
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={act({ type: 'set_visibility', visibility: 'network' })}>
-              <Sparkles /> Mark ready, no gate
-            </DropdownMenuItem>
-          </>
-        )}
-        {tier === 'community' && (
+        {!alwaysPublic && tier !== 'admin' && tier !== 'public' && (
           <>
             <DropdownMenuItem onClick={act({ type: 'schedule' })}>
               <CalendarClock /> {gated ? 'Change gate' : 'Start gate'}
@@ -277,27 +265,26 @@ function ItemMenu({
             <DropdownMenuItem onClick={onRelease}>
               <Rocket /> Release now
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={act({ type: 'set_visibility', visibility: 'private' })}>
-              <Hammer /> Back to development
-            </DropdownMenuItem>
           </>
         )}
+        {!alwaysPublic &&
+          moves.map(other => (
+            <DropdownMenuItem key={other} onClick={act({ type: 'set_item_tier', tier: other })}>
+              {tier === 'admin' ? <ArchiveRestore /> : tier === 'public' ? <Undo2 /> : other === 'cohort' ? <Hammer /> : <Sparkles />}
+              {tier === 'public' ? 'Pull back to' : 'Move to'} {other === 'cohort' ? 'the cohort' : TIER_META[other].label}
+            </DropdownMenuItem>
+          ))}
         {alwaysPublic && (
           <DropdownMenuItem disabled>
-            <Rocket /> Always public ({item.madeBy ? `made by ${item.madeBy.name}` : 'skill'})
-          </DropdownMenuItem>
-        )}
-        {tier === 'public' && !alwaysPublic && (
-          <DropdownMenuItem onClick={act({ type: 'set_visibility', visibility: 'network' })}>
-            <Undo2 /> Pull back to community
+            <Rocket /> Always public ({item.madeBy ? `made by ${item.madeBy.name}` : 'in the public repo'})
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={act({ type: 'access' })}>
           <Users /> Who has access
         </DropdownMenuItem>
-        {tier !== 'vault' && !alwaysPublic && (
-          <DropdownMenuItem onClick={act({ type: 'set_never_publish', neverPublish: true })}>
+        {tier !== 'admin' && !alwaysPublic && (
+          <DropdownMenuItem onClick={act({ type: 'set_item_tier', tier: 'admin' })}>
             <Archive /> Move to the vault
           </DropdownMenuItem>
         )}

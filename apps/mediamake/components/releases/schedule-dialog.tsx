@@ -18,7 +18,7 @@ import { formatDate } from './model';
 
 const PRESETS = [7, 14, 30, 60, 90];
 
-/** Starts or changes the gate after which a community item goes public. */
+/** Starts or changes the gate after which a gated item goes public. */
 export function ScheduleDialog({
   item,
   defaultDays,
@@ -46,8 +46,8 @@ export function ScheduleDialog({
         <DialogHeader>
           <DialogTitle>{item?.publicAt ? 'Change gate' : 'Start gate'}</DialogTitle>
           <DialogDescription>
-            {item?.title} {item?.visibility === 'private' ? 'becomes a community item now and ' : ''}goes public by itself when the gate ends. Until then only
-            the community, private testers and people you grant can open it.
+            {item?.title} goes public by itself when the gate ends. Until then it stays at its tier: only members at that tier and
+            above, and people you grant, can open it.
           </DialogDescription>
         </DialogHeader>
 

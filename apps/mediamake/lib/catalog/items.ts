@@ -20,9 +20,10 @@ const MEDIAMAKE_SITE = siteUrl() ?? CANONICAL_SITE;
 /**
  * Static catalog entries shown on the homepage tabs. Only list things whose
  * names are already public here: unreleased apps and MCPs belong in the
- * catalog database so they stay out of this public repo. Skills are always
- * public: their files are committed in .agents/skills, and every one in the
- * repo's registry (skills.json) is a card, see skillCatalogItems. MCPs and
+ * catalog database so they stay out of this public repo. A skill committed in
+ * .agents/skills is always Public, and every one in the repo's registry
+ * (skills.json) is a card, see skillCatalogItems; a skill for Plus, Pro or the
+ * cohort is a package in the database instead. MCPs and
  * skills made by others are in third-party.json (see getStaticRecords). A
  * card with an `install` spec installs like any item (the MediaMake MCP:
  * its hosted connector).
@@ -112,8 +113,9 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     title: 'MediaMake MCP',
     summary:
       "For MediaMake admins: run the catalog (skill, MCP, app and tutorial releases) from Claude, and work with timelines, presets, transcriptions, Suno takes, workers and renders. The hosted connector: sign in with your MediaMake account. Projects, brand kits and media are ProjectSync's.",
-    // Admins only: it runs the releases. In the vault, so private testers don't get it; a grant naming it does
+    // Admins only: it runs the releases. In the vault, so the cohort doesn't get it; a grant naming it does
     visibility: 'private',
+    tier: 'admin',
     neverPublish: true,
     status: 'beta',
     // the card opens the step-by-step page for connecting it
@@ -164,6 +166,9 @@ function skillCard(skill: RegistrySkill): CatalogItem {
     title: skill.name,
     summary: skill.summary,
     visibility: 'public',
+    tier: 'public',
+    // its files are committed in the public repo: always Public
+    inRepo: true,
     status: 'live',
     // a skill vendored from another repo (skills-lock.json) is someone else's
     ...(skill.upstream && { madeBy: { name: owner, repo: skill.upstream } }),
@@ -276,7 +281,7 @@ export function staticRecord(id: string): CatalogItemRecord | null {
 /** Which file in the repo defines an item, for the release pages; null when only the database has it. */
 export function staticOrigin(id: string): 'third-party.json' | 'skills.json' | 'items.ts' | null {
   if (thirdParty.some((item) => item.id === id)) return 'third-party.json';
-  if (id.startsWith('skill/') && registry?.skills.some((skill) => skill.name === slugOf(id))) return 'skills.json';
+  if (isRepoSkill(id)) return 'skills.json';
   if (catalogItems.some((item) => item.id === id)) return 'items.ts';
   return null;
 }
@@ -288,11 +293,24 @@ export function codeUrlOf(record: CatalogItemRecord): string | undefined {
   return record.madeBy?.repo ? `https://github.com/${record.madeBy.repo}` : undefined;
 }
 
-/** A stored skill without `uses` of its own takes its registry entry's MCPs. */
+/** True when the skill's files are committed in the public repo (it is in the skills.json registry). */
+export function isRepoSkill(id: string): boolean {
+  return id.startsWith('skill/') && !!registry?.skills.some((skill) => skill.name === slugOf(id));
+}
+
+/**
+ * A stored skill as the registry knows it: one that is in the public repo is
+ * marked `inRepo` (always Public, see isAlwaysPublic), and one without `uses`
+ * of its own takes its registry entry's MCPs. Every stored record goes
+ * through this when it loads.
+ */
 export function withRegistryUses(record: CatalogItemRecord): CatalogItemRecord {
-  if (record.kind !== 'skill' || record.install?.uses) return record;
+  if (record.kind !== 'skill') return record;
+  const { inRepo: _stored, ...rest } = record;
+  const marked: CatalogItemRecord = isRepoSkill(record.id) ? { ...rest, inRepo: true } : rest;
+  if (marked.install?.uses) return marked;
   const uses = registryUses(record.slug);
-  return uses?.length ? { ...record, install: { ...record.install, uses } } : record;
+  return uses?.length ? { ...marked, install: { ...marked.install, uses } } : marked;
 }
 
 export function getStaticCatalogItems(kind?: CatalogKind): CatalogItem[] {

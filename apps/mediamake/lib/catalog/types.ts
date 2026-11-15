@@ -8,6 +8,10 @@
  * this (public) repository.
  */
 
+import { MEMBER_TIERS, isHiddenTier, type GrantableTier, type MemberTier } from '../memberships/tiers';
+
+export type { GrantableTier, MemberTier } from '../memberships/tiers';
+
 /** A tutorial is one YouTube video; a course plays tutorials in order (see CatalogVideo). */
 export type CatalogKind = 'skill' | 'mcp' | 'app' | 'tutorial' | 'course';
 
@@ -17,27 +21,21 @@ export const CATALOG_KINDS: CatalogKind[] = ['skill', 'mcp', 'app', 'tutorial', 
 export const VIDEO_KINDS: CatalogKind[] = ['tutorial', 'course'];
 
 /**
- * Kinds that are always public. Every skill's files are committed in the
- * repo (.agents/skills, listed in the skills.json registry), so a skill item is never gated:
- * no development, community, vault or release gate, and it opens for everyone
- * even while public releases are locked. Apps, MCPs and tutorials go through
- * the gated releases below.
+ * True when the item is always Public, whatever tier it was given:
+ *  - a skill whose files are committed in the public repo (`inRepo`: it is in
+ *    the skills.json registry). Anyone can read it on GitHub, so there is
+ *    nothing to hold back. A skill for Plus, Pro or the cohort is not in the
+ *    repo: it is a package in private storage, released like an MCP.
+ *  - an item someone else makes (`madeBy`): an open-source or hosted MCP or
+ *    skill that an admin listed has nothing of ours in it.
+ * It opens for everyone even while public releases are locked.
  */
-export const ALWAYS_PUBLIC_KINDS: CatalogKind[] = ['skill'];
-
-/**
- * True when the item is always public: its kind is (see ALWAYS_PUBLIC_KINDS),
- * or someone else makes it (`madeBy`). An open-source or hosted MCP or skill
- * that an admin listed has nothing of ours in it to hold back.
- */
-export function isAlwaysPublic(item: { id?: string; kind?: CatalogKind; madeBy?: MadeBy }): boolean {
-  if (item.madeBy) return true;
-  const kind = item.kind ?? (item.id?.split('/')[0] as CatalogKind | undefined);
-  return !!kind && ALWAYS_PUBLIC_KINDS.includes(kind);
+export function isAlwaysPublic(item: { madeBy?: MadeBy; inRepo?: boolean }): boolean {
+  return !!item.madeBy || !!item.inRepo;
 }
 
 export const ALWAYS_PUBLIC_ERROR =
-  'Skills and items made by others are always public: only our own apps, MCPs and tutorials go through gated releases';
+  'Skills in the public repo and items made by others are always Public: only our own packages, apps, MCPs and tutorials take a tier';
 
 /**
  * Who makes an item we list but don't build: an open-source MCP or skill
@@ -57,51 +55,58 @@ export interface MadeBy {
 }
 
 /**
- * Release stage of an item, from most to least restricted.
- *  - private: only viewers with an explicit grant.
- *  - network: members of the `network` group (the internal circle) plus grants.
- *  - public:  everyone, signed in or not.
- * Anything other than public goes through the access check in lib/access.
+ * The stored stage of an item from before the membership ladder, kept in step
+ * with its tier (see visibilityOfTier) for records and code that still read
+ * it. The tier is what decides access: see itemTier.
+ *  - private: Cohort and the vault.
+ *  - network: Plus and Pro.
+ *  - public:  Public.
  */
 export type CatalogVisibility = 'private' | 'network' | 'public';
 export type Visibility = CatalogVisibility;
 
 export const VISIBILITIES: Visibility[] = ['private', 'network', 'public'];
 
-/** The group whose members can use every `network` item (the community tier). */
+/** The groups of the tiers before the ladder. The migration turns their members into membership records. */
 export const NETWORK_GROUP = 'network';
 export const COMMUNITY_GROUP = NETWORK_GROUP;
-
-/**
- * The group of private testers: they can use every item, in development or
- * ready, except the ones marked never-publish. They can't release anything;
- * only admins can.
- */
 export const PRIVATE_GROUP = 'private';
 
-/** Days a release spends with the community before it goes public, unless told otherwise. */
+/** Days a gated release waits before it goes public by itself, unless told otherwise. */
 export const DEFAULT_GATE_DAYS = 30;
 
 /**
- * Release tiers, as the admin dashboard shows them. Stored as `visibility`
- * plus `neverPublish`:
- *  - vault:       never published. Admins only, plus explicit item grants.
- *  - development: being built (`private`). Private testers and grants.
- *  - community:   production ready, pre-release (`network`). The community group too.
- *  - public:      released. Everyone (once public releases are open).
- * A community item with `publicAt` is gated: it turns public by itself at that time.
+ * Access: the lowest membership that opens an item (see lib/memberships/tiers
+ * for the ladder: Public, Plus, Pro, Cohort, Admin, each opening everything
+ * below it). Stored as `tier`:
+ *  - public: everyone (once public releases are open).
+ *  - plus, pro: members of that tier and above.
+ *  - cohort: the cohort and admins. Invisible to everyone below.
+ *  - admin: the vault. Never published: admins only, plus grants that name the item.
+ * An item with `publicAt` is gated: it turns Public by itself at that time.
+ * Grants to one person for one item, invites and expiry work beside the tier.
  */
-export type ReleaseTier = 'vault' | 'development' | 'community' | 'public';
-export const RELEASE_TIERS: ReleaseTier[] = ['vault', 'development', 'community', 'public'];
+export type ItemTier = MemberTier;
+export const ITEM_TIERS: ItemTier[] = MEMBER_TIERS;
+/** The same tiers under their earlier names: the admin dashboard and tools called them release tiers. */
+export type ReleaseTier = ItemTier;
+export const RELEASE_TIERS: ReleaseTier[] = ITEM_TIERS;
 
-/**
- * Who a viewer is, from most to least access:
- *  - admin:     everything, and the only one who can release.
- *  - private:   in the `private` group (or holds a `*` grant): everything but the vault.
- *  - community: in the `network` group: production-ready items before release.
- *  - public:    everyone else: released items only.
- */
-export type ViewerTier = 'admin' | 'private' | 'community' | 'public';
+/** True when an item of this tier stays out of sight of everyone it is locked for (the cohort's, the vault's). */
+export function isHiddenFromBelow(tier: ItemTier): boolean {
+  return isHiddenTier(tier);
+}
+
+/** The tier of an item stored before the ladder, from its stage: development was the cohort, community was Pro. */
+export const LEGACY_ITEM_TIER: Record<Visibility, ItemTier> = { private: 'cohort', network: 'pro', public: 'public' };
+
+/** The stage stored beside a tier (see CatalogVisibility). */
+export function visibilityOfTier(tier: ItemTier): Visibility {
+  return tier === 'public' ? 'public' : tier === 'plus' || tier === 'pro' ? 'network' : 'private';
+}
+
+/** Who a viewer is: their place on the membership ladder. */
+export type ViewerTier = MemberTier;
 
 /**
  * What a viewer can do with an item.
@@ -112,6 +117,10 @@ export type ViewerTier = 'admin' | 'private' | 'community' | 'public';
 export type CatalogAccess = 'open' | 'granted' | 'locked';
 export type AccessLevel = CatalogAccess;
 
+/**
+ * A free label from before readiness (see Readiness, which is the rule now).
+ * Only `coming-soon` still says something readiness doesn't.
+ */
 export type CatalogStatus = 'live' | 'beta' | 'coming-soon';
 
 /** One uploaded, immutable package of an item. */
@@ -133,8 +142,20 @@ export interface CatalogItem {
   kind: CatalogKind;
   title: string;
   summary: string;
+  /** The stage from before the ladder, kept in step with `tier` (see CatalogVisibility). */
   visibility: CatalogVisibility;
+  /**
+   * The lowest membership that opens it (see ItemTier). A record stored
+   * before the ladder has none: its tier comes from `visibility` (see itemTier).
+   */
+  tier?: ItemTier;
   status: CatalogStatus;
+  /** How proven it is (see Readiness): Beta until an admin marks it Ready with its proof (see withReadiness). */
+  readiness?: Readiness;
+  /** The productions made with it that make it Ready. */
+  readyProof?: ReadyProof[];
+  /** A skill whose files are committed in the public repo: always Public (see isAlwaysPublic). */
+  inRepo?: boolean;
   /**
    * false hides the card from viewers without access instead of showing it
    * locked. Use it for items whose name should not be seen yet.
@@ -146,8 +167,7 @@ export interface CatalogItem {
    */
   openToAll?: boolean;
   /**
-   * Never published: stays in the vault (admins and explicit grants only)
-   * and can't be moved to network or public.
+   * In the vault (tier `admin`): never published, admins and explicit grants only.
    */
   neverPublish?: boolean;
   /**
@@ -155,7 +175,7 @@ export interface CatalogItem {
    * item is a community item; see effectiveVisibility.
    */
   publicAt?: string;
-  /** Set when someone else makes it (see MadeBy). Such an item is always public. */
+  /** Set when someone else makes it (see MadeBy). Such an item is always Public. */
   madeBy?: MadeBy;
   /**
    * An older way to do what another item does (that item's id): shown as Old,
@@ -164,9 +184,9 @@ export interface CatalogItem {
    * web, not an older way of it.)
    */
   alternativeTo?: string;
-  /** How an MCP is doing (see McpHealth): the repo's default, an admin's mark wins (see withHealth). */
-  health?: McpHealth;
-  /** Why, when an admin said so with the mark. */
+  /** Whether it works right now (see ItemHealth): the repo's default, an admin's mark wins (see withHealth). */
+  health?: ItemHealth;
+  /** Why, when an admin said so with the mark. A failed item always has one. */
   healthNote?: string;
   /**
    * When an admin archived it (see ArchiveMark: kept apart from the item, so
@@ -326,8 +346,8 @@ export interface CatalogItemRecord extends CatalogItem {
   createdBy?: string;
   /** When the current release gate (`publicAt`) was set, for its progress bar. */
   gateStartedAt?: string;
-  /** Visibility changes over time, newest last. */
-  stageHistory?: { visibility: Visibility; at: string; by?: string }[];
+  /** Tier changes over time, newest last (entries from before the ladder have a visibility only). */
+  stageHistory?: { visibility: Visibility; tier?: ItemTier; at: string; by?: string }[];
 }
 
 /** True when the item has something to install: a published package of ours, or a source. */
@@ -372,39 +392,117 @@ export function withArchive<T extends { id: string; archivedAt?: string }>(items
 }
 
 /**
- * How an MCP is doing, shown on its card and page so nobody installs a broken
- * one by surprise:
- *  - healthy:     works (every MCP is, until someone says otherwise).
- *  - inactive:    works, but nobody uses or looks after it right now.
- *  - archived:    kept for reference, no longer maintained; another one does its job.
- *  - not-working: broken right now: don't install it until it is fixed.
+ * Health: whether an item works right now, for every kind, shown on its card
+ * and page so nobody installs a broken one by surprise:
+ *  - healthy:  works (every item is, until someone says otherwise).
+ *  - inactive: works, but nobody uses or looks after it right now.
+ *  - archived: kept for reference, no longer maintained; another one does its job.
+ *  - failed:   broken right now, with the reason: don't install it until it is fixed.
  * Admins set it on the item's release page or with the MediaMake MCP's
  * `catalog_set_health`; it is kept in MongoDB `catalog_health`, apart from the
- * items like the archive, so an MCP the repo defines can have one too.
+ * items like the archive, so an item the repo defines can have one too.
  */
-export type McpHealth = 'healthy' | 'inactive' | 'archived' | 'not-working';
-export const MCP_HEALTH: McpHealth[] = ['healthy', 'inactive', 'archived', 'not-working'];
+export type ItemHealth = 'healthy' | 'inactive' | 'archived' | 'failed';
+export const ITEM_HEALTH: ItemHealth[] = ['healthy', 'inactive', 'archived', 'failed'];
+/** Health was for MCPs only at first: the earlier names. */
+export type McpHealth = ItemHealth;
+export const MCP_HEALTH = ITEM_HEALTH;
+
+/** A health as stored or typed, read as one of ITEM_HEALTH: `not-working` was the name of `failed`. */
+export function parseHealth(value: unknown): ItemHealth | null {
+  if (value === 'not-working') return 'failed';
+  return typeof value === 'string' && (ITEM_HEALTH as string[]).includes(value) ? (value as ItemHealth) : null;
+}
 
 export interface HealthMark {
   id: string;
-  health: McpHealth;
+  health: ItemHealth;
+  /** Why. A failed item always has it. */
   note?: string;
   at: string;
   by?: string;
 }
 
-/** Each MCP with its health: an admin's mark, else the repo's default, else healthy. */
-export function withHealth<T extends { id: string; kind: CatalogKind; health?: McpHealth; healthNote?: string }>(
+/**
+ * Each item with its health: an admin's mark, else the repo's default. An
+ * MCP with neither says healthy outright (its card shows it); other kinds
+ * are healthy by saying nothing.
+ */
+export function withHealth<T extends { id: string; kind: CatalogKind; health?: ItemHealth; healthNote?: string }>(
   items: T[],
   marks: HealthMark[],
 ): T[] {
   const byId = new Map(marks.map(mark => [mark.id, mark]));
   return items.map(item => {
-    if (item.kind !== 'mcp') return item;
     const mark = byId.get(item.id);
-    if (mark) return { ...item, health: mark.health, ...(mark.note ? { healthNote: mark.note } : {}) };
-    return { ...item, health: item.health ?? 'healthy' };
+    if (mark) return { ...item, health: parseHealth(mark.health) ?? 'healthy', ...(mark.note ? { healthNote: mark.note } : {}) };
+    const health = parseHealth(item.health) ?? (item.kind === 'mcp' ? 'healthy' : undefined);
+    return health ? { ...item, health } : item;
   });
+}
+
+/** True when an item is broken right now. */
+export function isFailed(item: { health?: ItemHealth }): boolean {
+  return item.health === 'failed';
+}
+
+/**
+ * Readiness: how proven an item is, for every kind, ours or made by others.
+ *  - beta:  everything starts here.
+ *  - ready: battle tested. An admin marks it, with the proof on record: at
+ *    least one real production made with it (see ReadyProof). An MCP also
+ *    needs to be shown in use: a skill that uses it, or a video on it.
+ * Kept in MongoDB `catalog_readiness`, apart from the items like health, so
+ * an item the repo defines can be marked too.
+ */
+export type Readiness = 'beta' | 'ready';
+export const READINESS: Readiness[] = ['beta', 'ready'];
+
+/** A finished production made with the item: what makes it Ready. */
+export interface ReadyProof {
+  /** What was made, e.g. "The Microfox brand kit". */
+  title: string;
+  /** Where it can be seen, e.g. its YouTube link. */
+  url?: string;
+}
+
+export interface ReadinessMark {
+  id: string;
+  readiness: Readiness;
+  proof?: ReadyProof[];
+  note?: string;
+  at: string;
+  by?: string;
+}
+
+/** Each item with its readiness: Ready with its proof when an admin marked it so, else Beta. */
+export function withReadiness<T extends { id: string; readiness?: Readiness; readyProof?: ReadyProof[] }>(items: T[], marks: ReadinessMark[]): T[] {
+  const byId = new Map(marks.map(mark => [mark.id, mark]));
+  return items.map(item => {
+    const mark = byId.get(item.id);
+    if (mark?.readiness === 'ready' && mark.proof?.length) return { ...item, readiness: 'ready' as const, readyProof: mark.proof };
+    const { readyProof: _proof, ...rest } = item;
+    return { ...rest, readiness: 'beta' as const } as T;
+  });
+}
+
+/**
+ * What stops an item from being marked Ready, in words; none when it can be.
+ * The rule: we publish nothing we don't use, so Ready needs a real production
+ * made with it, and an MCP needs to be shown in use as well.
+ */
+export function readyProblems(
+  item: { kind: CatalogKind; health?: ItemHealth; video?: unknown },
+  proof: ReadyProof[] | undefined,
+  usedByCount: number,
+): string[] {
+  const problems: string[] = [];
+  if (!proof?.some(entry => entry.title.trim())) problems.push('Ready needs proof: at least one finished production made with it (its title, and a link when it has one)');
+  if (item.kind === 'mcp' && usedByCount === 0 && !item.video) {
+    problems.push('An MCP is Ready once it is shown in use: a skill that uses it, or a video on it');
+  }
+  if (isFailed(item)) problems.push('It is marked failed: fix it and set its health first');
+  return problems;
 }
 
 /**
@@ -456,7 +554,7 @@ export type CatalogEntry = CatalogItem & {
 };
 
 /** A use as pages show it: the used item's title, page, where it runs and whether it is an old alternative, when known. */
-export type UseShown = ItemUse & { title?: string; href?: string; runs?: McpRuns[]; alternativeTo?: string; health?: McpHealth };
+export type UseShown = ItemUse & { title?: string; href?: string; runs?: McpRuns[]; alternativeTo?: string; health?: ItemHealth };
 export type CatalogItemWithAccess = CatalogEntry;
 
 export const CATALOG_STATUSES: CatalogStatus[] = ['live', 'beta', 'coming-soon'];
@@ -499,6 +597,8 @@ export interface AccessInvite {
   itemIds: (string | '*')[];
   /** Redeemers join this group instead of / as well as getting item grants. */
   groupId?: string;
+  /** Redeemers get this membership (source `invite`), lasting `grantDays` when set. */
+  tier?: GrantableTier;
   maxUses: number;
   uses: number;
   redeemedBy: { clientId: string; at: string }[];
@@ -531,29 +631,28 @@ export interface CatalogDownload {
   at: string;
 }
 
+/** The fields an item's tier depends on. */
+export type TieredItem = Pick<CatalogItem, 'visibility'> & Partial<Pick<CatalogItem, 'tier' | 'neverPublish' | 'publicAt' | 'madeBy' | 'inRepo'>>;
+
 /**
- * Visibility right now: a skill or an item made by others is always public, and a gated item whose
- * `publicAt` has passed is public.
+ * The lowest membership that opens an item right now (see ItemTier): Public
+ * for one that is always public or whose gate (`publicAt`) has passed, Admin
+ * for the vault, else its stored tier (from its stage, for a record stored
+ * before the ladder).
  */
-export function effectiveVisibility(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind' | 'madeBy'>>,
-  now: number = Date.now(),
-): Visibility {
+export function itemTier(item: TieredItem, now: number = Date.now()): ItemTier {
   if (isAlwaysPublic(item)) return 'public';
-  if (item.neverPublish) return 'private';
-  if (item.visibility === 'network' && item.publicAt && Date.parse(item.publicAt) <= now) return 'public';
-  return item.visibility;
+  if (item.neverPublish || item.tier === 'admin') return 'admin';
+  if (item.publicAt && Date.parse(item.publicAt) <= now) return 'public';
+  return item.tier ?? LEGACY_ITEM_TIER[item.visibility];
 }
 
-/** The dashboard tier of an item right now. */
-export function releaseTier(
-  item: Pick<CatalogItem, 'visibility' | 'neverPublish' | 'publicAt'> & Partial<Pick<CatalogItem, 'id' | 'kind' | 'madeBy'>>,
-  now: number = Date.now(),
-): ReleaseTier {
-  if (isAlwaysPublic(item)) return 'public';
-  if (item.neverPublish) return 'vault';
-  const visibility = effectiveVisibility(item, now);
-  return visibility === 'public' ? 'public' : visibility === 'network' ? 'community' : 'development';
+/** The same, under its earlier name. */
+export const releaseTier = itemTier;
+
+/** The stage that goes with an item's tier right now (see CatalogVisibility). */
+export function effectiveVisibility(item: TieredItem, now: number = Date.now()): Visibility {
+  return visibilityOfTier(itemTier(item, now));
 }
 
 export function catalogItemId(kind: CatalogKind, slug: string): string {

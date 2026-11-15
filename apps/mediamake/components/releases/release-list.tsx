@@ -3,11 +3,11 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { slugOf, type CatalogItemRecord, type CatalogKind, type ReleaseTier } from '@/lib/catalog/types';
+import { slugOf, type CatalogItemRecord, type CatalogKind, type ItemTier } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 import { KIND_ICON } from './release-board';
 import { HealthBadge } from '@/components/catalog/health';
-import { ArchivedPill, TierPill } from './parts';
+import { ArchivedPill, ReadinessPill, TierPill } from './parts';
 import { TIER_META, TIER_ORDER, itemPath, originOf, tierOf, type AdminCatalog } from './model';
 
 const KIND_ORDER: CatalogKind[] = ['mcp', 'skill', 'app', 'tutorial', 'course'];
@@ -77,7 +77,7 @@ export function ReleaseList({ data, items, now }: { data: AdminCatalog; items: C
   );
 }
 
-function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ReleaseTier; usedBy: number }) {
+function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ItemTier; usedBy: number }) {
   const Icon = KIND_ICON[item.kind];
   const uses = item.install?.uses ?? [];
   const connections = [
@@ -100,6 +100,7 @@ function Row({ item, tier, usedBy }: { item: CatalogItemRecord; tier: ReleaseTie
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           <TierPill tier={tier} />
+          <ReadinessPill readiness={item.readiness} />
           {item.archivedAt && <ArchivedPill />}
           {item.health && item.health !== 'healthy' && <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />}
         </span>

@@ -159,7 +159,7 @@ describe('catalog admin tools', () => {
     ]);
   });
 
-  it('takes an item out of the vault before starting its community gate', async () => {
+  it('takes an item out of the vault and starts its Pro gate', async () => {
     const calls = stubApi((method, path, body) =>
       method === 'GET'
         ? { item: { id: 'mcp/x', kind: 'mcp', visibility: 'private', neverPublish: true }, definedIn: 'database' }
@@ -167,28 +167,66 @@ describe('catalog admin tools', () => {
           ? { item: { publicAt: '2026-12-02T00:00:00.000Z' } }
           : { item: {} },
     );
-    const { out } = await call('catalog_set_stage', { item: 'mcp/x', stage: 'community', gateDays: 30 });
-    expect(calls.map(c => c.body?.type ?? c.url.pathname)).toEqual(['/api/admin/catalog/item', 'set_never_publish', 'schedule_release']);
-    expect(calls[1].body).toEqual({ itemId: 'mcp/x', type: 'set_never_publish', neverPublish: false });
+    const { out } = await call('catalog_set_stage', { item: 'mcp/x', stage: 'pro', gateDays: 30 });
+    expect(calls.map(c => c.body?.type ?? c.url.pathname)).toEqual(['/api/admin/catalog/item', 'set_item_tier', 'schedule_release']);
+    expect(calls[1].body).toEqual({ itemId: 'mcp/x', type: 'set_item_tier', tier: 'pro' });
     expect(calls[2].body).toEqual({ itemId: 'mcp/x', type: 'schedule_release', days: 30 });
-    expect(out).toEqual({ item: 'mcp/x', stage: 'community', goesPublicAt: '2026-12-02T00:00:00.000Z', page: 'http://mm.test/core/releases/mcp/x' });
+    expect(out).toEqual({ item: 'mcp/x', stage: 'pro', goesPublicAt: '2026-12-02T00:00:00.000Z', page: 'http://mm.test/core/releases/mcp/x' });
   });
 
   it("won't move what is always public, or what is defined in the repo, and leaves an item where it already is", async () => {
-    stubApi(() => ({ item: { id: 'skill/x', kind: 'skill', visibility: 'public' }, definedIn: 'skills.json' }));
-    const skill = await call('catalog_set_stage', { item: 'skill/x', stage: 'development' });
+    stubApi(() => ({ item: { id: 'skill/x', kind: 'skill', tier: 'public', inRepo: true }, definedIn: 'skills.json' }));
+    const skill = await call('catalog_set_stage', { item: 'skill/x', stage: 'cohort' });
     expect(skill.isError).toBe(true);
     expect(skill.out).toContain('always public');
 
     vi.unstubAllGlobals();
     stubApi(() => ({ item: { id: 'app/x', kind: 'app', visibility: 'public' }, definedIn: 'items.ts' }));
-    expect((await call('catalog_set_stage', { item: 'app/x', stage: 'development' })).out).toContain('lib/catalog/items.ts');
+    expect((await call('catalog_set_stage', { item: 'app/x', stage: 'cohort' })).out).toContain('lib/catalog/items.ts');
 
     vi.unstubAllGlobals();
     const calls = stubApi(() => ({ item: { id: 'mcp/x', kind: 'mcp', visibility: 'network' }, definedIn: 'database' }));
-    const same = await call('catalog_set_stage', { item: 'mcp/x', stage: 'community' });
+    // stored before the ladder: the community was Pro
+    const same = await call('catalog_set_stage', { item: 'mcp/x', stage: 'pro' });
     expect(same.out.unchanged).toBe(true);
     expect(calls).toHaveLength(1);
+  });
+
+  it('moves a packaged skill to the vault, stored as the admin tier, and shows the vault by that name', async () => {
+    const calls = stubApi(method =>
+      method === 'GET' ? { item: { id: 'skill/p', kind: 'skill', tier: 'cohort', visibility: 'private' }, definedIn: 'database' } : { item: {} },
+    );
+    await call('catalog_set_stage', { item: 'skill/p', stage: 'vault' });
+    expect(calls[1].body).toEqual({ itemId: 'skill/p', type: 'set_item_tier', tier: 'admin' });
+    expect((await call('catalog_set_stage', { item: 'skill/p', stage: 'public', gateDays: 3 })).isError).toBe(true);
+
+    vi.unstubAllGlobals();
+    const listed = stubApi(() => ({ items: [{ id: 'mcp/m', tier: 'admin', page: '/core/releases/mcp/m' }] }));
+    const { out } = await call('catalog_items', { tier: 'vault', readiness: 'beta' });
+    expect(Object.fromEntries(listed[0].url.searchParams)).toEqual({ tier: 'admin', readiness: 'beta' });
+    expect(out.items[0].tier).toBe('vault');
+  });
+
+  it('marks health for any kind, and a failed item needs its reason', async () => {
+    const calls = stubApi(() => ({}));
+    expect((await call('catalog_set_health', { items: ['skill/x'], health: 'failed' })).out).toContain('reason');
+    expect(calls).toHaveLength(0);
+    await call('catalog_set_health', { items: ['skill/x'], health: 'failed', note: 'the render step crashes' });
+    expect(calls[0].body).toEqual({ type: 'set_health', itemIds: ['skill/x'], health: 'failed', note: 'the render step crashes' });
+    await call('catalog_set_health', { items: ['skill/x'], health: 'default' });
+    expect(calls[1].body).toEqual({ type: 'set_health', itemIds: ['skill/x'], health: null });
+  });
+
+  it('marks items Ready only with proof, and Beta without', async () => {
+    const calls = stubApi(() => ({}));
+    expect((await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'ready' })).out).toContain('proof');
+    expect(calls).toHaveLength(0);
+    const proof = [{ title: 'The Microfox brand kit', url: 'https://youtu.be/x' }];
+    const { out } = await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'ready', proof });
+    expect(calls[0].body).toEqual({ type: 'set_readiness', itemIds: ['skill/x'], readiness: 'ready', proof });
+    expect(out.items).toEqual([{ id: 'skill/x', page: 'http://mm.test/core/releases/skill/x' }]);
+    await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'beta' });
+    expect(calls[1].body).toEqual({ type: 'set_readiness', itemIds: ['skill/x'], readiness: 'beta' });
   });
 
   it('lists an MCP made by others with where it installs from', async () => {
@@ -228,11 +266,11 @@ describe('catalog admin tools', () => {
     expect(out.link).toBe('http://mm.test/access?code=abc123');
   });
 
-  it('makes an invite link into a tier, and needs items or a group', async () => {
+  it('makes an invite link into a tier, and needs items or a tier', async () => {
     const calls = stubApi(() => ({ invite: { code: 'grp1', maxUses: 10 } }));
-    const { out } = await call('catalog_invite', { group: 'community', uses: 10 });
-    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: [], groupId: 'network', maxUses: 10 });
-    expect(out.makesThem).toBe('community members');
+    const { out } = await call('catalog_invite', { tier: 'pro', uses: 10 });
+    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: [], tier: 'pro', maxUses: 10 });
+    expect(out.makesThem).toBe('pro members');
     expect((await call('catalog_invite', {})).isError).toBe(true);
   });
 
@@ -247,8 +285,13 @@ describe('catalog admin tools', () => {
       { groupId: 'private', members: ['c1'] },
       { groupId: 'network', members: ['c2'] },
     ],
+    memberships: [
+      { membershipId: 'mem_1', clientId: 'c3', tier: 'plus', source: 'contribution', ref: 'skill/y', grantedAt: '2026-11-01T00:00:00.000Z', expiresAt: '2999-02-01T00:00:00.000Z' },
+      { membershipId: 'mem_2', clientId: 'c3', tier: 'pro', source: 'admin', grantedAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-02-01T00:00:00.000Z' },
+      { membershipId: 'mem_3', clientId: 'c2', tier: 'cohort', source: 'admin', grantedAt: '2026-01-01T00:00:00.000Z', revokedAt: '2026-03-01T00:00:00.000Z' },
+    ],
     invites: [
-      { code: 'live', groupId: 'private', uses: 1, maxUses: 5 },
+      { code: 'live', tier: 'cohort', uses: 1, maxUses: 5 },
       { code: 'off', groupId: 'network', uses: 0, maxUses: 5, disabledAt: '2026-01-01T00:00:00.000Z' },
     ],
     requests: [{ clientId: 'c3', itemId: 'mcp/x' }],
@@ -257,29 +300,50 @@ describe('catalog admin tools', () => {
   it('lists people by tier with live tier invites', async () => {
     stubApi(() => PEOPLE);
     const { out } = await call('catalog_people', {});
-    expect(out.private).toEqual([{ clientId: 'c1', name: 'Raj' }]);
-    expect(out.community).toEqual([{ clientId: 'c2', name: 'Mia' }]);
-    expect(out.public.map((p: any) => p.clientId)).toEqual(['c3', 'c4']);
-    expect(out.tierInvites).toEqual([{ tier: 'private', link: 'http://mm.test/access?code=live', used: '1/5' }]);
+    // the earlier groups still count (private testers are the cohort, the community is Pro); ended memberships don't
+    expect(out.cohort).toMatchObject([{ clientId: 'c1', name: 'Raj' }]);
+    expect(out.cohort[0].how).toContain('migrate-tiers');
+    expect(out.pro).toMatchObject([{ clientId: 'c2', name: 'Mia' }]);
+    expect(out.plus).toEqual([{ clientId: 'c3', name: 'Ana', how: 'contribution (skill/y)', lasts: 'until 2999-02-01', membership: 'mem_1' }]);
+    expect(out.public.map((p: any) => p.clientId)).toEqual(['c4']);
+    expect(out.tierInvites).toEqual([{ tier: 'cohort', link: 'http://mm.test/access?code=live', used: '1/5' }]);
     expect(out.pendingRequests).toEqual([{ who: 'Ana', item: 'mcp/x' }]);
   });
 
   it('sets tiers by client id or name, and refuses unknown or ambiguous names', async () => {
-    const calls = stubApi(() => PEOPLE);
-    const { out } = await call('catalog_set_tier', { people: ['mia', 'c3'], tier: 'private' });
+    const calls = stubApi(method =>
+      method === 'GET' ? PEOPLE : { membership: { membershipId: 'mem_9', clientId: 'c2', tier: 'plus', source: 'contribution', expiresAt: '2027-02-15T00:00:00.000Z' } },
+    );
+    const { out } = await call('catalog_set_tier', { people: ['mia', 'c3'], tier: 'plus', source: 'contribution', ref: 'https://github.com/x/y/pull/1' });
     expect(calls.filter(c => c.method === 'POST').map(c => c.body)).toEqual([
-      { type: 'set_tier', clientId: 'c2', tier: 'private' },
-      { type: 'set_tier', clientId: 'c3', tier: 'private' },
+      { type: 'set_tier', clientId: 'c2', tier: 'plus', source: 'contribution', ref: 'https://github.com/x/y/pull/1' },
+      { type: 'set_tier', clientId: 'c3', tier: 'plus', source: 'contribution', ref: 'https://github.com/x/y/pull/1' },
     ]);
-    expect(out.people).toEqual([{ clientId: 'c2', name: 'Mia' }, { clientId: 'c3', name: 'Ana' }]);
+    expect(out.people).toEqual([
+      { clientId: 'c2', name: 'Mia', lasts: 'until 2027-02-15', membership: 'mem_9' },
+      { clientId: 'c3', name: 'Ana', lasts: 'until 2027-02-15', membership: 'mem_9' },
+    ]);
 
     vi.unstubAllGlobals();
     const none = stubApi(() => PEOPLE);
-    const bad = await call('catalog_set_tier', { people: ['Ana', 'Zed'], tier: 'community' });
+    const bad = await call('catalog_set_tier', { people: ['Ana', 'Zed'], tier: 'pro' });
     expect(bad.isError).toBe(true);
     expect(bad.out).toContain('c3, c4');
     expect(bad.out).toContain('catalog_invite');
     expect(none.filter(c => c.method === 'POST')).toHaveLength(0);
+  });
+
+  it('makes a membership permanent, renews one for a new contribution, and ends one', async () => {
+    const calls = stubApi(() => ({ membership: { membershipId: 'mem_1', clientId: 'c3', tier: 'plus', source: 'contribution', permanent: true } }));
+    const made = await call('catalog_membership', { action: 'make-permanent', membership: 'mem_1' });
+    expect(calls[0].body).toEqual({ type: 'membership_permanent', membershipId: 'mem_1' });
+    expect(made.out).toMatchObject({ person: 'c3', tier: 'plus', lasts: 'permanent' });
+    await call('catalog_membership', { action: 'renew', person: 'c3', tier: 'plus', ref: 'skill/z' });
+    expect(calls[1].body).toEqual({ type: 'add_membership', clientId: 'c3', tier: 'plus', source: 'contribution', ref: 'skill/z' });
+    await call('catalog_membership', { action: 'end', membership: 'mem_1', note: 'left' });
+    expect(calls[2].body).toEqual({ type: 'revoke_membership', membershipId: 'mem_1', note: 'left' });
+    expect((await call('catalog_membership', { action: 'end' })).isError).toBe(true);
+    expect((await call('catalog_membership', { action: 'renew', person: 'c3' })).isError).toBe(true);
   });
 
   /** set_video answers with what it stored: the YouTube id from the link, like the app. */
@@ -348,7 +412,7 @@ describe('catalog admin tools', () => {
     });
     expect(out).toMatchObject({
       item: 'tutorial/brand-kit-in-one-prompt',
-      stage: 'development',
+      stage: 'cohort',
       page: 'http://mm.test/core/releases/tutorial/brand-kit-in-one-prompt',
       plays: 'http://mm.test/access?item=tutorial%2Fbrand-kit-in-one-prompt',
     });

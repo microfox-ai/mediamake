@@ -4,9 +4,10 @@
  * Release and access CLI for the MediaMake catalog (skills, MCPs, apps,
  * tutorials). Packages are uploaded to private storage through the admin
  * API, so nothing you release here is ever committed to the repository.
- * Skills are always public (their files are committed in .agents/skills), so
- * a skill is released as public and the gate commands refuse it; apps, MCPs
- * and tutorials go through the stages.
+ * Every item names the lowest membership that opens it (its tier: public,
+ * plus, pro, cohort, or vault for admins only). A skill committed in
+ * .agents/skills is always Public and the tier commands refuse it; a skill for
+ * Plus, Pro or the cohort is released here as a package, like an MCP.
  *
  * Needs, in .env.local or the environment:
  *   MEDIAMAKE_URL        e.g. https://mediamake.example.com (default http://localhost:3000)
@@ -18,15 +19,27 @@
  * GET /api/catalog/versions, which installed items check for updates.
  *
  * Usage: npm run catalog -- <command> [...]
- *   release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
- *   promote <itemId> <private|network|public>
- *   schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
+ *   release <dir|file.mcpb> [--manifest catalog.json] [--tier public|plus|pro|cohort|vault] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
+ *   tier <itemId> <public|plus|pro|cohort|vault>      (the lowest membership that opens it; promote is the same)
+ *   schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
  *   unschedule <itemId>
  *   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
+ *   ready <itemId> [<itemId>...] --proof "<what was made>" [--url https://...] [--note "..."]
+ *                                                    (Ready needs a finished production made with it)
+ *   beta <itemId> [<itemId>...]                      (back to Beta)
+ *   health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]
+ *                                                    (any kind; failed needs --note)
+ *   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
+ *                                                    (puts a person at one tier; a contribution lasts 3 months)
+ *   member add <clientId> <plus|pro|cohort> ...       (adds a record beside theirs: contributing again renews)
+ *   member permanent <membershipId> | member revoke <membershipId>
+ *   members                                          (who holds each tier, and how they got it)
+ *   migrate-tiers [--yes]                            (the move from the earlier tiers to the ladder: a dry run,
+ *                                                     then --yes)
  *   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
  *   revoke  <itemId|*> (--to <clientId> | --group <groupId>)   |   revoke --grant <grantId>
  *   group   add|remove <groupId> <clientId> [<clientId>...]
- *   invite  [<itemId>...] [--group network] [--uses 5] [--days 30] [--expires 14] [--note "..."]
+ *   invite  [<itemId>...] [--tier plus|pro|cohort] [--uses 5] [--days 30] [--expires 14] [--note "..."]
  *   requests
  *   approve <requestId> [--days 30]
  *   reject  <requestId>
@@ -47,7 +60,9 @@ import { execFileSync } from 'child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { basename, dirname, extname, isAbsolute, join, resolve } from 'path';
+import type { TierMigrationPlan } from '../lib/catalog/migrate-tiers';
 import { notesFromChangelog } from '../lib/catalog/releases';
+import type { Membership } from '../lib/memberships/membership';
 
 config({ path: resolve(process.cwd(), '.env.local') });
 config({ path: resolve(process.cwd(), '.env') });
@@ -56,16 +71,24 @@ const BASE_URL = (process.env.MEDIAMAKE_URL || 'http://localhost:3000').replace(
 const ADMIN_KEY = process.env.MEDIAMAKE_ADMIN_KEY || process.env.DEV_API_KEY || '';
 
 const USAGE = `Usage: npm run catalog -- <command> [...]
-  release <dir|file.mcpb> [--manifest catalog.json] [--stage private|network|public] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
+  release <dir|file.mcpb> [--manifest catalog.json] [--tier public|plus|pro|cohort|vault] [--version 1.0.0] [--kind skill] [--slug name] [--status live|beta|coming-soon] [--notes "..." | --notes-file notes.md]
            (release notes are required: --notes, --notes-file, or a "## <version>" section in CHANGELOG.md)
-  promote <itemId> <private|network|public>
-  schedule <itemId> [--days 30 | --at 2026-12-01]   (community now, public by itself then)
+  tier <itemId> <public|plus|pro|cohort|vault>      (the lowest membership that opens it; promote is the same)
+  schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
   unschedule <itemId>
   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
+  ready <itemId>... --proof "<what was made>" [--url https://...] [--note "..."]   (Ready needs a production made with it)
+  beta <itemId>...                                 (back to Beta)
+  health <itemId>... <healthy|inactive|archived|failed|default> [--note "why"]   (any kind; failed needs --note)
+  member <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
+  member add <clientId> <plus|pro|cohort> ...       (adds a record beside theirs: contributing again renews)
+  member permanent <membershipId> | member revoke <membershipId>
+  members                                          (who holds each tier, and how they got it)
+  migrate-tiers [--yes]                            (from the earlier tiers to the ladder: a dry run, then --yes)
   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
   revoke  <itemId|*> (--to <clientId> | --group <groupId>)  |  revoke --grant <grantId>
   group   add|remove <groupId> <clientId> [<clientId>...]
-  invite  [<itemId>...] [--group network] [--uses 5] [--days 30] [--expires 14] [--note "..."]
+  invite  [<itemId>...] [--tier plus|pro|cohort] [--uses 5] [--days 30] [--expires 14] [--note "..."]
   requests | approve <requestId> [--days 30] | reject <requestId>
   list | init
   add <file.catalog.json>                          (list an MCP or skill made by others: no package, always public)
@@ -93,6 +116,26 @@ function parseArgs(argv: string[]) {
 function flag(flags: Flags, name: string): string | undefined {
   const value = flags[name];
   return typeof value === 'string' ? value : undefined;
+}
+
+/** The tiers of an item as typed here: the ladder's names, `vault` for admin, and the earlier stages. */
+const TIER_WORDS: Record<string, string> = {
+  public: 'public',
+  plus: 'plus',
+  pro: 'pro',
+  cohort: 'cohort',
+  vault: 'admin',
+  admin: 'admin',
+  // the stages before the ladder
+  private: 'cohort',
+  development: 'cohort',
+  network: 'pro',
+  community: 'pro',
+};
+
+function itemTierFrom(word: string | undefined, usage: string): string {
+  const tier = word ? TIER_WORDS[word] : undefined;
+  return tier ?? fail(`${usage}\n   tier is one of public, plus, pro, cohort, vault`);
 }
 
 function fail(message: string): never {
@@ -196,17 +239,15 @@ async function release(pathArg: string | undefined, flags: Flags) {
   const version = flag(flags, 'version') ?? manifest.version ?? front.version;
   if (!version) fail('No version; pass --version 1.0.0 or set "version" in catalog.json, SKILL.md or the .mcpb');
   const notes = releaseNotes(source, dir, isBundle, version, flags);
-  const requested = flag(flags, 'stage') ?? manifest.visibility;
-  if (kind === 'skill' && requested && requested !== 'public') {
-    console.warn(`⚠ Skills are always public; releasing ${slug} as public, not ${requested}`);
-  }
-  const visibility = kind === 'skill' ? 'public' : requested;
+  // --stage and "visibility" are the earlier names: private is the cohort, network is Pro
+  const requested = flag(flags, 'tier') ?? manifest.tier ?? flag(flags, 'stage') ?? manifest.visibility;
+  const tier = requested ? itemTierFrom(requested, 'release --tier <tier>') : undefined;
   const itemId = `${kind}/${slug}`;
   const install = bundle && !manifest.install?.entry
     ? { method: 'mcpb', ...manifest.install, entry: bundle }
     : manifest.install;
 
-  console.log(`📦 Releasing ${itemId}@${version}${visibility ? ` as ${visibility}` : ''}`);
+  console.log(`📦 Releasing ${itemId}@${version}${tier ? ` for ${tier === 'admin' ? 'the vault' : tier}` : ''}`);
 
   await admin({
     type: 'upsert_item',
@@ -215,7 +256,7 @@ async function release(pathArg: string | undefined, flags: Flags) {
       slug,
       title: manifest.title ?? front.title ?? titleCase(slug),
       summary: manifest.summary ?? front.description ?? '',
-      visibility,
+      tier,
       status: flag(flags, 'status') ?? manifest.status,
       listed: manifest.listed,
       href: manifest.href,
@@ -331,18 +372,105 @@ async function main() {
     case 'release':
       return release(positional[0], flags);
 
+    case 'tier':
     case 'promote': {
-      const [itemId, visibility] = positional;
-      if (!itemId || !visibility) fail('promote <itemId> <private|network|public>');
-      await admin({ type: 'set_visibility', itemId, visibility });
-      console.log(`✅ ${itemId} is now ${visibility}`);
+      const usage = `${command} <itemId> <public|plus|pro|cohort|vault>`;
+      const itemId = positional[0] ?? fail(usage);
+      const tier = itemTierFrom(positional[1], usage);
+      await admin({ type: 'set_item_tier', itemId, tier });
+      console.log(`✅ ${itemId} now opens ${tier === 'public' ? 'to everyone' : tier === 'admin' ? 'to admins only (the vault)' : `at ${tier} and above`}`);
       return console.log(page(itemId));
+    }
+
+    case 'ready': {
+      const proofTitle = flag(flags, 'proof');
+      if (!positional.length || !proofTitle) fail('ready <itemId> [<itemId>...] --proof "<what was made with it>" [--url https://...] [--note "..."]');
+      await admin({ type: 'set_readiness', itemIds: positional, readiness: 'ready', proof: [{ title: proofTitle, url: flag(flags, 'url') }], note: flag(flags, 'note') });
+      console.log(`✅ Ready, with its proof: ${proofTitle}`);
+      for (const itemId of positional) console.log(page(itemId));
+      return;
+    }
+
+    case 'beta': {
+      if (!positional.length) fail('beta <itemId> [<itemId>...]');
+      await admin({ type: 'set_readiness', itemIds: positional, readiness: 'beta' });
+      console.log('✅ Back to Beta');
+      for (const itemId of positional) console.log(page(itemId));
+      return;
+    }
+
+    case 'health': {
+      const health = positional.at(-1);
+      const itemIds = positional.slice(0, -1);
+      if (!itemIds.length || !health || !['healthy', 'inactive', 'archived', 'failed', 'default'].includes(health)) {
+        fail('health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]');
+      }
+      await admin({ type: 'set_health', itemIds, health: health === 'default' ? null : health, note: flag(flags, 'note') });
+      console.log(health === 'default' ? '✅ Health back to the default' : `✅ Health: ${health}`);
+      for (const itemId of itemIds) console.log(page(itemId));
+      return;
+    }
+
+    case 'member': {
+      const [first, second, third] = positional;
+      if (first === 'permanent' || first === 'revoke') {
+        const membershipId = second ?? fail(`member ${first} <membershipId>`);
+        await admin({ type: first === 'permanent' ? 'membership_permanent' : 'revoke_membership', membershipId, note: flag(flags, 'note') });
+        return console.log(first === 'permanent' ? `✅ ${membershipId} is permanent: it lasts until an admin removes it` : `✅ ${membershipId} ended`);
+      }
+      const adding = first === 'add';
+      const [clientId, tier] = adding ? [second, third] : [first, second];
+      if (!clientId || !tier) fail('member [add] <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]');
+      const { membership } = await admin({
+        type: adding ? 'add_membership' : 'set_tier',
+        clientId,
+        tier,
+        source: flag(flags, 'source'),
+        ref: flag(flags, 'ref'),
+        note: flag(flags, 'note'),
+        days,
+        permanent: flags.permanent === true,
+      });
+      const lasts = !membership ? '' : membership.permanent ? ', permanent' : membership.expiresAt ? `, until ${membership.expiresAt.slice(0, 10)}` : ', until an admin removes it';
+      console.log(`✅ ${clientId} is ${membership ? `${membership.tier} (${membership.source}${lasts})` : 'public'}`);
+      return console.log(`   🔗 ${BASE_URL}/core/releases?tab=people`);
+    }
+
+    case 'members': {
+      const { memberships, groups } = await admin<{ memberships: Membership[]; groups: { groupId: string; members: string[] }[] }>({});
+      const now = new Date().toISOString();
+      const live = memberships.filter(m => !m.revokedAt && (!m.expiresAt || m.expiresAt > now));
+      if (!live.length) console.log('No memberships: everyone is Public (or still in an earlier group, below).');
+      for (const tier of ['cohort', 'pro', 'plus']) {
+        for (const m of live.filter(m => m.tier === tier)) {
+          const lasts = m.permanent ? 'permanent' : m.expiresAt ? `until ${m.expiresAt.slice(0, 10)}` : 'no expiry';
+          console.log(`${tier.padEnd(7)} ${m.clientId}  ${m.source}${m.ref ? ` (${m.ref})` : ''}  ${lasts}${m.note ? `  "${m.note}"` : ''}  (${m.membershipId})`);
+        }
+      }
+      for (const group of groups.filter(g => ['private', 'network'].includes(g.groupId) && g.members.length)) {
+        console.log(`earlier group ${group.groupId}: ${group.members.join(', ')}  (run migrate-tiers)`);
+      }
+      return console.log(`\n🔗 ${BASE_URL}/core/releases?tab=people`);
+    }
+
+    case 'migrate-tiers': {
+      const { plan, applied } = await admin<{ plan: TierMigrationPlan; applied: boolean }>({ type: 'migrate_tiers', apply: flags.yes === true });
+      const lines = [
+        ...plan.people.map((p) => `person  ${p.clientId}: ${p.from} → ${p.tier}`),
+        ...plan.items.map((i) => `item    ${i.id}: ${i.from} → ${i.tier === 'admin' ? 'vault' : i.tier}`),
+        ...plan.ready.map((r) => `ready   ${r.id}: ${r.proof.map((p) => p.title).join('; ')}`),
+        ...plan.leaveGroups.map((g) => `group   ${g.groupId}: emptied (${g.clientIds.join(', ')})`),
+        ...plan.revokeGrants.map((g) => `grant   of everything to ${g.clientId}: ended (their membership replaces it)`),
+      ];
+      if (!lines.length) return console.log('✅ Nothing to migrate: everything is on the ladder.');
+      for (const line of lines) console.log(line);
+      return console.log(applied ? '\n✅ Migrated.' : '\nA dry run: nothing changed. Run it again with --yes to apply.');
     }
 
     case 'schedule': {
       const itemId = positional[0] ?? fail('schedule <itemId> [--days 30 | --at <date>]');
       const { item } = await admin({ type: 'schedule_release', itemId, days, at: flag(flags, 'at') });
-      console.log(`✅ ${itemId} is a community item until ${item.publicAt}, then public`);
+      console.log(`✅ ${itemId} keeps its tier until ${item.publicAt}, then public`);
       return console.log(page(itemId));
     }
 
@@ -357,7 +485,7 @@ async function main() {
       const itemId = positional[0] ?? fail('vault <itemId> [--off]');
       const neverPublish = !flags.off;
       await admin({ type: 'set_never_publish', itemId, neverPublish });
-      console.log(neverPublish ? `✅ ${itemId} is in the vault (never published)` : `✅ ${itemId} is out of the vault, back in development`);
+      console.log(neverPublish ? `✅ ${itemId} is in the vault (never published)` : `✅ ${itemId} is out of the vault, with the cohort`);
       return console.log(page(itemId));
     }
 
@@ -388,6 +516,7 @@ async function main() {
       const { invite } = await admin({
         type: 'create_invite',
         itemIds: positional,
+        tier: flag(flags, 'tier'),
         groupId: flag(flags, 'group'),
         maxUses: flag(flags, 'uses') ? Number(flag(flags, 'uses')) : 1,
         grantDays: days,
@@ -420,9 +549,9 @@ async function main() {
         `${g.inviteCode ? `  via invite ${g.inviteCode}` : ''}${g.note ? `  "${g.note}"` : ''}  (grant ${g.grantId})`;
       for (const item of items) {
         const itemGrants = grants.filter((g: any) => g.itemId === item.id);
-        const stage = item.neverPublish ? 'vault' : item.visibility;
+        const stage = item.neverPublish || item.tier === 'admin' ? 'vault' : (item.tier ?? { private: 'cohort', network: 'pro', public: 'public' }[item.visibility as 'private']);
         const gate = item.publicAt ? `  public on ${item.publicAt.slice(0, 10)}` : '';
-        console.log(`${stage.padEnd(8)} ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${gate}${item.listed === false ? '  [unlisted]' : ''}`);
+        console.log(`${stage.padEnd(8)} ${item.readiness === 'ready' ? 'ready' : 'beta '}  ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${gate}${item.listed === false ? '  [unlisted]' : ''}`);
         for (const g of itemGrants) console.log(describe(g));
       }
       const everything = grants.filter((g: any) => g.itemId === '*' || g.itemId.endsWith('/*'));
@@ -432,7 +561,7 @@ async function main() {
       for (const invite of invites ?? []) {
         if (invite.disabledAt) continue;
         const redeemed = invite.redeemedBy.map((r: any) => r.clientId).join(', ');
-        console.log(`invite ${invite.code}: ${invite.itemIds.join(', ') || invite.groupId}  ${invite.uses}/${invite.maxUses} used${redeemed ? `  by ${redeemed}` : ''}`);
+        console.log(`invite ${invite.code}: ${[...invite.itemIds, invite.tier ?? invite.groupId].filter(Boolean).join(', ')}  ${invite.uses}/${invite.maxUses} used${redeemed ? `  by ${redeemed}` : ''}`);
       }
       return console.log(`\nEvery item, with what it is and where it lives: ${BASE_URL}/core/releases`);
     }
