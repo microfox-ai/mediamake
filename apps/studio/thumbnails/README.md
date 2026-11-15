@@ -38,11 +38,30 @@ mm thumbs keep <job> B2            # lock one the user likes: kept/ snapshot, re
 mm thumbs init <job> --poster [--brand=…] [--mood=…]   # a poster job (poster.json, no logo, treatments "auto")
 mm thumbs pick <poster-job> A3 [--to=<release folder>]   # the cover → final/ (+ cover.jpg there)
 mm thumbs-studio                       # Studio, every job (hot-reloads the specs)
+mm thumbs inspire <set> @channel… [--search="…"] [--winners=8] [--losers=3]   # references: each channel's hits and misses
+mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h]   # a real page at 2× (throwaway profile) → input/shots/
+mm thumbs logo <job> "<name> logo" [--pick=N]             # an official logo from Wikimedia Commons → assets/logos/
+mm thumbs pic <job> "<what>" [--pick=N] [--subject=…]     # a real photo from Wikimedia Commons, filed in the library → input/pictures/ (+ licence, credit)
+mm thumbs globe <job> <lat> <lon> --name=<n>                # the Earth turned to a place (NASA Blue Marble) → cutouts/<n>.png
+mm thumbs swap <job> <generated.png> <real picture> --name=<n>   # the real product on a host's green card → input/held/ + cutouts/
 ```
 
 `render` checks the spec first (missing files, fonts not in the job, things under YouTube's
 timestamp), downloads missing Google fonts into the job's `fonts/`, and renders 12 variants plus
 both sheets in about 10 s. `cutout` downloads its model once (~1 GB for BiRefNet).
+
+## References: `thumbs inspire`
+
+`mm thumbs inspire <set> @channel @channel …` lists each channel's ~100 most recent long videos
+with yt-dlp (no key; the newest eight are left out), scores every video by **views ÷ the channel's
+own median**, and keeps the thumbnails of its eight best (hits) and three worst (misses): seeing
+both is the point, since most traits of a hit are on the misses too. `--search="<query>"` adds the
+most-viewed results for a search (no median to score against). With the media library set up the
+pictures are filed there (`references/youtube-thumbnails-<set>`, each with its video, views and
+score); the set itself is `out/thumbnail-inspiration/inspire-<set>/`: `sheet.jpg` (labelled, one
+block a channel), `index.json` for `/file-revision?job=inspire-<set>`, and `research/` (`picks.json`,
+`listings.json`; a `tags.json` there adds each picture's tags to its note). The pictures are other
+channels' work: reference only, never committed or published. Tool: `thumbnails/tools/inspire.py`.
 
 ## thumbs.json
 
