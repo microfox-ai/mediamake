@@ -292,10 +292,23 @@ function personTier(value: unknown): GrantableTier | 'public' | null {
   return null;
 }
 
-/** Productions as typed with a Ready mark: each a title, and an https link when it has one. */
-const proofSchema = z
-  .array(z.object({ title: z.string().trim().min(1).max(200), url: z.string().trim().url().startsWith('https://').max(500).optional() }))
-  .max(20);
+/** An https link, or nothing (an empty field is the same as none). */
+const httpsLink = z
+  .string()
+  .trim()
+  .max(500)
+  .refine(value => !value || /^https:\/\/\S+$/.test(value), 'must be an https link')
+  .optional();
+
+/**
+ * Productions as typed with a Ready mark: each a title, an https link when it
+ * has one, and what the item's gallery shows of it: a picture (`image`) and
+ * an uploaded clip (`video`), both from create_proof_upload or pasted links.
+ */
+const proofSchema = z.array(z.object({ title: z.string().trim().min(1).max(200), url: httpsLink, image: httpsLink, video: httpsLink })).max(20);
+
+/** What a production's upload may be: a picture, or a clip browsers play. */
+const PROOF_UPLOAD_TYPES = /^(image\/(png|jpeg|webp|gif|avif)|video\/(mp4|webm))$/;
 
 /** Item ids from `itemIds` or `itemId`, each once. */
 function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null {
@@ -317,7 +330,10 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *                             (a gate: the item keeps its tier now and goes Public by itself at that time)
  *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays where it is)
  *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (older: into the vault, or out of it to the cohort)
- *  { type: 'set_readiness',   itemIds: string[] (or itemId), readiness: 'ready' | 'beta', proof?: [{ title, url? }], note? }
+ *  { type: 'set_readiness',   itemIds: string[] (or itemId), readiness: 'ready' | 'beta', proof?: [{ title, url?, image?, video? }], note? }
+ *  { type: 'create_proof_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
+ *                             (a signed PUT for a production's picture or clip in the item's gallery,
+ *                             public once uploaded; send the same Content-Type and x-amz-acl: public-read)
  *                             (Ready needs proof: at least one finished production made with it; an MCP also
  *                             needs a skill that uses it or a video. Beta drops the mark. Any kind)
  *  { type: 'set_health',      itemIds: string[] (or itemId), health: 'healthy' | 'inactive' | 'archived' | 'failed' | null, note? }
@@ -494,7 +510,12 @@ export async function POST(req: NextRequest) {
       } else {
         const parsed = proofSchema.safeParse(body.proof ?? []);
         if (!parsed.success) return bad(parsed.error.issues.map(i => `proof.${i.path.join('.')}: ${i.message}`).join('; '));
-        const proof: ReadyProof[] = parsed.data.map(entry => ({ title: entry.title, ...(entry.url && { url: entry.url }) }));
+        const proof: ReadyProof[] = parsed.data.map(entry => ({
+          title: entry.title,
+          ...(entry.url && { url: entry.url }),
+          ...(entry.image && { image: entry.image }),
+          ...(entry.video && { video: entry.video }),
+        }));
         // the rule turned into a check: nothing is Ready without a production made with it
         const problems = ids.flatMap(id => readyProblems(byId.get(id)!, proof, usedByOf(byId.values(), id).length).map(problem => `${id}: ${problem}`));
         if (problems.length) return bad(problems.join('; '));
@@ -557,6 +578,19 @@ export async function POST(req: NextRequest) {
         filename: typeof body.filename === 'string' && body.filename ? body.filename : 'thumbnail',
         contentType,
         subPath: `catalog-thumbnails/${body.itemId}`,
+      });
+      return NextResponse.json({ uploadUrl, publicUrl });
+    }
+
+    case 'create_proof_upload': {
+      const contentType = typeof body.contentType === 'string' ? body.contentType : '';
+      if (!PROOF_UPLOAD_TYPES.test(contentType)) return bad('contentType must be a PNG, JPEG, WebP, GIF or AVIF image, or an MP4 or WebM video');
+      if (typeof body.itemId !== 'string' || !parseCatalogItemId(body.itemId)) return bad('itemId must be a catalog id such as skill/pack-brand-kit');
+      const { uploadUrl, publicUrl } = await createPresignedUpload({
+        clientId: adminId,
+        filename: typeof body.filename === 'string' && body.filename ? body.filename : 'made-with',
+        contentType,
+        subPath: `catalog-proof/${body.itemId}`,
       });
       return NextResponse.json({ uploadUrl, publicUrl });
     }

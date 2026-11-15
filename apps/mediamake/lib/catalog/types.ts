@@ -461,7 +461,8 @@ export const READINESS: Readiness[] = ['beta', 'ready'];
 /**
  * The rule MediaMake is run by, in the owner's words. Readiness is how it is
  * kept: an item is Ready only with a finished production made with it, shown
- * on its page as "Made with this" (components/catalog/made-with.tsx). Also in
+ * on its page as "Made with this", a gallery like a store listing's
+ * (components/catalog/made-with.tsx, tiles from ./gallery). Also in
  * the README, CLAUDE.md, the pull request template and publish-skill.
  */
 export const RULE = "We publish nothing we don't use.";
@@ -470,8 +471,12 @@ export const RULE = "We publish nothing we don't use.";
 export interface ReadyProof {
   /** What was made, e.g. "The Microfox brand kit". */
   title: string;
-  /** Where it can be seen, e.g. its YouTube link. */
+  /** Where it can be seen, e.g. its YouTube link (a YouTube link plays in the item's gallery). */
   url?: string;
+  /** A picture of it (an uploaded screenshot, poster or frame): its tile in the gallery. */
+  image?: string;
+  /** An uploaded clip of it (MP4 or WebM), played in the gallery. */
+  video?: string;
 }
 
 export interface ReadinessMark {

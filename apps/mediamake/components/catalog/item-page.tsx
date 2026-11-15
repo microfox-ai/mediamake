@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
-import { YouTubeEmbed } from '@/components/catalog/video';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
 import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type ItemUse } from '@/lib/catalog';
 import { itemPagePath } from '@/lib/catalog/paths';
@@ -34,7 +33,7 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
 
 /**
  * An MCP's or an app's own page, the link to share, like a skill's (/skills/<name>): what it is,
- * its intro video, what was made with it, how to install or open it, what it works with, the skills that use it and its
+ * what was made with it (a gallery that opens on its intro video), how to install or open it, what it works with, the skills that use it and its
  * release notes. Who can see it follows the catalog: a locked item goes to its request-access page,
  * and one hidden from the viewer is not found.
  */
@@ -121,15 +120,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
             )}
           </div>
 
-          {video?.youtubeId && (
-            <section className="flex flex-col gap-2">
-              <YouTubeEmbed youtubeId={video.youtubeId} title={video.title} className="overflow-hidden rounded-xl border" />
-              <h2 className="pt-1 text-sm font-semibold">{video.title}</h2>
-              {video.description && <p className="whitespace-pre-line text-sm text-muted-foreground">{video.description}</p>}
-            </section>
-          )}
-
-          <MadeWithThis mark={readiness} />
+          <MadeWithThis itemId={item.id} mark={readiness} video={video} />
 
           {uses.length > 0 && <UsesList uses={uses} />}
 

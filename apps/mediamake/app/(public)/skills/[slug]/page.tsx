@@ -5,7 +5,6 @@ import { ArrowLeftIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucid
 import { Badge } from '@/components/ui/badge';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
-import { YouTubeEmbed } from '@/components/catalog/video';
 import { SkillActions } from '@/components/skills/skill-actions';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
@@ -17,7 +16,7 @@ import { registry, skillMdUrl, skillNamed, skillRelations } from '@/lib/skills/r
 
 /**
  * /skills/<name>: one skill's own page, the link to share. Every skill in skills.json is public, so
- * the page is the same for everyone: what it does, its intro video, what was made with it, what it works with, how it
+ * the page is the same for everyone: what it does, what was made with it (a gallery that opens on its intro video), what it works with, how it
  * relates to the other skills, its SKILL.md, and the install prompt. The list of skills is the
  * homepage's Skills tab (/?tab=skills).
  */
@@ -113,15 +112,7 @@ export default async function SkillPage({ params }: Props) {
             )}
           </div>
 
-          {video?.youtubeId && (
-            <section className="flex flex-col gap-2">
-              <YouTubeEmbed youtubeId={video.youtubeId} title={video.title} className="overflow-hidden rounded-xl border" />
-              <h2 className="pt-1 text-sm font-semibold">{video.title}</h2>
-              {video.description && <p className="whitespace-pre-line text-sm text-muted-foreground">{video.description}</p>}
-            </section>
-          )}
-
-          <MadeWithThis mark={readiness} />
+          <MadeWithThis itemId={id} mark={readiness} video={video} />
 
           <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3 border-b pb-2">
