@@ -10,6 +10,14 @@
       an official logo from Wikimedia Commons: lists the best matches, downloads the picked one as a
       1200 px PNG render → assets/logos/<name>.png with <name>.source.json (page, licence, author),
       and says whether it is transparent
+  kit.py swap --dir=<job dir> --gen=<generated image> --pic=<real picture> --name=<name>
+      a generated host holding a solid chroma-green card (a mascot, a hand): the real picture is
+      centre-cropped to the card's shape, warped onto it (its corners from the green region), lit
+      like the card, shown only where the card was green (hands and props in front stay), and the
+      green rim cleared → input/held/<name>.png and <name>.quad.png (the card's area)
+  kit.py solid --dir=<job dir> --name=<name>
+      after `thumbs cutout` of input/held/<name>.png: the card's area stays opaque in the cutout
+      (background removal reads a picture's black parts as background) and its rim loses any green
 """
 import json, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse, urllib.request
 
@@ -107,5 +115,79 @@ def logo(o):
     print(f"✔ assets/logos/{name}.png  ({title}; licence: {strip('LicenseShortName') or '?'}; transparent: {transparent})")
 
 
+def swap(o):
+    import numpy as np
+    from PIL import Image, ImageDraw
+    from scipy import ndimage
+    d, name = o["dir"], o["name"]
+    im = Image.open(o["gen"]).convert("RGB")
+    a = np.asarray(im).astype(np.float32)
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    green = (g > r + 35) & (g > b + 25) & (g > 90)
+    lab, n = ndimage.label(green)
+    if n == 0:
+        sys.exit("no green card in the generated image: ask for 'a solid bright chroma-key green square card'")
+    big = lab == (int(np.argmax(ndimage.sum(green, lab, range(1, n + 1)))) + 1)
+    hull = ndimage.binary_fill_holes(ndimage.binary_closing(big, iterations=4))
+    ys, xs = np.nonzero(hull)
+    pts = np.stack([xs, ys], 1).astype(np.float64)
+    s, df = pts.sum(1), pts[:, 0] - pts[:, 1]
+    tl, br, tr, bl = pts[s.argmin()], pts[s.argmax()], pts[df.argmax()], pts[df.argmin()]
+    w = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2
+    h = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2
+    P = Image.open(o["pic"]).convert("RGB")
+    ar, (pw, ph) = w / h, P.size
+    if pw / ph > ar:
+        nw = int(ph * ar); P = P.crop(((pw - nw) // 2, 0, (pw - nw) // 2 + nw, ph))
+    else:
+        nh = int(pw / ar); P = P.crop((0, (ph - nh) // 2, pw, (ph - nh) // 2 + nh))
+    P = P.resize((max(2, int(w * 2)), max(2, int(h * 2))), Image.LANCZOS)
+    W, H = P.size
+    A, B = [], []
+    for (x, y), (u, v) in zip([tuple(tl), tuple(tr), tuple(br), tuple(bl)], [(0, 0), (W, 0), (W, H), (0, H)]):
+        A += [[x, y, 1, 0, 0, 0, -u * x, -u * y], [0, 0, 0, x, y, 1, -v * x, -v * y]]
+        B += [u, v]
+    warped = np.asarray(P.transform(im.size, Image.PERSPECTIVE, np.linalg.solve(np.array(A), np.array(B)).tolist(), Image.BICUBIC)).astype(np.float32)
+    qm = Image.new("L", im.size, 0)
+    ImageDraw.Draw(qm).polygon([tuple(tl), tuple(tr), tuple(br), tuple(bl)], fill=255)
+    quad = np.asarray(qm) > 0
+    card = green & ndimage.binary_dilation(quad, iterations=3)
+    hull = hull | card
+    shade = np.clip(g / max(np.percentile(g[card], 92), 1.0), 0.72, 1.0)
+    mix = (ndimage.gaussian_filter(card.astype(np.float32), 0.8) * hull)[..., None]
+    out = a * (1 - mix) + warped * shade[..., None] * mix
+    near = ndimage.binary_dilation(quad, iterations=5)
+    rest = near & (out[..., 1] > out[..., 0] + 12) & (out[..., 1] > out[..., 2] + 8)
+    inside = rest & ndimage.binary_dilation(quad, iterations=2)
+    out[inside] = warped[inside] * shade[inside][..., None]
+    outside = rest & ~inside
+    out[..., 1][outside] = np.maximum(out[..., 0], out[..., 2])[outside]
+    od = os.path.join(d, "input", "held")
+    os.makedirs(od, exist_ok=True)
+    Image.fromarray(out.clip(0, 255).astype(np.uint8)).save(os.path.join(od, f"{name}.png"))
+    qm.save(os.path.join(od, f"{name}.quad.png"))
+    with open(os.path.join(od, f"{name}.source.json"), "w") as f:
+        json.dump({"schema": "mediamake.source/v1", "tool": "thumbs swap", "generated": o["gen"], "picture": o["pic"],
+                   "card": [list(map(int, p)) for p in (tl, tr, br, bl)]}, f, indent=1)
+    print(f"✔ input/held/{name}.png  (the real picture on the card; look at its edges)")
+
+
+def solid(o):
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+    d, name = o["dir"], o["name"]
+    q = np.asarray(Image.open(os.path.join(d, "input", "held", f"{name}.quad.png")).convert("L")) > 0
+    p = os.path.join(d, "cutouts", f"{name}.png")
+    cut = np.asarray(Image.open(p).convert("RGBA")).astype(np.float32)
+    inner = ndimage.binary_erosion(q, iterations=1)
+    cut[..., 3][inner] = 255
+    ring = ndimage.binary_dilation(q, iterations=12) & ~inner
+    gr = ring & (cut[..., 1] > cut[..., 0] + 4) & (cut[..., 1] > cut[..., 2])
+    cut[..., 1][gr] = np.maximum(cut[..., 0], cut[..., 2])[gr]
+    Image.fromarray(cut.clip(0, 255).astype(np.uint8)).save(p)
+    print(f"✔ cutouts/{name}.png  (the held picture kept solid)")
+
+
 if __name__ == "__main__":
-    {"shot": shot, "logo": logo}[sys.argv[1]](opts(sys.argv[2:]))
+    {"shot": shot, "logo": logo, "swap": swap, "solid": solid}[sys.argv[1]](opts(sys.argv[2:]))

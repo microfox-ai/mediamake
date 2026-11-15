@@ -14,6 +14,7 @@
  *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
  *        mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h] [--width=1440 --height=900 --scale=2]
  *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
+ *        mm thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]
  *
  *   init     makes the job folder; with --brand copies the brand's logos, fonts and thumbnail
  *            profile (brands/<brand>/graphics/brand/thumbnail.json) into it
@@ -38,6 +39,9 @@
  *            Chrome with a throwaway profile → input/shots/<name>.png + its source
  *   logo     an official logo from Wikimedia Commons → assets/logos/<name>.png + its page and licence
  *            (thumbnails/tools/kit.py)
+ *   swap     a generated host (a mascot, a hand) holding a chroma-green card gets the real picture on
+ *            the card, warped and lit like it → input/held/<name>.png, then its cutout with the
+ *            picture kept solid → cutouts/<name>.png
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -638,9 +642,24 @@ const kitTool = (sub: 'shot' | 'logo') => {
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 
+/** The real product in a generated host's hands: swap it onto the green card, cut the pair out, keep the product solid. */
+const swapTool = () => {
+  const pic = args.filter(a => !a.startsWith('--'))[3];
+  const name = flag('name');
+  if (!third || !pic || !name) throw new Error('Usage: thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]');
+  const py = (deps: string[], ...a: string[]) => {
+    const r = spawnSync('uv', ['run', '--quiet', ...deps.flatMap(d => ['--with', d]), 'python', ...a], { cwd: ROOT, stdio: 'inherit' });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+  };
+  const abs = (f: string) => (path.isAbsolute(f) ? f : path.resolve(process.cwd(), f));
+  py(['numpy', 'scipy', 'pillow'], 'thumbnails/tools/kit.py', 'swap', `--dir=${jobDir(job)}`, `--gen=${abs(third)}`, `--pic=${abs(pic)}`, `--name=${name}`);
+  py(['rembg[cpu]', 'scipy', 'pillow'], 'thumbnails/tools/cutout.py', job, `input/held/${name}.png`, `--model=${flag('model') ?? 'birefnet-general'}`);
+  py(['numpy', 'scipy', 'pillow'], 'thumbnails/tools/kit.py', 'solid', `--dir=${jobDir(job)}`, `--name=${name}`);
+};
+
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo <job> … | mm thumbs inspire <set> @channel…');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|swap <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -652,6 +671,7 @@ const main = async () => {
   else if (cmd === 'canvas') await canvas();
   else if (cmd === 'inspire') inspire();
   else if (cmd === 'shot' || cmd === 'logo') kitTool(cmd);
+  else if (cmd === 'swap') swapTool();
   else throw new Error(`Unknown command ${cmd}`);
 };
 

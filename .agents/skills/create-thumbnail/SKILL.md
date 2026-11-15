@@ -156,6 +156,13 @@ use ("The kit"); for most kinds:
   <job> "<name> logo"` (Wikimedia Commons, with its licence) or the maker's press kit;
 - **the channel's own pieces**: its logo, series frame and signature object.
 
+**A host holding the real product** (a mascot presenting a cover, a hand holding a phone): generate
+the host holding *a solid bright chroma-key green card* (Midjourney with the mascot's reference as
+`--oref`, which needs `--v 7`), then `mm thumbs swap <job> <generated.png> <real picture>
+--name=<n>` puts the real picture on the card (warped, lit like it, hands kept in front), cuts the
+pair out and keeps the product solid. A plain white card does not work: it is lost in its own
+shading and confused with anything white (a chef's hat).
+
 Lay the kit out on one sheet and look at it before sketching. A board without the screenshot, logo
 or cutout that the kind's hits are built from is not ready to show.
 

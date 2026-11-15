@@ -73,6 +73,8 @@ search for, never a pun alone. The series' frame (tag, logo, ground, one accent 
 ## Build notes
 
 - Fetch the tool's official logo (SKILL.md, "Logos") and keep it whole and unrecoloured.
+- A mascot host presents the real output through `mm thumbs swap` (SKILL.md, step 2): several
+  poses (pointing, holding it up, a thumbs up beside it, serving it), the output on its green card.
 - A UI slice is an `image` layer of a real screenshot with `radius` and `shadow`, tilted a few
   degrees at most; crop to the one control the video is about, never a whole window.
 - A series (a course, a weekly show) sets its frame once (SKILL.md, "Series") and changes only the
