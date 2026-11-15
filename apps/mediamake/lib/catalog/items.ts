@@ -34,13 +34,15 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     id: 'app/studio',
     kind: 'app',
     title: 'MediaMake Core',
-    summary: 'Create, render and manage video projects with presets, workers and AI agents. Sign in to use it.',
+    summary: 'Deprecated. The older editor, presets, media, transcriber, workers and agents. Nothing links to it any more: it opens by its address.',
     visibility: 'public',
     openToAll: true,
     status: 'live',
-    href: '/core/projects',
+    href: '/core',
     tags: ['video', 'render'],
     releasedAt: '2025-09-01',
+    // Core is deprecated: archived keeps its card off the homepage and the lists
+    archivedAt: '2026-11-15',
   },
   {
     id: 'app/remotion-editor',
@@ -172,7 +174,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     neverPublish: true,
     status: 'beta',
     // the card opens the step-by-step page for connecting it
-    href: '/core/mediamake-mcp',
+    href: '/app/mediamake-mcp',
     tags: ['mcp', 'claude', 'deprecated'],
     releasedAt: '2026-10-24',
     install: {
@@ -184,7 +186,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
           'Claude Code: run /mcp, pick mediamake and sign in to MediaMake in the browser window that opens, then click Allow.',
           'The Claude apps: the connector asks them to sign in to MediaMake and click Allow when they first use it.',
         ],
-        guide: `${MEDIAMAKE_SITE}/core/mediamake-mcp`,
+        guide: `${MEDIAMAKE_SITE}/app/mediamake-mcp`,
       },
       notes:
         "Deprecated: only for the old video pipeline. Hosted on MediaMake: nothing runs on their computer, and it can't read or write their files (bring media in by https link). It signs in with their MediaMake account, no API key.",

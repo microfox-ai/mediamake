@@ -509,7 +509,7 @@ export function NewVideoItemDialog({
           </DialogDescription>
         </DialogHeader>
         <VideoFields itemId={id} draft={draft} onChange={setDraft} withUrl={kind === 'tutorial'} />
-        <Field label="Id" htmlFor="new-video-slug" error={slugError} hint={`Its page: /core/releases/${kind}/${finalSlug || '…'}`}>
+        <Field label="Id" htmlFor="new-video-slug" error={slugError} hint={`Its page: /app/releases/${kind}/${finalSlug || '…'}`}>
           <div className={cn('flex items-center rounded-md border pl-3 text-sm', slugError && 'border-destructive')}>
             <span className="font-mono text-muted-foreground">{kind}/</span>
             <input

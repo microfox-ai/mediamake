@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { MediaProvider } from '@/components/editor/media/media-context';
 import { SessionProvider } from '@/components/session-provider';
 import { LocalMediaProvider } from '@/components/local-media/local-media-provider';
+import { CoreDeprecatedBanner } from '@/components/core/deprecated-banner';
 
 
 export const metadata: Metadata = {
@@ -30,7 +31,10 @@ export default function RootLayout({
           }
         >
           <AppSidebar variant="inset" />
-          {children}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <CoreDeprecatedBanner />
+            {children}
+          </div>
         </SidebarProvider>
         </LocalMediaProvider>
       </MediaProvider>

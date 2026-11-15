@@ -10,7 +10,7 @@ metadata:
 **Every skill in this repo is public.** Nothing about a skill is hidden: its files live in
 `.agents/skills/<name>/` (committed) and `.claude/skills/<name>` is a committed symlink to them,
 so the skill loads for anyone who opens the repo in Claude Code and shows on GitHub. Apps and MCPs
-are the gated ones (`private/` and the catalog releases at `/core/releases`); skills never go
+are the gated ones (`private/` and the catalog releases at `/app/releases`); skills never go
 through a gate.
 
 **We publish nothing we don't use.** A skill is published only once something real was made with
@@ -113,7 +113,7 @@ one) whose "Made with this" section names the production. The user's checkout, b
 touched, so it is safe on main. `--no-push` keeps the commit on a local branch instead.
 
 Give the user the PR link, and once it merges the skill's release page,
-`https://mediamake.microfox.app/core/releases/skill/<name>`. The skill enters as Beta; an admin
+`https://mediamake.microfox.app/app/releases/skill/<name>`. The skill enters as Beta; an admin
 marks it Ready with that same production (`catalog_set_readiness`, or
 `npm run catalog -- ready skill/<name> --proof "<title>" --url <link>`), and its page
 (`/skills/<name>`) then shows it under "Made with this". Their own copy keeps loading until they

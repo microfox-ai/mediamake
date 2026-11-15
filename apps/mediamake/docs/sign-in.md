@@ -23,7 +23,7 @@ How people sign in to MediaMake, and what a deployment needs for it. Code: `lib/
 | `/login/forgot`, `/login/reset` | A mailed link sets a new password and signs the other browsers out. Also sets a first password for a Google or GitHub account. |
 | `/login/link` | After Google or GitHub, when no account has that identity: make a new account, or link an old one by its client id and key. |
 | `/login/claim` | The one-time link an admin sends the owner of an old account: pick Google or GitHub and it is linked. |
-| `/core/login` | Core's form: a client id and key, plus Google. Core pages send signed-out people here. |
+| `/core/login` | Core's form: a client id and key, plus Google. Core pages send signed-out people here. Core is deprecated, so no page links to it. |
 
 ## Old accounts (a client id and keys, no user record)
 

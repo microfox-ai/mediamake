@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 /**
- * Signed-in devices for the /core/devices page (see lib/auth/devices). Behind
+ * Signed-in devices for the /app/devices page (see lib/auth/devices). Behind
  * the middleware, so x-client-id is the signed-in client. Keep this route's
  * path clear of "session…": the middleware skips those, and then anyone could
  * send their own x-client-id.

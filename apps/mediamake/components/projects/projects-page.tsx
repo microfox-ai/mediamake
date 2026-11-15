@@ -53,7 +53,11 @@ interface Project {
 
 type Tab = "all" | "owned" | "shared";
 
-export default function ProjectsPage() {
+// The timeline editor is still Core's (deprecated). Opening a project is the app's one way into it,
+// until Projects is rebuilt on ProjectSync.
+const CORE_EDITOR = "/core/editor";
+
+export function ProjectsPage() {
   const router = useRouter();
   const session = useSession();
   const [projects, setProjects] = React.useState<Project[]>([]);
@@ -100,7 +104,7 @@ export default function ProjectsPage() {
     );
   }
 
-  const open = (id: string) => router.push(`/core/editor?id=${id}`);
+  const open = (id: string) => router.push(`${CORE_EDITOR}?id=${id}`);
 
   return (
     <SidebarInset>

@@ -50,7 +50,7 @@
  *   archive <itemId> [<itemId>...] [--off] [--note "..."]   (left off the homepage, still installs by its
  *                                                     link; any item, a skill from the repo too)
  *
- * Each step prints the item's release page, <MEDIAMAKE_URL>/core/releases/<kind>/<slug>
+ * Each step prints the item's release page, <MEDIAMAKE_URL>/app/releases/<kind>/<slug>
  * (what it is, who can open it, where it lives): give that link to whoever you release for.
  */
 
@@ -149,7 +149,7 @@ function fail(message: string): never {
  * printed after each step: pass it on to the person you are releasing for.
  */
 function page(itemId: string, anchor?: string) {
-  return `   🔗 ${BASE_URL}/core/releases/${itemId}${anchor ? `#${anchor}` : ''}`;
+  return `   🔗 ${BASE_URL}/app/releases/${itemId}${anchor ? `#${anchor}` : ''}`;
 }
 
 async function admin<T = any>(body: Record<string, unknown>): Promise<T> {
@@ -440,7 +440,7 @@ async function main() {
       });
       const lasts = !membership ? '' : membership.permanent ? ', permanent' : membership.expiresAt ? `, until ${membership.expiresAt.slice(0, 10)}` : ', until an admin removes it';
       console.log(`✅ ${clientId} is ${membership ? `${membership.tier} (${membership.source}${lasts})` : 'public'}`);
-      return console.log(`   🔗 ${BASE_URL}/core/releases?tab=people`);
+      return console.log(`   🔗 ${BASE_URL}/app/releases?tab=people`);
     }
 
     case 'members': {
@@ -457,7 +457,7 @@ async function main() {
       for (const group of groups.filter(g => ['private', 'network'].includes(g.groupId) && g.members.length)) {
         console.log(`earlier group ${group.groupId}: ${group.members.join(', ')}  (run migrate-tiers)`);
       }
-      return console.log(`\n🔗 ${BASE_URL}/core/releases?tab=people`);
+      return console.log(`\n🔗 ${BASE_URL}/app/releases?tab=people`);
     }
 
     case 'migrate-tiers': {
@@ -570,7 +570,7 @@ async function main() {
         const redeemed = invite.redeemedBy.map((r: any) => r.clientId).join(', ');
         console.log(`invite ${invite.code}: ${[...invite.itemIds, invite.tier ?? invite.groupId].filter(Boolean).join(', ')}  ${invite.uses}/${invite.maxUses} used${redeemed ? `  by ${redeemed}` : ''}`);
       }
-      return console.log(`\nEvery item, with what it is and where it lives: ${BASE_URL}/core/releases`);
+      return console.log(`\nEvery item, with what it is and where it lives: ${BASE_URL}/app/releases`);
     }
 
     case 'init':

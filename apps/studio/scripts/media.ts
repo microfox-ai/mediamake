@@ -195,7 +195,7 @@ const cloudCommand = async () => {
   const url = (flag('url') ?? cloudUrl())?.replace(/\/+$/, '');
   if (!url) throw new Error('Which MediaMake site? media cloud login --url=https://<your MediaMake site>');
   if (op === 'login') {
-    const key = await readSecret(`API key for ${url} (from ${url}/core/api-keys; it isn't shown): `);
+    const key = await readSecret(`API key for ${url} (from ${url}/app/api-keys; it isn't shown): `);
     if (!key) throw new Error('No key given');
     const projects = await connect({ url, key }).get<unknown[]>('/api/project');
     saveKeychainKey(url, key);

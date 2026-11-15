@@ -106,10 +106,10 @@ is shown as made by its upstream and installs on its own.
 ## Seeing what is what: the release pages
 
 Releases are mostly done by Claude, from a terminal; the dashboard is where
-to look. **`/core/releases`** opens on **Items**: every item by kind, with
+to look. **`/app/releases`** opens on **Items**: every item by kind, with
 who can open it, where it comes from and what it connects to. Each item has
-its own page, **`/core/releases/<kind>/<slug>`** (e.g.
-`/core/releases/mcp/browse-hack`), that answers everything about it on one
+its own page, **`/app/releases/<kind>/<slug>`** (e.g.
+`/app/releases/mcp/browse-hack`), that answers everything about it on one
 screen:
 
 - **What installing it does**: the plan install.md follows, step by step,
@@ -156,13 +156,13 @@ without one it is YouTube's, `https://img.youtube.com/vi/<id>/maxresdefault.jpg`
 (swapped for `hqdefault.jpg` on videos too old to have a maxres one).
 
 - **A skill's intro** (or an MCP's or app's): paste its YouTube link under
-  **Intro video** on its release page, e.g. `/core/releases/skill/pack-brand-kit`.
+  **Intro video** on its release page, e.g. `/app/releases/skill/pack-brand-kit`.
   It plays on the item's page (`/access?item=skill/pack-brand-kit`), and its
   thumbnail tops the item's card on the homepage. Like the archive, videos are
   kept apart from the items (`catalog_videos`, keyed by item id), so a skill
   from the repo gets one without being stored as an item.
 - **Tutorials** (`tutorial/<slug>`): one YouTube video each, added with **New
-  tutorial** on `/core/releases`. A tutorial is its video: its card takes the
+  tutorial** on `/app/releases`. A tutorial is its video: its card takes the
   video's title and the first paragraph of its description. It plays on
   `/access?item=tutorial/<slug>`.
 - **Courses** (`course/<slug>`): tutorials played in order, added with **New
@@ -222,7 +222,7 @@ There is one ladder, and it is data: `TIER_LADDER` in
 `lib/memberships/tiers.ts`. It is strict: each tier opens everything the tiers
 below it open, so access is one comparison (`tierOpens(held, needed)`). An
 item names the lowest tier that opens it, and a person holds one tier. Adding
-a tier is adding a row there. The admin dashboard at **`/core/releases`**
+a tier is adding a row there. The admin dashboard at **`/app/releases`**
 shows both and is where you move things along; the CLI below does the same
 from a terminal.
 

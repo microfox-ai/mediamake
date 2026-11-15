@@ -91,7 +91,7 @@ from the library in `~/.mediamake/config.json` (`MEDIAMAKE_CONFIG` points at ano
 The registry is the one list of skills: `tools/skills.mjs` writes it from each SKILL.md's
 frontmatter (`check` fails when it is stale, in CI too), and the app imports it
 (`lib/skills/registry.ts`) for the skill pages (`/skills/<name>`), this page, the catalog's skill cards and the Public
-column of `/core/releases`. A
+column of `/app/releases`. A
 variant says `variant-of`, and `forked-from: <base>@<commit>` when `fork` made it;
 `node tools/skills.mjs diff <variant>` shows what it changed against its base at the fork and what
 the base changed since. Runs come from the `PostToolUse` hook on `Skill`

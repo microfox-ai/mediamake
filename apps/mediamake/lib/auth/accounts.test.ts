@@ -459,14 +459,14 @@ describe('Google and GitHub', () => {
     assert.equal(await core.whoAmI(), 'alice');
 
     const next = new Browser();
-    assert.equal((await next.oauth('google', { id: 'g-alice', email: 'alice@example.com' })).location, '/');
+    assert.equal((await next.oauth('google', { id: 'g-alice', email: 'alice@example.com' })).location, '/app');
     assert.equal(await next.whoAmI(), 'alice');
   });
 
   it('adds a provider to the account that already has its verified email', async () => {
     const { clientId } = await signUp(new Browser(), 'dana@example.com');
     const browser = new Browser();
-    assert.equal((await browser.oauth('github', { id: '42', login: 'dana', email: 'dana@example.com' })).location, '/');
+    assert.equal((await browser.oauth('github', { id: '42', login: 'dana', email: 'dana@example.com' })).location, '/app');
     assert.equal(await browser.whoAmI(), clientId);
     const user = users.get(clientId)!;
     assert.deepEqual([user.githubId, user.githubLogin], ['42', 'dana']);
@@ -522,7 +522,7 @@ describe('Google and GitHub', () => {
     await signUp(new Browser(), 'dana@example.com');
     for (const target of ['https://evil.example/x', '//evil.example/x', '/\\evil.example']) {
       const { location } = await new Browser().oauth('google', { id: 'g-1', email: 'dana@example.com' }, `?redirectTo=${encodeURIComponent(target)}`);
-      assert.equal(location, '/');
+      assert.equal(location, '/app');
     }
   });
 });
@@ -541,7 +541,7 @@ describe('a signed-in person’s sign-in methods', () => {
     assert.deepEqual(before.body.providers, { google: true, github: true });
 
     const { location } = await browser.oauth('google', { id: 'g-bob', email: 'bob@example.com' }, '?connect=1');
-    assert.equal(location, '/core/api-keys?connected=google');
+    assert.equal(location, '/app/api-keys?connected=google');
     assert.deepEqual([users.get('bob')!.googleAccounts, users.get('bob')!.email], [[{ id: 'g-bob', email: 'bob@example.com' }], 'bob@example.com']);
 
     // A password needs an email, which Google gave; a second address goes through a mailed link.
@@ -581,7 +581,7 @@ describe('a signed-in person’s sign-in methods', () => {
     const bob = await core('bob');
     for (const [provider, id] of [['google', 'g-alice'], ['github', '1']] as const) {
       const taken = await bob.oauth(provider, { id }, '?connect=1');
-      assert.match(decodeURIComponent(taken.location), /^\/core\/api-keys\?error=That (Google|GitHub) account is already linked to another MediaMake account\./);
+      assert.match(decodeURIComponent(taken.location), /^\/app\/api-keys\?error=That (Google|GitHub) account is already linked to another MediaMake account\./);
     }
     assert.equal(users.get('bob')?.googleAccounts, undefined);
 
@@ -594,7 +594,7 @@ describe('a signed-in person’s sign-in methods', () => {
     const alice = await core('alice');
     await alice.oauth('google', { id: 'g-work', email: 'alice@work.example' }, '?connect=1');
     const again = await alice.oauth('google', { id: 'g-home', email: 'alice@home.example' }, '?connect=1');
-    assert.equal(again.location, '/core/api-keys?connected=google');
+    assert.equal(again.location, '/app/api-keys?connected=google');
     // Linking the same one twice changes nothing.
     await alice.oauth('google', { id: 'g-home', email: 'alice@home.example' }, '?connect=1');
     const account = (await alice.get(routes.accountGet, '/api/auth/account')).body.account as { googleAccounts: unknown };
@@ -606,7 +606,7 @@ describe('a signed-in person’s sign-in methods', () => {
 
     for (const id of ['g-work', 'g-home']) {
       const browser = new Browser();
-      assert.equal((await browser.oauth('google', { id })).location, '/');
+      assert.equal((await browser.oauth('google', { id })).location, '/app');
       assert.equal(await browser.whoAmI(), 'alice');
     }
 
@@ -621,7 +621,7 @@ describe('a signed-in person’s sign-in methods', () => {
   it('reads a record that stores one Google id the old way, and moves it into the list', async () => {
     users.set('alice', { clientId: 'alice', googleId: 'g-old', createdAt: 'then', updatedAt: 'then' });
     const browser = new Browser();
-    assert.equal((await browser.oauth('google', { id: 'g-old' })).location, '/');
+    assert.equal((await browser.oauth('google', { id: 'g-old' })).location, '/app');
     assert.equal(await browser.whoAmI(), 'alice');
     const taken = await (await core('bob')).oauth('google', { id: 'g-old' }, '?connect=1');
     assert.match(decodeURIComponent(taken.location), /already linked to another MediaMake account/);
@@ -649,7 +649,7 @@ describe('a signed-in person’s sign-in methods', () => {
     const bob = await core('bob');
     const forged = await bob.post(routes.account, '/api/auth/account', { action: 'name', name: 'X' }, { origin: 'https://evil.example' });
     assert.equal(forged.status, 403);
-    assert.equal((await bob.oauth('google', { id: 'g-1' }, '?connect=1')).location.startsWith('/core/api-keys?connected'), true);
+    assert.equal((await bob.oauth('google', { id: 'g-1' }, '?connect=1')).location.startsWith('/app/api-keys?connected'), true);
     const signedOut = await new Browser().get(routes.start, '/api/auth/google/start?connect=1', { params: Promise.resolve({ provider: 'google' }) });
     assert.equal(new URL(signedOut.location!).pathname, '/login');
   });
@@ -673,7 +673,7 @@ describe('admins', () => {
     assert.equal((await routes.adminPost(asClient('admin', 'POST', { clientId: 'bob', email: 'alice@example.com' }))).status, 409);
 
     const google = new Browser();
-    assert.equal((await google.oauth('google', { id: 'g-alice', email: 'alice@example.com' })).location, '/');
+    assert.equal((await google.oauth('google', { id: 'g-alice', email: 'alice@example.com' })).location, '/app');
     assert.equal(await google.whoAmI(), 'alice');
 
     const browser = new Browser();
@@ -701,7 +701,7 @@ describe('admins', () => {
     assert.match(decodeURIComponent(wrong.location), /^\/login\?error=That Google account is already linked/);
 
     const alice = new Browser();
-    assert.equal((await alice.oauth('github', { id: '5', login: 'alice', email: 'alice@example.com' }, claim)).location, '/');
+    assert.equal((await alice.oauth('github', { id: '5', login: 'alice', email: 'alice@example.com' }, claim)).location, '/app');
     assert.equal(await alice.whoAmI(), 'alice');
     assert.deepEqual([users.get('alice')!.githubLogin, users.get('alice')!.email], ['alice', 'alice@example.com']);
 
@@ -712,7 +712,7 @@ describe('admins', () => {
     assert.equal(await reused.whoAmI(), null);
 
     const next = new Browser();
-    assert.equal((await next.oauth('github', { id: '5', login: 'alice' })).location, '/');
+    assert.equal((await next.oauth('github', { id: '5', login: 'alice' })).location, '/app');
     assert.equal(await next.whoAmI(), 'alice');
   });
 

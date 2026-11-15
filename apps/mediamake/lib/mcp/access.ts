@@ -10,7 +10,7 @@ export async function canUseConnector(kind: McpConnector, clientId: string): Pro
   return mayUseConnector(kind, entitlements, item);
 }
 
-/** The old MediaMake MCP's item: what /core/mediamake-mcp reads. */
+/** The old MediaMake MCP's item: what /app/mediamake-mcp reads. */
 export const HOSTED_MCP_ITEM = MCP_CONNECTORS.legacy.item;
 
 export function mayUseHostedMcp(entitlements: Entitlements, item: GatedItem | null): boolean {

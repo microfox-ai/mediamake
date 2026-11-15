@@ -42,9 +42,11 @@ The site has a public side and a signed-in side.
 
 - **`/`** is the homepage and catalog: MCPs, skills, apps and tutorials, each with an install prompt.
 - **`/apps`** is the launcher for every app below, with the ones you can open marked.
-- **`/core/...`** is MediaMake Core (sign in): projects, the editor, presets, media, the transcriber,
-  render history, workers, agents, API keys, billing and quota. Admins also get
-  **`/core/releases`**, the release dashboard (see below).
+- **`/app/...`** is the signed-in app, behind **Enter App**: Home, Explore, Mine and Projects (Plus and
+  above), then your API keys, signed-in devices and membership. Admins also get **`/app/releases`**, the
+  release dashboard (see below), the MediaMake MCP page, billing and memberships.
+- **`/core/...`** is MediaMake Core, deprecated: the older editor, presets, media, the transcriber,
+  render history, workers, agents and quota. It still works by its address, but nothing links to it.
 - **Review and browser apps**, open to everyone: `/remotion-editor` (edit lyric videos in the
   browser), `/video-revision` and `/file-revision` (comment on renders and image sets, track
   revisions), `/skill-library` (browse the skills on your computer with their variants and the
@@ -87,7 +89,7 @@ or **Ready** (proven by a finished production) and has a health (a failed one sa
 
 - **Install an item**: open its card on the homepage (or `/access?item=<kind>/<name>`), copy the install
   prompt and paste it into Claude. Claude follows [install.md](install.md).
-- **Release and share** (admins): `/core/releases` shows a board per tier (skills always sit in Public), the release timeline,
+- **Release and share** (admins): `/app/releases` shows a board per tier (skills always sit in Public), the release timeline,
   people per tier and per-item access. From the terminal: `npm run catalog` in `apps/mediamake`.
   See [catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
 

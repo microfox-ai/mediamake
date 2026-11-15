@@ -15,7 +15,7 @@ import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, ty
 
 /**
  * GET /api/admin/catalog/item?id=mcp/browse-hack
- * One item as its release page shows it (/core/releases/<kind>/<slug>): the
+ * One item as its release page shows it (/app/releases/<kind>/<slug>): the
  * record, where it is defined, whether it is archived, its health mark, its Ready mark with
  * its proof, the grants that reach it, how many people hold each membership, what installing it does (the plan an admin would get,
  * everything shared, no package links), what needs or uses it, and its

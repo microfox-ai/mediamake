@@ -1,11 +1,13 @@
 import type { NextConfig } from 'next';
 import packageJson from './package.json';
 
-// Top-level folders of app/core: the signed-in app with the sidebar, the
-// editor, admin tools and the agent studio.
+import { MOVED_FROM_CORE } from './lib/app-shell/moved';
+
+// Top-level folders of app/core (deprecated): the old signed-in pages with
+// their sidebar, the editor and the agent studio.
 const CORE_PAGES = [
-  'agents', 'api-keys', 'billing', 'dashboard', 'dev', 'history', 'image-history',
-  'media', 'midjourney', 'midjourney-queue', 'player', 'presets', 'projects', 'quota',
+  'agents', 'dashboard', 'dev', 'history', 'image-history',
+  'media', 'midjourney', 'midjourney-queue', 'player', 'presets', 'quota',
   'studio-3d', 'transcriber', 'video-history', 'workers', 'youtube-splits',
   'editor', 'preset-batch-creator', 'studio',
 ];
@@ -23,13 +25,24 @@ const nextConfig: NextConfig = {
     maxInactiveAge: 60 * 60 * 1000,
     pagesBufferLength: 100,
   },
-  // Signed-in pages moved under /core; keep old links and bookmarks working.
+  // Keep old links and bookmarks working: the pages that moved from Core into
+  // the app at /app (from /core/<page> and the older /<page>), and the pages
+  // that once sat at the top level and are still in Core.
   async redirects() {
-    return CORE_PAGES.map((page) => ({
-      source: `/${page}/:path*`,
-      destination: `/core/${page}/:path*`,
-      permanent: false,
-    }));
+    return [
+      ...MOVED_FROM_CORE.flatMap((page) =>
+        [`/core/${page}`, `/${page}`].map((from) => ({
+          source: `${from}/:path*`,
+          destination: `/app/${page}/:path*`,
+          permanent: false,
+        })),
+      ),
+      ...CORE_PAGES.map((page) => ({
+        source: `/${page}/:path*`,
+        destination: `/core/${page}/:path*`,
+        permanent: false,
+      })),
+    ];
   },
   experimental: {
     optimizePackageImports: ['lucide-react', '@tabler/icons-react'],

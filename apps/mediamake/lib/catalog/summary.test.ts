@@ -45,7 +45,7 @@ describe('summarize', () => {
       origin: 'Our package · v0.8.0',
       uses: [],
       usedBy: ['skill/kit'],
-      page: '/core/releases/mcp/pack',
+      page: '/app/releases/mcp/pack',
     });
     assert.equal(skillLine.tier, 'public');
     assert.equal(skillLine.origin, 'Skill in the repo');

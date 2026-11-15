@@ -66,7 +66,7 @@ API key when an earlier option applies.
    item's page on `$MEDIAMAKE_URL`, sign in, click **Copy** on the install
    prompt again and paste it to you; use the install code in it. (People
    who want to keep an API key for later can copy theirs from
-   `$MEDIAMAKE_URL/core/api-keys` instead; save it to
+   `$MEDIAMAKE_URL/app/api-keys` instead; save it to
    `~/.mediamake/config.json` as `{ "url": "<MEDIAMAKE_URL>", "apiKey": "<key>" }`
    and `chmod 600` it.)
 
@@ -309,7 +309,7 @@ maker); name the maker when you tell them about it, and show `notes` if set.
      _Ask_ them to click **Install** and fill in any settings it asks for
      (MediaMake URL: `$MEDIAMAKE_URL`; a MediaMake API key only if it
      is required: the key from step 2 if it gave you one, otherwise from
-     `$MEDIAMAKE_URL/core/api-keys`; never the install code). For Claude
+     `$MEDIAMAKE_URL/app/api-keys`; never the install code). For Claude
      Code, unzip the bundle into `~/.mediamake/mcp/<slug>/` (not the working
      folder, which is deleted at the end; on an update, replace that folder's
      contents), read its `manifest.json`, and add the server for all their

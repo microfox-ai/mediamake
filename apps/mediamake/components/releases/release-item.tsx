@@ -21,7 +21,7 @@ import { ReadinessButton } from './proof-dialog';
 import { CoursePanel, VideoPanel } from './video-panel';
 
 /**
- * One catalog item's release page (/core/releases/<kind>/<slug>): what it is,
+ * One catalog item's release page (/app/releases/<kind>/<slug>): what it is,
  * who can open it, where it lives, what installing it does, what it needs and
  * what uses it, its video, and its history. Its actions are Archive /
  * Unarchive, marking it Ready with what was made with it (proof-dialog) and
@@ -147,7 +147,7 @@ export function ReleaseItem({ id }: { id: string }) {
           <h2 className="text-lg font-semibold">{title}</h2>
           <p className="text-sm text-muted-foreground">{body}</p>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/core/releases">All releases</Link>
+            <Link href="/app/releases">All releases</Link>
           </Button>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function ReleaseItem({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
-      <Link href="/core/releases" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/app/releases" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Releases
       </Link>
 
@@ -697,7 +697,7 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier;
               {grants.length} grant{grants.length === 1 ? '' : 's'} reach it
             </span>
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/core/releases?access=${encodeURIComponent(item.id)}`}>Manage access</Link>
+              <Link href={`/app/releases?access=${encodeURIComponent(item.id)}`}>Manage access</Link>
             </Button>
           </div>
         )

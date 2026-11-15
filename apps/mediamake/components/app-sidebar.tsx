@@ -62,11 +62,6 @@ const data = {
   },
   navMain: [
     {
-      title: "Projects",
-      url: "/core/projects",
-      icon: <FolderIcon />,
-    },
-    {
       title: "Editor",
       url: "/core/editor",
       icon: <FilmIcon />,
@@ -110,31 +105,6 @@ const data = {
       title: "Image Render History",
       url: "/core/image-history",
       icon: <ListIcon />,
-    },
-    {
-      title: "API Keys",
-      url: "/core/api-keys",
-      icon: <KeyIcon />,
-    },
-    {
-      title: "Signed-in Devices",
-      url: "/core/devices",
-      icon: <MonitorSmartphoneIcon />,
-    },
-    {
-      title: "MediaMake MCP",
-      url: "/core/mediamake-mcp",
-      icon: <PlugIcon />,
-    },
-    {
-      title: "Releases",
-      url: "/core/releases",
-      icon: <RocketIcon />,
-    },
-    {
-      title: "Billing",
-      url: "/core/billing",
-      icon: <CreditCardIcon />,
     },
     {
       title: "Transcriber",
@@ -294,7 +264,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <img src={"https://microfox.app/logo-mini-color.png"} alt={StudioConfig.appName} className="w-6 h-6" />
-                <span className="text-base font-semibold">{StudioConfig.appName}</span>
+                <span className="truncate text-base font-semibold">Core</span>
+                <span className="ml-auto shrink-0 rounded-md border border-amber-500/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                  Deprecated
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

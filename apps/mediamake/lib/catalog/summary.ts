@@ -36,13 +36,13 @@ export interface ItemSummary {
   uses: string[];
   /** Ids of the items that need or use it. */
   usedBy: string[];
-  /** Its release page, e.g. /core/releases/mcp/browse-hack. */
+  /** Its release page, e.g. /app/releases/mcp/browse-hack. */
   page: string;
 }
 
-/** An item's release page: /core/releases/mcp/browse-hack. Release commands print it too. */
+/** An item's release page: /app/releases/mcp/browse-hack. Release commands print it too. */
 export function itemPath(id: string) {
-  return `/core/releases/${id}`;
+  return `/app/releases/${id}`;
 }
 
 /**
