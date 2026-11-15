@@ -43,3 +43,13 @@ export function installPromptFor(itemId: string, installCode?: string): string {
     `${installCode ? ` with install code ${installCode}` : ''} by following ${INSTALL_GUIDE_URL}`
   );
 }
+
+/** The setup-mediamake skill: what the site's "Setup MediaMake" prompt has Claude follow. */
+export const SETUP_GUIDE_URL = 'https://github.com/microfox-ai/mediamake/blob/main/.agents/skills/setup-mediamake/SKILL.md';
+
+/**
+ * The one-line prompt that sets MediaMake up on a computer end to end (the repo, its dependencies,
+ * the workspace, the media library, optional MCPs and cleanups). Pasted into Claude Code or any
+ * Claude that can run commands on the person's computer.
+ */
+export const SETUP_PROMPT = `Set up MediaMake on this computer (the repo, its dependencies, workspace, media library and cleanups) by following ${SETUP_GUIDE_URL}`;
