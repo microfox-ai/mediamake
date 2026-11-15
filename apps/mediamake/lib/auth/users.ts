@@ -16,6 +16,9 @@ export interface User {
   emailVerifiedAt?: string;
   /** See lib/auth/password.ts. */
   passwordHash?: string;
+  /** Every Google account that signs in to this account. */
+  googleAccounts?: GoogleAccount[];
+  /** Records from before an account could have several: one Google id. Read with googleAccountsOf. */
   googleId?: string;
   githubId?: string;
   githubLogin?: string;
@@ -26,6 +29,20 @@ export interface User {
   lastLoginAt?: string;
 }
 
+export interface GoogleAccount {
+  /** Google's own id for the account. */
+  id: string;
+  /** Shown so the person can tell their accounts apart. */
+  email?: string;
+}
+
+/** A user's Google accounts, whichever way the record stores them. */
+export function googleAccountsOf(user: Pick<User, 'googleAccounts' | 'googleId'>): GoogleAccount[] {
+  const accounts = [...(user.googleAccounts ?? [])];
+  if (user.googleId && !accounts.some(a => a.id === user.googleId)) accounts.unshift({ id: user.googleId });
+  return accounts;
+}
+
 /** What the website may show of a user: never the password hash. */
 export interface PublicUser {
   clientId: string;
@@ -33,6 +50,7 @@ export interface PublicUser {
   name?: string;
   avatarUrl?: string;
   githubLogin?: string;
+  googleAccounts: GoogleAccount[];
   methods: { password: boolean; google: boolean; github: boolean };
   createdAt?: string;
   lastLoginAt?: string;
@@ -45,7 +63,8 @@ export function publicUser(user: User): PublicUser {
     name: user.name,
     avatarUrl: user.avatarUrl,
     githubLogin: user.githubLogin,
-    methods: { password: !!user.passwordHash, google: !!user.googleId, github: !!user.githubId },
+    googleAccounts: googleAccountsOf(user),
+    methods: { password: !!user.passwordHash, google: googleAccountsOf(user).length > 0, github: !!user.githubId },
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt,
   };
@@ -65,6 +84,7 @@ export class UserConflictError extends Error {
 }
 
 export interface UserStore {
+  /** `googleId` finds the user who has that Google account, however it is stored. */
   findBy(field: UniqueField, value: string): Promise<User | null>;
   list(): Promise<User[]>;
   /** Throws UserConflictError. */
@@ -75,6 +95,8 @@ export interface UserStore {
 
 const COLLECTION = 'users';
 const UNIQUE: UniqueField[] = ['clientId', 'email', 'googleId', 'githubId'];
+/** Where each Google account's id is stored; unique like the rest, and read as `googleId`. */
+const GOOGLE_IDS = 'googleAccounts.id';
 
 let indexes: Promise<unknown> | undefined;
 
@@ -85,7 +107,7 @@ async function collection() {
   const users = db.collection<User>(COLLECTION);
   // Once per server. Optional fields are unique only where they are set.
   indexes ??= Promise.all(
-    UNIQUE.map(field =>
+    [...UNIQUE, GOOGLE_IDS].map(field =>
       users.createIndex(
         { [field]: 1 },
         field === 'clientId'
@@ -104,7 +126,8 @@ async function collection() {
 function conflict(error: unknown): never {
   const e = error as { code?: number; keyPattern?: Record<string, unknown> };
   if (e?.code === 11000) {
-    throw new UserConflictError((Object.keys(e.keyPattern ?? {})[0] as UniqueField) ?? 'clientId');
+    const field = Object.keys(e.keyPattern ?? {})[0];
+    throw new UserConflictError(field === GOOGLE_IDS ? 'googleId' : ((field as UniqueField) ?? 'clientId'));
   }
   throw error;
 }
@@ -114,7 +137,8 @@ const withoutUndefined = <T extends object>(value: T) =>
 
 const mongoStore: UserStore = {
   async findBy(field, value) {
-    return (await collection()).findOne({ [field]: value }, { projection: { _id: 0 } }) as Promise<User | null>;
+    const filter = field === 'googleId' ? { $or: [{ googleId: value }, { [GOOGLE_IDS]: value }] } : { [field]: value };
+    return (await collection()).findOne(filter, { projection: { _id: 0 } }) as Promise<User | null>;
   },
   async list() {
     return (await collection()).find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray() as Promise<User[]>;

@@ -25,6 +25,7 @@ import {
   getUserByEmail,
   getUserByGithubId,
   getUserByGoogleId,
+  googleAccountsOf,
   listUsers,
   normalizeEmail,
   publicUser,
@@ -45,7 +46,8 @@ import {
  *   a new account.
  * - Old accounts (a client id and its API keys) get a user record when they
  *   are linked: by the key, by signing in on /core/login and adding a method,
- *   or by an admin naming their email.
+ *   by an admin naming their email, or by a one-time link an admin sends
+ *   (/login/claim), which links the Google or GitHub account they pick.
  *
  * Every function here returns the client id to sign in as; the routes make
  * the session (lib/auth/session.ts), which is unchanged.
@@ -65,6 +67,7 @@ const VERIFY_TTL = 60 * 60 * 24;
 const RESET_TTL = 60 * 60;
 const OAUTH_TTL = 60 * 10;
 const IDENTITY_TTL = 60 * 15;
+const CLAIM_TTL = 60 * 60 * 24 * 7;
 const WINDOW = 60 * 15;
 
 const TOO_MANY = 'Too many tries. Wait a few minutes and try again.';
@@ -96,11 +99,11 @@ function apiKeys() {
 // ── Who may sign up ──────────────────────────────────────────────────────────
 
 /**
- * Sign-up is invite only until MEDIAMAKE_SIGNUP=open (it opens with the new
- * homepage). Until then a new account needs a live invite code, which invite
- * links carry in their /access?code=… address.
+ * Anyone can sign up, unless MEDIAMAKE_SIGNUP=invite. Then a new account
+ * needs a live invite code, which invite links carry in their
+ * /access?code=… address.
  */
-export const signupOpen = () => process.env.MEDIAMAKE_SIGNUP === 'open';
+export const signupOpen = () => process.env.MEDIAMAKE_SIGNUP !== 'invite';
 
 export const SIGNUP_CLOSED = 'Sign-up is invite only for now. Open your invite link to make an account.';
 
@@ -164,7 +167,7 @@ async function createAccount(input: {
         email,
         emailVerifiedAt: email ? now() : undefined,
         passwordHash: input.passwordHash,
-        googleId: identity?.provider === 'google' ? identity.id : undefined,
+        googleAccounts: identity?.provider === 'google' ? [{ id: identity.id, email: identity.email }] : undefined,
         githubId: identity?.provider === 'github' ? identity.id : undefined,
         githubLogin: identity?.provider === 'github' ? identity.login : undefined,
         name,
@@ -328,6 +331,8 @@ interface OAuthState {
   redirectTo?: string;
   /** Set when a signed-in person adds the provider to their account. */
   connectTo?: string;
+  /** Set when the person came from an admin's link for an old account (/login/claim). */
+  claim?: string;
 }
 
 interface PendingIdentity {
@@ -338,7 +343,7 @@ interface PendingIdentity {
 /** Starts the round trip. `state` also goes in a cookie, so the answer must come back to the same browser. */
 export async function startOAuth(
   provider: ProviderId,
-  input: { origin: string; redirectTo?: string | null; connectTo?: string | null },
+  input: { origin: string; redirectTo?: string | null; connectTo?: string | null; claim?: string | null },
 ): Promise<{ url: string; state: string }> {
   const codeVerifier = newCodeVerifier();
   const state = await putToken<OAuthState>(
@@ -348,39 +353,54 @@ export async function startOAuth(
       codeVerifier,
       redirectTo: safeRedirect(input.redirectTo, '') || undefined,
       connectTo: input.connectTo || undefined,
+      claim: input.claim || undefined,
     },
     OAUTH_TTL,
   );
   return { url: authorizeUrl(provider, { origin: input.origin, state, codeVerifier }), state };
 }
 
-const idField = (provider: ProviderId) => (provider === 'google' ? 'googleId' : 'githubId') as 'googleId' | 'githubId';
+const ownerOf = (identity: Pick<Identity, 'provider' | 'id'>) =>
+  identity.provider === 'google' ? getUserByGoogleId(identity.id) : getUserByGithubId(identity.id);
 
-/** Adds an identity to an account, and what the account lacks from its profile. */
+/**
+ * Adds an identity to an account, and what the account lacks from its
+ * profile. An account can have several Google accounts and one GitHub account.
+ */
 async function attachIdentity(user: User, identity: Identity): Promise<User> {
-  const field = idField(identity.provider);
   const provider = PROVIDER_NAMES[identity.provider];
-  if (user[field] && user[field] !== identity.id) {
-    throw new AuthError(`This account is already linked to another ${provider} account.`, 409);
-  }
+  const taken = new AuthError(`That ${provider} account is already linked to another MediaMake account.`, 409);
+  const owner = await ownerOf(identity);
+  if (owner && owner.clientId !== user.clientId) throw taken;
+
   const patch: UserPatch = {
-    [field]: identity.id,
-    githubLogin: identity.provider === 'github' ? identity.login : undefined,
     name: user.name ?? identity.name,
     avatarUrl: user.avatarUrl ?? identity.avatarUrl,
     lastLoginAt: now(),
   };
+  const unset: (keyof UserPatch)[] = [];
+  if (identity.provider === 'google') {
+    const accounts = googleAccountsOf(user);
+    if (!accounts.some(a => a.id === identity.id)) accounts.push({ id: identity.id, email: identity.email });
+    patch.googleAccounts = accounts;
+    // The list now holds the id an older record kept on its own.
+    if (user.googleId) unset.push('googleId');
+  } else {
+    if (user.githubId && user.githubId !== identity.id) {
+      throw new AuthError('This account is already linked to another GitHub account. Remove it first.', 409);
+    }
+    patch.githubId = identity.id;
+    patch.githubLogin = identity.login;
+  }
   const withEmail: UserPatch =
     !user.email && identity.email ? { ...patch, email: identity.email, emailVerifiedAt: now() } : patch;
   try {
-    return (await updateUser(user.clientId, withEmail))!;
+    return (await updateUser(user.clientId, withEmail, unset))!;
   } catch (error) {
     if (!(error instanceof UserConflictError)) throw error;
-    if (error.field === field) {
-      throw new AuthError(`That ${provider} account is already linked to another MediaMake account.`, 409);
-    }
+    if (error.field !== 'email') throw taken;
     // Its email belongs to another account: link the identity without it.
-    return (await updateUser(user.clientId, patch))!;
+    return (await updateUser(user.clientId, patch, unset))!;
   }
 }
 
@@ -422,7 +442,15 @@ export async function finishOAuth(
     return { kind: 'connected', clientId: saved.connectTo, redirectTo: saved.redirectTo };
   }
 
-  const known = await (provider === 'google' ? getUserByGoogleId(identity.id) : getUserByGithubId(identity.id));
+  if (saved.claim) {
+    const claim = await peekToken<ClaimToken>('claim', saved.claim);
+    if (!claim) throw new AuthError(CLAIM_GONE, 410);
+    await attachIdentity(await ensureUser(claim.clientId, { name: claim.name }), identity);
+    await takeToken('claim', saved.claim);
+    return { kind: 'signed-in', clientId: claim.clientId, redirectTo: saved.redirectTo };
+  }
+
+  const known = await ownerOf(identity);
   if (known) {
     await updateUser(known.clientId, {
       lastLoginAt: now(),
@@ -491,11 +519,37 @@ export async function createFromPending(pending: string | undefined | null): Pro
   return { clientId: user.clientId, redirectTo: saved.redirectTo };
 }
 
+// ── One-time links for old accounts ──────────────────────────────────────────
+
+interface ClaimToken {
+  clientId: string;
+  name?: string;
+}
+
+const CLAIM_GONE = 'This link has expired or was already used. Ask for a new one.';
+
+/**
+ * A link an admin sends to the owner of an old account. Whoever opens it
+ * links their Google or GitHub account to that account and is signed in, so
+ * it goes only to that person. It works once, for 7 days.
+ */
+export async function createClaimLink(input: { clientId: unknown; origin: string }): Promise<{ url: string; clientId: string }> {
+  const clientId = typeof input.clientId === 'string' ? input.clientId.trim() : '';
+  const key = clientId ? (await apiKeys().list()).filter(Boolean).find(k => k.clientId === clientId) : undefined;
+  const user = clientId ? await getUserByClientId(clientId) : null;
+  if (!key && !user) throw new AuthError('No account has this client id.', 404);
+  const token = await putToken<ClaimToken>('claim', { clientId, name: user?.name ?? (key?.clientName || undefined) }, CLAIM_TTL);
+  return { url: `${input.origin}/login/claim?token=${encodeURIComponent(token)}`, clientId };
+}
+
+/** The account a link is for, for /login/claim to name. Leaves the link usable. */
+export const describeClaim = (token: string | undefined | null) => peekToken<ClaimToken>('claim', token);
+
 // ── A signed-in person's own sign-in methods ─────────────────────────────────
 
 export async function getAccount(clientId: string): Promise<PublicUser> {
   const user = await getUserByClientId(clientId);
-  return user ? publicUser(user) : { clientId, methods: { password: false, google: false, github: false } };
+  return user ? publicUser(user) : { clientId, googleAccounts: [], methods: { password: false, google: false, github: false } };
 }
 
 /** Mails a link that adds `email` to the account once confirmed. */
@@ -520,16 +574,23 @@ export async function setPassword(input: { clientId: string; password: unknown; 
   await updateUser(user.clientId, { passwordHash: await hashPassword(input.password as string) });
 }
 
-/** Removes Google or GitHub from the account, unless it is the only way left to sign in on /login. */
-export async function unlinkProvider(clientId: string, provider: ProviderId): Promise<void> {
+/**
+ * Removes GitHub, or one Google account (`googleId`; all of them when left
+ * out), unless that would leave no way to sign in on /login.
+ */
+export async function unlinkProvider(clientId: string, provider: ProviderId, googleId?: string): Promise<void> {
   const user = await getUserByClientId(clientId);
-  const field = idField(provider);
-  if (!user?.[field]) return;
-  const other = idField(provider === 'google' ? 'github' : 'google');
-  if (!user.passwordHash && !user[other]) {
+  if (!user) return;
+  const google = googleAccountsOf(user);
+  const googleLeft = provider === 'google' ? (googleId ? google.filter(a => a.id !== googleId) : []) : google;
+  const githubLeft = provider === 'github' ? false : !!user.githubId;
+  if (provider === 'google' ? googleLeft.length === google.length : !user.githubId) return;
+  if (!user.passwordHash && !githubLeft && googleLeft.length === 0) {
     throw new AuthError('Add a password or another account first, so you can still sign in.');
   }
-  await updateUser(clientId, {}, provider === 'github' ? ['githubId', 'githubLogin'] : ['googleId']);
+  if (provider === 'github') await updateUser(clientId, {}, ['githubId', 'githubLogin']);
+  else if (googleLeft.length > 0) await updateUser(clientId, { googleAccounts: googleLeft }, ['googleId']);
+  else await updateUser(clientId, {}, ['googleAccounts', 'googleId']);
 }
 
 export async function setName(clientId: string, name: unknown): Promise<void> {
@@ -558,6 +619,7 @@ export async function listAccounts(): Promise<AccountRow[]> {
       clientId,
       name,
       linked: false,
+      googleAccounts: [],
       methods: { password: false, google: false, github: false },
     })),
   ];

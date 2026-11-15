@@ -16,6 +16,7 @@ interface Account {
   email?: string;
   name?: string;
   githubLogin?: string;
+  googleAccounts: { id: string; email?: string }[];
   methods: { password: boolean; google: boolean; github: boolean };
 }
 
@@ -229,41 +230,78 @@ export function SignInMethods() {
                 </Button>
               )}
             </Row>
-            {(['google', 'github'] as const).map(provider => {
-              const name = provider === 'google' ? 'Google' : 'GitHub';
-              const has = data.account.methods[provider];
-              return (
-                <Row
-                  key={provider}
-                  icon={provider === 'google' ? <GoogleIcon /> : <GitHubIcon />}
-                  title={name}
-                  detail={
-                    has
-                      ? provider === 'github' && data.account.githubLogin
-                        ? `Linked as ${data.account.githubLogin}`
-                        : 'Linked'
-                      : data.providers[provider]
-                        ? 'Not linked'
-                        : 'Not set up on this site yet'
-                  }
+            {data.account.googleAccounts.map((google, index) => (
+              <Row
+                key={google.id}
+                icon={<GoogleIcon />}
+                title={index === 0 ? 'Google' : 'Another Google account'}
+                detail={google.email ?? 'Linked'}
+              >
+                <Badge variant="secondary">Linked</Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => act({ action: 'unlink', provider: 'google', id: google.id }, 'Google account removed')}
                 >
-                  {has ? (
-                    <>
-                      <Badge variant="secondary">Linked</Badge>
-                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => act({ action: 'unlink', provider }, `${name} removed`)}>
-                        Remove
-                      </Button>
-                    </>
-                  ) : (
-                    data.providers[provider] && (
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={`/api/auth/${provider}/start?connect=1`}>Link {name}</a>
-                      </Button>
-                    )
-                  )}
-                </Row>
-              );
-            })}
+                  Remove
+                </Button>
+              </Row>
+            ))}
+            {(data.providers.google || data.account.googleAccounts.length === 0) && (
+              <Row
+                icon={<GoogleIcon />}
+                title={data.account.googleAccounts.length > 0 ? 'Add a Google account' : 'Google'}
+                detail={
+                  !data.providers.google
+                    ? 'Not set up on this site yet'
+                    : data.account.googleAccounts.length > 0
+                      ? 'Sign in with any of your Google accounts'
+                      : 'Not linked'
+                }
+              >
+                {data.providers.google && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href="/api/auth/google/start?connect=1">
+                      {data.account.googleAccounts.length > 0 ? 'Link another' : 'Link Google'}
+                    </a>
+                  </Button>
+                )}
+              </Row>
+            )}
+            <Row
+              icon={<GitHubIcon />}
+              title="GitHub"
+              detail={
+                data.account.methods.github
+                  ? data.account.githubLogin
+                    ? `Linked as ${data.account.githubLogin}`
+                    : 'Linked'
+                  : data.providers.github
+                    ? 'Not linked'
+                    : 'Not set up on this site yet'
+              }
+            >
+              {data.account.methods.github ? (
+                <>
+                  <Badge variant="secondary">Linked</Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => act({ action: 'unlink', provider: 'github' }, 'GitHub removed')}
+                  >
+                    Remove
+                  </Button>
+                </>
+              ) : (
+                data.providers.github && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href="/api/auth/github/start?connect=1">Link GitHub</a>
+                  </Button>
+                )
+              )}
+            </Row>
           </div>
         )}
       </div>
@@ -278,6 +316,7 @@ function LinkOldAccounts() {
   const [clientId, setClientId] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const [made, setMade] = useState<{ clientId: string; url: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -305,6 +344,20 @@ function LinkOldAccounts() {
     }
   };
 
+  const makeLink = async () => {
+    setBusy(true);
+    try {
+      const result = await send('/api/admin/users', { clientId });
+      setMade(result);
+      await navigator.clipboard.writeText(result.url).catch(() => {});
+      toast.success('Link copied. Send it only to that person.', { duration: TOAST_MS });
+    } catch (error) {
+      toast.error((error as Error).message, { duration: TOAST_MS });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const old = accounts?.filter(a => !a.linked) ?? [];
   return (
     <div className="mt-4 rounded-xl border bg-card p-5">
@@ -313,8 +366,9 @@ function LinkOldAccounts() {
         <Badge variant="outline">Admin</Badge>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Name the email of the person behind a client ID. They can then sign in with a Google or GitHub account of that
-        address, or set a password with "Forgot password".
+        Enter a client ID and make a one-time link to send to its owner: they open it, pick their Google or GitHub
+        account, and sign in that way from then on. Or name their email, and they sign in with a Google or GitHub account
+        of that address, or set a password with "Forgot password".
         {accounts && ` ${old.length} of ${accounts.length} accounts are not linked yet.`}
       </p>
       <form onSubmit={link} className="mt-3 flex flex-wrap items-center gap-2">
@@ -335,16 +389,27 @@ function LinkOldAccounts() {
         </datalist>
         <Input
           type="email"
-          required
-          placeholder="Their email"
+          placeholder="Their email (optional)"
           className="h-9 w-64"
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
-        <Button type="submit" size="sm" disabled={busy}>
-          Link
+        <Button type="submit" size="sm" variant="outline" disabled={busy || !email}>
+          Link this email
+        </Button>
+        <Button type="button" size="sm" disabled={busy || !clientId} onClick={makeLink}>
+          Make a link to send
         </Button>
       </form>
+      {made && (
+        <div className="mt-3 rounded-md border bg-muted/50 p-3 text-sm">
+          <p className="text-muted-foreground">
+            For <span className="font-mono text-foreground">{made.clientId}</span>. Works once, for 7 days. Whoever opens
+            it gets the account, so send it only to that person.
+          </p>
+          <code className="mt-2 block break-all font-mono text-xs">{made.url}</code>
+        </div>
+      )}
     </div>
   );
 }

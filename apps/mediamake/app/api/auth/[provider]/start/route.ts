@@ -5,15 +5,17 @@ import { PROVIDER_NAMES, isProvider, providerConfigured } from '@/lib/auth/provi
 import { ACCOUNT_PAGE, withRedirect } from '@/lib/auth/redirect';
 
 /**
- * GET /api/auth/google/start, /api/auth/github/start  ?redirectTo=…&connect=1
+ * GET /api/auth/google/start, /api/auth/github/start  ?redirectTo=…&connect=1&claim=…
  * Sends the browser to the provider. With connect=1 a signed-in person adds
- * the provider to their own account instead of signing in.
+ * the provider to their own account instead of signing in. With claim=<token>
+ * (an admin's link for an old account) the provider is linked to that account.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const origin = publicOrigin(req);
   const redirectTo = req.nextUrl.searchParams.get('redirectTo');
   const connect = req.nextUrl.searchParams.get('connect') === '1';
+  const claim = req.nextUrl.searchParams.get('claim');
   const back = (message: string) =>
     NextResponse.redirect(
       `${origin}${withRedirect(`${connect ? ACCOUNT_PAGE : '/login'}?error=${encodeURIComponent(message)}`, connect ? null : redirectTo)}`,
@@ -29,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   }
 
   try {
-    const { url, state } = await startOAuth(provider, { origin, redirectTo: connect ? ACCOUNT_PAGE : redirectTo, connectTo });
+    const { url, state } = await startOAuth(provider, { origin, redirectTo: connect ? ACCOUNT_PAGE : redirectTo, connectTo, claim: connect ? null : claim });
     const response = NextResponse.redirect(url);
     response.cookies.set(OAUTH_STATE_COOKIE, state, shortCookie(60 * 10));
     return response;
