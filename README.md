@@ -8,6 +8,14 @@ they point at, and the app renders it on AWS Lambda or on your own machine. Arou
 for making content with Claude: an MCP server, a library of skills, brand kits, review apps and a
 catalog for handing all of it out.
 
+## The rule
+
+**We publish nothing we don't use.** Every skill, MCP and app here was used by its maker to make
+something real before it was published. An item is **Beta** until a finished production made with it is
+on record, then **Ready**, and its page shows that production under "Made with this". Contributing
+follows the same rule: a pull request that adds or changes a skill, MCP or app names the production it
+was used on (the pull request template asks for it, and so does `node tools/skills.mjs publish`).
+
 ## What's in the repo
 
 ```
@@ -107,7 +115,8 @@ images, `pack-*` for bundles, and so on). **Every skill is public**: its files a
 [mediamake.microfox.app/skills](https://mediamake.microfox.app/skills) lists them all (and
 `node tools/skills.mjs list` here). A variant you fork (`fork-skill`) or your team shares starts as
 yours, in your workspace (`~/MediaMake/skills/`, linked from `~/.claude/skills/`), and
-`node tools/skills.mjs publish <name>` sends it to the repo as a pull request (`publish-skill`);
+`node tools/skills.mjs publish <name> --yes --made="<the production made with it>"` sends it to the repo
+as a pull request (`publish-skill`; it refuses without the production, see [The rule](#the-rule));
 `node tools/skills.mjs check` (also run in CI) fails when a skill holds an API key, a token or a path
 on your machine. The registry the site reads, `skills.json`, is built (by the app's `build` and `dev`),
 never committed.

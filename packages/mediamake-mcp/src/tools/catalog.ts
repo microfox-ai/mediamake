@@ -334,12 +334,19 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Mark items Ready or Beta (admins)',
       description:
-        "Admins only. Say how proven items are, for any kind, ours or made by others. Everything starts as beta. ready means battle tested, and needs proof on record: at least one finished production made with it (its title, and a link when it has one), because we publish nothing we don't use. An MCP also needs to be shown in use: a skill that uses it (catalog_items' usedBy) or a video on it. Only Ready items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one: never invent it. beta takes the mark and its proof away. Give the user the release page links it answers with.",
+        "Admins only. Say how proven items are, for any kind, ours or made by others. Everything starts as beta. ready means battle tested, and needs proof on record: at least one finished production made with it (its title, and a link when it has one), because we publish nothing we don't use. The item's page shows them as a Made with this gallery, like a store listing, after its trailer (catalog_set_video): give each production a YouTube link, a picture or a clip when there is one (files are uploaded on its release page, this tool takes links). An MCP also needs to be shown in use: a skill that uses it (catalog_items' usedBy) or a video on it. Only Ready items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one: never invent it. beta takes the mark and its proof away. Give the user the release page links it answers with.",
       inputSchema: {
         items: z.array(ITEM_ID).min(1).max(200),
         readiness: z.enum(['ready', 'beta']),
         proof: z
-          .array(z.object({ title: z.string().min(1).max(200).describe('What was made with it'), url: z.string().optional().describe('Where it can be seen (https)') }))
+          .array(
+            z.object({
+              title: z.string().min(1).max(200).describe('What was made with it'),
+              url: z.string().optional().describe('Where it can be seen (https). A YouTube link plays in the gallery on the item\'s page'),
+              image: z.string().optional().describe('A picture of it (an https link to a screenshot, poster or frame): its tile in the gallery'),
+              video: z.string().optional().describe('A clip of it (an https link to an MP4 or WebM), played in the gallery'),
+            }),
+          )
           .max(20)
           .optional()
           .describe('With ready: the finished productions made with it'),

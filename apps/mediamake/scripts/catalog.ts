@@ -24,7 +24,7 @@
  *   schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
  *   unschedule <itemId>
  *   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
- *   ready <itemId> [<itemId>...] --proof "<what was made>" [--url https://...] [--note "..."]
+ *   ready <itemId> [<itemId>...] --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
  *                                                    (Ready needs a finished production made with it)
  *   beta <itemId> [<itemId>...]                      (back to Beta)
  *   health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]
@@ -77,7 +77,8 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
   unschedule <itemId>
   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
-  ready <itemId>... --proof "<what was made>" [--url https://...] [--note "..."]   (Ready needs a production made with it)
+  ready <itemId>... --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
+                                              (Ready needs a production made with it; the link, picture and clip fill its page's gallery)
   beta <itemId>...                                 (back to Beta)
   health <itemId>... <healthy|inactive|archived|failed|default> [--note "why"]   (any kind; failed needs --note)
   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
@@ -384,8 +385,14 @@ async function main() {
 
     case 'ready': {
       const proofTitle = flag(flags, 'proof');
-      if (!positional.length || !proofTitle) fail('ready <itemId> [<itemId>...] --proof "<what was made with it>" [--url https://...] [--note "..."]');
-      await admin({ type: 'set_readiness', itemIds: positional, readiness: 'ready', proof: [{ title: proofTitle, url: flag(flags, 'url') }], note: flag(flags, 'note') });
+      if (!positional.length || !proofTitle) fail('ready <itemId> [<itemId>...] --proof "<what was made with it>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]');
+      await admin({
+        type: 'set_readiness',
+        itemIds: positional,
+        readiness: 'ready',
+        proof: [{ title: proofTitle, url: flag(flags, 'url'), image: flag(flags, 'image'), video: flag(flags, 'video') }],
+        note: flag(flags, 'note'),
+      });
       console.log(`✅ Ready, with its proof: ${proofTitle}`);
       for (const itemId of positional) console.log(page(itemId));
       return;
