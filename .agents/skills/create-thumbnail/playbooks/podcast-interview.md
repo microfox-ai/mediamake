@@ -61,8 +61,8 @@ loses to a person.
 
 ## Tried in the rounds
 
-Iteration 9, "Tesla Predicted the Smartphone in 1926" (2026-11-15, run autonomously; not yet
-reviewed): an archive-interview show, Tesla as the guest, his real 1926 words checked first
+Iteration 9, "Tesla Predicted the Smartphone in 1926" (2026-11-15, run autonomously; approved by the user
+2026-11-16): an archive-interview show, Tesla as the guest, his real 1926 words checked first
 (Snopes; only the short, consistently transcribed part quoted). The kind is the easiest to match:
 black, one lit face, a show badge and episode plate, a line on a red or yellow plate. A cutout of
 a phone held in a hand lost the thumb and left a hole in the screen: cut the object alone or frame

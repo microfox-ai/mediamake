@@ -60,7 +60,7 @@ subscriber count, a tattoo, a van bed), a close-up with no place, a quiet selfie
 
 ## Tried in the rounds
 
-Iteration 8, "Machu Picchu Was Never Lost" (2026-11-15, run autonomously; not yet reviewed):
+Iteration 8, "Machu Picchu Was Never Lost" (2026-11-15, run autonomously; approved by the user 2026-11-16):
 Bingham's own 1912 photographs, today's citadel, Bingham as the witness. Own checks: a ring must
 land on something the eye can find (a halftone print hid the ruins, so the colour panorama took
 its place); the same view then and now is a before/after that shows at feed size; a historical

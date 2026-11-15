@@ -60,7 +60,7 @@ panels), a guest at a desk with no food, four people with no dish.
 
 ## Tried in the rounds
 
-Iteration 7, "The Pizza Named After a Queen" (2026-11-15, run autonomously; not yet reviewed):
+Iteration 7, "The Pizza Named After a Queen" (2026-11-15, run autonomously; approved by the user 2026-11-16):
 real Neapolitan Margherita photos, the Brandi plaque, the ingredients, and Queen Margherita's
 portrait as the host. Own checks: a historical host can't hold the food to the lens, so the dish
 stays the biggest thing and the host presents from the side, cropped to head and shoulders (a

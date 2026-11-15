@@ -57,8 +57,8 @@ moody frames with no face and no hook, a calm face, a bare vista, part 2s, off-t
 
 ## Tried in the rounds
 
-Iteration 6, "The Game So Bad Atari Buried It in the Desert" (2026-11-15, run autonomously; not yet
-reviewed by the user): a retro-history story built from real artefacts (a dug-up E.T. cartridge,
+Iteration 6, "The Game So Bad Atari Buried It in the Desert" (2026-11-15, run autonomously; approved by the user
+2026-11-16): a retro-history story built from real artefacts (a dug-up E.T. cartridge,
 the 2014 landfill dig, Evan-Amos's public-domain Atari 2600, the Atari logo) and its maker,
 Howard Scott Warshaw, as the host (`HE MADE IT IN / 5 WEEKS.`). Own checks: beside character-led
 hits, real artefacts on a brown ground looked flat → push the ground to a hot retro orange-red and
