@@ -19,7 +19,7 @@ time, and which project, and shows you what would go up (a dry run) before uploa
 
 ## Setup
 
-You need a MediaMake account with **community access or above** (cloud projects), and Claude Desktop
+You need a MediaMake account with a **Plus membership or above** (cloud projects), and Claude Desktop
 or Claude Code.
 
 1. **Get your API key.** Open [MediaMake → API keys](https://mediamake.microfox.app/core/api-keys) and
@@ -38,8 +38,8 @@ or Claude Code.
      claude mcp add --scope user projectsync -e MEDIAMAKE_API_KEY=<your key> -- node /path/to/mediamake/packages/projectsync-mcp/dist/index.js
      ```
 3. **Check it works.** Ask Claude: *"List my MediaMake projects with ProjectSync."* You should see
-   your projects and your role on each. A 401 means the key is wrong or disabled; a 403 about community
-   access means your account can't use cloud projects yet (ask a MediaMake admin).
+   your projects and your role on each. A 401 means the key is wrong or disabled; a 403 about a Plus
+   membership means your account can't use cloud projects yet (ask a MediaMake admin).
 
 To update, install the newer `.mcpb` the same way (or say "update ProjectSync" to Claude). To remove it,
 uninstall it in **Settings → Extensions** (Claude Desktop) or `claude mcp remove projectsync`, and

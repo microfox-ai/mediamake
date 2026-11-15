@@ -8,7 +8,7 @@ export type BrandKitAccess =
 
 /**
  * Who may read or change a project's brand kit. Brand kits live with cloud
- * projects, which are for community, private and admin users (public users keep
+ * projects, which are for Plus members and above (public users keep
  * everything on their own computer); then the project role decides: anyone it
  * is shared with may read, owners and editors may write.
  */
@@ -18,7 +18,7 @@ export async function brandKitAccess(db: Db, projectId: string | null, clientId:
   if (process.env.NODE_ENV !== 'development') {
     const tier = await getViewerTier({ clientId });
     if (!canUseCloudProjects(tier)) {
-      return { ok: false, status: 403, error: 'Brand kits on cloud projects need community access or above. Public accounts keep brand kits locally.' };
+      return { ok: false, status: 403, error: 'Brand kits on cloud projects need a Plus membership or above. Public accounts keep brand kits locally.' };
     }
   }
   const role = await getProjectRole(db, projectId, clientId);

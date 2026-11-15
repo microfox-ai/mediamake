@@ -1,19 +1,20 @@
 # Catalog releases and access
 
 MediaMake ships skills, MCPs, apps, tutorials and courses as **catalog
-items**. An app, MCP, tutorial or course starts private, is shared with a few
-people, then with your network, and finally goes public. The repository is public, so it holds only
-the code for this; their content lives in private storage.
+items**. Every item names the lowest membership that opens it, on one strict
+ladder: **Public, Plus, Pro, Cohort, Admin** (see [Tiers](#tiers)). An app,
+MCP, tutorial or course starts with the cohort and moves down the ladder as
+it is released. The repository is public, so it holds only the code for this;
+gated content lives in private storage.
 
-**Skills are public by default.** Every skill's files are committed in the repo
-(`.agents/skills/`, listed at `/skills`), so nothing about a skill is hidden:
-a `skill/…` item is always public and open to everyone, even while public
-releases are locked. It sits in the Public column of the dashboard, `release`
-publishes it as public, and `promote`, `schedule` and `vault` refuse it
-(`isAlwaysPublic` and `ALWAYS_PUBLIC_KINDS` in `lib/catalog/types.ts`; skill
-items stored with another stage from before this rule are moved to public the
-next time the dashboard loads). Everything below about stages, gates and the
-vault is for apps, MCPs and tutorials.
+**A skill in the repo is public.** Its files are committed
+(`.agents/skills/`, listed at `/skills`), so nothing about it is hidden: it
+is always public and open to everyone, even while public releases are locked.
+It sits in the Public column of the dashboard, and `tier`, `schedule` and
+`vault` refuse it (`isAlwaysPublic` in `lib/catalog/types.ts`: an item with
+`inRepo`, set from the skills registry, or `madeBy`). A skill released as a
+package, with no files in the repo, is gated like an app or MCP and can sit at
+any tier. Skills already public stay public: git history keeps them anyway.
 
 **So are items made by others.** An open-source MCP or skill, or an MCP its
 maker hosts, that an admin lists in the catalog (ElevenLabs, fal, Blender)
@@ -200,70 +201,135 @@ admins, and each answers with the release page of every item it touched.
 
 | Tool | Does |
 | --- | --- |
-| `catalog_items` | Every item in a line (`GET /api/admin/catalog/items`): tier, where it comes from, archived, what it works with, what uses it, its page. Filters: kind, tier, archived, words. |
-| `catalog_item` | One item's page as data: access and grants, where it lives, the install steps and choices, what uses it, versions and notes. |
+| `catalog_items` | Every item in a line (`GET /api/admin/catalog/items`): tier, readiness, health, where it comes from, archived, what it works with, what uses it, its page. Filters: kind, tier, readiness, health, archived, words. |
+| `catalog_item` | One item's page as data: its tier, how many people hold each membership, grants, readiness and its proof, health, where it lives, the install steps and choices, what uses it, versions and notes. |
 | `catalog_archive` | Archive items, or bring them back (`archived: false`), with a note. |
-| `catalog_set_stage` | Move one of our apps, MCPs, tutorials or courses to development, community (optionally with a gate), public or the vault, taking it out of the vault first when needed. Skills and items made by others refuse: archive them instead. |
+| `catalog_set_stage` | Set the lowest membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (`set_item_tier`): public, plus, pro, cohort or vault, optionally with a gate. Repo skills and items made by others refuse: archive them instead. |
+| `catalog_set_health` | Say whether items of any kind work (`set_health`): healthy, inactive, archived, or failed with its reason. |
+| `catalog_set_readiness` | Mark items Ready with the finished productions that prove it, or back to Beta (`set_readiness`). |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
-| `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts in development. |
-| `catalog_invite` | An invite link that opens gated items for the people it is sent to, or (with `group`) makes them private testers or community members. |
-| `catalog_people` | The private testers, the community and everyone else with a key, plus tier invite links and pending requests. |
-| `catalog_set_tier` | Make people private testers, community or public, by client id or the name on their key. |
+| `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts with the cohort. |
+| `catalog_invite` | An invite link that opens gated items for the people it is sent to, or (with `tier`) gives them a Plus, Pro or Cohort membership. |
+| `catalog_people` | Who holds each membership, how they got it and how long it lasts, plus everyone else with a key, tier invite links and pending requests. |
+| `catalog_set_tier` | Give people a Plus, Pro or Cohort membership (or take it away), by client id or the name on their key, with its source, reference, length or permanence. |
+| `catalog_membership` | Make one membership permanent, renew it for a new contribution, or end it. |
 | `catalog_versions` | Live versions and release notes (anyone, for updates). |
 
 ## Tiers
 
-Every item sits in one tier, and every person belongs to one. The admin
-dashboard at **`/core/releases`** shows both and is where you move things
-along; the CLI below does the same from a terminal.
+There is one ladder, and it is data: `TIER_LADDER` in
+`lib/memberships/tiers.ts`. It is strict: each tier opens everything the tiers
+below it open, so access is one comparison (`tierOpens(held, needed)`). An
+item names the lowest tier that opens it, and a person holds one tier. Adding
+a tier is adding a row there. The admin dashboard at **`/core/releases`**
+shows both and is where you move things along; the CLI below does the same
+from a terminal.
 
-| Item tier | Stored as | Who can open it |
-| --- | --- | --- |
-| **Vault** | `neverPublish: true` | Admins, and grants that name the item itself. Can't be moved to community or public until taken out of the vault. |
-| **In development** | `visibility: private` | Admins, private testers, and grants |
-| **Community** | `visibility: network` | The above, plus the community (`network` group) |
-| **Public** | `visibility: public` | Everyone, once public releases are open (see below) |
+| Tier | Who holds it | How they get it | An item at this tier |
+| --- | --- | --- | --- |
+| **Public** | Everyone | Signing up, or not signing in at all | Open to everyone, once public releases are open (see below) |
+| **Plus** | Plus members and above | Contributing, or an admin grant | Listed for everyone; opens for Plus and above |
+| **Pro** | Pro members and above | Contributing a Pro item, or an admin grant | Listed for everyone; opens for Pro and above |
+| **Cohort** | The cohort and admins | An admin grant only | Invisible to everyone below: no card, no name, a 404 |
+| **Admin** | Admins | `isAdmin` on their Redis profile | The vault: admins, and grants that name the item itself. Never published. |
 
-| Person tier | How they get it | What they can do |
-| --- | --- | --- |
-| **Admin** | `isAdmin` on their Redis profile | Everything. The only one who releases. |
-| **Private** | member of the `private` group (or a `*` grant) | Open every item except the vault, with no per-item grants: every MCP, app or tutorial in development opens to them the moment they are added, and so does each one released later. Can't release. |
-| **Community** | member of the `network` group (or an invite into it) | Open community and public items before they go public. |
-| **Public** | everyone else | Open public items once releases are open. |
+An item stores `tier`; the older `visibility` and `neverPublish` fields are
+kept in step with it (`visibilityOfTier`), and a record from before the ladder
+is read through them (`itemTier`: in development is Cohort, community is Pro).
+Cloud projects (the Projects page, brand kits, channel sync, song takes) open
+at Plus and Lambda renders stay with the cohort (`FEATURE_TIERS`); the
+ProjectSync MCP and Browse Hack are Pro items.
+
+A Public skill that works with a Pro MCP stays listed for everyone: its card
+says what the MCP adds and which alternative works without it.
+
+### Memberships
+
+How each person got their tier is a record in the `memberships` collection
+(`lib/memberships`), keyed on the account's client id:
+
+| Field | Meaning |
+| --- | --- |
+| `tier` | plus, pro or cohort. Public is having no live record; Admin is the account's flag. |
+| `source` | `admin` (an admin gave it), `contribution` (an accepted item or merged PR, named in `ref`), `invite` (the code in `ref`), `migration` (carried over from the earlier tiers), `paid` and `signup` (for later) |
+| `expiresAt`, `permanent` | A contribution lasts **3 months** and renews by contributing again (a new record). An admin can make any membership permanent: it then lasts until an admin removes it. Other sources last until removed unless given a length. |
+| `grantedBy`, `revokedAt`, `revokedBy`, `revokedNote` | Records are never deleted, so the collection is also the log of who changed whose tier, when and why. |
+
+A person's tier is the highest of their live records (`memberTierFrom`).
+Admins set it under **People** on the dashboard, with
+`npm run catalog -- member`, or with `catalog_set_tier`. Payments, later, only
+add records with `source: 'paid'`: no access code changes.
 
 An API key only signs someone in; it opens nothing beyond public items by
 itself. That includes the hosted MediaMake MCP (`/mcp`): who may connect
 follows the `mcp/mediamake` item like any other release. It is in the vault,
 because it runs the catalog, so only admins and people granted it by name get
 past the consent screen and the endpoint (others see why, and a 403, and are
-pointed at ProjectSync for their projects). Taking it out of the vault and
-moving it along opens the connector with no code change (`lib/mcp/access.ts`).
-
-**Adding a private tester** is one step, and it is all they need:
-`npm run catalog -- group add private <clientId>`, or set their tier to
-Private under **People → API key holders**. The tier decides the rest, and the
-admin sets it per person under **People → API key holders** on the dashboard
-(`set_tier` in the admin API). Cloud projects are for the community, private
-testers and admins (`canUseCloudProjects(tier)`); public users keep projects
-local.
+pointed at ProjectSync for their projects). Moving it down the ladder opens
+the connector with no code change (`lib/mcp/access.ts`).
 
 `viewerTier(entitlements)` / `getViewerTier(viewer)` in `lib/access` return a
 person's tier for features that depend on who someone is (render routing,
-for example). Item access always goes through `accessLevel`.
+for example). Item access always goes through `accessLevel`; the pure rules
+are in `lib/access/rules.ts`.
+
+### Readiness and health
+
+Every item of every kind, ours or made by others, has both, shown as badges:
+
+- **Readiness** is Beta or Ready. Everything starts as **Beta**. **Ready**
+  means battle tested, and an admin can mark it only with proof on record: at
+  least one finished production made with it (`readyProof`: a title, and a
+  link when it has one). An MCP also needs to be shown in use: a skill that
+  uses it, or a video on it (`readyProblems`). Marks live in
+  `catalog_readiness`. Today every skill is Beta except `pack-brand-kit`.
+- **Health** is healthy, inactive, archived or **failed**. Failed needs a
+  reason, shown with the item; an admin marks it by hand. Marks live in
+  `catalog_health`.
+
+Where an item is shown follows from tier, readiness and health
+(`shownOn` in `lib/catalog/shown.ts`):
+
+| Surface | Ready and healthy | Beta | Failed |
+| --- | --- | --- | --- |
+| Public site | shown, if it is Public and not archived | hidden | hidden |
+| Explore, in the app | shown | shown with a Beta badge | only behind a filter, with the reason |
+| My Items (installed) | shown | shown | shown with a warning and the reason |
+| Admin | shown | shown | shown |
+
+In Explore an item a higher membership would open is shown locked, saying
+which one; Cohort and vault items stay out of sight of everyone below them.
+
+### Moving from the earlier tiers
+
+Before the ladder, items were in development, community or public, and people
+were private testers (the `private` group, or a `*` grant) or community (the
+`network` group). Those still work, read as Cohort and Pro, until the
+migration turns them into records:
+
+```bash
+npm run catalog -- migrate-tiers          # a dry run: prints every change
+npm run catalog -- migrate-tiers --yes    # applies it
+```
+
+It gives every stored item its `tier` (Browse Hack and ProjectSync go to Pro,
+keeping any gate), gives private testers a Cohort membership and community
+members a Pro one (`source: 'migration'`), clears the two groups and the `*`
+grants, and marks `pack-brand-kit` Ready. The decisions are in
+`lib/catalog/migrate-tiers.ts`. Running it again changes nothing.
 
 ### Gated releases
 
-A community item can carry a gate: `publicAt`, a date when it turns public by
-itself. **Mark ready and start gate** on the dashboard (or `schedule`) moves an
-item from development to community and sets the gate, 30 days by default.
+A Plus, Pro or Cohort item can carry a gate: `publicAt`, a date when it turns
+public by itself. **Start gate** on the dashboard (or `schedule`) keeps the
+item at its tier and sets the gate, 30 days by default.
 Access treats the item as public from that moment (`effectiveVisibility`); the
 next time the dashboard loads, the change is recorded in `stageHistory` with
-`by: 'gate'`. Moving an item by hand (release now, back to development, into
-the vault) cancels its gate.
+`by: 'gate'`. Moving an item to another tier by hand cancels its gate.
 
 **Releases are locked for now.** Until `MEDIAMAKE_PUBLIC_RELEASES=open` is set,
-a `public` item needs a grant too (the community and private testers see it),
+a `public` item needs a membership or a grant too (Plus members and above see it),
 and that includes items whose gate has ended. The dashboard says so at the top.
 Items a viewer can't open are **hidden**: no card, and their pages and API
 links answer 404 as if they didn't exist. Signed-out visitors see nothing.
@@ -281,7 +347,9 @@ Every way someone gets access is a record, never a code change:
 | Record | Created by | Collection |
 | --- | --- | --- |
 | Grant to a person or group (with expiry, note, and the invite it came from) | `grant`, `approve`, redeeming an invite | `access_grants` |
-| Group membership (`network`, …) | `group add` | `access_groups` |
+| Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, the People tab, an invite with a tier | `memberships` |
+| Readiness marks with their proof | `ready`, `beta` | `catalog_readiness` |
+| Group membership (your own groups; the earlier `private` and `network` until migrated) | `group add` | `access_groups` |
 | Invite links and how often they were used | `invite` | `access_invites` |
 | Requests from the "Request access" button | the person | `access_requests` |
 | Each package download | `/api/catalog/download` | `catalog_downloads` |
@@ -308,24 +376,35 @@ cd apps/mediamake
 
 # Release (or re-release with a new version). Reads the bundle's manifest (or a
 # SKILL.md's front matter) and an optional catalog.json next to it. Leaving
-# --stage out keeps the current stage. A skill is always released as public.
+# --tier out keeps the current tier (a new item starts with the cohort). A repo
+# skill is always public.
 # Release notes are required (see below).
-npm run catalog -- release ../../private/mcps/browse-hack.mcpb --stage private --version 1.0.0 --notes "What changed"
+npm run catalog -- release ../../private/mcps/browse-hack.mcpb --tier cohort --version 1.0.0 --notes "What changed"
 
 # Share with a few people
 npm run catalog -- grant mcp/browse-hack --to <clientId> --days 30
 npm run catalog -- invite mcp/browse-hack --uses 5 --days 30   # prints a /access?code=… link
 
-# Tiers of people
-npm run catalog -- group add private <clientId>                  # private testers: everything but the vault
-npm run catalog -- group add network <clientId> <clientId>       # community: every `network` item
-npm run catalog -- invite --group network --uses 20              # or let them join the community by invite
+# Memberships
+npm run catalog -- member <clientId> cohort --note "editing the channel"      # an admin grant, until removed
+npm run catalog -- member <clientId> plus --source contribution --ref <PR>    # earned: lasts 3 months
+npm run catalog -- member add <clientId> plus --source contribution --ref <PR>  # contributed again: renews
+npm run catalog -- member permanent <membershipId>                            # no expiry any more
+npm run catalog -- member <clientId> public                                   # take it away
+npm run catalog -- members                                                    # who holds what, and how
+npm run catalog -- invite --tier pro --uses 20                                # or let them join by invite
 
-# Move it along
-npm run catalog -- schedule mcp/browse-hack --days 30            # community now, public by itself in 30 days
-npm run catalog -- unschedule mcp/browse-hack                    # keep it with the community, no date
-npm run catalog -- promote mcp/browse-hack public                # release now
+# Move an item along
+npm run catalog -- tier mcp/browse-hack pro                      # the lowest membership that opens it
+npm run catalog -- schedule mcp/browse-hack --days 30            # keeps its tier, public by itself in 30 days
+npm run catalog -- unschedule mcp/browse-hack                    # no date
+npm run catalog -- tier mcp/browse-hack public                   # release now
 npm run catalog -- vault app/brand-internals                     # never publish (--off to take it out)
+
+# Readiness and health
+npm run catalog -- ready skill/pack-brand-kit --proof "The Microfox brand kit" --url https://youtu.be/...
+npm run catalog -- beta skill/pack-brand-kit
+npm run catalog -- health mcp/browse-hack failed --note "sign-in broke after the Chrome update"
 
 # Requests from the "Request access" button
 npm run catalog -- requests

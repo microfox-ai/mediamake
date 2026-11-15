@@ -190,7 +190,7 @@ export function registerBrandKitTools(server: McpServer, client: MediamakeClient
     {
       title: 'Get brand kit',
       description:
-        "Read a project's brand kit: name, main logo (`logo`, the path of the image that stands for the brand), colours, fonts, brand guide, channel description, thumbnail profile and every uploaded asset (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, sounds) with its URL. Projects are channels or brands; use this before making anything for one so it matches the brand. Needs community access or above.",
+        "Read a project's brand kit: name, main logo (`logo`, the path of the image that stands for the brand), colours, fonts, brand guide, channel description, thumbnail profile and every uploaded asset (logo, animated logo, intros, outros, end screens, channel art, icons, fonts, sounds) with its URL. Projects are channels or brands; use this before making anything for one so it matches the brand. Needs a Plus membership or above.",
       inputSchema: {
         projectId: z.string(),
         assets: z

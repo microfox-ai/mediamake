@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Copy, Link2, X } from 'lucide-react';
 import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
+import { tierLabel } from '@/lib/memberships/tiers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,16 +15,15 @@ import { cn } from '@/lib/utils';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { PersonPicker } from './person-picker';
 import {
-  COMMUNITY_GROUP,
-  PRIVATE_GROUP,
   TIER_META,
   adminCall,
   formatDate,
   gateOf,
   grantsFor,
-  groupMembers,
   itemPath,
   personName,
+  membersByTier,
+  reachOf,
   tierOf,
   type AdminCatalog,
 } from './model';
@@ -49,15 +49,14 @@ export function ItemAccessSheet({
   const tier = tierOf(item);
   const gate = gateOf(item);
   const grants = grantsFor(data, item);
-  const privateCount = groupMembers(data, PRIVATE_GROUP).length;
-  const communityCount = groupMembers(data, COMMUNITY_GROUP).length;
+  const members = membersByTier(data);
+  const counts = { plus: members.plus.length, pro: members.pro.length, cohort: members.cohort.length };
 
   const reach = [
     { label: 'You (admin)', on: true },
-    { label: `Private testers · ${privateCount}`, on: tier !== 'vault' },
-    { label: `Community · ${communityCount}`, on: tier === 'community' || tier === 'public' },
+    ...reachOf(counts, tier).map(row => ({ label: `${tierLabel(row.tier)} · ${row.count}`, on: row.on })),
     isAlwaysPublic(item)
-      ? { label: `Everyone (${item.madeBy ? 'made by others' : 'skills'}: always public)`, on: true }
+      ? { label: `Everyone (${item.madeBy ? 'made by others' : 'in the public repo'}: always public)`, on: true }
       : { label: data.publicReleasesOpen ? 'Everyone' : 'Everyone (locked site-wide)', on: tier === 'public' && data.publicReleasesOpen },
   ];
 
@@ -159,7 +158,7 @@ export function ItemAccessSheet({
             <p className="text-sm text-muted-foreground">No one has a grant yet.</p>
           )}
           <div className="flex flex-col gap-2">
-            <Label className="text-xs text-muted-foreground">Give someone access{tier === 'vault' ? ' (vault items open only by grant)' : ''}</Label>
+            <Label className="text-xs text-muted-foreground">Give someone access{tier === 'admin' ? ' (vault items open only by grant)' : ''}</Label>
             <PersonPicker
               people={data.people}
               exclude={grants.filter(g => g.subject.kind === 'client').map(g => g.subject.id)}

@@ -2,88 +2,87 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, Copy, Crown, FlaskConical, Globe, Link2, Users, X } from 'lucide-react';
+import { Check, Copy, Crown, FlaskConical, Globe, Infinity as InfinityIcon, Link2, Sparkles, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
+import { describeMembership } from '@/lib/memberships/membership';
+import { GRANTABLE_TIERS, tierLabel, tierOpens, type GrantableTier } from '@/lib/memberships/tiers';
 import { siteUrl } from '@/lib/catalog/install-prompt';
 import { cn } from '@/lib/utils';
 import { PersonPicker } from './person-picker';
-import { COMMUNITY_GROUP, PRIVATE_GROUP, adminCall, formatDate, personName, tierOf, type AdminCatalog } from './model';
+import { adminCall, formatDate, membersByTier, personMembership, personName, personTier, tierOf, type AdminCatalog } from './model';
 
 type Run = (label: string, body: Record<string, unknown>) => Promise<boolean>;
 
 /**
- * The people side of the tiers: private testers and the community are
- * access groups; everyone else sees public items only. Pending access
- * requests and live invites sit alongside.
+ * The people side of the ladder: who holds Cohort, Pro and Plus, and how
+ * each got it (a membership record: an admin grant, a contribution, an
+ * invite). Everyone else is Public. Pending access requests and live invites
+ * sit alongside.
  */
-export function PeoplePanel({
-  data,
-  privateMembers,
-  communityMembers,
-  run,
-}: {
-  data: AdminCatalog;
-  privateMembers: string[];
-  communityMembers: string[];
-  run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
-}) {
+export function PeoplePanel({ data, run }: { data: AdminCatalog; run: (label: string, body: Record<string, unknown>) => Promise<boolean> }) {
   const invites = data.invites.filter(
     i => !i.disabledAt && i.uses < i.maxUses && (!i.expiresAt || i.expiresAt > new Date().toISOString()),
   );
+  const members = useMemo(() => membersByTier(data), [data]);
 
-  // What each tier opens with no per-item grants: our gated items (skills and items made by others are open to all)
+  // What each tier opens with no per-item grants: our gated items (repo skills and items made by others are open to all)
   const opens = useMemo(() => {
     const gated = [...data.items, ...data.cards].filter(item => !isAlwaysPublic(item) && !item.archivedAt);
-    return {
-      private: gated.filter(item => tierOf(item) !== 'vault'),
-      community: gated.filter(item => ['community', 'public'].includes(tierOf(item))),
-    };
+    return Object.fromEntries(
+      GRANTABLE_TIERS.map(tier => [tier, gated.filter(item => tierOf(item) !== 'admin' && tierOpens(tier, tierOf(item)))]),
+    ) as Record<GrantableTier, CatalogItemRecord[]>;
   }, [data]);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <TierCard
           icon={<Crown className="size-4" />}
           title="Admin"
-          body="Only you. The one who releases."
+          body="Everything, the vault included. The one who releases."
           tone="bg-foreground text-background"
         />
         <GroupCard
           data={data}
-          groupId={PRIVATE_GROUP}
           icon={<FlaskConical className="size-4" />}
-          title="Private testers"
-          tier="private"
-          body="Everything in development and ready, except the vault, plus cloud projects. Adding someone opens every MCP in development at once, with no per-item grants. Can't release."
+          tier="cohort"
+          body="Everything but the vault, with no per-item grants. Invisible to everyone below, and given by an admin only."
           tone="bg-amber-500/10 text-amber-700 dark:text-amber-300"
-          members={privateMembers}
-          opens={opens.private}
+          members={members.cohort}
+          opens={opens.cohort}
           run={run}
         />
         <GroupCard
           data={data}
-          groupId={COMMUNITY_GROUP}
-          icon={<Users className="size-4" />}
-          title="Community"
-          tier="community"
-          body="Production-ready items before they go public, and cloud projects through the MediaMake MCP."
+          icon={<Sparkles className="size-4" />}
+          tier="pro"
+          body="Pro items (Browse Hack, ProjectSync) and everything Plus opens. Earned by contributing a Pro item, or given by an admin."
           tone="bg-violet-500/10 text-violet-700 dark:text-violet-300"
-          members={communityMembers}
-          opens={opens.community}
+          members={members.pro}
+          opens={opens.pro}
+          run={run}
+        />
+        <GroupCard
+          data={data}
+          icon={<Users className="size-4" />}
+          tier="plus"
+          body="Plus items and cloud projects. Earned by contributing, or given by an admin."
+          tone="bg-sky-500/10 text-sky-700 dark:text-sky-300"
+          members={members.plus}
+          opens={opens.plus}
           run={run}
         />
         <TierCard
           icon={<Globe className="size-4" />}
           title="Public"
-          body={data.publicReleasesOpen ? 'Everyone else. Released items only.' : 'Everyone else. Nothing opens to them until public releases are unlocked.'}
+          body={data.publicReleasesOpen ? 'Everyone else. Public items only.' : 'Everyone else. Nothing but repo skills opens to them until public releases are unlocked.'}
           tone="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
         />
       </div>
 
-      <KeyHolders data={data} privateMembers={privateMembers} communityMembers={communityMembers} run={run} />
+      <KeyHolders data={data} run={run} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border bg-card">
@@ -129,7 +128,7 @@ export function PeoplePanel({
                 <li key={i.code} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm">
-                      {i.groupId ? `Join ${i.groupId === COMMUNITY_GROUP ? 'community' : i.groupId}` : i.itemIds.map(id => data.items.find(x => x.id === id)?.title ?? id).join(', ')}
+                      {i.tier ? `Join ${tierLabel(i.tier)}` : i.groupId ? `Join ${i.groupId}` : i.itemIds.map(id => data.items.find(x => x.id === id)?.title ?? id).join(', ')}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {i.uses}/{i.maxUses} used{i.expiresAt ? ` · until ${formatDate(i.expiresAt)}` : ''}
@@ -163,15 +162,15 @@ function TierCard({ icon, title, body, tone }: { icon: React.ReactNode; title: s
 }
 
 /**
- * One person tier. Adding and removing go through set_tier, so a person is in
- * one tier at a time (adding a community member here moves them up, not into both).
+ * One membership tier. Adding and removing go through set_tier, so a person
+ * holds one tier at a time: their earlier records end (kept as history) and
+ * one new record says an admin gave it. A membership that ends by itself (a
+ * contribution lasts 3 months) can be made permanent here.
  */
 function GroupCard({
   data,
-  groupId,
   tier,
   icon,
-  title,
   body,
   tone,
   members,
@@ -179,16 +178,15 @@ function GroupCard({
   run,
 }: {
   data: AdminCatalog;
-  groupId: string;
-  tier: 'private' | 'community';
+  tier: GrantableTier;
   icon: React.ReactNode;
-  title: string;
   body: string;
   tone: string;
   members: string[];
   opens: CatalogItemRecord[];
   run: Run;
 }) {
+  const title = tierLabel(tier);
   return (
     <section className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
       <div className="flex items-start justify-between">
@@ -200,20 +198,41 @@ function GroupCard({
         <p className="text-xs text-muted-foreground">{body}</p>
       </div>
       {members.length > 0 && (
-        <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-          {members.map(clientId => (
-            <li key={clientId} className="group flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-muted">
-              <span className="truncate">{personName(data.people, clientId)}</span>
-              <button
-                type="button"
-                aria-label={`Remove ${clientId}`}
-                className="text-muted-foreground opacity-0 transition group-hover:opacity-100"
-                onClick={() => run(`Removed from ${title.toLowerCase()}`, { type: 'set_tier', clientId, tier: 'public' })}
-              >
-                <X className="size-3.5" />
-              </button>
-            </li>
-          ))}
+        <ul className="flex max-h-56 flex-col gap-1 overflow-y-auto">
+          {members.map(clientId => {
+            const membership = personMembership(data, clientId);
+            return (
+              <li key={clientId} className="group flex items-start justify-between gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted">
+                <span className="min-w-0">
+                  <span className="block truncate">{personName(data.people, clientId)}</span>
+                  <span className="block text-[11px] leading-tight text-muted-foreground">
+                    {membership?.tier === tier ? describeMembership(membership) : 'From the earlier tiers: run the migration to give them a membership record'}
+                    {membership?.note ? ` · ${membership.note}` : ''}
+                  </span>
+                </span>
+                <span className="flex shrink-0 gap-1.5 pt-0.5 text-muted-foreground opacity-0 transition group-hover:opacity-100">
+                  {membership?.tier === tier && membership.expiresAt && (
+                    <button
+                      type="button"
+                      aria-label={`Make ${clientId}'s membership permanent`}
+                      title="Make it permanent: no expiry, until an admin removes it"
+                      onClick={() => run('Membership made permanent', { type: 'membership_permanent', membershipId: membership.membershipId })}
+                    >
+                      <InfinityIcon className="size-3.5" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${clientId}`}
+                    title="Back to Public"
+                    onClick={() => run(`Removed from ${title}`, { type: 'set_tier', clientId, tier: 'public' })}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
       {opens.length > 0 && (
@@ -234,9 +253,9 @@ function GroupCard({
           people={data.people}
           exclude={members}
           action="Add"
-          onPick={clientId => run(`Added to ${title.toLowerCase()}`, { type: 'set_tier', clientId, tier })}
+          onPick={clientId => run(`Added to ${title}`, { type: 'set_tier', clientId, tier })}
         />
-        <TierInvite groupId={groupId} title={title} />
+        <TierInvite tier={tier} title={title} />
       </div>
     </section>
   );
@@ -246,7 +265,7 @@ function GroupCard({
  * An invite link into the tier, for people without a MediaMake account yet:
  * they sign up, open it, and are in. Works for 10 people for 30 days.
  */
-function TierInvite({ groupId, title }: { groupId: string; title: string }) {
+function TierInvite({ tier, title }: { tier: GrantableTier; title: string }) {
   const [link, setLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -264,10 +283,10 @@ function TierInvite({ groupId, title }: { groupId: string; title: string }) {
     try {
       const { invite } = await adminCall<{ invite: { code: string } }>({
         type: 'create_invite',
-        groupId,
+        tier,
         maxUses: 10,
         expiresInDays: 30,
-        note: `Invite to ${title.toLowerCase()}`,
+        note: `Invite to ${title}`,
       });
       const url = `${siteUrl() ?? window.location.origin}/access?code=${invite.code}`;
       setLink(url);
@@ -297,33 +316,17 @@ function TierInvite({ groupId, title }: { groupId: string; title: string }) {
   );
 }
 
-const TIER_OPTIONS = [
-  { value: 'public', label: 'Public' },
-  { value: 'community', label: 'Community' },
-  { value: 'private', label: 'Private' },
-] as const;
+const TIER_OPTIONS = [{ value: 'public', label: 'Public' }, ...GRANTABLE_TIERS.map(tier => ({ value: tier, label: tierLabel(tier) }))] as const;
 
 /**
  * Everyone with an API key and the tier you've given them. A key alone
  * grants nothing beyond public items; the tier decides what it opens.
  */
-function KeyHolders({
-  data,
-  privateMembers,
-  communityMembers,
-  run,
-}: {
-  data: AdminCatalog;
-  privateMembers: string[];
-  communityMembers: string[];
-  run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
-}) {
+function KeyHolders({ data, run }: { data: AdminCatalog; run: (label: string, body: Record<string, unknown>) => Promise<boolean> }) {
   const [query, setQuery] = useState('');
   if (!data.people.length) return null;
   const q = query.trim().toLowerCase();
   const shown = q ? data.people.filter(p => p.name.toLowerCase().includes(q) || p.clientId.toLowerCase().includes(q)) : data.people;
-  const tierOf = (clientId: string) =>
-    privateMembers.includes(clientId) ? 'private' : communityMembers.includes(clientId) ? 'community' : 'public';
 
   return (
     <section className="rounded-2xl border bg-card">
@@ -340,7 +343,7 @@ function KeyHolders({
       </header>
       <ul className="divide-y">
         {shown.map(person => {
-          const current = tierOf(person.clientId);
+          const current = personTier(data, person.clientId);
           return (
             <li key={person.clientId} className="flex items-center justify-between gap-3 px-5 py-2.5">
               <div className="min-w-0">
@@ -356,7 +359,7 @@ function KeyHolders({
                     type="button"
                     disabled={option.value === current}
                     onClick={() =>
-                      run(`${person.name} is now ${option.label.toLowerCase()}`, {
+                      run(`${person.name} is now ${option.label}`, {
                         type: 'set_tier',
                         clientId: person.clientId,
                         tier: option.value,

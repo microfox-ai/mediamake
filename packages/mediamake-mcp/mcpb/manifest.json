@@ -140,7 +140,7 @@
     },
     {
       "name": "catalog_items",
-      "description": "Admins: every catalog item with who can open it, where it comes from, whether it is archived, and its release page."
+      "description": "Admins: every catalog item with the lowest membership that opens it, whether it is Beta or Ready, its health, where it comes from, and its release page."
     },
     {
       "name": "catalog_item",
@@ -152,11 +152,15 @@
     },
     {
       "name": "catalog_set_health",
-      "description": "Admins: say how MCPs are doing (healthy, inactive, archived, not working), shown on their cards and pages."
+      "description": "Admins: say whether items of any kind work (healthy, inactive, archived, or failed with the reason), shown on their cards and pages."
+    },
+    {
+      "name": "catalog_set_readiness",
+      "description": "Admins: mark items Ready, with the finished productions that prove it, or back to Beta."
     },
     {
       "name": "catalog_set_stage",
-      "description": "Admins: move one of our apps, MCPs, tutorials or courses between development, community, public and the vault."
+      "description": "Admins: set the lowest membership that opens one of our items: public, plus, pro, cohort or the vault."
     },
     {
       "name": "catalog_add_third_party",
@@ -168,19 +172,23 @@
     },
     {
       "name": "catalog_add_video_item",
-      "description": "Admins: add a tutorial (one YouTube video) or a course (tutorials played in order); it starts in development."
+      "description": "Admins: add a tutorial (one YouTube video) or a course (tutorials played in order); it starts with the cohort."
     },
     {
       "name": "catalog_invite",
-      "description": "Admins: make an invite link that opens gated catalog items, or makes whoever redeems it a private tester or community member."
+      "description": "Admins: make an invite link that opens gated catalog items, or gives whoever redeems it a Plus, Pro or Cohort membership."
     },
     {
       "name": "catalog_people",
-      "description": "Admins: who the private testers and community members are, with tier invite links and pending requests."
+      "description": "Admins: who holds each membership (Cohort, Pro, Plus), how they got it and how long it lasts, with tier invite links and pending requests."
     },
     {
       "name": "catalog_set_tier",
-      "description": "Admins: make people private testers, community members, or public, by client id or name."
+      "description": "Admins: give people a Plus, Pro or Cohort membership, or take it away, by client id or name."
+    },
+    {
+      "name": "catalog_membership",
+      "description": "Admins: make one membership permanent, renew it for a new contribution, or end it."
     }
   ],
   "keywords": [

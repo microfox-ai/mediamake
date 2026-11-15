@@ -9,7 +9,7 @@ Every take a channel makes with an AI music tool is kept on its cloud project, s
 
 ## Access
 
-The brand kit rule (`lib/generations/access.ts`): cloud projects need community access or above (not checked on `next dev`); then anyone the project is shared with may read, and its owner and editors may write. A project the caller can't see is a 404.
+The brand kit rule (`lib/generations/access.ts`): cloud projects need a Plus membership or above (not checked on `next dev`); then anyone the project is shared with may read, and its owner and editors may write. A project the caller can't see is a 404.
 
 ## A take
 

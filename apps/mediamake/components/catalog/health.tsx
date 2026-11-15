@@ -1,12 +1,12 @@
 import { cn } from '@/lib/utils';
-import type { McpHealth } from '@/lib/catalog/types';
+import type { ItemHealth } from '@/lib/catalog/types';
 
 /**
- * How an MCP is doing (see McpHealth), as a dot and a word: on the homepage
+ * Whether an item works right now (see ItemHealth), as a dot and a word: on the homepage
  * cards, the install page, its "Works with" lists and the admin pages.
  */
 
-export const HEALTH: Record<McpHealth, { label: string; title: string; dot: string; style: string }> = {
+export const HEALTH: Record<ItemHealth, { label: string; title: string; dot: string; style: string }> = {
   healthy: {
     label: 'Healthy',
     title: 'Healthy: works',
@@ -25,15 +25,15 @@ export const HEALTH: Record<McpHealth, { label: string; title: string; dot: stri
     dot: 'bg-zinc-500',
     style: 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-300',
   },
-  'not-working': {
-    label: 'Not working',
-    title: "Not working: broken right now, so don't install it until it is fixed",
+  failed: {
+    label: 'Failed',
+    title: "Failed: broken right now, so don't install it until it is fixed",
     dot: 'bg-red-500',
     style: 'bg-red-500/10 text-red-700 dark:text-red-300',
   },
 };
 
-export function HealthBadge({ health, note, className }: { health?: McpHealth; note?: string; className?: string }) {
+export function HealthBadge({ health, note, className }: { health?: ItemHealth; note?: string; className?: string }) {
   if (!health) return null;
   const { label, title, dot, style } = HEALTH[health];
   return (

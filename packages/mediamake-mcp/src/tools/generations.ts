@@ -22,7 +22,7 @@ export function registerGenerationTools(server: McpServer, client: MediamakeClie
     {
       title: 'List generations',
       description:
-        "List a project's music takes (songs, covers, extends, remasters made with Suno), newest first: title, styles, exclude styles, lyrics, model and settings, status, audio and cover URLs, the suno.com link and its parent's, rating (keeper, maybe, reject), notes and the productions each was used in. A project is a channel; Browse Hack saves every Suno take made for it. Use rating keeper for the songs the channel kept. Needs community access or above.",
+        "List a project's music takes (songs, covers, extends, remasters made with Suno), newest first: title, styles, exclude styles, lyrics, model and settings, status, audio and cover URLs, the suno.com link and its parent's, rating (keeper, maybe, reject), notes and the productions each was used in. A project is a channel; Browse Hack saves every Suno take made for it. Use rating keeper for the songs the channel kept. Needs a Plus membership or above.",
       inputSchema: {
         projectId: z.string(),
         rating: z

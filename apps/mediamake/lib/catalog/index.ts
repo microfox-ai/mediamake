@@ -1,15 +1,19 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
 import { installPromptFor, updatePromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogVideosDB } from './store';
+import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogReadinessDB, catalogVideosDB } from './store';
 import { withVideos } from './video';
 import {
-  effectiveVisibility,
+  isHiddenFromBelow,
   isInstallable,
+  itemTier,
+  visibilityOfTier,
   withArchive,
   type ArchiveMark,
   type HealthMark,
+  type ReadinessMark,
   withHealth,
+  withReadiness,
   type CatalogEntry,
   type CatalogItem,
   type CatalogItemRecord,
@@ -30,15 +34,19 @@ export function toCard(record: CatalogItemRecord | CatalogItem): CatalogItem {
 }
 
 /**
- * Marks an item for one viewer; locked items lose their href. A gated item
- * past its `publicAt` is shown as public, dated from that moment.
+ * Marks an item for one viewer, with the tier that opens it right now;
+ * locked items lose their href. A gated item past its `publicAt` is shown as
+ * Public, dated from that moment.
  */
 export function toEntry(entitlements: Entitlements, stored: CatalogItem): CatalogEntry {
-  const visibility = effectiveVisibility(stored);
-  const item =
-    visibility === stored.visibility
-      ? stored
-      : { ...stored, visibility, releasedAt: visibility === 'public' && stored.publicAt ? stored.publicAt : stored.releasedAt };
+  const tier = itemTier(stored);
+  const visibility = visibilityOfTier(tier);
+  const item = {
+    ...stored,
+    tier,
+    visibility,
+    releasedAt: tier === 'public' && stored.publicAt && stored.tier !== 'public' && stored.visibility !== 'public' ? stored.publicAt : stored.releasedAt,
+  };
   const access = accessLevel(entitlements, item);
   if (access !== 'locked') return { ...item, access };
   const { href: _href, ...rest } = item;
@@ -47,11 +55,15 @@ export function toEntry(entitlements: Entitlements, stored: CatalogItem): Catalo
 
 /**
  * Catalog as seen by one viewer, newest first. Only items the viewer can
- * open are returned: locked items are hidden entirely, so their names never
- * reach people without access. Installable items carry an `installPrompt`,
+ * open are returned, unless `locked: 'show'` asks for the locked ones too
+ * (Explore shows which membership opens them): those come without their
+ * href, and never include the cohort's or the vault's, whose names must not
+ * reach people below. Installable items carry an `installPrompt`,
  * items that work with others (a skill's MCPs) their `uses`, items with a
  * video (a skill's intro, a tutorial, a course) their `video`, and archived
- * ones `archivedAt` (the homepage leaves those out).
+ * ones `archivedAt` (the homepage leaves those out). Every item carries its
+ * `tier`, its `readiness` (Beta, or Ready with `readyProof`) and, when it
+ * has one, its `health`: lib/catalog/shown says where each shows.
  *
  * Merges the items defined in ./items (public-safe cards, third-party.json
  * and the skill registry) with the catalog database, where released and
@@ -62,7 +74,7 @@ export function toEntry(entitlements: Entitlements, stored: CatalogItem): Catalo
 export async function listCatalog(
   viewer: Viewer,
   kind?: CatalogKind,
-  options: { entitlements?: Entitlements } = {},
+  options: { entitlements?: Entitlements; locked?: 'hide' | 'show' } = {},
 ): Promise<CatalogEntry[]> {
   const entitlements = options.entitlements ?? (await getEntitlements(viewer));
 
@@ -70,19 +82,21 @@ export async function listCatalog(
   let archived: ArchiveMark[] = [];
   let videos: CatalogVideo[] = [];
   let health: HealthMark[] = [];
+  let readiness: ReadinessMark[] = [];
   try {
-    [stored, archived, videos, health] = await Promise.all([
+    [stored, archived, videos, health, readiness] = await Promise.all([
       catalogItemsDB.list({ kind }),
       catalogArchiveDB.list(),
       catalogVideosDB.list(),
       catalogHealthDB.list(),
+      catalogReadinessDB.list(),
     ]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[]; runs: McpRuns[] }>();
-  for (const record of withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health)) {
+  for (const record of withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health), readiness)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses, runs: mcpRunsOf(record) });
   }
 
@@ -104,6 +118,6 @@ export async function listCatalog(
         ...(runs.length && { runs }),
       };
     })
-    .filter(entry => entry.access !== 'locked')
+    .filter(entry => entry.access !== 'locked' || (options.locked === 'show' && entry.listed !== false && !isHiddenFromBelow(entry.tier ?? 'admin')))
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 }

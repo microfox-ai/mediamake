@@ -2,9 +2,12 @@ import { randomBytes } from 'crypto';
 import { getDatabase } from '../mongodb';
 import {
   ALWAYS_PUBLIC_ERROR,
-  ALWAYS_PUBLIC_KINDS,
+  LEGACY_ITEM_TIER,
   NETWORK_GROUP,
   isAlwaysPublic,
+  itemTier,
+  parseHealth,
+  visibilityOfTier,
   type AccessGrant,
   type AccessGroup,
   type AccessInvite,
@@ -18,10 +21,14 @@ import {
   type CatalogStatus,
   type CatalogVersion,
   type CatalogVideo,
+  type GrantableTier,
   type GrantSubject,
   type HealthMark,
   type InstallSpec,
-  type McpHealth,
+  type ItemHealth,
+  type ItemTier,
+  type ReadinessMark,
+  type ReadyProof,
   type Visibility,
 } from './types';
 
@@ -30,6 +37,7 @@ const COL = {
   archive: 'catalog_archive',
   videos: 'catalog_videos',
   health: 'catalog_health',
+  readiness: 'catalog_readiness',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -68,9 +76,15 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.archive).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.videos).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
+  await db.collection(COL.readiness).createIndex({ id: 1 }, { unique: true });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
+
+/** A stored record's tier, whatever the clock says: a pending gate doesn't count. */
+function storedTier(record: CatalogItemRecord): ItemTier {
+  return itemTier({ ...record, publicAt: undefined });
+}
 
 export const catalogItemsDB = {
   async get(id: string): Promise<CatalogItemRecord | null> {
@@ -87,15 +101,17 @@ export const catalogItemsDB = {
       .toArray();
   },
 
-  /** Creates the item, or updates its card fields. Never touches versions. */
   /**
-   * Leaving `visibility` or `status` out keeps the current value; new items
-   * start private and in beta.
+   * Creates the item, or updates its card fields. Never touches versions.
+   * Leaving `tier` (or the older `visibility`) and `status` out keeps the
+   * current value; new items start with the cohort. An item that is always
+   * Public (see isAlwaysPublic) is Public whatever is asked.
    */
   async upsert(
-    item: Omit<CatalogItem, 'updatedAt' | 'version' | 'releasedAt' | 'visibility' | 'status'> & {
+    item: Omit<CatalogItem, 'updatedAt' | 'version' | 'releasedAt' | 'visibility' | 'status' | 'tier' | 'readiness' | 'readyProof'> & {
       slug: string;
       install?: InstallSpec;
+      tier?: ItemTier;
       visibility?: Visibility;
       status?: CatalogStatus;
     },
@@ -103,13 +119,17 @@ export const catalogItemsDB = {
   ): Promise<CatalogItemRecord> {
     const db = await getDatabase();
     const now = nowISO();
-    const { visibility: requested, status, ...card } = item;
+    // inRepo is read from the skill registry when records load, never stored
+    const { visibility: stage, tier: asked, status, inRepo: _inRepo, ...card } = item;
     const existing = await this.get(item.id);
-    const visibility = isAlwaysPublic(item) ? 'public' : (requested ?? existing?.visibility ?? 'private');
+    const requested = asked ?? (stage ? LEGACY_ITEM_TIER[stage] : undefined);
+    const tier: ItemTier = isAlwaysPublic(item) ? 'public' : (requested ?? (existing ? storedTier(existing) : 'cohort'));
     if (!existing) {
       const record: CatalogItemRecord = {
         ...card,
-        visibility,
+        tier,
+        visibility: visibilityOfTier(tier),
+        ...(tier === 'admin' && { neverPublish: true }),
         status: status ?? 'beta',
         listed: item.listed ?? true,
         releasedAt: now,
@@ -117,7 +137,7 @@ export const catalogItemsDB = {
         createdAt: now,
         createdBy: actor,
         updatedAt: now,
-        stageHistory: [{ visibility, at: now, by: actor }],
+        stageHistory: [{ visibility: visibilityOfTier(tier), tier, at: now, by: actor }],
       };
       await db.collection<CatalogItemRecord>(COL.items).insertOne(withoutUndefined(record) as CatalogItemRecord);
       return record;
@@ -126,8 +146,8 @@ export const catalogItemsDB = {
       { id: item.id },
       { $set: { ...withoutUndefined({ ...card, status }), updatedAt: now } },
     );
-    if (visibility !== existing.visibility) {
-      await this.setVisibility(item.id, visibility, actor);
+    if (tier !== storedTier(existing)) {
+      await this.setTier(item.id, tier, actor, { alwaysPublic: isAlwaysPublic(item) });
     }
     return (await this.get(item.id))!;
   },
@@ -139,97 +159,118 @@ export const catalogItemsDB = {
   },
 
   /**
-   * Moves an item between stages, e.g. private → network → public. Moving
-   * by hand clears a pending gate (scheduleRelease sets a new one after);
-   * never-publish items stay private.
+   * Sets the lowest membership that opens an item: public, plus, pro, cohort,
+   * or admin (the vault: never published). Moving by hand clears a pending
+   * gate (scheduleRelease sets a new one after). An item that is always
+   * Public can only be Public: the caller says so with `alwaysPublic` (a
+   * stored record doesn't know whether its skill is in the repo).
    */
-  async setVisibility(id: string, visibility: Visibility, actor?: string) {
+  async setTier(id: string, tier: ItemTier, actor?: string, options: { alwaysPublic?: boolean } = {}) {
     const db = await getDatabase();
     const now = nowISO();
     const existing = await this.get(id);
     if (!existing) return null;
-    if (isAlwaysPublic(existing) && visibility !== 'public') throw new Error(ALWAYS_PUBLIC_ERROR);
-    if (existing.neverPublish && visibility !== 'private') {
-      throw new Error(`${id} is marked never-publish; take it out of the vault first`);
-    }
+    if ((options.alwaysPublic || isAlwaysPublic(existing)) && tier !== 'public') throw new Error(ALWAYS_PUBLIC_ERROR);
+    const visibility = visibilityOfTier(tier);
     await db.collection<CatalogItemRecord>(COL.items).updateOne(
       { id },
       {
-        $unset: { publicAt: '', gateStartedAt: '' },
+        $unset: { publicAt: '', gateStartedAt: '', ...(tier !== 'admin' && { neverPublish: '' }) },
         $set: {
+          tier,
           visibility,
+          ...(tier === 'admin' && { neverPublish: true }),
           updatedAt: now,
           // Going public for the first time puts the card back at the top.
-          ...(visibility === 'public' && !existing.stageHistory?.some(h => h.visibility === 'public')
-            ? { releasedAt: now }
-            : {}),
+          ...(tier === 'public' && !existing.stageHistory?.some(h => h.visibility === 'public') ? { releasedAt: now } : {}),
         },
-        $push: { stageHistory: { visibility, at: now, by: actor } },
+        $push: { stageHistory: { visibility, tier, at: now, by: actor } },
       },
     );
     return this.get(id);
   },
 
   /**
-   * Records gated releases whose time has come as public, dated from their
-   * `publicAt`. Access already treats them as public (effectiveVisibility);
-   * this keeps the stored stage and history in step. Returns the ids moved.
+   * Writes a tier on a record stored before the ladder (the migration):
+   * unlike setTier, a pending gate stays as it is.
+   */
+  async recordTier(id: string, tier: ItemTier, actor?: string) {
+    const db = await getDatabase();
+    const now = nowISO();
+    const visibility = visibilityOfTier(tier);
+    await db.collection<CatalogItemRecord>(COL.items).updateOne(
+      { id },
+      {
+        $set: { tier, visibility, ...(tier === 'admin' && { neverPublish: true }), updatedAt: now },
+        ...(tier !== 'admin' && { $unset: { neverPublish: '' } }),
+        $push: { stageHistory: { visibility, tier, at: now, by: actor } },
+      },
+    );
+  },
+
+  /** The older way to move an item, by stage: private is the cohort, network is Pro. Leaves the vault alone. */
+  async setVisibility(id: string, visibility: Visibility, actor?: string) {
+    const existing = await this.get(id);
+    if (!existing) return null;
+    if (existing.neverPublish && visibility !== 'private') {
+      throw new Error(`${id} is in the vault; take it out first`);
+    }
+    return this.setTier(id, existing.neverPublish ? 'admin' : LEGACY_ITEM_TIER[visibility], actor);
+  },
+
+  /**
+   * Records gated releases whose time has come as Public, dated from their
+   * `publicAt`. Access already treats them as Public (itemTier); this keeps
+   * the stored tier and history in step. Returns the ids moved.
    */
   async settleGates(): Promise<string[]> {
     const db = await getDatabase();
     const now = nowISO();
     const due = await db
       .collection<CatalogItemRecord>(COL.items)
-      .find(
-        { publicAt: { $lte: now }, visibility: 'network', neverPublish: { $ne: true } },
-        { projection: { _id: 0, id: 1, publicAt: 1, stageHistory: 1 } },
-      )
+      .find({ publicAt: { $lte: now }, neverPublish: { $ne: true } }, { projection: { _id: 0, id: 1, publicAt: 1, stageHistory: 1 } })
       .toArray();
     for (const item of due) {
       const firstTime = !item.stageHistory?.some(h => h.visibility === 'public');
       await db.collection<CatalogItemRecord>(COL.items).updateOne(
         { id: item.id },
         {
-          $set: { visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: item.publicAt } : {}) },
+          $set: { tier: 'public', visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: item.publicAt } : {}) },
           $unset: { publicAt: '', gateStartedAt: '' },
-          $push: { stageHistory: { visibility: 'public', at: item.publicAt!, by: 'gate' } },
+          $push: { stageHistory: { visibility: 'public', tier: 'public', at: item.publicAt!, by: 'gate' } },
         },
       );
     }
-    // Skills and items made by others are always public: record any stored as private or network
-    // (from before that rule) as public.
-    const skills = await db
+    // Items made by others are always Public: record any stored otherwise as Public.
+    const others = await db
       .collection<CatalogItemRecord>(COL.items)
       .find(
         {
-          $and: [
-            { $or: [{ kind: { $in: ALWAYS_PUBLIC_KINDS } }, { madeBy: { $exists: true } }] },
-            { $or: [{ visibility: { $ne: 'public' } }, { neverPublish: true }, { publicAt: { $exists: true } }] },
-          ],
+          madeBy: { $exists: true },
+          $or: [{ visibility: { $ne: 'public' } }, { neverPublish: true }, { publicAt: { $exists: true } }],
         },
         { projection: { _id: 0, id: 1, stageHistory: 1 } },
       )
       .toArray();
-    for (const item of skills) {
+    for (const item of others) {
       const firstTime = !item.stageHistory?.some(h => h.visibility === 'public');
       await db.collection<CatalogItemRecord>(COL.items).updateOne(
         { id: item.id },
         {
-          $set: { visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: now } : {}) },
+          $set: { tier: 'public', visibility: 'public', updatedAt: now, ...(firstTime ? { releasedAt: now } : {}) },
           $unset: { neverPublish: '', publicAt: '', gateStartedAt: '' },
-          $push: { stageHistory: { visibility: 'public', at: now, by: 'skills-public' } },
+          $push: { stageHistory: { visibility: 'public', tier: 'public', at: now, by: 'made-by-others' } },
         },
       );
     }
-    return [...due, ...skills].map(item => item.id);
+    return [...due, ...others].map(item => item.id);
   },
 
   /**
-   * Gates a release: the item becomes a community item now and goes public
-   * by itself at `publicAt`. Passing null cancels the gate (the item stays
-   * where it is).
+   * Gates a release: the item keeps its tier now and goes Public by itself
+   * at `publicAt`. Passing null cancels the gate (the item stays where it is).
    */
-  async scheduleRelease(id: string, publicAt: string | null, actor?: string) {
+  async scheduleRelease(id: string, publicAt: string | null, _actor?: string) {
     const db = await getDatabase();
     const existing = await this.get(id);
     if (!existing) return null;
@@ -240,32 +281,19 @@ export const catalogItemsDB = {
       return this.get(id);
     }
     if (isAlwaysPublic(existing)) throw new Error(ALWAYS_PUBLIC_ERROR);
-    if (existing.neverPublish) throw new Error(`${id} is marked never-publish; take it out of the vault first`);
-    if (existing.visibility === 'public') throw new Error(`${id} is already public`);
-    if (existing.visibility === 'private') await this.setVisibility(id, 'network', actor);
+    if (existing.neverPublish) throw new Error(`${id} is in the vault; take it out first`);
+    if (storedTier(existing) === 'public') throw new Error(`${id} is already public`);
     const now = nowISO();
     await db.collection<CatalogItemRecord>(COL.items).updateOne({ id }, { $set: { publicAt, gateStartedAt: now, updatedAt: now } });
     return this.get(id);
   },
 
-  /**
-   * Puts an item in the vault (never published, admins and explicit grants
-   * only) or takes it out, back to development.
-   */
+  /** Puts an item in the vault (tier admin) or takes it out, back to the cohort. */
   async setNeverPublish(id: string, neverPublish: boolean, actor?: string) {
-    const db = await getDatabase();
     const existing = await this.get(id);
     if (!existing) return null;
-    if (neverPublish) {
-      if (isAlwaysPublic(existing)) throw new Error(ALWAYS_PUBLIC_ERROR);
-      if (existing.visibility !== 'private') await this.setVisibility(id, 'private', actor);
-      await db
-        .collection<CatalogItemRecord>(COL.items)
-        .updateOne({ id }, { $set: { neverPublish: true, updatedAt: nowISO() }, $unset: { publicAt: '', gateStartedAt: '' } });
-    } else {
-      await db.collection<CatalogItemRecord>(COL.items).updateOne({ id }, { $unset: { neverPublish: '' }, $set: { updatedAt: nowISO() } });
-    }
-    return this.get(id);
+    if (neverPublish) return this.setTier(id, 'admin', actor);
+    return existing.neverPublish ? this.setTier(id, 'cohort', actor) : existing;
   },
 
   async addVersion(id: string, version: CatalogVersion) {
@@ -342,15 +370,17 @@ export const catalogArchiveDB = {
 
 // ── Health ───────────────────────────────────────────────────────────────────
 
-/** MCPs' health (see McpHealth): any MCP, one the repo defines too, so kept apart from the items. */
+/** Items' health (see ItemHealth): any item, one the repo defines too, so kept apart from the items. */
 export const catalogHealthDB = {
+  /** Every mark. One stored under the earlier name `not-working` reads as failed. */
   async list(): Promise<HealthMark[]> {
     const db = await getDatabase();
-    return db.collection<HealthMark>(COL.health).find({}, { projection: { _id: 0 } }).toArray();
+    const marks = await db.collection<HealthMark>(COL.health).find({}, { projection: { _id: 0 } }).toArray();
+    return marks.map(mark => ({ ...mark, health: parseHealth(mark.health) ?? 'healthy' }));
   },
 
-  /** Marks the MCPs (a new note replaces the old one, none clears it), or with null clears the mark: back to the repo's default. */
-  async set(ids: string[], health: McpHealth | null, actor?: string, note?: string) {
+  /** Marks the items (a new note replaces the old one, none clears it), or with null clears the mark: back to the repo's default. */
+  async set(ids: string[], health: ItemHealth | null, actor?: string, note?: string) {
     const db = await getDatabase();
     if (!health) {
       await db.collection<HealthMark>(COL.health).deleteMany({ id: { $in: ids } });
@@ -362,6 +392,42 @@ export const catalogHealthDB = {
         replaceOne: { filter: { id }, replacement: withoutUndefined({ id, health, note, at, by: actor }) as HealthMark, upsert: true },
       })),
     );
+  },
+};
+
+// ── Readiness ────────────────────────────────────────────────────────────────
+
+/** Items marked Ready, with their proof (see Readiness): any item, kept apart from the items like health. Beta is having no mark. */
+export const catalogReadinessDB = {
+  async list(): Promise<ReadinessMark[]> {
+    const db = await getDatabase();
+    return db.collection<ReadinessMark>(COL.readiness).find({}, { projection: { _id: 0 } }).toArray();
+  },
+
+  async get(id: string): Promise<ReadinessMark | null> {
+    const db = await getDatabase();
+    return db.collection<ReadinessMark>(COL.readiness).findOne({ id }, { projection: { _id: 0 } });
+  },
+
+  /** Marks the items Ready with their proof. */
+  async setReady(ids: string[], proof: ReadyProof[], actor?: string, note?: string) {
+    const db = await getDatabase();
+    const at = nowISO();
+    await db.collection<ReadinessMark>(COL.readiness).bulkWrite(
+      ids.map(id => ({
+        replaceOne: {
+          filter: { id },
+          replacement: withoutUndefined({ id, readiness: 'ready' as const, proof, note, at, by: actor }) as ReadinessMark,
+          upsert: true,
+        },
+      })),
+    );
+  },
+
+  /** Back to Beta: the mark and its proof go. */
+  async setBeta(ids: string[]) {
+    const db = await getDatabase();
+    await db.collection<ReadinessMark>(COL.readiness).deleteMany({ id: { $in: ids } });
   },
 };
 
@@ -528,6 +594,7 @@ export const accessInvitesDB = {
   async create(input: {
     itemIds: (string | '*')[];
     groupId?: string;
+    tier?: GrantableTier;
     maxUses?: number;
     grantDays?: number;
     expiresAt?: string;
@@ -540,6 +607,7 @@ export const accessInvitesDB = {
       code: randomBytes(8).toString('base64url'),
       itemIds: input.itemIds,
       groupId: input.groupId,
+      tier: input.tier,
       maxUses: input.maxUses ?? 1,
       uses: 0,
       redeemedBy: [],

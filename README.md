@@ -56,7 +56,7 @@ the private tier and clients with the `lambdaRender` flag. Local means the edito
 
 A cloud project (a channel or brand) can carry a brand kit: colours, fonts, brand guide, logos,
 intros, outros, end screens and sounds. Upload the folder the `pack-brand-kit` skill exports from the
-Projects page, or with the MCP's `upload_brand_kit`. Needs community access or above.
+Projects page, or with the MCP's `upload_brand_kit`. Needs a Plus membership or above.
 
 ### Generations
 
@@ -71,9 +71,11 @@ and style presets, and copies a take for Claude to make more from; the MCP has `
 
 **Skills are public by default**: every skill is committed in this repo and open to everyone, with
 nothing hidden. **Apps and MCPs** are the gated ones: they are handed out as catalog items, their
-packages live in private storage, and each sits in a tier: **vault** (never published), **in
-development**, **community** (ready, pre-release, optionally gated to turn public after a date) and
-**public**. People get a tier too (admin, private, community, public), set per API key holder.
+packages live in private storage, and each names the lowest membership that opens it on one strict
+ladder: **Public, Plus, Pro, Cohort, Admin** (the vault, never published). Each tier opens everything
+below it, and a gated item can be set to turn public after a date. People hold a tier too, as a
+membership record that says how they got it (a contribution lasts 3 months). Every item is also **Beta**
+or **Ready** (proven by a finished production) and has a health (a failed one says why).
 
 - **Install an item**: open its card on the homepage (or `/access?item=<kind>/<name>`), copy the install
   prompt and paste it into Claude. Claude follows [install.md](install.md).

@@ -1,7 +1,7 @@
 import {
   COMMUNITY_GROUP,
   PRIVATE_GROUP,
-  releaseTier,
+  itemTier,
   type AccessGrant,
   type AccessGroup,
   type AccessInvite,
@@ -10,8 +10,11 @@ import {
   type CatalogItemRecord,
   type CatalogVideo,
   type HealthMark,
-  type ReleaseTier,
+  type ItemTier,
+  type ReadinessMark,
 } from '@/lib/catalog/types';
+import { currentMembership, type Membership } from '@/lib/memberships/membership';
+import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, tierOpens, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
 import type { InstallPlan } from '@/lib/catalog/plan';
 import type { UsedBy } from '@/lib/catalog/summary';
 
@@ -37,6 +40,8 @@ export interface AdminCatalog {
   invites: AccessInvite[];
   requests: AccessRequest[];
   people: Person[];
+  /** Every membership record, ended ones too (see lib/memberships). */
+  memberships: Membership[];
   publicReleasesOpen: boolean;
   defaultGateDays: number;
 }
@@ -59,8 +64,8 @@ export interface ItemDetail {
   definedIn: 'database' | 'third-party.json' | 'skills.json' | 'items.ts' | null;
   /** Live grants that reach it: its own, its kind's and everything's. */
   grants: AccessGrant[];
-  /** How many people are in each group. */
-  groups: { private: number; community: number };
+  /** How many people hold each membership. */
+  members: Record<GrantableTier, number>;
   publicReleasesOpen: boolean;
   /** What installing it does, as an admin would get it. */
   plan: InstallPlan;
@@ -68,8 +73,10 @@ export interface ItemDetail {
   usedBy: UsedBy[];
   /** Set when it is archived: when, by whom, and why. */
   archive: ArchiveMark | null;
-  /** An admin's health mark on an MCP (item.health is the result, the repo's default without one). */
+  /** An admin's health mark (item.health is the result, the repo's default without one). */
   healthMark: HealthMark | null;
+  /** The Ready mark with its proof; none while it is Beta. */
+  readinessMark: ReadinessMark | null;
   /** Titles by id, for everything in the catalog. */
   names: Record<string, string>;
   installPrompt?: string;
@@ -89,7 +96,7 @@ export interface ItemDetail {
 export interface LessonOption {
   id: string;
   title: string;
-  tier: ReleaseTier;
+  tier: ItemTier;
   thumbnail?: string;
   archivedAt?: string;
 }
@@ -103,44 +110,83 @@ export async function fetchItemDetail(id: string): Promise<ItemDetail> {
 
 export { itemPath, originOf } from '@/lib/catalog/summary';
 
-export const TIER_META: Record<
-  ReleaseTier,
-  { label: string; who: string; dot: string; soft: string; ring: string }
-> = {
-  vault: {
+/** How the admin pages show each tier of an item: the lowest membership that opens it. */
+export const TIER_META: Record<ItemTier, { label: string; who: string; dot: string; soft: string; ring: string }> = {
+  admin: {
     label: 'Vault',
-    who: 'Only you. Never published.',
+    who: 'Admins only. Never published.',
     dot: 'bg-zinc-500',
     soft: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
     ring: 'ring-zinc-500/30',
   },
-  development: {
-    label: 'In development',
-    who: 'You and private testers',
+  cohort: {
+    label: 'Cohort',
+    who: 'The cohort and admins. Hidden from the rest.',
     dot: 'bg-amber-500',
     soft: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
     ring: 'ring-amber-500/30',
   },
-  community: {
-    label: 'Community',
-    who: 'Production ready, before release',
+  pro: {
+    label: 'Pro',
+    who: 'Pro members and above',
     dot: 'bg-violet-500',
     soft: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
     ring: 'ring-violet-500/30',
   },
+  plus: {
+    label: 'Plus',
+    who: 'Plus members and above',
+    dot: 'bg-sky-500',
+    soft: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    ring: 'ring-sky-500/30',
+  },
   public: {
     label: 'Public',
-    who: 'Released to everyone',
+    who: 'Everyone',
     dot: 'bg-emerald-500',
     soft: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     ring: 'ring-emerald-500/30',
   },
 };
 
-export const TIER_ORDER: ReleaseTier[] = ['vault', 'development', 'community', 'public'];
+/** The tiers as the board lays them out: most restricted first. */
+export const TIER_ORDER: ItemTier[] = ['admin', 'cohort', 'pro', 'plus', 'public'];
 
-export function tierOf(item: CatalogItemRecord, now = Date.now()): ReleaseTier {
-  return releaseTier(item, now);
+export function tierOf(item: CatalogItemRecord, now = Date.now()): ItemTier {
+  return itemTier(item, now);
+}
+
+/**
+ * A person's tier as the access check sees it: the highest of their live
+ * memberships, or the earlier groups until the migration clears them
+ * (private testers are the cohort, the community is Pro).
+ */
+export function personTier(data: AdminCatalog, clientId: string, now = Date.now()): MemberTier {
+  let tier: MemberTier = currentMembership(data.memberships.filter(m => m.clientId === clientId), now)?.tier ?? 'public';
+  if (groupMembers(data, PRIVATE_GROUP).includes(clientId)) tier = higherTier(tier, LEGACY_PERSON_TIER.private);
+  if (groupMembers(data, COMMUNITY_GROUP).includes(clientId)) tier = higherTier(tier, LEGACY_PERSON_TIER.community);
+  return tier;
+}
+
+/** The record that gives a person their tier now; none for Public, or a tier still held through an earlier group. */
+export function personMembership(data: AdminCatalog, clientId: string, now = Date.now()): Membership | null {
+  return currentMembership(data.memberships.filter(m => m.clientId === clientId), now);
+}
+
+/** The people at each membership: everyone who holds an API key or a membership. */
+export function membersByTier(data: AdminCatalog, now = Date.now()): Record<GrantableTier, string[]> {
+  const everyone = new Set([...data.people.map(p => p.clientId), ...data.memberships.map(m => m.clientId), ...data.groups.flatMap(g => g.members)]);
+  const result = Object.fromEntries(GRANTABLE_TIERS.map(tier => [tier, [] as string[]])) as Record<GrantableTier, string[]>;
+  for (const clientId of everyone) {
+    const tier = personTier(data, clientId, now);
+    if (tier !== 'public' && tier !== 'admin') result[tier].push(clientId);
+  }
+  return result;
+}
+
+/** How many people a tier of item opens to through their membership alone (admins aside). */
+export function reachOf(counts: Record<GrantableTier, number>, tier: ItemTier): { tier: GrantableTier; count: number; on: boolean }[] {
+  return [...GRANTABLE_TIERS].reverse().map(held => ({ tier: held, count: counts[held], on: tier !== 'admin' && tierOpens(held, tier) }));
 }
 
 const DAY = 86_400_000;

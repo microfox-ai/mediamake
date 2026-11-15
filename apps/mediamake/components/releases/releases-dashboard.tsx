@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { BookOpen, CalendarClock, GraduationCap, Lock, RefreshCw, Search, ShieldAlert } from 'lucide-react';
-import type { CatalogItemRecord, CatalogKind, ReleaseTier } from '@/lib/catalog/types';
+import type { CatalogItemRecord, CatalogKind, ItemTier } from '@/lib/catalog/types';
 import { CATALOG_KINDS } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +18,10 @@ import { ItemAccessSheet } from './item-access-sheet';
 import { ScheduleDialog } from './schedule-dialog';
 import { NewVideoItemDialog } from './video-panel';
 import {
-  COMMUNITY_GROUP,
-  PRIVATE_GROUP,
   TIER_META,
   TIER_ORDER,
   adminCall,
   gateOf,
-  groupMembers,
   tierOf,
   type AdminCatalog,
 } from './model';
@@ -32,26 +29,25 @@ import {
 const TOAST_MS = 3000;
 
 export type ItemAction =
-  | { type: 'set_visibility'; visibility: 'private' | 'network' | 'public' }
+  | { type: 'set_item_tier'; tier: ItemTier }
   | { type: 'cancel_release' }
-  | { type: 'set_never_publish'; neverPublish: boolean }
   | { type: 'schedule' }
   | { type: 'access' };
 
-const ACTION_LABEL: Record<string, string> = {
-  private: 'Moved to development',
-  network: 'Marked production ready',
+const ACTION_LABEL: Record<ItemTier | 'cancel_release', string> = {
+  admin: 'Moved to the vault',
+  cohort: 'Moved to the cohort',
+  pro: 'Moved to Pro',
+  plus: 'Moved to Plus',
   public: 'Released to the public',
   cancel_release: 'Gate cancelled',
-  vault_on: 'Moved to the vault',
-  vault_off: 'Taken out of the vault',
 };
 
 /**
  * Admin dashboard for release tiers: every item and what it connects to
  * (each opens its own page, /core/releases/<kind>/<slug>); which items sit in
- * the vault, in development, with the community or in public; the gates
- * that turn community items public by themselves; and who belongs to each
+ * the vault, with the cohort, Pro, Plus or public; the gates
+ * that turn gated items public by themselves; and who holds each
  * tier. Tutorials and courses are added here (New tutorial, New course).
  * `?access=<id>` opens that item's access sheet.
  */
@@ -66,7 +62,7 @@ export function ReleasesDashboard() {
     const wanted = new URLSearchParams(window.location.search).get('tab');
     if (wanted && ['items', 'board', 'timeline', 'people'].includes(wanted)) setTab(wanted);
   }, []);
-  const [tier, setTier] = useState<ReleaseTier | 'all'>('all');
+  const [tier, setTier] = useState<ItemTier | 'all'>('all');
   const [scheduling, setScheduling] = useState<CatalogItemRecord | null>(null);
   const [accessFor, setAccessFor] = useState<CatalogItemRecord | null>(null);
   const [adding, setAdding] = useState<'tutorial' | 'course' | null>(null);
@@ -125,16 +121,10 @@ export function ReleasesDashboard() {
           return setScheduling(item);
         case 'access':
           return setAccessFor(item);
-        case 'set_visibility':
-          return run(ACTION_LABEL[action.visibility], { type: 'set_visibility', itemId: item.id, visibility: action.visibility });
+        case 'set_item_tier':
+          return run(ACTION_LABEL[action.tier], { type: 'set_item_tier', itemId: item.id, tier: action.tier });
         case 'cancel_release':
           return run(ACTION_LABEL.cancel_release, { type: 'cancel_release', itemId: item.id });
-        case 'set_never_publish':
-          return run(ACTION_LABEL[action.neverPublish ? 'vault_on' : 'vault_off'], {
-            type: 'set_never_publish',
-            itemId: item.id,
-            neverPublish: action.neverPublish,
-          });
       }
     },
     [run],
@@ -156,7 +146,7 @@ export function ReleasesDashboard() {
   }, [data, items]);
 
   const counts = useMemo(() => {
-    const result: Record<ReleaseTier, number> = { vault: 0, development: 0, community: 0, public: 0 };
+    const result: Record<ItemTier, number> = { admin: 0, cohort: 0, pro: 0, plus: 0, public: 0 };
     for (const item of items) result[tierOf(item, now)] += 1;
     return result;
   }, [items, now]);
@@ -197,9 +187,9 @@ export function ReleasesDashboard() {
           <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Every skill, MCP, app, tutorial and course MediaMake hands out: who can open it, where it comes from and what it
-            works with. Open one to see everything about it, and to set a skill&apos;s intro video. Our apps, MCPs, tutorials
-            and courses move from the vault to the public on the Board; skills, and MCPs or skills made by others, are always
-            public.
+            works with. Open one to see everything about it, to mark it Ready and to set a skill&apos;s intro video. Our apps,
+            MCPs, tutorials and courses move between the vault, the cohort, Pro, Plus and the public on the Board; skills in the
+            public repo, and MCPs or skills made by others, are always public.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -219,13 +209,13 @@ export function ReleasesDashboard() {
           <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <p className="text-muted-foreground">
             <span className="font-medium text-foreground">Public releases are locked site-wide.</span> Public items, including ones whose gate has ended,
-            stay visible only to the community, private testers and grants until <code className="rounded bg-muted px-1 py-0.5 text-xs">MEDIAMAKE_PUBLIC_RELEASES=open</code> is set.
+            stay visible only to members (Plus and above) and grants until <code className="rounded bg-muted px-1 py-0.5 text-xs">MEDIAMAKE_PUBLIC_RELEASES=open</code> is set.
             Skills are open to everyone either way.
           </p>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         {TIER_ORDER.map(t => (
           <button
             key={t}
@@ -338,12 +328,7 @@ export function ReleasesDashboard() {
 
         <TabsContent value="people">
           {data && (
-            <PeoplePanel
-              data={data}
-              privateMembers={groupMembers(data, PRIVATE_GROUP)}
-              communityMembers={groupMembers(data, COMMUNITY_GROUP)}
-              run={run}
-            />
+            <PeoplePanel data={data} run={run} />
           )}
         </TabsContent>
       </Tabs>
