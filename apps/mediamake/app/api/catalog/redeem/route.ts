@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveViewer } from '@/lib/access';
 import { accessGrantsDB, accessGroupsDB, accessInvitesDB } from '@/lib/catalog/store';
 import { NETWORK_GROUP, PRIVATE_GROUP } from '@/lib/catalog/types';
+import { tellAboutNewMembership, tierOf } from '@/lib/memberships/admin';
 import { membershipsDB } from '@/lib/memberships/store';
+import { publicOrigin } from '@/lib/mcp/oauth';
 import { LEGACY_PERSON_TIER, type GrantableTier } from '@/lib/memberships/tiers';
 
 /**
@@ -40,7 +42,8 @@ export async function POST(req: NextRequest) {
   const tier: GrantableTier | undefined =
     invite.tier ?? (invite.groupId === PRIVATE_GROUP ? LEGACY_PERSON_TIER.private : invite.groupId === NETWORK_GROUP ? LEGACY_PERSON_TIER.community : undefined);
   if (tier) {
-    await membershipsDB.grant({
+    const from = await tierOf(viewer.clientId);
+    const membership = await membershipsDB.grant({
       clientId: viewer.clientId,
       tier,
       source: 'invite',
@@ -49,6 +52,8 @@ export async function POST(req: NextRequest) {
       grantedBy: invite.createdBy,
       expiresAt,
     });
+    // the same mail as any other change of membership; it never fails the invite
+    await tellAboutNewMembership({ clientId: viewer.clientId, from, membership, origin: publicOrigin(req) }).catch(() => undefined);
   } else if (invite.groupId) {
     await accessGroupsDB.addMembers(invite.groupId, [viewer.clientId]);
   }

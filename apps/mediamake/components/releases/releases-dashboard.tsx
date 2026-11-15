@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { BookOpen, CalendarClock, GraduationCap, Lock, RefreshCw, Search, ShieldAlert } from 'lucide-react';
@@ -13,7 +14,6 @@ import { cn } from '@/lib/utils';
 import { ReleaseBoard } from './release-board';
 import { ReleaseList } from './release-list';
 import { ReleaseTimeline } from './release-timeline';
-import { PeoplePanel } from './people-panel';
 import { ItemAccessSheet } from './item-access-sheet';
 import { ScheduleDialog } from './schedule-dialog';
 import { NewVideoItemDialog } from './video-panel';
@@ -56,11 +56,12 @@ export function ReleasesDashboard() {
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<CatalogKind | 'all'>('all');
-  // ?tab=people links straight to a tab (the MCP's people tools answer with it)
+  // ?tab=board links straight to a tab. People moved to Manage Memberships: old ?tab=people links follow.
   const [tab, setTab] = useState('items');
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get('tab');
-    if (wanted && ['items', 'board', 'timeline', 'people'].includes(wanted)) setTab(wanted);
+    if (wanted === 'people') return window.location.replace('/app/memberships');
+    if (wanted && ['items', 'board', 'timeline'].includes(wanted)) setTab(wanted);
   }, []);
   const [tier, setTier] = useState<ItemTier | 'all'>('all');
   const [scheduling, setScheduling] = useState<CatalogItemRecord | null>(null);
@@ -261,14 +262,16 @@ export function ReleasesDashboard() {
             <TabsTrigger value="items">Items</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="people">
-              People
-              {data?.requests.length ? (
-                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{data.requests.length}</span>
-              ) : null}
-            </TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="h-9">
+              <Link href="/app/memberships">
+                People
+                {data?.requests.length ? (
+                  <span className="rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{data.requests.length}</span>
+                ) : null}
+              </Link>
+            </Button>
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search items" className="h-9 w-52 pl-8" />
@@ -326,11 +329,6 @@ export function ReleasesDashboard() {
           {data && <ReleaseTimeline data={data} items={released} now={now} onAction={onAction} />}
         </TabsContent>
 
-        <TabsContent value="people">
-          {data && (
-            <PeoplePanel data={data} run={run} />
-          )}
-        </TabsContent>
       </Tabs>
 
       {data && (

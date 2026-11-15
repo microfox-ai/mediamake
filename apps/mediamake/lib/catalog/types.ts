@@ -617,6 +617,8 @@ export interface AccessInvite {
   groupId?: string;
   /** Redeemers get this membership (source `invite`), lasting `grantDays` when set. */
   tier?: GrantableTier;
+  /** The address the invite was mailed to, when it was mailed (Manage Memberships). */
+  email?: string;
   maxUses: number;
   uses: number;
   redeemedBy: { clientId: string; at: string }[];

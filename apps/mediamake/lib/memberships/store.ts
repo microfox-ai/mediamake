@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { getDatabase } from '../mongodb';
 import { expiryFor, type Membership, type MembershipSource } from './membership';
-import type { GrantableTier } from './tiers';
+import { tierLabel, type GrantableTier } from './tiers';
 
 /** Membership records in MongoDB `memberships` (see ./membership). */
 const COLLECTION = 'memberships';
@@ -66,7 +66,8 @@ export const membershipsDB = {
    */
   async setTier(input: Omit<GrantMembershipInput, 'tier'> & { tier: GrantableTier | 'public' }): Promise<Membership | null> {
     const { tier, ...rest } = input;
-    await this.revokeAll(input.clientId, input.grantedBy, `moved to ${tier}`);
+    // the reason stays with the records that end too: for a move to Public they are all there is
+    await this.revokeAll(input.clientId, input.grantedBy, input.note ? `Moved to ${tierLabel(tier)}: ${input.note}` : `Moved to ${tierLabel(tier)}`);
     return tier === 'public' ? null : this.grant({ ...rest, tier });
   },
 

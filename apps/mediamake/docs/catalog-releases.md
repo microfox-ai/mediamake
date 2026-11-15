@@ -257,9 +257,45 @@ How each person got their tier is a record in the `memberships` collection
 | `grantedBy`, `revokedAt`, `revokedBy`, `revokedNote` | Records are never deleted, so the collection is also the log of who changed whose tier, when and why. |
 
 A person's tier is the highest of their live records (`memberTierFrom`).
-Admins set it under **People** on the dashboard, with
+Admins set it on **Manage Memberships** (`/app/memberships`), with
 `npm run catalog -- member`, or with `catalog_set_tier`. Payments, later, only
 add records with `source: 'paid'`: no access code changes.
+
+#### Manage Memberships and Subscription
+
+`/app/memberships` (admins; the People tab of Releases moved here) has four tabs:
+
+| Tab | What it does |
+| --- | --- |
+| People | Everyone with an account, a key or a membership: their tier, how they got it, when it ends (amber when within 14 days). **Change** needs a reason, which is kept on the record and goes in the mail. **Make permanent** removes an expiry. **Link** links an old account (a key only) by a one-time link or an email, as on API Keys. |
+| Requests | People who asked for the next membership on their Subscription page (a request for `tier/<tier>`), or for one locked item. Approving a membership gives it; approving an item grants that item. |
+| Invites | Mail one person an invite into a tier (a link that works once, for 30 days), or make a link for up to 10 people. |
+| Audit log | Who changed whose membership, when and why. Nothing is stored for it: it is read from the membership, invite and request records, which are never deleted (`lib/memberships/audit.ts`). |
+
+The page reads and writes `/api/admin/memberships`. The changes themselves are
+in `lib/memberships/admin.ts`, shared with `/api/admin/catalog`, so a change
+made from mm-release or `npm run catalog` behaves the same and mails the
+person too (pass `notify: false` to skip the mail).
+
+`/app/subscription` (every member) shows the person's tier, how they got it
+and how long it lasts, what each tier they hold opens, the next membership
+and the two ways to it (contribute, or **Ask an admin**, which is
+`POST /api/memberships/request`), and their history. There is no billing:
+Account Billing stays hidden until payments exist.
+
+#### Mail
+
+Sent through Resend from `mediamake@reply-bots.com` (`lib/mail`), beside the
+sign-in mails:
+
+| Mail | When |
+| --- | --- |
+| Welcome | Once, when an account is made (by a confirmed email, Google or GitHub). |
+| Membership changed | An admin gives, raises, lowers, ends or makes permanent a membership, approves a request for one, or the person opens an invite into a tier. Not sent to admins, or when the account has no email. |
+| Invite | An admin mails an invite from Manage Memberships. |
+
+Mail never fails a change: without `RESEND_API_KEY`, or when Resend refuses,
+the change holds and the answer says why no mail went.
 
 An API key only signs someone in; it opens nothing beyond public items by
 itself. That includes the hosted MCPs: who may connect to each follows its
@@ -369,7 +405,7 @@ Every way someone gets access is a record, never a code change:
 | Record | Created by | Collection |
 | --- | --- | --- |
 | Grant to a person or group (with expiry, note, and the invite it came from) | `grant`, `approve`, redeeming an invite | `access_grants` |
-| Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, the People tab, an invite with a tier | `memberships` |
+| Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, Manage Memberships, an invite with a tier | `memberships` |
 | Readiness marks with their proof | `ready`, `beta` | `catalog_readiness` |
 | Group membership (your own groups; the earlier `private` and `network` until migrated) | `group add` | `access_groups` |
 | Invite links and how often they were used | `invite` | `access_invites` |

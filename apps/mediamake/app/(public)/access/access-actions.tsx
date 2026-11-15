@@ -136,7 +136,9 @@ export function RedeemInvite({
       ...(json.itemIds ?? []).map((id: string) => (id === '*' ? 'everything' : id)),
       ...(json.groupId ? [`the ${json.groupId} group`] : []),
     ].join(', ');
-    setResult({ ok: true, text: `Unlocked ${what}.` });
+    // an invite into a membership names its tier
+    const tier = typeof json.tier === 'string' ? json.tier[0].toUpperCase() + json.tier.slice(1) : null;
+    setResult({ ok: true, text: [tier && `You are a ${tier} member now.`, what && `Unlocked ${what}.`].filter(Boolean).join(' ') || 'Done.' });
     router.refresh();
   }
 
