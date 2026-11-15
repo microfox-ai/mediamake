@@ -1,6 +1,6 @@
 ---
 name: make-cwc-tutorial
-description: Make a "Cook with Claude" tutorial — a ~2-minute 16:9 episode about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio, built on episode 1 (/pack-brand-kit, final 2 Nov 2026). The story runs blank page → world: a cold open on the finished work, the series opener, "one of the many open-source skills", the literal copy → paste → name-it of the install prompt, the skill's research as a 3D fly-through, its rounds as a deck with the user's real notes, the reveal in 3D matched to the real result, what it delivers, a 3D shelf of everything made with it, a call to action ("now it can be your idea… just start"), and the series end card asking "What do you wish to make next?". Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under projects/. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make a "Cook with Claude" tutorial — a short 16:9 episode (about one to two and a half minutes) about one of MediaMake's skills (later MCPs and apps) in Remotion, in apps/studio. Every episode gets its own story: an ideation of 5–6 genuinely different story shapes built from that item's own material (a mystery, a point of view, a speed run, a contest, a life story, an essay…), the user picks, then the script; nothing about the shape is fixed except the truth, the real outputs and showing for real how simple it is to start (copy the install prompt, paste it into Claude, ask). Episode 1 (/pack-brand-kit, final 2 Nov 2026: blank page → world, with a 3D fly-through, a rounds deck with the user's real notes, a reveal, a shelf and a call) is one worked example and its code the template. Continuous voice-over in the brand voice (ElevenLabs), the picture timed to its words; kinetic captions, sparkle traces, brush strikes, three.js and CSS 3D, Pexels stock as texture; every claim verified. Reviewed through Video Revision (revise-video), then published: its 9:16 Short, the YouTube pack (thumbnails from its frames, a title, a description with chapters and the install link) and the uploads with Browse Hack. Use when the user says "make a Cook with Claude tutorial / episode for <skill>", "tutorial video like the pack-brand-kit one", "/make-cwc-tutorial <skill>", or asks to change, pack or upload a project named cookwithclaude-* under projects/. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: revise-video, create-thumbnail, pack-youtube
   reference: projects/cookwithclaude-pack-brand-kit (ep. 1, final render 2026-11-02)
@@ -11,8 +11,10 @@ metadata:
 **Cook with Claude** is MediaMake's tutorial series on its YouTube channel: one episode per item
 (skill first; MCPs and apps later), each about two minutes, with a 9:16 Short of it. Episode 1, `/pack-brand-kit`, took two rewrites
 of its story and three rounds of review notes, was signed off on 2 Nov 2026 ("yup this is final") and
-went up on YouTube on 3 Nov. This skill is its formula; `reference/ep01.md` tells the episode from
-brief to upload. `template/` holds its code, `tools/` the voice and checking scripts, and the finished
+went up on YouTube on 3 Nov. It is one worked example, not the formula: every episode is a different
+story with a different structure and script, found in an ideation round before anything is written
+("not every episode need to follow the same format", 2026-11-16). `reference/ep01.md` tells episode 1
+from brief to upload. `template/` holds its code, `tools/` the voice and checking scripts, and the finished
 project is `projects/cookwithclaude-pack-brand-kit` in the user's workspace (`mm workspace`; projects
 are never committed; the template is the committed copy).
 
@@ -20,10 +22,12 @@ are never committed; the template is the committed copy).
 
 1. **Inspiration and motion, never marketing.** No stats read out for their own sake, no "why we do
    this", no subscribe pitch, no feature lists ("this looks like a marketing video transcript").
-   One story: a blank page becomes a world.
-2. **How simple it is comes first, shown for real.** Right after the opener: copy the real install
-   prompt from MediaMake, paste it into Claude (terminal and desktop app side by side), name it with
-   the skill's own first prompt. "That's the whole setup."
+   One story per episode, invented for that item (episode 1's: a blank page becomes a world).
+2. **How simple it is, shown for real.** Somewhere in every episode: copy the real install prompt
+   from MediaMake, paste it into Claude (terminal and desktop app), ask with the skill's own first
+   prompt. Where and how it lands is the story's choice: a cold open, a punchline, a bookend, a
+   three-second insert, a split screen. Episode 1 put it right after the opener ("That's the whole
+   setup.").
 3. **A continuous voice, with the picture timed to it.** How-to stretches and showcases are carried
    by flowing reads (one take each, natural pauses); single words land only on montage beats ("Draw.
    Again. Again. Again."). The narration sets the clock: measure the words, then time the picture.
@@ -75,9 +79,35 @@ following https://github.com/microfox-ai/mediamake/blob/main/install.md").
 - **The brand** `brands/cookwithclaude`: opener (`intro-4-opener`, approved), end screen, theme I3
   and sting F, the voice (id in its `brandguide.md`), logo components. Watermark: none.
 
-## The episode, beat by beat (ep. 1's final cut, 130.7 s)
+## Story ideation (before any script)
 
-| t (s) | beat | voice | picture | for another skill |
+The story is found, not filled in. After the intake and before the fact sheet is final, write
+`projects/<slug>/ideation-v<N>.md` with **5–6 story concepts that differ in shape**, not in wording,
+each built from this item's own material (its outputs, its rounds and the user's real notes, its
+research, its numbers, the people and places in its work):
+
+- for each: a title, a one-line logline, the hook (the first 5 s), the structure (beats with rough
+  seconds), where the copy → paste → ask moment lands, the visual language, sample voice lines, the
+  real material it uses, why it fits this item, and the risks;
+- shapes to spark from, never to cycle through: a mystery or investigation, the viewer's point of
+  view (the scroller, the user, the output itself), a speed run or countdown, a contest with the user
+  as judge, a story told backwards, the life of one output from first word to finished file, an essay
+  on a question, a versus, a letter, a day in the life, a field guide;
+- read the earlier episodes' shapes (`reference/`, the series' projects) so no two episodes in a row
+  share one; episode 1's devices (the fly-through, the rounds deck, the shelf) are lifted only when
+  the new story calls for them;
+- pick one to recommend and say why; the user picks or mixes, then the screenplay is written in that
+  shape. A strong writer helps here: run the ideation in its own thread on Fable when the user asks.
+
+Length follows the story (roughly 60–150 s). The series' fixed parts are few: the brand's look and
+voice, the opener and the end card's question ("What do you wish to make next?"), and even those may
+be placed, shortened or reframed when the story needs it.
+
+## Episode 1's cut, beat by beat (one example, 130.7 s)
+
+What episode 1 did, kept as a worked example and a parts bin, not a slot list to fill:
+
+| t (s) | beat | voice | picture | what another story could lift |
 |---|---|---|---|---|
 | 0–3.6 | cold open | "This… was a blank page." | the finished world bursting out in 3D (the series' own intros and end screens on CSS-3D panels), the theme at its peak | that skill's best outputs at once |
 | 3.6–7.2 | blank page | (a held pause) "…before we figured it out, that is." | ivory page, one caret, the twist line typed in the brush hand, a sparkle under it | same |
@@ -174,43 +204,47 @@ lessons in its feedback log; the live catalog lists the skill and its install pr
 
 1. **Intake** (above); register the production (`media production new cookwithclaude-<item>
    --channel=mediamake --skill=make-cwc-tutorial`); log the work to the portal.
-2. **Fact sheet**: every claim the episode will make, with its evidence and the test you ran.
-3. **Script** `projects/<slug>/screenplay-v<N>.md`: per beat the voice, the captions, the picture and
-   the sound, in the episode's pattern. Get it approved before recording.
-4. **Record** (ask with the credit cost first), check, file, cut, measure onsets (Voice-over above).
-5. **Assets** into `projects/<slug>/input/` (the public dir is `projects/`, so
+2. **Story ideation** (above): 5–6 shapes, the user picks.
+3. **Fact sheet**: every claim the chosen story will make, with its evidence and the test you ran.
+4. **Script** `projects/<slug>/screenplay-v<N>.md`: per beat the voice, the captions, the picture and
+   the sound, in the chosen story's own structure. Get it approved before recording.
+5. **Record** (ask with the credit cost first), check, file, cut, measure onsets (Voice-over above).
+6. **Assets** into `projects/<slug>/input/` (the public dir is `projects/`, so
    `staticFile('<slug>/input/…')` reaches them): search the library first (`media find`), clone with
    `media use`. `tools/prep_ep01.py` is how ep. 1 built its atlases, posters, label cards and
    textures; adapt it.
-6. **Build from the template**: copy `template/video/` to `projects/<slug>/video/`, set
-   `theme.ts` (slug, prompts, the user's notes), `timeline.ts` (read starts, `W` onset tables, beats,
-   shelf order) and rewrite the scenes' content for the item. `input/bed.wav` is silence of the
+7. **Build from the template**: copy `template/video/` to `projects/<slug>/video/`, set
+   `theme.ts` (slug, prompts, the user's notes), `timeline.ts` (read starts, `W` onset tables, beats)
+   and write the scenes the chosen story needs: keep the template's engine (`three.tsx`, `css3d.tsx`,
+   `fx.tsx`, `parts.tsx`, the sound and caption plumbing), reuse a scene only where the story has
+   that beat, and build new ones for the rest. `input/bed.wav` is silence of the
    video's length (`audio: false`), `input/project.json` has one section per beat, `video/shots.json`
    one shot per beat with ids that stay stable across renders; `mm prepare
    <slug>`.
-7. **Stills** at every beat's busiest moment and on every new word (`mm stills
+8. **Stills** at every beat's busiest moment and on every new word (`mm stills
    -- <slug> <t,…> --only`), tiled into sheets: words on their beats, text clear of objects and
    faces, nothing private, loops clear of their boxes.
-8. **Preview** for review, 10 s stretches at half size around what changed (`mm render <slug> --preview
-   --concurrency=3`), `mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4` (answer the meant holds
-   `--intended`: the blank-page pause, the typed ask, the breath after "Voice.", the 20 s end card),
+9. **Preview** for review, 10 s stretches at half size around what changed (`mm render <slug> --preview
+   --concurrency=3`), `mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4` (answer the story's meant holds
+   `--intended`; in ep. 1: the blank-page pause, the typed ask, the breath after "Voice.", the 20 s end card),
    `tools/place_check.py` for the voice, then the link
    `mm render` prints (`?folder=<slug>/preview&video=<slug>.mp4`) and the background
    watcher (`mm wait-revision <slug>`). Work every revision with
    `revise-video`.
-9. **Master** once the user signs off (`render-project` without `--proxy`), preflight it, then
+10. **Master** once the user signs off (`render-project` without `--proxy`), preflight it, then
    `media deliver <slug> --what=video --yes` (set a clean `--title` on the production first: the
    file name comes from it).
-10. **The Short** when the user wants one (A Short of an episode, below).
-11. **Publish**: the YouTube packs and uploads for the episode and its Short (Publishing on YouTube,
+11. **The Short** when the user wants one (A Short of an episode, below).
+12. **Publish**: the YouTube packs and uploads for the episode and its Short (Publishing on YouTube,
     below), then, once the episode is live, its link as the item's intro video on the release
     dashboard.
-12. **Log** each note's lesson in your notes (`mm notes add make-cwc-tutorial "…"`, see the log below).
+13. **Log** each note's lesson in your notes (`mm notes add make-cwc-tutorial "…"`, see the log below).
 
 ## A Short of an episode (9:16)
 
 Ep. 1's Short (`projects/cookwithclaude-pack-brand-kit-short`, approved 3 Nov 2026, notes in its
-`short.md`) is the pattern: the whole episode, recast for 1080 × 1920, not a 60 s cut.
+`short.md`) is one pattern: the whole episode, recast for 1080 × 1920, not a 60 s cut. A story with a
+different shape may want a different Short; propose it with the audio cut.
 
 - **Propose first, with an audio cut.** Lay the existing voice cuts out with ffmpeg (`adelay`, the theme
   passes) into an mp3 so the user hears the pacing before anything is built; no new recording unless
@@ -338,3 +372,4 @@ over episode 1's build and four review rounds.
 - 2026-11-03 · ep. 1 · "summarise everything we did in the video, and update the linked skill" → `reference/ep01.md` (the episode from brief to upload) and the publishing stage in this skill.
 - 2026-11-03 · skill · "pack-brand-kit and make-cwc-tutorial still list the now-archived ElevenLabs MCP as required. tell that it is optional, in case hosted elvenlabs in unconnectable ( fallback basically )" → the hosted ElevenLabs connector (`mcp/elevenlabs-connector`) is the required MCP and makes the sound effects (`creative_generate_in_flow`, `node_type: sfx`) and the voice-over (`creative_generate_speech`); the archived local `mcp/elevenlabs` is optional, the fallback when the connector can't be connected or reached.
 - 2026-11-04 · skill · "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid widget … old elevenlabs mcp with api key setup is much cleaner" → flipped back: the local `mcp/elevenlabs` is the required MCP (voice and sound effects as files); the hosted connector is only the alternative where no local MCP runs (the Claude web or phone app).
+- 2026-11-16 · EP 02 (/create-thumbnail) script v1 · "It is too restrictive in thinking, create a new story plan or ideation, be more creative, not every episode need to follow the same format … different tutorials require a different pattern and story build and different script" (v1 had copied episode 1's beat sheet) → "Story ideation (before any script)": 5–6 story shapes from the item's own material, the user picks; episode 1 is a worked example and a parts bin, not the template; the copy → paste → ask moment stays, placed by the story; the template keeps its engine and the scenes follow the story; the ideation ran in its own thread on Fable at the user's request.
