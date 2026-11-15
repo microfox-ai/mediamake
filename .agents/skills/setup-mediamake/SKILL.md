@@ -1,6 +1,6 @@
 ---
 name: setup-mediamake
-description: Set up MediaMake on this computer end to end, or repair and tidy a setup that has drifted — the tools it needs (git, GitHub sign-in, Node 22.6+, uv, ffmpeg), the microfox-ai/mediamake checkout (cloned, or brought up to GitHub without losing edits), its dependencies and builds, the `mm` command, the workspace outside the checkout (~/MediaMake), the shared media library, the ElevenLabs key and the MCPs the skills use, then the cleanups (work left in the checkout or in apps/lyrics_videos, stale stashes and branches, untidy skill links, rebuildable leftovers), ending on a clean `mm doctor`. Every step checks first and skips what is already done, so it is safe to run again. Use when the user says "set up MediaMake", "install MediaMake", "set up the repo and everything", "new Mac / new machine", "fix my MediaMake setup", "clean up my MediaMake setup", "mm doesn't work", or "/setup-mediamake". Not for installing one catalog item (install.md), updating items (update-mediamake-items), or freeing disk space (cleanup-out, cleanup-downloads). New user feedback goes in your notes (mm notes add), never in this file.
+description: Set up MediaMake on this computer end to end, or repair and tidy a setup that has drifted — the tools it needs (git, GitHub sign-in, Node 22.6+, uv, ffmpeg), the microfox-ai/mediamake checkout (cloned, or brought up to GitHub without losing edits), its dependencies and builds, the `mm` command, the workspace outside the checkout (~/MediaMake), the shared media library, the MCPs the skills use (each optional, skippable), then the cleanups (work left in the checkout or in apps/lyrics_videos, stale stashes and branches, untidy skill links, rebuildable leftovers), ending on a clean `mm doctor`. Every step checks first and skips what is already done, so it is safe to run again. Use when the user says "set up MediaMake", "install MediaMake", "set up the repo and everything", "new Mac / new machine", "fix my MediaMake setup", "clean up my MediaMake setup", "mm doesn't work", or "/setup-mediamake". Not for installing one catalog item (install.md), updating items (update-mediamake-items), or freeing disk space (cleanup-out, cleanup-downloads). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: update
 ---
@@ -114,15 +114,18 @@ In the checkout:
    - a team: `mm media cloud login`, then `mm media channel list` / `mm media channel link <channel> <projectId>`,
      then `mm media sync status --channel=<id>` (a dry run) and `pull … --yes` once they agree.
 
-## 6. Keys and MCPs
+## 6. Keys and MCPs (optional, all of them)
 
-The skills lean on these. Check which this session already has (`claude mcp get <name>`, or the
-tools present), and offer only the missing ones, one line each with what skipping it costs:
+Every MCP here can be skipped: some are closed source, and the setup is complete without any of
+them. Check which this session already has (`claude mcp get <name>`, or the tools present), then
+offer the missing ones once, in one message, one line each with what skipping it costs, and install
+only the ones the user picks. A skip is final for this run: no second ask, and no `✗` or "not
+ready" for it at the end (doctor's ElevenLabs line stays a `!`, which is fine).
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
-| `mcp/elevenlabs` | recommended | the key `mm transcribe --yes` uses for timed lyrics, voice-overs and sound effects | no timed words for lyric videos, no voice or sound effects |
-| `mcp/browse-hack` | recommended | downloads from YouTube, Pinterest, Instagram, Midjourney and Suno straight into the library's inbox | footage, references and Suno takes are fetched by hand |
+| `mcp/elevenlabs` | optional | the key `mm transcribe --yes` uses for timed lyrics, voice-overs and sound effects (open source) | no timed words for lyric videos, no voice or sound effects |
+| `mcp/browse-hack` | optional | downloads from YouTube, Pinterest, Instagram, Midjourney and Suno straight into the library's inbox | footage, references and Suno takes are fetched by hand |
 | `mcp/projectsync` | optional | brand kits, projects and shared assets of the user's MediaMake cloud projects | team sharing only through `mm media sync` |
 
 - ElevenLabs (local first): `claude mcp add --scope user elevenlabs -e ELEVENLABS_API_KEY=<key> -- uvx elevenlabs-mcp`.
@@ -163,7 +166,7 @@ Tell them, in a few lines:
 
 - what was installed or changed, and what was already fine;
 - where things are: the checkout, the workspace, the library, the config;
-- the final `mm doctor` (Ready, or what's left and who does it);
+- the final `mm doctor` (Ready, or what's left and who does it; a skipped MCP is never a blocker);
 - what they skipped and what it costs (an MCP, the watcher, a cleanup);
 - how to start: `cd <checkout> && claude`, then a skill such as `/make-lyrics-video`; later,
   "update MediaMake" (update-mediamake-items, which runs `mm update`).
