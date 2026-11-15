@@ -297,6 +297,11 @@ subject and the rest, are in `playbooks/music-edit.md`):
   its stroke is ≥ 10 px on the 1280 canvas. One or two a thumbnail.
 - **Labels sit on what they name**: a price over its product, a year over its panel, a country
   over its place.
+- **The hero keeps its edge**: a dark picture on a dark ground (or a pale one on ivory) loses its
+  outline and reads as half a picture; give it a fine light edge, pick a lighter picture, or
+  change the ground.
+- **A before / after only when the change shows at 168 px**: two near-identical pictures read
+  as one picture twice.
 - **Readable at feed size:** the hero must read in `sheet-small.jpg` (tiles ~250 px wide, the
   size of YouTube's feed). Kickers may blur there; the hero may not.
 
@@ -355,6 +360,8 @@ is on. Every episode then changes only the slot: the subject, the words, the hig
 - The frame is small (under a fifth of the picture) and in the same place on every episode.
 - Inside it, **each episode still gets a layout made for its own story**: the frame is the
   channel's signature, not last week's composition reused.
+- **The series' signature object** (the host, a mascot, a mark, episode 1's prop) is on at least
+  one concept of every board: keep the first episode's composition and change the dish.
 - First episodes, part 1s and openers are the series' most-clicked thumbnails: they carry the
   series' name large. Later episodes carry the episode's own hook large and the name small.
 
@@ -449,3 +456,5 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-11 · Doomcat Shorts, revised: 'all thumbnails look bad … jensen … it is the hook … put cat smaller at bottom center and put the jensen at center circle (use cutouts)' → the story's subject cut out big in the centre disc as the hook, the host smaller in front at the bottom centre (not a small portrait in a corner)
 - 2026-11-12 · Final Showdown: 'no text in thumbnail' then 'i need youtube thumbnail with jiren in background image' → for a character poster, the no-text set includes the character's name-letters as art behind him (art + letters + cutout from the full-res layers), close and wide crops
 - 2026-11-14 · skill · "most of the thumbnails we designed is for music and song … it will not suit other kind of channels … the thumbnail is core to 3 things - the type/content/stuff of video, the type/style of video, the type/content/context of channel … search for better thumbnail inspiration if user is not satisfied … add more fonts" → the three reads; a playbook per kind of channel (`playbooks/`, from 550 hits and misses of 50 leading channels over ten kinds, plus news); `mm thumbs inspire` for references on demand; heroes beyond a lit face (object, place, screen, number, two faces, before/after, character, map); the font table by voice (21 rows, every family checked on Google Fonts); series frames. The music and edit rules moved to `playbooks/music-edit.md` unchanged. Finding that reshaped the click list: faces, words and dark grounds are as common on misses as on hits; what differs is how fast one concrete idea reads small.
+- 2026-11-15 · iteration 1 (tech review, invented $99 phone) · "move on the next" + "real images and accurate should be used (for example user can give or you can use google images & then upscale/variate using midjourney/fal)" → "Real and accurate pictures first" in step 2.
+- 2026-11-15 · iteration 2 (Cook with Claude, /create-music-poster) · "No, rework it" without notes. Own check against real tutorial hits: round 1's words were puns and process words at a third of the width, the output was spread over three to six small covers, and the series' spark was missing → round 2 named the output in two giant words (ALBUM / COVER.), showed one cover at ~78 % of the height, and kept episode 1's composition with this episode's dish. Rules: the hero keeps its edge; a before/after only when the change shows small; a series' signature object on every board.

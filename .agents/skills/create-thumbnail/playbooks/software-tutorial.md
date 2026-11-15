@@ -54,6 +54,13 @@ The tool decides: a hot consumer tool beats a niche one in the same layout. Visi
 word at all, seven small words, a blurred screen as the picture, the channel's podcast or event
 videos.
 
+## A series with no face (Cook with Claude, 2026-11-15)
+
+When the channel shows no host, the **output is the hero** (one result, at least half the frame's
+height) and the words are **its plain name, the term a viewer would search for** (ALBUM COVER.),
+not a pun or a step of the process: puns read as decoration beside the hits' tool names. The
+series' frame (tag, logo, ground, one accent word) and its signature object stay.
+
 ## Build notes
 
 - Fetch the tool's official logo (SKILL.md, "Logos") and keep it whole and unrecoloured.
