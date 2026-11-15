@@ -95,7 +95,9 @@ column of `/core/releases`. A
 variant says `variant-of`, and `forked-from: <base>@<commit>` when `fork` made it;
 `node tools/skills.mjs diff <variant>` shows what it changed against its base at the fork and what
 the base changed since. Runs come from the `PostToolUse` hook on `Skill`
-(`tools/skill-runs.mjs`), which appends to `<root>/.catalog/runs.jsonl` for the CLI to export.
+(`tools/skill-runs.mjs`), which appends to `<root>/.catalog/runs.jsonl` for the CLI to export. The same
+hook tells MediaMake the skill's name and the time when you are signed in (`mm usage`; see
+`apps/mediamake/docs/usage.md`).
 
 Keys: `1`–`4` views, `/` search, `Esc` close or clear. In the inbox: `1`–`9` kind, `Enter` sort,
 `←` `→` move.

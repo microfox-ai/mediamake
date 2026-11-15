@@ -75,12 +75,14 @@ describe('an item\'s tier', () => {
     assert.equal('inRepo' in withRegistryUses(record('skill/not-in-the-repo', { inRepo: true })), false);
   });
 
-  it('puts every item the repo defines on the ladder: skills and items made by others Public, the MediaMake MCP in the vault', () => {
+  it('puts every item the repo defines on the ladder: skills, mm-use and items made by others Public, mm-release and the old MediaMake MCP in the vault', () => {
     for (const item of getStaticRecords()) {
-      const expected = item.id === 'mcp/mediamake' ? 'admin' : 'public';
+      const expected = item.id === 'mcp/mediamake' || item.id === 'mcp/mm-release' ? 'admin' : 'public';
       assert.equal(itemTier(item, NOW), expected, item.id);
     }
     assert.equal(catalogItems.find(item => item.id === 'mcp/mediamake')?.tier, 'admin');
+    assert.equal(catalogItems.find(item => item.id === 'mcp/mm-release')?.tier, 'admin');
+    assert.equal(catalogItems.find(item => item.id === 'mcp/mm-use')?.tier, 'public');
   });
 });
 
