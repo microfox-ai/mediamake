@@ -126,7 +126,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">One for each channel or brand. A project keeps its productions, releases, brand kit and media in the cloud, for the people you choose.</p>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">A project is one body of work: a channel, a film, a series, a brand. It keeps its productions, releases, brand kit and media in the cloud, for the people you choose.</p>
           </div>
           <Button onClick={() => setNaming('new')}>
             <PlusIcon /> New project
@@ -474,7 +474,7 @@ function NoProjects({ onNew }: { onNew: () => void }) {
       </span>
       <div>
         <p className="font-medium">No projects yet</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Make one for a channel or a brand, then add the people who work on it. Or ask Claude to create one and sync a production into it with ProjectSync.</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Make one for a channel, a film, a series or a brand, then add the people who work on it. Or ask Claude to create one and sync a production into it with ProjectSync.</p>
       </div>
       <Button onClick={onNew}>
         <PlusIcon /> Create your first project
@@ -522,11 +522,11 @@ function NameDialog({ target, onClose, onSaved }: { target: ProjectCard | 'new' 
         <form onSubmit={submit} className="space-y-5">
           <DialogHeader>
             <DialogTitle>{isNew ? 'New project' : 'Rename project'}</DialogTitle>
-            <DialogDescription>{isNew ? 'One project per channel or brand works best: its productions, releases, brand kit and media stay together.' : 'Everyone on the project sees the new name.'}</DialogDescription>
+            <DialogDescription>{isNew ? 'One project per body of work (a channel, a film, a series, a brand) works best: its productions, releases, brand kit and media stay together.' : 'Everyone on the project sees the new name.'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="project-name">Name</Label>
-            <Input id="project-name" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Anime Music Zone" maxLength={80} />
+            <Input id="project-name" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Anime Music Zone, or the name of your film" maxLength={80} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>

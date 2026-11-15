@@ -192,7 +192,7 @@ export function ProjectSyncExplainer({ canSync, className }: { /** Their members
         </Stop>
         <Link2 up="Up: only what changed" down="Down: any version" />
         <Stop art={<CloudArt />} title="The cloud project" tag="This page">
-          One project per channel or brand. It keeps the productions, releases, brand kit and media, and the list of who can open them.
+          One project per body of work: a channel, a film, a series. It keeps the productions, releases, brand kit and media, and the list of who can open them.
         </Stop>
         <Link2 up="Shared by role" down="Their changes come back" />
         <Stop art={<PeopleArt />} title="Teammates and your other devices" tag="Owner, editor, viewer">

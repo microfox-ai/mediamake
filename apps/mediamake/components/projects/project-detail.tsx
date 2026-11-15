@@ -9,6 +9,7 @@ import {
   ImageIcon,
   Loader2Icon,
   PackageIcon,
+  SparklesIcon,
   UsersIcon,
 } from 'lucide-react';
 import {
@@ -250,6 +251,13 @@ export function ProjectDetail({
                 Showing the newest {media.items.length} of {media.total}.
               </p>
             )}
+          </Group>
+
+          <Group title="Skills" Icon={SparklesIcon}>
+            <Empty>
+              <span className="mr-1.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">Coming</span>
+              Private skills made for this project will be linked here, so everyone on it has them. MCPs and apps follow.
+            </Empty>
           </Group>
 
           <p className="text-xs text-muted-foreground">
