@@ -18,8 +18,10 @@ export function GitHubIcon({ className = 'size-4' }: { className?: string }) {
   return <Github className={className} aria-hidden />;
 }
 
-const startUrl = (provider: 'google' | 'github', redirectTo?: string) =>
-  `/api/auth/${provider}/start${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`;
+function startUrl(provider: 'google' | 'github', redirectTo?: string, claim?: string) {
+  const query = new URLSearchParams({ ...(redirectTo ? { redirectTo } : {}), ...(claim ? { claim } : {}) }).toString();
+  return `/api/auth/${provider}/start${query ? `?${query}` : ''}`;
+}
 
 /**
  * Continue with Google and Continue with GitHub, for the providers this
@@ -29,10 +31,13 @@ export function ProviderButtons({
   providers,
   redirectTo,
   only,
+  claim,
 }: {
   providers: Providers;
   redirectTo?: string;
   only?: 'google';
+  /** An admin's one-time link for an old account: the provider is linked to it. */
+  claim?: string;
 }) {
   const github = providers.github && only !== 'google';
   if (!providers.google && !github) return null;
@@ -40,7 +45,7 @@ export function ProviderButtons({
     <div className="grid gap-2">
       {providers.google && (
         <Button asChild variant="outline" className="w-full">
-          <a href={startUrl('google', redirectTo)}>
+          <a href={startUrl('google', redirectTo, claim)}>
             <GoogleIcon />
             Continue with Google
           </a>
@@ -48,7 +53,7 @@ export function ProviderButtons({
       )}
       {github && (
         <Button asChild variant="outline" className="w-full">
-          <a href={startUrl('github', redirectTo)}>
+          <a href={startUrl('github', redirectTo, claim)}>
             <GitHubIcon />
             Continue with GitHub
           </a>

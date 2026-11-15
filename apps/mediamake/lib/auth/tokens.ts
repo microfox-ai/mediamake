@@ -3,12 +3,13 @@ import { createHash, randomBytes } from 'crypto';
 
 /**
  * One-time tokens for sign-in: the link in a verification or reset mail, the
- * state of a Google or GitHub round trip, and an identity waiting to be linked
- * to an account. Each is stored in Redis under the SHA-256 of the token, with
- * an expiry, so a copy of the database holds nothing that can be used.
+ * state of a Google or GitHub round trip, an identity waiting to be linked to
+ * an account, and the link an admin sends the owner of an old account. Each
+ * is stored in Redis under the SHA-256 of the token, with an expiry, so a copy
+ * of the database holds nothing that can be used.
  */
 
-export type TokenKind = 'verify' | 'reset' | 'oauth' | 'identity';
+export type TokenKind = 'verify' | 'reset' | 'oauth' | 'identity' | 'claim';
 
 function redis() {
   return new Redis({

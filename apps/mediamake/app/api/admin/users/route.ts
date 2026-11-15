@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-utils';
-import { AuthError, adminLinkAccount, listAccounts } from '@/lib/auth/accounts';
+import { AuthError, adminLinkAccount, createClaimLink, listAccounts } from '@/lib/auth/accounts';
+import { publicOrigin } from '@/lib/mcp/oauth';
 
 /**
  * Accounts, for admins (behind the middleware, so x-client-id is the caller).
@@ -11,6 +12,9 @@ import { AuthError, adminLinkAccount, listAccounts } from '@/lib/auth/accounts';
  *       admin vouches for the email, and the person then signs in with a
  *       Google or GitHub account of that address, or sets a password with
  *       "Forgot password".
+ * POST  { clientId } makes a one-time link to send to the account's owner:
+ *       whoever opens it links their Google or GitHub account to the account
+ *       (/login/claim). It works once, for 7 days.
  */
 async function admin(req: NextRequest) {
   try {
@@ -31,6 +35,9 @@ export async function POST(req: NextRequest) {
   if (!(await admin(req))) return forbidden();
   try {
     const { clientId, email, name } = ((await req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>;
+    if (email === undefined || email === '') {
+      return NextResponse.json(await createClaimLink({ clientId, origin: publicOrigin(req) }));
+    }
     return NextResponse.json({ account: await adminLinkAccount({ clientId, email, name }) });
   } catch (error) {
     if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: error.status });

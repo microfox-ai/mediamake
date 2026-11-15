@@ -60,19 +60,23 @@ const redis = installFakeUpstash(outside);
 // ---- An in-memory user store ----
 
 const users = new Map<string, User>();
-const UNIQUE = ['email', 'googleId', 'githubId'] as const;
+const UNIQUE = ['email', 'githubId'] as const;
+const googleIds = (u: Partial<User>) => [u.googleId, ...(u.googleAccounts ?? []).map(a => a.id)].filter(Boolean);
 
 function conflictFor(Conflict: typeof import('./users').UserConflictError, candidate: Partial<User>, self?: string) {
+  const others = [...users.values()].filter(u => u.clientId !== self);
   for (const field of UNIQUE) {
     const value = candidate[field];
-    if (value && [...users.values()].some(u => u.clientId !== self && u[field] === value)) throw new Conflict(field);
+    if (value && others.some(u => u[field] === value)) throw new Conflict(field);
   }
+  if (googleIds(candidate).some(id => others.some(u => googleIds(u).includes(id)))) throw new Conflict('googleId');
 }
 
 function memoryStore(Conflict: typeof import('./users').UserConflictError): UserStore {
   return {
     async findBy(field, value) {
-      return structuredClone([...users.values()].find(u => u[field] === value) ?? null);
+      const has = (u: User) => (field === 'googleId' ? googleIds(u).includes(value) : u[field] === value);
+      return structuredClone([...users.values()].find(has) ?? null);
     },
     async list() {
       return structuredClone([...users.values()]);
@@ -146,7 +150,8 @@ beforeEach(() => {
   for (const key of Object.keys(profiles)) delete profiles[key];
   liveInvites = [];
   accounts.authDeps.inviteIsLive = async code => liveInvites.includes(code);
-  process.env.MEDIAMAKE_SIGNUP = 'open';
+  // Anyone can sign up unless MEDIAMAKE_SIGNUP=invite.
+  delete process.env.MEDIAMAKE_SIGNUP;
   // Accounts from before sign-in: a client id and a key, no user record.
   for (const [clientId, apiKey] of [['alice', 'key-alice'], ['bob', 'key-bob'], ['admin', 'key-admin']]) {
     redis.hset(`apiKeys:${apiKey}`, ['id', apiKey, 'apiKey', apiKey, 'clientId', clientId, 'clientName', clientId, 'isValid', 'true']);
@@ -353,7 +358,7 @@ describe('email and password', () => {
 
 describe('invite-only sign-up', () => {
   beforeEach(() => {
-    delete process.env.MEDIAMAKE_SIGNUP;
+    process.env.MEDIAMAKE_SIGNUP = 'invite';
     liveInvites = ['INVITE1'];
   });
 
@@ -386,9 +391,9 @@ describe('invite-only sign-up', () => {
   });
 
   it('still signs existing accounts in', async () => {
-    process.env.MEDIAMAKE_SIGNUP = 'open';
-    const { clientId } = await signUp(new Browser(), 'dana@example.com');
     delete process.env.MEDIAMAKE_SIGNUP;
+    const { clientId } = await signUp(new Browser(), 'dana@example.com');
+    process.env.MEDIAMAKE_SIGNUP = 'invite';
     const browser = new Browser();
     assert.equal((await browser.post(routes.login, '/api/auth/login', { email: 'dana@example.com', password: 'correct horse' })).status, 200);
     assert.equal(await browser.whoAmI(), clientId);
@@ -420,7 +425,7 @@ describe('Google and GitHub', () => {
     assert.equal(made.status, 200);
     assert.equal(made.body.redirectTo, '/apps');
     const user = users.get(made.body.clientId)!;
-    assert.equal(user.googleId, 'g-1');
+    assert.deepEqual(user.googleAccounts, [{ id: 'g-1', email: 'dana@example.com' }]);
     assert.equal(user.email, 'dana@example.com');
     assert.equal(user.passwordHash, undefined);
     assert.equal(await browser.whoAmI(), user.clientId);
@@ -444,7 +449,7 @@ describe('Google and GitHub', () => {
     assert.equal(linked.status, 200);
     assert.equal(await browser.whoAmI(), 'alice');
     const user = users.get('alice')!;
-    assert.deepEqual([user.googleId, user.email, user.name], ['g-alice', 'alice@example.com', 'alice']);
+    assert.deepEqual([user.googleAccounts![0].id, user.email, user.name], ['g-alice', 'alice@example.com', 'alice']);
     // The pending identity is used up.
     assert.equal((await browser.post(routes.link, '/api/auth/link', { clientId: 'bob', clientKey: 'key-bob' })).status, 410);
 
@@ -532,12 +537,12 @@ describe('a signed-in person’s sign-in methods', () => {
   it('lets an old account add Google, an email and a password after signing in with its key', async () => {
     const browser = await core('bob');
     const before = await browser.get(routes.accountGet, '/api/auth/account');
-    assert.deepEqual(before.body.account, { clientId: 'bob', methods: { password: false, google: false, github: false } });
+    assert.deepEqual(before.body.account, { clientId: 'bob', googleAccounts: [], methods: { password: false, google: false, github: false } });
     assert.deepEqual(before.body.providers, { google: true, github: true });
 
     const { location } = await browser.oauth('google', { id: 'g-bob', email: 'bob@example.com' }, '?connect=1');
     assert.equal(location, '/core/api-keys?connected=google');
-    assert.deepEqual([users.get('bob')!.googleId, users.get('bob')!.email], ['g-bob', 'bob@example.com']);
+    assert.deepEqual([users.get('bob')!.googleAccounts, users.get('bob')!.email], [[{ id: 'g-bob', email: 'bob@example.com' }], 'bob@example.com']);
 
     // A password needs an email, which Google gave; a second address goes through a mailed link.
     assert.equal((await browser.post(routes.account, '/api/auth/account', { action: 'password', password: 'bob password' })).status, 200);
@@ -569,17 +574,62 @@ describe('a signed-in person’s sign-in methods', () => {
     assert.equal((await post({ password: 'changed password', currentPassword: 'correct horse' })).status, 200);
   });
 
-  it('will not link an identity that belongs to another account, nor replace a linked one', async () => {
+  it('will not link an identity that belongs to another account, nor a second GitHub account', async () => {
     const alice = await core('alice');
     await alice.oauth('google', { id: 'g-alice' }, '?connect=1');
+    await alice.oauth('github', { id: '1', login: 'alice' }, '?connect=1');
     const bob = await core('bob');
-    const taken = await bob.oauth('google', { id: 'g-alice' }, '?connect=1');
-    assert.match(decodeURIComponent(taken.location), /^\/core\/api-keys\?error=That Google account is already linked to another MediaMake account\./);
-    assert.equal(users.get('bob')?.googleId, undefined);
+    for (const [provider, id] of [['google', 'g-alice'], ['github', '1']] as const) {
+      const taken = await bob.oauth(provider, { id }, '?connect=1');
+      assert.match(decodeURIComponent(taken.location), /^\/core\/api-keys\?error=That (Google|GitHub) account is already linked to another MediaMake account\./);
+    }
+    assert.equal(users.get('bob')?.googleAccounts, undefined);
 
-    const second = await alice.oauth('google', { id: 'g-other' }, '?connect=1');
-    assert.match(decodeURIComponent(second.location), /already linked to another Google account/);
-    assert.equal(users.get('alice')!.googleId, 'g-alice');
+    const second = await alice.oauth('github', { id: '2', login: 'alice-two' }, '?connect=1');
+    assert.match(decodeURIComponent(second.location), /already linked to another GitHub account/);
+    assert.equal(users.get('alice')!.githubLogin, 'alice');
+  });
+
+  it('links several Google accounts to one account, each of which signs in and can be removed', async () => {
+    const alice = await core('alice');
+    await alice.oauth('google', { id: 'g-work', email: 'alice@work.example' }, '?connect=1');
+    const again = await alice.oauth('google', { id: 'g-home', email: 'alice@home.example' }, '?connect=1');
+    assert.equal(again.location, '/core/api-keys?connected=google');
+    // Linking the same one twice changes nothing.
+    await alice.oauth('google', { id: 'g-home', email: 'alice@home.example' }, '?connect=1');
+    const account = (await alice.get(routes.accountGet, '/api/auth/account')).body.account as { googleAccounts: unknown };
+    assert.deepEqual(account.googleAccounts, [
+      { id: 'g-work', email: 'alice@work.example' },
+      { id: 'g-home', email: 'alice@home.example' },
+    ]);
+    assert.equal(users.get('alice')!.email, 'alice@work.example', 'the first address stays the account email');
+
+    for (const id of ['g-work', 'g-home']) {
+      const browser = new Browser();
+      assert.equal((await browser.oauth('google', { id })).location, '/');
+      assert.equal(await browser.whoAmI(), 'alice');
+    }
+
+    const unlink = (id: string) => alice.post(routes.account, '/api/auth/account', { action: 'unlink', provider: 'google', id });
+    assert.equal((await unlink('g-work')).status, 200);
+    assert.deepEqual(users.get('alice')!.googleAccounts, [{ id: 'g-home', email: 'alice@home.example' }]);
+    assert.equal((await unlink('g-home')).status, 400, 'the last way to sign in on /login stays');
+    const removed = new Browser();
+    assert.equal((await removed.oauth('google', { id: 'g-work' })).location, '/login/link');
+  });
+
+  it('reads a record that stores one Google id the old way, and moves it into the list', async () => {
+    users.set('alice', { clientId: 'alice', googleId: 'g-old', createdAt: 'then', updatedAt: 'then' });
+    const browser = new Browser();
+    assert.equal((await browser.oauth('google', { id: 'g-old' })).location, '/');
+    assert.equal(await browser.whoAmI(), 'alice');
+    const taken = await (await core('bob')).oauth('google', { id: 'g-old' }, '?connect=1');
+    assert.match(decodeURIComponent(taken.location), /already linked to another MediaMake account/);
+
+    await browser.oauth('google', { id: 'g-new', email: 'alice@example.com' }, '?connect=1');
+    const user = users.get('alice')!;
+    assert.equal(user.googleId, undefined);
+    assert.deepEqual(user.googleAccounts, [{ id: 'g-old' }, { id: 'g-new', email: 'alice@example.com' }]);
   });
 
   it('keeps one way to sign in on /login when removing a provider', async () => {
@@ -590,7 +640,7 @@ describe('a signed-in person’s sign-in methods', () => {
     assert.equal((await unlink()).status, 400);
     await browser.post(routes.account, '/api/auth/account', { action: 'password', password: 'dana password' });
     assert.equal((await unlink()).status, 200);
-    assert.equal(users.get(body.clientId)!.googleId, undefined);
+    assert.equal(users.get(body.clientId)!.googleAccounts, undefined);
   });
 
   it('refuses signed-out and cross-site requests', async () => {
@@ -630,6 +680,40 @@ describe('admins', () => {
     await browser.post(routes.forgot, '/api/auth/password/forgot', { email: 'alice@example.com' });
     await browser.post(routes.reset, '/api/auth/password/reset', { token: linkIn(mails.at(-1)!).token, password: 'alice password' });
     assert.equal(await browser.whoAmI(), 'alice');
+  });
+
+  it('make a one-time link that lets an old account’s owner link Google or GitHub', async () => {
+    assert.equal((await routes.adminPost(asClient('bob', 'POST', { clientId: 'alice' }))).status, 403);
+    assert.equal((await routes.adminPost(asClient('admin', 'POST', { clientId: 'nobody' }))).status, 404);
+    const made = await (await routes.adminPost(asClient('admin', 'POST', { clientId: 'alice' }))).json();
+    assert.equal(made.clientId, 'alice');
+    const url = new URL(made.url);
+    assert.equal(url.origin + url.pathname, 'https://mm.test/login/claim');
+    const token = url.searchParams.get('token')!;
+    assert.deepEqual(await accounts.describeClaim(token), { clientId: 'alice', name: 'alice' });
+    const claim = `?claim=${encodeURIComponent(token)}`;
+
+    // An identity that belongs to someone else doesn't use the link up.
+    const bob = new Browser();
+    await bob.post(routes.oldLogin, '/api/login', { clientId: 'bob', clientKey: 'key-bob' });
+    await bob.oauth('google', { id: 'g-bob' }, '?connect=1');
+    const wrong = await new Browser().oauth('google', { id: 'g-bob' }, claim);
+    assert.match(decodeURIComponent(wrong.location), /^\/login\?error=That Google account is already linked/);
+
+    const alice = new Browser();
+    assert.equal((await alice.oauth('github', { id: '5', login: 'alice', email: 'alice@example.com' }, claim)).location, '/');
+    assert.equal(await alice.whoAmI(), 'alice');
+    assert.deepEqual([users.get('alice')!.githubLogin, users.get('alice')!.email], ['alice', 'alice@example.com']);
+
+    // It works once.
+    assert.equal(await accounts.describeClaim(token), null);
+    const reused = new Browser();
+    assert.match(decodeURIComponent((await reused.oauth('google', { id: 'g-mallory' }, claim)).location), /^\/login\?error=This link has expired/);
+    assert.equal(await reused.whoAmI(), null);
+
+    const next = new Browser();
+    assert.equal((await next.oauth('github', { id: '5', login: 'alice' })).location, '/');
+    assert.equal(await next.whoAmI(), 'alice');
   });
 
   it('see every account, linked or not, without password hashes', async () => {

@@ -11,7 +11,7 @@ import { mailConfigured } from '@/lib/mail/send';
  *       and which providers this deployment has set up.
  * POST  { action: 'email', email }                        mails a link that adds the address
  *       { action: 'password', password, currentPassword? } sets or changes the password
- *       { action: 'unlink', provider }                     removes Google or GitHub
+ *       { action: 'unlink', provider, id? }                removes GitHub, or the Google account `id`
  *       { action: 'name', name }
  * Google and GitHub are added with /api/auth/<provider>/start?connect=1.
  */
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         break;
       case 'unlink':
         if (typeof input.provider !== 'string' || !isProvider(input.provider)) throw new AuthError('Unknown provider.');
-        await unlinkProvider(clientId, input.provider);
+        await unlinkProvider(clientId, input.provider, typeof input.id === 'string' ? input.id : undefined);
         break;
       case 'name':
         await setName(clientId, input.name);
