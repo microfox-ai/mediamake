@@ -34,6 +34,19 @@ Channels read: @veritasium, @kurzgesagt, @MarkRober, @3blue1brown, @SteveMould
    IMPOSSIBLE"), or a before / after pair with the years.
 7. **One word on the phenomenon**: a single giant word over a texture of the thing (ENTROPY).
 
+## Approved in the rounds
+
+Iteration 3, "We Left a Mirror on the Moon" (2026-11-15): the user picked five of seven concepts
+and approved all fifteen variants. What held:
+
+- **The real picture of the thing**, public domain: Apollo 11's own photo of the mirror ringed in
+  red under a serif `It still / works.`; the Smithsonian's twin cut out on grey, black or warm
+  paper with `ONE LIKE THIS IS / UP THERE.`; NASA's full Moon cropped at the edge, `It's / leaving.`
+- **A famous host with a real relation** on a faceless channel: Aldrin's visor portrait or the
+  Apollo 11 crew, the mirror held out in front, `LEFT IN / 1969. / STILL WORKS.`, `THEY LEFT / THIS`.
+- **Passed over:** a real laser photo whose beam was aimed at something else (true picture, false
+  story) and drawn beams on a composite. Evidence beats illustration here.
+
 ## Type
 
 Two voices work here that music thumbnails never use: a **serif in sentence case** for a question
