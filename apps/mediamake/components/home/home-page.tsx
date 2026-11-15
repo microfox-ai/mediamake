@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type { CatalogEntry, CatalogKind } from '@/lib/catalog/types';
 import { CatalogCard } from './catalog-card';
 import { SKILL_FILTER_PARAMS, type SkillCategoryInfo, type SkillFacet, type SkillFilters } from './skill-filters';
+import { SetupBanner } from './setup-banner';
 import { SkillsTab } from './skills-tab';
 import { homeTabs, type HomeTab } from './tabs';
 
@@ -58,6 +59,7 @@ export function HomePage({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+        <SetupBanner />
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <Link
             href="/"
