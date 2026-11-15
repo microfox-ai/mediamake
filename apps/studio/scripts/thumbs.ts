@@ -16,7 +16,7 @@
  *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
  *        mm thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]
  *
- *   init     makes the job folder; with --brand copies the brand's logos, fonts and thumbnail
+ *   init     makes the job folder; with --brand copies the brand's logos, fonts, host (a mascot) and thumbnail
  *            profile (brands/<brand>/graphics/brand/thumbnail.json) into it
  *   cutout   segments the subject locally (thumbnails/tools/cutout.py) → cutouts/<name>.png
  *   look     measures each hero picture and scores every treatment for it and the mood
@@ -208,8 +208,22 @@ const init = () => {
       palette?: Record<string, string>;
       params?: Record<string, unknown>;
       rules?: string[];
+      host?: { name: string; dir: string; copy?: string[]; note?: string };
     };
     for (const l of profile.logos) fs.copyFileSync(path.join(kit, l.file), path.join(dir, 'assets', l.as)), done(path.join(dir, 'assets', l.as));
+    // a faceless brand's host (a mascot): its poses come into input/host/ (cloned, not duplicated on APFS)
+    if (profile.host && !poster) {
+      const to = path.join(dir, 'input', 'host');
+      for (const sub of profile.host.copy ?? ['']) {
+        const from = path.join(kit, profile.host.dir, sub);
+        for (const f of fs.existsSync(from) ? fs.readdirSync(from).filter(f => /\.(png|jpe?g|webp)$/i.test(f)) : []) {
+          fs.mkdirSync(path.join(to, sub), { recursive: true });
+          fs.copyFileSync(path.join(from, f), path.join(to, sub, f), fs.constants.COPYFILE_FICLONE);
+        }
+      }
+      if (fs.existsSync(to)) done(to);
+      rules = [`The host: ${profile.host.name} (input/host/). ${profile.host.note ?? ''}`.trim()];
+    }
     for (const f of profile.fonts) {
       const to = path.join(dir, 'fonts', fontFile({ ...f, file: undefined }));
       fs.copyFileSync(path.join(kit, f.file), to);
@@ -219,7 +233,7 @@ const init = () => {
     // posters carry no logo unless the user asks for one (the files are in assets/ if they do)
     const logos = poster ? [] : profile.logos.slice(0, 1).map(l => ({ src: `assets/${l.as}`, width: l.width }));
     spec.defaults!.params = { palette: profile.palette, ...profile.params, logos };
-    rules = profile.rules ?? [];
+    rules = [...(profile.rules ?? []), ...rules];
   }
   // the art alone comes first: a text version is only ever an addition to it
   // plain: variety comes from crops, placement and ideas (create-music-poster, reworked 2026-10-31);

@@ -457,6 +457,14 @@ and Subhodayam have one. For a new brand (from `pack-brand-kit`), write it from 
 `brandguide.md` ("Thumbnails and titles") and `colors.json`, then make a first job with
 `--brand=<brand>` to check it.
 
+A faceless brand's **host** lives in the kit too, once the user approves it: `brands/<brand>/mascot/`
+with `card/` (poses holding a chroma-green card for `thumbs swap`, each also mirrored as `-flip`),
+`poses/` (cut out, pointing or presenting), `ref/` (the reference that keeps the character in new
+generations), `examples/` (the round it was approved in) and a README with its rules and prompt.
+`thumbnail.json` names it in `host` (`{ "name", "dir": "mascot", "copy": ["card", "poses"], "note" }`)
+and `thumbs init --brand` clones those folders into the job's `input/host/`. Cook with Claude's is
+Chef Claude (2026-11-15).
+
 ## Review in /file-revision
 
 Follow the **`revise-image`** skill: it gives the user the `/file-revision?job=<job>` link, reads
@@ -510,3 +518,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-15 · iteration 2, round 2 · "they are still not good enough (the source ideas u picked were 100% more engaging) thumbnail is not just typography and placement but also picking the right cutouts, logos, and screenshots to show in a software tutorial" → "The kit comes before the board" in step 2, a kit list in every playbook, and two commands to gather it: `thumbs shot` (a real page at 2×) and `thumbs logo` (an official logo from Commons). Round 3 was rebuilt from a kit: the released songs' real Spotify pages, the official Claude, Spotify and DistroKid logos, and the cover characters cut out, composed on the hits' recipes (a title plate, the tool's logo card, a real screen and a figure presenting it; a figure breaking out of the screen; a borrowed face under the tool's badge; logos as app tiles around a figure).
 - 2026-11-15 · iteration 2, round 3 · "the album cover is the product not the host (i think you are mistaking that) if there is no host or is basically a faceless channel, at least pose a mascot of sorts or use a famous person as host but there should be a relation and the text on thumbnail should explain the relation" → "The product and the host are two different things" under the click rules; round 3 had used the cover's characters (Gojo, Grimmjow) as hosts. Round 4 gives Cook with Claude a mascot made from episode 1's 3D spark (Chef Claude, Midjourney with the spark as its reference) holding the real covers, with words that say the relation.
 - 2026-11-15 · iteration 2, round 4 · "putting the poster behind the character is bad, take a look in none of the ideas u picked, they did that, and also text size was bigger (at least one word should make an impact on the user)" → the product is never behind the host (beside, or held out in front, whole); one word always giant even inside a sentence. Round 5 regenerates Chef Claude holding the card out in front (chest, palm, beside the face) and sets one impact word at 60 %+ of the width.
+- 2026-11-15 · iteration 2, round 5 · "Add chef Claude to brandkit and move to next" → round 5 approved (T1 COVER. · U1 COOKED · V1 CLAUDE · W1 COVER, each cover held in front, words → product → host). The mascot went into the brand kit (`brands/cookwithclaude/mascot/`) and `thumbnail.json` got a `host` that `thumbs init --brand` copies into `input/host/` ("Brands").
