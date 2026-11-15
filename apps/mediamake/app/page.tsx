@@ -1,16 +1,9 @@
-import type { Metadata } from 'next';
 import { HomePage } from '@/components/home/home-page';
 import { homeTabs, type HomeTab } from '@/components/home/tabs';
 import { getViewer } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
 import { skillFacets, skillFiltersFrom } from '@/components/home/skill-filters';
 import { registry } from '@/lib/skills/registry';
-
-export const metadata: Metadata = {
-  title: 'MediaMake · The creator space for entertainment',
-  description:
-    "Skills, MCPs and apps that work inside Claude to turn a song, footage or a picture into finished work. We publish nothing we don't use.",
-};
 
 // Cards depend on who is viewing (private items unlock per viewer).
 export const dynamic = 'force-dynamic';
