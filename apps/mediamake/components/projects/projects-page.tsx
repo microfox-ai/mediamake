@@ -38,6 +38,8 @@ import { ShareProjectDialog } from "@/components/editor_main/dialogs/ShareProjec
 import { BrandKitSheet } from "@/components/projects/BrandKitSheet";
 import { GenerationsSheet } from "@/components/projects/GenerationsSheet";
 import type { BrandKitSummary } from "@/lib/brand-kit";
+import { StorageCapAdmin, StorageMeter, type MemberStorageState } from "@/components/projects/storage-meter";
+import { formatBytes } from "@/lib/projects/storage";
 
 interface Project {
   id: string;
@@ -53,11 +55,10 @@ interface Project {
 
 type Tab = "all" | "owned" | "shared";
 
-// The timeline editor is still Core's (deprecated). Opening a project is the app's one way into it,
-// until Projects is rebuilt on ProjectSync.
-const CORE_EDITOR = "/core/editor";
+// A project opens on its own page in the app: what it keeps in the cloud (productions, releases, media).
+const PROJECT_PAGE = "/app/projects";
 
-export function ProjectsPage() {
+export function ProjectsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const router = useRouter();
   const session = useSession();
   const [projects, setProjects] = React.useState<Project[]>([]);
@@ -68,11 +69,18 @@ export function ProjectsPage() {
   const [brandTarget, setBrandTarget] = React.useState<Project | null>(null);
   const [generationsTarget, setGenerationsTarget] = React.useState<Project | null>(null);
 
+  const [storage, setStorage] = React.useState<MemberStorageState | null>(null);
+
   const fetch_ = React.useCallback(async () => {
     setLoading(true);
     try {
       const headers: Record<string, string> = {};
       if (session?.clientId) headers["x-client-id"] = session.clientId;
+      // what the projects they own hold, of their cap (lib/projects/storage)
+      fetch("/api/project/storage", { headers })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(setStorage)
+        .catch(() => undefined);
       const res = await fetch("/api/project", { headers });
       if (!res.ok) {
         setProjects([]);
@@ -104,7 +112,7 @@ export function ProjectsPage() {
     );
   }
 
-  const open = (id: string) => router.push(`${CORE_EDITOR}?id=${id}`);
+  const open = (id: string) => router.push(`${PROJECT_PAGE}/${id}`);
 
   return (
     <SidebarInset>
@@ -120,7 +128,7 @@ export function ProjectsPage() {
                   <FolderIcon className="h-5 w-5" /> Projects
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Your channels and brands: each holds its brand kit, its song takes, its timelines and who has access.
+                  Your channels and brands: each holds its brand kit, its song takes, its productions, releases and media, and who has access.
                 </p>
               </div>
               <Button
@@ -136,6 +144,8 @@ export function ProjectsPage() {
                 Refresh
               </Button>
             </div>
+
+            <StorageMeter storage={storage} />
 
             {/* Stats */}
             <div className="grid gap-3 sm:grid-cols-3">
@@ -195,7 +205,7 @@ export function ProjectsPage() {
                   <p className="py-10 text-center text-sm text-muted-foreground">
                     {search || tab !== "all"
                       ? "No projects match your filters."
-                      : "No projects yet — open the editor to create one."}
+                      : "No projects yet. Ask Claude to create one with ProjectSync, or to sync a channel with mm media sync."}
                   </p>
                 )}
 
@@ -258,6 +268,11 @@ export function ProjectsPage() {
                               <span className="text-[11px] text-muted-foreground">
                                 Updated {new Date(p.updatedAt).toLocaleDateString()}
                               </span>
+                              {isOwned && storage?.byProject?.[p.id] !== undefined && (
+                                <span className="text-[11px] text-muted-foreground tabular-nums">
+                                  · {formatBytes(storage.byProject[p.id])}
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -295,7 +310,7 @@ export function ProjectsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              title="Open in editor"
+                              title="Open the project"
                               onClick={() => open(p.id)}
                             >
                               <ExternalLinkIcon className="h-3.5 w-3.5" />
@@ -308,6 +323,8 @@ export function ProjectsPage() {
                 )}
               </CardContent>
             </Card>
+
+            {isAdmin && <StorageCapAdmin />}
 
             {brandTarget && (
               <BrandKitSheet

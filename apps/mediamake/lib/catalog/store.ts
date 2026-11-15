@@ -73,6 +73,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.requests).createIndex({ requestId: 1 }, { unique: true });
   await db.collection(COL.requests).createIndex({ status: 1, createdAt: -1 });
   await db.collection(COL.downloads).createIndex({ itemId: 1, at: -1 });
+  await db.collection(COL.downloads).createIndex({ clientId: 1, at: -1 });
   await db.collection(COL.archive).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.videos).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
@@ -318,6 +319,21 @@ export const catalogItemsDB = {
   async logDownload(entry: CatalogDownload) {
     const db = await getDatabase();
     await db.collection<CatalogDownload>(COL.downloads).insertOne({ ...entry });
+  },
+
+  /** What one account installed: each item once, with the version and time of its last install, newest first. */
+  async installsOf(clientId: string): Promise<{ itemId: string; version?: string; at: string }[]> {
+    const db = await getDatabase();
+    const rows = await db
+      .collection<CatalogDownload>(COL.downloads)
+      .aggregate<{ _id: string; version?: string; at: string }>([
+        { $match: { clientId } },
+        { $sort: { at: -1 } },
+        { $group: { _id: '$itemId', version: { $first: '$version' }, at: { $first: '$at' } } },
+        { $sort: { at: -1 } },
+      ])
+      .toArray();
+    return rows.map(row => ({ itemId: row._id, ...(row.version && { version: row.version }), at: row.at }));
   },
 
   async listDownloads(itemId: string, limit = 100) {

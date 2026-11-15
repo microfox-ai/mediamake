@@ -260,7 +260,7 @@ async function main(args) {
     const signedIn = apiKey(url, env);
     if (!signedIn) return fail(`Not signed in to ${url}: run mm media cloud login, or set MEDIAMAKE_API_KEY.`);
     const { forgotten } = await call('DELETE', `${url}/api/usage/skill-runs`, signedIn.key);
-    console.log(`Deleted ${forgotten?.runs ?? 0} runs and ${forgotten?.devices ?? 0} skill lists from ${url}.`);
+    console.log(`Deleted ${forgotten?.runs ?? 0} runs, ${forgotten?.devices ?? 0} skill lists and ${forgotten?.opens ?? 0} app opens from ${url}.`);
     if (setting.on) console.log('Usage reports are still on: mm usage off stops new ones.');
     return 0;
   }

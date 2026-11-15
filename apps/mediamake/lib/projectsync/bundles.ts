@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId, type Collection } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { getClientId } from '@/lib/auth-utils';
+import { storageProblem } from '@/lib/projects/storage-store';
 import { projectSyncAccess } from './access';
 import { createReadUrl, createUploadUrl, fileKey, storedSize } from './storage';
 import {
@@ -61,6 +62,19 @@ async function prepareVersion(kind: BundleKind, doc: BundleDoc & { _id: ObjectId
   const uploading = new Set(uploads.map(u => u.path));
   const reused = files.filter(f => !uploading.has(f.path)).map(f => f.path);
   return { files, uploads, reused };
+}
+
+/** The bytes a new version adds to storage: the files the bundle doesn't have yet, each content once. */
+function newBytes(doc: BundleDoc | null, listing: ListedFile[]): number {
+  const have = new Set<string>();
+  for (const version of doc?.versions ?? []) if (version.status === 'ready') for (const f of version.files) have.add(f.sha256);
+  let bytes = 0;
+  for (const f of listing) {
+    if (have.has(f.sha256)) continue;
+    have.add(f.sha256);
+    bytes += f.size;
+  }
+  return bytes;
 }
 
 function releaseMeta(body: { platform?: unknown; productionId?: unknown }, current?: BundleDoc['release']): { error: string } | { release: ReleaseMeta } {
@@ -143,6 +157,9 @@ export function bundleRoutes(kind: BundleKind) {
     const col = await collection(kind);
     const existing = await col.findOne({ projectId: body.projectId, slug, ...LIVE });
     if (existing) return NextResponse.json({ error: `This project already has a ${label} "${slug}": add a version with update_${label}`, id: existing._id.toString() }, { status: 409 });
+    // storage counts against the project owner's cap (lib/projects/storage)
+    const noRoom = await storageProblem(db, body.projectId, newBytes(null, listing.files));
+    if (noRoom) return fail(noRoom, 413);
 
     const now = new Date().toISOString();
     const doc: BundleDoc = {
@@ -199,6 +216,8 @@ export function bundleRoutes(kind: BundleKind) {
     }
     const listing = checkListing(kind, body.files);
     if (!listing.ok) return fail(listing.error);
+    const noRoom = await storageProblem(db, body.projectId, newBytes(doc, listing.files));
+    if (noRoom) return fail(noRoom, 413);
     const version = Math.max(0, ...doc.versions.map(v => v.version)) + 1;
     const { files, uploads, reused } = await prepareVersion(kind, { ...doc, _id }, listing.files);
     await col.updateOne(

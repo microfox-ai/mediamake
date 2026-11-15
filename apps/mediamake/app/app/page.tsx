@@ -1,36 +1,29 @@
-import Link from 'next/link';
-import { ComingSoon } from '@/components/app-shell/app-page';
-import { navFor } from '@/lib/app-shell/nav';
+import { AppPage } from '@/components/app-shell/app-page';
+import { HomeColumns } from '@/components/app-shell/home-columns';
+import { homeColumns } from '@/lib/app-shell/member';
+import { MOST_USED_DAYS, getAppItems, getMemberActivity } from '@/lib/app-shell/member-data';
 import { getAppViewer } from '@/lib/app-shell/viewer';
+import { registry } from '@/lib/skills/registry';
 
 export const metadata = { title: 'Home · MediaMake' };
 
-/** /app: Home. For now, the way into every page the person can open. */
+/**
+ * /app: Home. Three columns, Skills, MCPs and Apps: in each, what the member
+ * uses most (lib/usage), then what they installed lately, with open, copy
+ * install prompt and update on every row.
+ */
 export default async function AppHomePage() {
-  const { tier } = await getAppViewer();
-  const sections = navFor(tier).filter(section => section.label);
+  const { clientId } = await getAppViewer();
+  // the layout sends signed-out visitors to sign in before any page renders
+  if (!clientId) return null;
+  const [items, activity] = await Promise.all([getAppItems(clientId), getMemberActivity(clientId)]);
 
   return (
-    <ComingSoon
-      title="Home"
-      about="Home will show three columns, Skills, MCPs and Apps: what you use most, then what you installed recently, with open, copy prompt and update on each row."
-    >
-      <div className="grid gap-4 sm:grid-cols-3">
-        {sections.map(section => (
-          <div key={section.label} className="rounded-xl border p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{section.label}</p>
-            <ul className="mt-2 space-y-1 text-sm">
-              {section.items.map(item => (
-                <li key={item.href}>
-                  <Link href={item.href} className="underline-offset-4 hover:underline">
-                    {item.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+    <AppPage title="Home">
+      <div className="flex flex-col gap-4 px-4 py-6 lg:px-6">
+        <p className="text-sm text-muted-foreground">What you use most, then what you installed lately. Each row opens the item, copies its install prompt, or copies the prompt that updates it.</p>
+        <HomeColumns columns={homeColumns(items, activity, registry?.skills ?? [])} days={MOST_USED_DAYS} />
       </div>
-    </ComingSoon>
+    </AppPage>
   );
 }

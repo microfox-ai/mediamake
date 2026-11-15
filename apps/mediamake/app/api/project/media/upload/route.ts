@@ -4,6 +4,7 @@ import { getClientId } from '@/lib/auth-utils';
 import { createPresignedUpload } from '@/lib/spaces-upload';
 import { projectSyncAccess } from '@/lib/projectsync/access';
 import { MAX_FILE_BYTES, MB, mimeOf } from '@/lib/projectsync';
+import { storageProblem } from '@/lib/projects/storage-store';
 
 const MAX_FILES = 50;
 
@@ -23,6 +24,11 @@ export async function POST(request: NextRequest) {
   const files = body.files;
   if (!Array.isArray(files) || !files.length) return NextResponse.json({ error: 'files is required: [{ name, size }]' }, { status: 400 });
   if (files.length > MAX_FILES) return NextResponse.json({ error: `At most ${MAX_FILES} files per request` }, { status: 400 });
+
+  // storage counts against the project owner's cap (lib/projects/storage)
+  const adding = files.reduce((sum: number, f: { size?: number }) => sum + (Number(f?.size) > 0 && Number(f.size) <= MAX_FILE_BYTES ? Number(f.size) : 0), 0);
+  const noRoom = await storageProblem(db, body.projectId, adding);
+  if (noRoom) return NextResponse.json({ error: noRoom }, { status: 413 });
 
   const col = db.collection('mediaFiles');
   const uploads = await Promise.all(
