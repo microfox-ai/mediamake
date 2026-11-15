@@ -275,7 +275,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       await fetch('/api/logout', {
         method: 'POST',
       });
-      router.push(`/login?redirectTo=${encodeURIComponent(currentPath)}`);
+      router.push(`/core/login?redirectTo=${encodeURIComponent(currentPath)}`);
       router.refresh();
     } catch (error) {
       console.error('Failed to logout:', error);

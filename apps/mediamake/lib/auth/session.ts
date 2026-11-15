@@ -32,8 +32,8 @@ export async function validateApiKey(clientKey: string, clientId?: string) {
   return apiKeyInfo;
 }
 
-/** Create a browser session cookie for a known client. */
-export async function createSessionForClient(clientId: string) {
+/** Stores a website login for a known client and returns its session token. */
+export async function createSession(clientId: string, requestHeaders: Headers): Promise<string> {
   const sessionStore = new CrudHash<any>(redis(), 'sessions');
   const sessionId = randomBytes(32).toString('hex');
   await sessionStore.set(
@@ -42,17 +42,33 @@ export async function createSessionForClient(clientId: string) {
       clientId,
       expires: Date.now() + SESSION_TTL_SECONDS * 1000,
       createdAt: Date.now(),
-      device: deviceFromHeaders(await headers()),
+      device: deviceFromHeaders(requestHeaders),
     } satisfies WebSession,
     { ttl: SESSION_TTL_SECONDS },
   );
+  return sessionId;
+}
 
-  (await cookies()).set('session_token', sessionId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: SESSION_TTL_SECONDS,
-    path: '/',
-  });
+/** The session_token cookie's settings, for routes that set it on their response. */
+export const sessionCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: SESSION_TTL_SECONDS,
+  path: '/',
+});
+
+/** Create a browser session cookie for a known client. */
+export async function createSessionForClient(clientId: string) {
+  const sessionId = await createSession(clientId, await headers());
+  (await cookies()).set('session_token', sessionId, sessionCookieOptions());
+}
+
+/** The client id behind a session token, or null. */
+export async function clientIdOfSession(sessionId: string | undefined | null): Promise<string | null> {
+  if (!sessionId) return null;
+  const session = await new CrudHash<WebSession & { id: string }>(redis(), 'sessions').get(sessionId);
+  return session && session.expires > Date.now() ? session.clientId : null;
 }
 
 /**

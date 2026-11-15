@@ -26,12 +26,13 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       const manual = params.get('manual') === '1';
       const currentPath = window.location.pathname + window.location.search;
       const loginParams = new URLSearchParams();
-      if (currentPath !== '/login') {
+      if (currentPath !== '/core/login') {
         loginParams.set('redirectTo', currentPath);
       }
       if (manual) loginParams.set('manual', '1');
       const query = loginParams.toString();
-      router.push(query ? `/login?${query}` : '/login');
+      // Core keeps its own form (client ID and key, plus Google).
+      router.push(query ? `/core/login?${query}` : '/core/login');
     };
 
     const checkSession = async () => {

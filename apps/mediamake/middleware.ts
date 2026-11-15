@@ -173,6 +173,8 @@ export const config = {
    * Match all API routes except for the ones starting with:
    * - login (the login API route)
    * - signup (the signup API route)
+   * - auth (sign-in with email, Google and GitHub; these routes read the
+   *   session cookie themselves, see lib/auth/http.ts)
    * - session (the session API route)
    * - dev-session (development-only auto login)
    * - dev-lyrics (development-only file access for the public /remotion-editor page)
@@ -184,5 +186,5 @@ export const config = {
    *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog).*)',
+  matcher: '/api/((?!login|signup|auth|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog).*)',
 };
