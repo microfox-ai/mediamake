@@ -55,7 +55,11 @@ or on a faceless channel **its mascot**, or **a famous person with a real relati
 (press pictures, never a generated likeness, never words they did not say). The thumbnail's words
 **say the relation** between host and product (the mascot is Claude, so CLAUDE MADE MY ALBUM COVER).
 A faceless channel with no mascot yet: propose one from its brand (its logo as a character), make
-it once, keep it in the brand kit, and use it in every episode.
+it once, keep it in the brand kit, and use it in every episode. **The product is never behind the host**
+(the user, 2026-11-15: "putting the poster behind the character is bad … none of the ideas you
+picked did that"): it sits beside them or is held out in front of them, whole and unblocked, as in
+the hits (a UI card in front of the presenter, an object on an open palm, an object beside the
+face).
 
 From YouTube's own guidance and the 2026-11-14 research (550 thumbnails over ten kinds, each
 channel's hits against its own misses: `playbooks/README.md`). Every thumbnail passes these; the
@@ -69,7 +73,10 @@ playbook adds its kind's own.
 3. **The hero is what this kind's viewer looks for**, and it is not always a face: a face is on
    two thirds of hits and of misses alike, and leads only 30 % of hits. See the playbook.
 4. **Big.** Whatever leads (object, face, word, number) takes at least half the frame's height or
-   60 % of its width. A hero at a quarter of the frame is a caption on a photo.
+   60 % of its width. A hero at a quarter of the frame is a caption on a photo. **And one word always makes
+   the impact** (the user, 2026-11-15: "at least one word should make an impact on the user"):
+   even in a sentence, one word is set giant (60 %+ of the width or a third of the height) and the
+   rest of the line is smaller around it.
 5. **Few words, and only words that add.** None to three for most kinds (a podcast's claim and a
    finance explainer's question run longer). The thumbnail asks, reacts or proves and the title
    tells; repeat the title only where search needs the name (a tool, a dish, a country, a game).
@@ -499,3 +506,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-15 · iteration 2 (Cook with Claude, /create-music-poster) · "No, rework it" without notes. Own check against real tutorial hits: round 1's words were puns and process words at a third of the width, the output was spread over three to six small covers, and the series' spark was missing → round 2 named the output in two giant words (ALBUM / COVER.), showed one cover at ~78 % of the height, and kept episode 1's composition with this episode's dish. Rules: the hero keeps its edge; a before/after only when the change shows small; a series' signature object on every board.
 - 2026-11-15 · iteration 2, round 2 · "they are still not good enough (the source ideas u picked were 100% more engaging) thumbnail is not just typography and placement but also picking the right cutouts, logos, and screenshots to show in a software tutorial" → "The kit comes before the board" in step 2, a kit list in every playbook, and two commands to gather it: `thumbs shot` (a real page at 2×) and `thumbs logo` (an official logo from Commons). Round 3 was rebuilt from a kit: the released songs' real Spotify pages, the official Claude, Spotify and DistroKid logos, and the cover characters cut out, composed on the hits' recipes (a title plate, the tool's logo card, a real screen and a figure presenting it; a figure breaking out of the screen; a borrowed face under the tool's badge; logos as app tiles around a figure).
 - 2026-11-15 · iteration 2, round 3 · "the album cover is the product not the host (i think you are mistaking that) if there is no host or is basically a faceless channel, at least pose a mascot of sorts or use a famous person as host but there should be a relation and the text on thumbnail should explain the relation" → "The product and the host are two different things" under the click rules; round 3 had used the cover's characters (Gojo, Grimmjow) as hosts. Round 4 gives Cook with Claude a mascot made from episode 1's 3D spark (Chef Claude, Midjourney with the spark as its reference) holding the real covers, with words that say the relation.
+- 2026-11-15 · iteration 2, round 4 · "putting the poster behind the character is bad, take a look in none of the ideas u picked, they did that, and also text size was bigger (at least one word should make an impact on the user)" → the product is never behind the host (beside, or held out in front, whole); one word always giant even inside a sentence. Round 5 regenerates Chef Claude holding the card out in front (chest, palm, beside the face) and sets one impact word at 60 %+ of the width.
