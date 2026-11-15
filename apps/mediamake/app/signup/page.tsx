@@ -11,7 +11,7 @@ export const metadata = { title: 'Create your account · MediaMake' };
 type Params = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-/** /signup: a new account. Invite only until MEDIAMAKE_SIGNUP=open (see lib/auth/accounts.ts). */
+/** /signup: a new account. Open to anyone unless MEDIAMAKE_SIGNUP=invite (see lib/auth/accounts.ts). */
 export default async function SignupPage({ searchParams }: { searchParams: Params }) {
   const redirectTo = safeRedirect(one((await searchParams).redirectTo), '') || undefined;
   if (!(await maySignUp(redirectTo))) {
