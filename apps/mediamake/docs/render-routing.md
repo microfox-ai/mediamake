@@ -40,7 +40,7 @@ Lambda is billed to us, so `/api/remotion/render` and `/api/remotion/render/pres
 
 `MEDIAMAKE_LAMBDA_ACCESS=any-key` opens Lambda to every API key again (the old behaviour). In development everyone has access.
 
-An API key alone isn't enough, because every signed-in user logs in with one and `/api/signup` gives one to anyone.
+An API key alone isn't enough, because every signed-in user logs in with one and sign-up gives one to every new account.
 
 ## API
 
