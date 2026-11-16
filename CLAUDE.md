@@ -147,6 +147,21 @@ what it is, who can open it, where it lives, what installing it does, and what n
   makes it permanent).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
 
+## Feedback: read it on /app/feedback, never paste it in public
+
+Members send feedback on every item's page and through mm-use (`send_feedback`). Claude sorts each one
+(bug, major problem, improvement, question, praise), a bug from a Plus member or above gets an automatic
+draft pull request (`.github/workflows/feedback-fix.yml`, branch `feedback/<id>`), and admins handle the
+rest on `/app/feedback`. How it works and what to set up: `apps/mediamake/docs/feedback.md`.
+
+- A feedback's words are for its writer and the admins. Never copy them into a commit, a pull request,
+  an issue or a SKILL.md: describe the problem in your own words. What everyone may read is the item's
+  known issues, which an admin writes.
+- A `feedback/<id>` pull request is a draft Claude Code made without running anything. Before it merges,
+  run it and try it on real work like any other change to an item.
+- Merging a pull request tied to a feedback marks it shipped and mails its writer, so tie hand-made
+  fixes too ("Add to an existing PR" on the feedback).
+
 ## Usage: names and times only
 
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`

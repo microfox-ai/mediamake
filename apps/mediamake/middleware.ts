@@ -183,8 +183,10 @@ export const config = {
    * - dev-ladder (development-only folder access for the public /remaster-revision page)
    * - catalog (product catalog: browsable signed out; the routes resolve the
    *   viewer themselves and never trust x-client-id, see lib/access)
+   * - feedback-hook (the feedback fix workflow in GitHub Actions; the route
+   *   checks FEEDBACK_HOOK_SECRET itself)
    *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|auth|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog).*)',
+  matcher: '/api/((?!login|signup|auth|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog|feedback-hook).*)',
 };
