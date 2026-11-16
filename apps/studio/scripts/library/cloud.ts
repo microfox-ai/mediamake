@@ -1,6 +1,6 @@
 /**
  * cloud: the MediaMake site a channel's team shares through (`media sync`). The site is
- * MEDIAMAKE_API_URL, else `url` in ~/.mediamake/config.json; the API key is MEDIAMAKE_API_KEY, else
+ * MEDIAMAKE_API_URL, else `url` in ~/.mediamake/config.json, else mediamake.microfox.app; the API key is MEDIAMAKE_API_KEY, else
  * the one `media cloud login` keeps in the macOS Keychain. The key is never written to the config,
  * printed or put in a URL. A local dev server takes requests without one (its DEV_API_KEY).
  */
@@ -49,10 +49,9 @@ export const keySource = (url: string) => (process.env.MEDIAMAKE_API_KEY?.trim()
 export type Cloud = ReturnType<typeof connect>;
 
 export const connect = (opts: { url?: string; key?: string } = {}) => {
-  const url = (opts.url ?? cloudUrl())?.replace(/\/+$/, '');
-  if (!url) throw new Error('No MediaMake site yet: run media cloud login --url=<your MediaMake site>, or set MEDIAMAKE_API_URL');
+  const url = (opts.url ?? cloudUrl()).replace(/\/+$/, '');
   const key = opts.key ?? (process.env.MEDIAMAKE_API_KEY?.trim() || keychainKey(url));
-  if (!key && !isLocal(url)) throw new Error(`Not signed in to ${url}: run media cloud login (or set MEDIAMAKE_API_KEY)`);
+  if (!key && !isLocal(url)) throw new Error(`Not signed in to ${url}: run mm login (or set MEDIAMAKE_API_KEY)`);
 
   const request = async <T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', route: string, opts: { query?: Record<string, string | undefined>; body?: unknown; timeoutMs?: number } = {}): Promise<T> => {
     const u = new URL(route, `${url}/`);

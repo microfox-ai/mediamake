@@ -8,6 +8,7 @@
  *   mm where                the studio folder (apps/studio in this checkout)
  *   mm workspace            where your work is: projects, renders, brand kits, notes… (scripts/workspace.ts)
  *   mm link [--dir=<bin>]   puts `mm` on your PATH (in npm's global bin folder), once per machine
+ *   mm login | logout       signs this computer in to MediaMake (mm media cloud login): mm items, usage and sync use it
  *
  * Without the link, run it from the repo as `npm run mm -- <command> [args…]`.
  * Your work out of the checkout, into ~/MediaMake (and, after the rename, out of apps/lyrics_videos):
@@ -59,6 +60,7 @@ const ABOUT = {
   engine: 'the engine by name (@mediamake/engine): its version, your pins, kept engines; codemod gives old imports its names',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
   update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
+  items: 'what your MediaMake account opens (MCPs, apps) and what is installed; mm items install --yes installs it all, no install code',
   usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
@@ -72,6 +74,7 @@ const help = () => {
   for (const n of names) console.log(`  ${n.padEnd(width)}  ${ABOUT[n] ?? ''}`.trimEnd());
   console.log(`\n  ${'where'.padEnd(width)}  the studio folder`);
   console.log(`  ${'link'.padEnd(width)}  put mm on your PATH (once per machine)`);
+  console.log(`  ${'login'.padEnd(width)}  sign this computer in to MediaMake (mm logout signs it out): mm media cloud login`);
 };
 
 /** Writes a small launcher for this checkout's mm into npm's global bin folder (or --dir). */
@@ -136,7 +139,9 @@ const remindMigrate = cmd => {
 };
 
 const main = () => {
-  const [cmd, ...rest] = process.argv.slice(2);
+  let [cmd, ...rest] = process.argv.slice(2);
+  // signing in is the site's, whatever it is used for: mm login is mm media cloud login
+  if (cmd === 'login' || cmd === 'logout') [cmd, rest] = ['media', ['cloud', cmd, ...rest]];
   if (process.env.npm_package_name === 'lyrics_videos') {
     console.error(`ℹ lyrics_videos is now studio. Next time: mm ${toCommand(toScript(cmd ?? ''))} …`);
   }
@@ -151,7 +156,7 @@ const main = () => {
   remindMigrate(cmd);
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
-  if (!['sync-presets', 'update', 'doctor'].includes(script)) ensurePresets(APP, { soft: true });
+  if (!['sync-presets', 'update', 'doctor', 'items', 'usage'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)

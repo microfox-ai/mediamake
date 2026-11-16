@@ -519,6 +519,15 @@ the homepage has a **Copy install prompt** button and links to
 
 > Set up mcp/browse-hack from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
+On a computer that has the MediaMake repo and is signed in (`mm login`), no
+prompt is pasted at all: `mm items` asks the site who the account is
+(`GET /api/me`: its tier), what it opens (`GET /api/catalog`) and what is live
+(`GET /api/catalog/versions`), and `mm items install --yes` installs every MCP
+and app the membership opens with the same API key (`tools/items.mjs`; the
+plan, the SHA-256 check, `claude mcp add`, `installed.json` and the update
+token are the same as below). The prompt and its install code are for
+everyone else.
+
 [`install.md`](../../../install.md) walks Claude through GitHub (account,
 `git`, `gh auth login`), the person's MediaMake API key, and then the plan
 from `GET /api/catalog/install?item=<id>`: every dependency in order, each

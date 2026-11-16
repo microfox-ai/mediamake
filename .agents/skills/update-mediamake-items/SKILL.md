@@ -12,6 +12,19 @@ recorded in `~/.mediamake/installed.json`, and the install leaves an update toke
 `~/.mediamake/config.json` (`updateToken`, with the site as `url`). Together they let you update
 an item without the person copying a new install prompt. Never print the token.
 
+## Signed in on this computer: `mm items`
+
+Where the MediaMake repo is on the computer and it is signed in (`mm login`, once), nothing else is
+needed, not even the update token:
+
+- `mm items` shows the account, its membership and each MCP and app it opens as installed (with its
+  version), behind (installed and live versions) or not installed.
+- `mm items install --yes` updates everything that is behind and installs what the membership opens
+  and isn't here yet; `mm items install <id> --yes` does one item. Then do what it lists under
+  "Left to do" (an item's own `INSTALL.md`, or one click from the person for a new Chrome extension).
+
+Never ask them to copy an install prompt or an install code while `mm items` says they are signed in.
+
 ## Browse Hack
 
 Browse Hack updates itself: its MCP checks every few hours and installs new versions of the
@@ -57,8 +70,9 @@ https://github.com/microfox-ai/mediamake/blob/main/install.md
    gives each item's live `version` and its `releases` with notes.
 3. Tell the person, per item: installed version → live version, and the notes in between.
 4. Update what's behind from the install plan, as install.md's step 4 says for updates.
-5. A 401, or the item under `missing`, means the token doesn't cover it: ask them to copy the
-   item's install prompt from its page on the MediaMake site and paste it.
+5. A 401, or the item under `missing`, means the token doesn't cover it: `mm items install <id> --yes`
+   when the computer is signed in; only where `mm` isn't there, ask them to copy the item's install
+   prompt from its page on the MediaMake site and paste it.
 
 The item's page on the MediaMake site (`/access?item=<id>`) shows the same live version and
 release notes, so the person can check there too.

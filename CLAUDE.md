@@ -147,6 +147,20 @@ what it is, who can open it, where it lives, what installing it does, and what n
   makes it permanent).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
 
+## Items: installed with the sign-in
+
+A computer signed in to MediaMake (`mm login`, once: the key stays in the Keychain) installs what
+the account's membership opens by itself. `mm items` shows the account, its tier and each MCP and
+app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
+them all, `mm items install <id> --yes` one (`tools/items.mjs`).
+
+- Never ask the user for the site address, an install prompt or an install code when `mm items` says
+  they are signed in. The site is `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else
+  `https://mediamake.microfox.app`.
+- Having access is the yes: install what their membership opens without asking, then do what the
+  command lists as left (a new Chrome extension needs their one click on "Load unpacked").
+- The install prompt with its code (`install.md`) is for computers without the repo or a sign-in.
+
 ## Usage: names and times only
 
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`

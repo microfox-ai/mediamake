@@ -192,15 +192,15 @@ const status = (lib: Lib) => {
 /** The site and its key: sign in once, the Keychain keeps the key. */
 const cloudCommand = async () => {
   const [op] = rest;
-  const url = (flag('url') ?? cloudUrl())?.replace(/\/+$/, '');
-  if (!url) throw new Error('Which MediaMake site? media cloud login --url=https://<your MediaMake site>');
+  const url = (flag('url') ?? cloudUrl()).replace(/\/+$/, '');
   if (op === 'login') {
     const key = await readSecret(`API key for ${url} (from ${url}/app/api-keys; it isn't shown): `);
     if (!key) throw new Error('No key given');
     const projects = await connect({ url, key }).get<unknown[]>('/api/project');
     saveKeychainKey(url, key);
     if (flag('url')) saveCloudUrl(url);
-    return console.log(`✔ Signed in to ${url} (${Array.isArray(projects) ? projects.length : 0} projects you can open). The key is in the Keychain as "MediaMake API key".`);
+    console.log(`✔ Signed in to ${url} (${Array.isArray(projects) ? projects.length : 0} projects you can open). The key is in the Keychain as "MediaMake API key".`);
+    return console.log('  mm items shows what your membership opens; mm items install --yes installs it, with no install code.');
   }
   if (op === 'logout') return console.log(deleteKeychainKey(url) ? `Signed out of ${url}: the key is gone from the Keychain.` : `No key for ${url} in the Keychain.`);
   if (op === 'status') {
