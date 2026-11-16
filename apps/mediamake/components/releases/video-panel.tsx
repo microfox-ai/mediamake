@@ -17,6 +17,7 @@ import { catalogItemId, isValidSlug, type CatalogItemRecord, type CatalogVideo }
 import { parseYouTubeId, watchPath, youtubeThumbnail, youtubeUrl } from '@/lib/catalog/video';
 import { GroupLabel, Panel, TierPill } from './parts';
 import { adminCall, itemPath, type ItemDetail } from './model';
+import { LaunchVideo } from './launch-video';
 
 /**
  * The videos on the release pages: an item's intro (a skill's, or an MCP's or
@@ -249,6 +250,7 @@ export function VideoPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: (
           : `Plays on its page (${watchPath(item.id)}), and its thumbnail tops its card on the homepage.`
       }
     >
+      <LaunchVideo detail={detail} />
       {video?.youtubeId && <YouTubeEmbed youtubeId={video.youtubeId} title={video.title} className="mb-5" />}
       <VideoFields itemId={item.id} draft={draft} onChange={setDraft} withUrl />
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">

@@ -192,6 +192,29 @@ Admin API (`POST /api/admin/catalog`):
 From Claude, mm-release's `catalog_set_video` and `catalog_add_video_item`
 do the same (see below).
 
+### Launch videos
+
+A skill, MCP or app gets a launch video: a Cook with Claude episode made with
+the `make-cwc-tutorial` skill by an admin on their own computer (it renders
+there and is reviewed in rounds, so the site makes no video itself).
+
+- The item's release page has **Copy launch video prompt** at the top of its
+  Intro video panel. The prompt carries what the catalog knows about the item:
+  its id and version, what it is, who can open it, Beta or Ready, a skill's
+  first prompt, the install prompt to show (never one with an install code),
+  its code, what was made with it (the Ready mark's proof), what it works with
+  and what uses it. It tells Claude to check each fact, to ask for what is
+  missing, and to stop when no finished production was made with it.
+- The panel says what the prompt still lacks (no production on record, still
+  Beta, not public, nothing to install), and **See the prompt** shows it.
+- The finished video comes back as the item's intro: the prompt ends with
+  `catalog_set_video` for the item (title and description as uploaded), or the
+  admin pastes the YouTube link into the panel's fields. An intro the item
+  already has is replaced only after the admin says so.
+- `GET /api/admin/catalog/item` answers with it as `launchVideoPrompt`, so
+  mm-release's `catalog_item` gives it too. Built by `launchVideoPromptFor` in
+  `lib/catalog/launch-video.ts` (pure; `npx tsx --test lib/catalog/launch-video.test.ts`).
+
 ## From Claude: mm-release's catalog tools
 
 mm-release (the hosted connector at `/mcp/release`, or the local stdio server run as `release`; until the split of 2026-11 these tools were in the MediaMake MCP at `/mcp`)
