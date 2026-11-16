@@ -45,6 +45,7 @@
     "update": "node ../../tools/update.mjs",
     "doctor": "node ../../tools/doctor.mjs",
     "usage": "node ../../tools/usage.mjs",
+    "space": "node ../../tools/space.mjs",
     "notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/notes.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",

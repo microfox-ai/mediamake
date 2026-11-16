@@ -3,6 +3,8 @@ import { getEntitlements } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
 import { catalogItemsDB } from '@/lib/catalog/store';
 import { registry } from '@/lib/skills/registry';
+import { spaceView, type SpaceView } from '@/lib/space/space';
+import { spaceDB } from '@/lib/space/store';
 import { usageDB } from '@/lib/usage/store';
 import { sinceDays } from '@/lib/usage/usage';
 import { appItems, type AppItem, type MemberActivity } from './member';
@@ -43,6 +45,16 @@ export const getMemberActivity = cache(async (clientId: string): Promise<MemberA
     orEmpty('local skills', () => usageDB.localSkillsOf(clientId)),
   ]);
   return { usage, opens, installs, devices };
+});
+
+/** The member's private space as their computers reported it (mm space), or null: none connected, or its store can't be reached. */
+export const getSpace = cache(async (clientId: string): Promise<SpaceView | null> => {
+  try {
+    return spaceView(await spaceDB.stateOf(clientId));
+  } catch (error) {
+    console.error('[app] Could not load the space:', error);
+    return null;
+  }
 });
 
 /** The registry's categories in their order, for Explore's chips. */

@@ -77,6 +77,15 @@ account reads and deletes only its own.
 | `POST /api/usage/app-opens` `{ app }` | One app opened from the app: its catalog id. The time is the server's |
 | `GET /api/usage/app-opens?days=90` | The account's apps by how often it opened them |
 
+## Private spaces
+
+A member who connects a private space (`mm space`, `docs/private-spaces.md`)
+also reports what that space holds on each computer: the repo's name, the
+commit, and each item's kind, name, version, title and one-line summary
+(`PUT /api/space`, stored in `spaces` and `space_items`). Never a file or a
+token. The same switch stops it (`mm usage off`), `mm space report --dry`
+shows it, and `mm space forget` deletes it.
+
 ## Feedback
 
 `POST /api/feedback` `{ text, itemId?, version? }` takes a member's feedback

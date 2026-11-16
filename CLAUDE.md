@@ -81,6 +81,20 @@ log is shared and changes only in a pull request: when the user wants their note
 `mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
 touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
+## Private spaces: the user's own skills, MCPs and apps
+
+A member's own skills, MCPs and apps live in a private GitHub repo of theirs (`skills/`, `mcps/`,
+`apps/`), cloned to `space/` in the workspace and the same on every computer: `mm space` (`mm space help`,
+`apps/mediamake/docs/private-spaces.md`).
+
+- `mm space` shows it; `mm space connect <owner/repo>` (or `--create`) sets it up, `mm space pull` brings
+  what other computers pushed. `mm space push` is a dry run: show it to the user and run `--yes` once they agree.
+- A new skill of the user's own goes in the space when they have one (`mm space new skill <name>`, or
+  `mm space add <name>` for a variant in the workspace), never in this repo.
+- Large media never goes in the space: the media library carries it, and the item names it under
+  `media` in its `item.json`.
+- A space is private. Publishing an item from it follows the rule at the top like any other.
+
 ## Media files: the shared library
 
 Footage, pins, generated art, songs, stems, sound effects, overlays and fonts are kept once in the
@@ -152,6 +166,8 @@ what it is, who can open it, where it lives, what installing it does, and what n
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`
 hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
 versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
-sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. When
+sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
+connected private space also reports its items' names, versions, titles and one-line summaries (`mm space
+report --dry` shows it, the same switch stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.
