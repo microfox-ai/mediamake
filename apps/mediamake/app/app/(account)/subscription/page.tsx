@@ -1,3 +1,5 @@
+import { submissionsDB } from '@/lib/submissions/store';
+import { standing, type Submission } from '@/lib/submissions/submission';
 import Link from 'next/link';
 import { AppPage } from '@/components/app-shell/app-page';
 import { MemberTierPill } from '@/components/memberships/parts';
@@ -90,10 +92,11 @@ export default async function SubscriptionPage() {
   const { clientId, tier, isAdmin } = viewer;
 
   const entitlements = await getEntitlements({ clientId });
-  const [history, catalog, waiting] = await Promise.all([
+  const [history, catalog, waiting, submissions] = await Promise.all([
     membershipsDB.historyFor(clientId).catch((): Membership[] => []),
     listCatalog({ clientId }, undefined, { entitlements, locked: 'show' }).catch((): CatalogEntry[] => []),
     accessRequestsDB.pendingFor(clientId).catch((): string[] => []),
+    submissionsDB.listFor(clientId, 20).catch((): Submission[] => []),
   ]);
   const items = catalog.filter(item => !item.archivedAt);
   const current = isAdmin ? null : currentMembership(history);
@@ -201,18 +204,15 @@ export default async function SubscriptionPage() {
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium">Contribute</p>
                     <p className="text-sm text-muted-foreground">
-                      Share a skill, MCP or app you made and used for real work. When it is accepted at {tierLabel(next)}, you are {tierLabel(next)} for{' '}
-                      {CONTRIBUTION_MONTHS} months, and each new contribution renews it. We publish nothing we don&rsquo;t use, so it needs one finished
-                      production made with it.
+                      Built a skill, MCP or app and used it for real work? Ask Claude to &ldquo;make this public&rdquo;. It is sent to us privately, an
+                      admin reviews it and picks who it opens for, and when it is accepted you get a membership for {CONTRIBUTION_MONTHS} months (a Pro
+                      item earns Pro). Each new contribution renews it. We publish nothing we don&rsquo;t use, so it needs one finished production made
+                      with it.
                     </p>
-                    <a
-                      href="https://github.com/microfox-ai/mediamake"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-fit text-sm font-medium underline underline-offset-4"
-                    >
-                      MediaMake on GitHub
-                    </a>
+                    <p className="text-xs text-muted-foreground">
+                      In a terminal it is <code>mm submit &lt;name&gt;</code>. A pull request of yours merged on MediaMake&rsquo;s GitHub counts too, once
+                      your GitHub account is linked.
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium">Or ask an admin</p>
@@ -224,6 +224,31 @@ export default async function SubscriptionPage() {
             ) : (
               <p className="text-sm">You hold the highest membership there is to earn. Contributing keeps it going.</p>
             )}
+          </Card>
+        )}
+
+        {submissions.length > 0 && (
+          <Card label="Your submissions">
+            <ul className="flex flex-col divide-y">
+              {submissions.map(submission => (
+                <li key={submission.submissionId} className="flex flex-col gap-0.5 py-2.5 first:pt-0 last:pb-0">
+                  <span className="text-sm font-medium">
+                    {submission.title} <span className="font-normal text-muted-foreground">· {submission.itemId}, version {submission.version}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {standing(submission)} · {day(submission.updatedAt)}
+                    {submission.delivery?.kind === 'pr' && (
+                      <>
+                        {' · '}
+                        <a href={submission.delivery.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                          its pull request
+                        </a>
+                      </>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
 

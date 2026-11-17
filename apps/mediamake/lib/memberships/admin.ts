@@ -130,6 +130,39 @@ export async function makePermanent(input: { membershipId: string; by?: string; 
   return { membership, mailed };
 }
 
+/**
+ * A contribution earns a membership: an accepted store submission, or a
+ * merged pull request an admin confirmed. It adds one record (source
+ * `contribution`, `ref` naming what earned it) that lasts CONTRIBUTION_MONTHS,
+ * and nothing the person already holds ends, so contributing again renews it
+ * and a contribution never lowers anyone. Nothing is added for an admin, or
+ * for someone who already holds as much with no end date.
+ */
+export async function grantContribution(input: {
+  clientId: string;
+  tier: GrantableTier;
+  /** What earned it: a catalog item id or a pull request's link. */
+  ref: string;
+  note?: string;
+  by?: string;
+  origin: string;
+  /** False to leave the mail to the caller (a submission says it in its own mail). */
+  notify?: boolean;
+}): Promise<{ membership: Membership | null; why?: string; renewed: boolean; mailed?: Mailed }> {
+  if (await isAdmin(input.clientId).catch(() => false)) return { membership: null, why: 'They are an admin, so there is nothing to give', renewed: false };
+  const live = await membershipsDB.liveFor(input.clientId);
+  const lasting = live.find(held => !held.expiresAt && tierRank(held.tier) >= tierRank(input.tier));
+  if (lasting) return { membership: null, why: `They already hold ${tierLabel(lasting.tier)} with no end date`, renewed: false };
+  const from = await tierOf(input.clientId);
+  const membership = await membershipsDB.grant({ clientId: input.clientId, tier: input.tier, source: 'contribution', ref: input.ref, note: input.note, grantedBy: input.by });
+  const renewed = tierRank(from) >= tierRank(input.tier);
+  const mailed =
+    input.notify === false
+      ? undefined
+      : await tellPerson({ clientId: input.clientId, from, to: renewed ? from : input.tier, membership, reason: input.note, origin: input.origin });
+  return { membership, renewed, mailed };
+}
+
 /** A membership a person got by themselves (an invite they opened): told like any other change. */
 export async function tellAboutNewMembership(input: { clientId: string; from: MemberTier; membership: Membership; origin: string }): Promise<Mailed> {
   // an invite never moves anyone down: say nothing when they already hold as much

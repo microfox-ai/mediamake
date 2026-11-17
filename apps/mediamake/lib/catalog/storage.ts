@@ -39,6 +39,11 @@ export async function createPackageUpload(key: string, expiresIn = 15 * 60) {
   return getSignedUrl(s3Client, command, { expiresIn });
 }
 
+/** Writes a package from the server: what approving a store submission does (lib/submissions). */
+export async function putPackage(key: string, bytes: Buffer) {
+  await s3Client.send(new PutObjectCommand({ Bucket: bucket(), Key: key, Body: bytes, ContentType: 'application/gzip', ACL: 'private' }));
+}
+
 /** Signed GET link to a package; short-lived on purpose. */
 export async function createDownloadUrl(key: string, filename: string, expiresIn = 5 * 60) {
   const command = new GetObjectCommand({
