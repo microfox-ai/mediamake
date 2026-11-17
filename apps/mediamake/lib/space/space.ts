@@ -12,7 +12,7 @@
  * what a computer's report may hold, and how reports add up into the item
  * records. ./store keeps them; docs/private-spaces.md is the guide.
  *
- * MediaMake never holds a repo's contents or a GitHub token. A computer
+ * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
  * reports names, versions, titles and one-line summaries, and git moves the
  * files with each member's own sign-in.
  */

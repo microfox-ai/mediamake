@@ -77,13 +77,53 @@ Only the owner and editors of a project can make its space or share into it.
   session loads it. A folder of your own with the same name is never replaced:
   the command says so.
 - Git moves the files, with the sign-in the computer already has. MediaMake
-  holds no GitHub token and never sees a file.
+  never sees a file, and holds a GitHub token only for an owner who connected
+  GitHub (below).
 - `sync`, `pull` and `push` first keep what changed here as a commit on this
   computer, so nothing is lost. When two computers changed the same file,
   nothing is changed and the command names the files; they are merged with
   plain git in the folder, then synced.
 - Everything a computer has that GitHub doesn't goes up as one commit, and only
   with `--yes`: show the dry run to the user first.
+
+## Inviting from the site: Connect GitHub
+
+Adding someone to a project in the app can send the GitHub invitation by
+itself. The project's owner clicks **Connect GitHub** once in the project's
+access panel and gives the sign-in app the `repo` scope. From then on:
+
+- Adding a member invites their linked GitHub account to the project's repo
+  (editors push, viewers pull). When the project has no repo yet, it is made,
+  private, under the owner's GitHub account.
+- Changing a member's role changes what they may do on the repo; removing them
+  (or their leaving) takes them off it and withdraws a pending invitation.
+- The panel says how it went, and gives the line to send the new member
+  (`mm space join <project id>`). When it could not invite (the member has no
+  GitHub account linked, or the repo is under someone else's account), it
+  says why and gives `mm space invite <project id>` for the owner's computer.
+
+What this gives MediaMake, plainly: GitHub's `repo` scope reaches every private
+repo of that owner. MediaMake uses the token for four calls only: look up or
+make the project's repo, add or change a collaborator, remove one, list
+pending invitations (`lib/space/github.ts`). It never reads a repo's files.
+The token is stored sealed (AES-256-GCM, with a key derived from
+`GITHUB_CLIENT_SECRET`, or `MEDIAMAKE_SECRETS_KEY` when set; `github_grants`),
+never logged and never sent to a browser. **Disconnect** in the same panel
+revokes it at GitHub and deletes it. Sign-in itself still asks only for the
+profile and email, so nobody grants this by signing in. Rotating the client
+secret means owners connect again.
+
+Nothing to set up on GitHub: the callback is
+`/api/auth/github/callback/repos`, under the sign-in callback the app already
+has. Someone invited by email who has no account yet is not invited on GitHub
+when they sign up: the owner runs `mm space invite` then.
+
+| Route | |
+| --- | --- |
+| `GET /api/space/github/start?redirectTo=` | Off to GitHub for the scope (a browser session only) |
+| `GET /api/auth/github/callback/repos` | Back from GitHub: kept only for the GitHub account linked to this MediaMake account |
+| `GET /api/space/github` | Whether you connected it, and as whom |
+| `DELETE /api/space/github` | Disconnect: revoked at GitHub, deleted here |
 
 ## Large media
 

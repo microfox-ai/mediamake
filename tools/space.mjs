@@ -35,7 +35,8 @@
  *   ~/.claude/skills/<name>        the link Claude loads it through, like a variant's
  *
  * Git does the moving, with the sign-in this computer already has (gh, SSH or a credential helper).
- * MediaMake never gets a repo's contents or a GitHub token. A space is private: a public repo is refused.
+ * MediaMake never gets a repo's contents. It holds a GitHub token only for an owner who clicked Connect GitHub
+ * in the app, to make a project's repo and invite its members from there. A space is private: a public repo is refused.
  *
  * Large media stays out of git. push refuses a file over 10 MB, or a video, audio or layered image
  * over 2 MB: put it in the media library (mm media ingest), name it under "media" in the item's

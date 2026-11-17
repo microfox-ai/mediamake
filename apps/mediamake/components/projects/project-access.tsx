@@ -97,6 +97,57 @@ function RoleSelect({ value, onChange, disabled, label }: { value: MemberRole; o
   );
 }
 
+/** What adding someone did on GitHub (lib/space/github's GithubShare). */
+type GithubShare =
+  | { state: 'invited' | 'already'; repo: string; login: string; madeRepo?: boolean }
+  | { state: 'not-connected' }
+  | { state: 'no-github'; repo?: string }
+  | { state: 'other-owner'; repo: string; owner: string }
+  | { state: 'failed'; repo?: string; reason: string };
+
+/** After an add: whether they were invited on GitHub, what is left to do, and the line to send them. */
+function AfterAdd({ projectId, name, github, connect, onHide }: { projectId: string; name: string; github?: GithubShare; connect: string; onHide: () => void }) {
+  const done = github?.state === 'invited' || github?.state === 'already';
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+      <div className="flex items-start gap-2">
+        <p className="flex-1 text-sm font-medium text-foreground">
+          {done ? `${name} is invited to the project's repo on GitHub` : `One more step gives ${name} the project's skills`}
+        </p>
+        <button type="button" onClick={onHide} className="underline underline-offset-2">
+          Hide
+        </button>
+      </div>
+      {done && (
+        <p className="mt-1">
+          {github.madeRepo ? `Made the private repo ${github.repo} and invited` : `Invited`} {github.login} ({github.repo}).
+        </p>
+      )}
+      {github?.state === 'no-github' && <p className="mt-1">{name} has no GitHub account linked to MediaMake yet, so there is nobody to invite. Once they sign in with GitHub (or link it under Account), run the line below on your computer.</p>}
+      {github?.state === 'other-owner' && <p className="mt-1">The project&apos;s repo is {github.repo}, under {github.owner}&apos;s GitHub account, so only {github.owner} can invite: they run the line below on their computer.</p>}
+      {github?.state === 'failed' && <p className="mt-1">{github.reason} The line below does it from your computer.</p>}
+      {!github && <p className="mt-1">{name} has no MediaMake account yet. Once they have signed up, run the line below on your computer to invite them to the project&apos;s repo on GitHub.</p>}
+      {github?.state === 'not-connected' && (
+        <p className="mt-1">
+          <a href={connect} className="font-medium text-foreground underline underline-offset-2">
+            Connect GitHub
+          </a>{' '}
+          once and MediaMake sends this invitation by itself from now on. Or run the line below on your computer.
+        </p>
+      )}
+      {!done && (
+        <div className="mt-2">
+          <CopyLine line={`mm space invite ${projectId}`} label="the invite line" />
+        </div>
+      )}
+      <p className="mt-3">Send {name} this line, to set the project up on their computer:</p>
+      <div className="mt-1">
+        <CopyLine line={`mm space join ${projectId}`} label="their setup line" />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Who can open a project, and for its owner, the controls: add someone by
  * name or email, change a role, remove, and the invites still waiting.
@@ -113,13 +164,30 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
   const [lookup, setLookup] = React.useState<Lookup | null>(null);
   const [open, setOpen] = React.useState(false);
   /** Who was just added, so the owner gets the two lines that finish the job. */
-  const [added, setAdded] = React.useState<string | null>(null);
+  const [added, setAdded] = React.useState<{ name: string; github?: GithubShare } | null>(null);
+  /** Whether the owner let MediaMake invite on GitHub, and as whom. */
+  const [github, setGithub] = React.useState<{ available: boolean; connected: boolean; login?: string } | null>(null);
 
   React.useEffect(() => {
     setView(null);
     setError(null);
     call<AccessView>('GET', `/api/project/share?projectId=${encodeURIComponent(projectId)}`).then(setView).catch(e => setError(e.message));
   }, [projectId]);
+
+  React.useEffect(() => {
+    if (!view?.isOwner) return;
+    call<{ available: boolean; connected: boolean; login?: string }>('GET', '/api/space/github')
+      .then(setGithub)
+      .catch(() => setGithub(null));
+    const said = new URLSearchParams(window.location.search).get('github');
+    if (said) {
+      if (said === 'connected') toast.success('GitHub is connected. Adding someone now also invites them to the project\'s repo.');
+      else toast.error(said);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('github');
+      window.history.replaceState(null, '', url);
+    }
+  }, [view?.isOwner]);
 
   // Suggestions while typing: people you already work with, or the account behind a full email.
   React.useEffect(() => {
@@ -136,7 +204,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
     };
   }, [text, open, projectId, view?.isOwner, view?.members.length]);
 
-  const change = async (key: string, done: string, request: () => Promise<Partial<AccessView> & { mailed?: boolean; invite?: ProjectInvite; left?: boolean }>) => {
+  const change = async (key: string, done: string, request: () => Promise<Partial<AccessView> & { mailed?: boolean; invite?: ProjectInvite; left?: boolean; github?: GithubShare }>) => {
     setBusy(key);
     try {
       const next = await request();
@@ -148,7 +216,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
       if (next.members) setView(next as AccessView);
       toast.success(next.invite ? `${done}${next.mailed ? ' We mailed them the link.' : ' Send them the link to sign up: no mail went out.'}` : done);
       onChanged?.();
-      return true;
+      return next.github ?? true;
     } catch (e) {
       toast.error((e as Error).message);
       return false;
@@ -162,7 +230,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
     setText('');
     setLookup(null);
     return change('add', 'email' in who && !lookup?.match ? `Invited ${name} as ${role}.` : `Added ${name} as ${role}.`, () => call('POST', '/api/project/share', { projectId, role, ...who })).then(ok => {
-      if (ok) setAdded(name);
+      if (ok) setAdded({ name, ...(typeof ok === 'object' && { github: ok }) });
     });
   };
 
@@ -188,6 +256,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
     ...(lookup?.invite ? [{ key: lookup.invite, invite: lookup.invite }] : []),
   ];
   const people = 1 + view.members.length;
+  const connectHref = `/api/space/github/start?redirectTo=${encodeURIComponent(`/app/projects/${projectId}`)}`;
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
@@ -260,24 +329,37 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
         </form>
       )}
 
-      {added && view.isOwner && (
-        <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <p className="flex-1 text-sm font-medium text-foreground">Two lines give {added} the project&apos;s skills</p>
-            <button type="button" onClick={() => setAdded(null)} className="underline underline-offset-2">
-              Hide
-            </button>
-          </div>
-          <p className="mt-2">1. On your computer, to invite them to the project&apos;s private repo on GitHub:</p>
-          <div className="mt-1">
-            <CopyLine line={`mm space invite ${projectId}`} label="the invite line" />
-          </div>
-          <p className="mt-3">2. Send them this line, to set the project up on their computer:</p>
-          <div className="mt-1">
-            <CopyLine line={`mm space join ${projectId}`} label="their setup line" />
-          </div>
-          <p className="mt-2">They need a GitHub account linked to MediaMake (they sign in with GitHub, or link it under Account).</p>
-        </div>
+      {added && view.isOwner && <AfterAdd projectId={projectId} name={added.name} github={added.github} connect={connectHref} onHide={() => setAdded(null)} />}
+
+      {view.isOwner && github?.available && !added && (
+        <p className="text-xs text-muted-foreground">
+          {github.connected ? (
+            <>
+              GitHub connected as <span className="font-medium text-foreground">{github.login}</span>: adding someone also invites them to the project&apos;s private repo.{' '}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() =>
+                  call('DELETE', '/api/space/github')
+                    .then(() => {
+                      setGithub({ ...github, connected: false, login: undefined });
+                      toast.success('GitHub is disconnected.');
+                    })
+                    .catch(e => toast.error((e as Error).message))
+                }
+              >
+                Disconnect
+              </button>
+            </>
+          ) : (
+            <>
+              <a href={connectHref} className="font-medium text-foreground underline underline-offset-2">
+                Connect GitHub
+              </a>{' '}
+              so that adding someone also invites them to the project&apos;s private repo. MediaMake only makes the project&apos;s repo and manages who is on it.
+            </>
+          )}
+        </p>
       )}
 
       <ul className="divide-y rounded-lg border">
