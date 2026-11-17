@@ -1,0 +1,1 @@
+OpenSSH shipped a fix this week for a bug that let an attacker with a valid key skip a check and open a shell on servers running an older default config. Most distributions already pushed the update, so patch today and restart sshd.

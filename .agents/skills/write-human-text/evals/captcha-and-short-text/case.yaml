@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: captcha-and-short-text
+expected_outcome: |
+  No humanized text is claimed. The user is asked to complete the captcha in the Phrasly tab (no attempt to solve or bypass it), told the line is under Phrasly's 30-word minimum with a way round it, and told the same call will be retried after they verify.
+context:
+  scaffold_script: place-files.sh

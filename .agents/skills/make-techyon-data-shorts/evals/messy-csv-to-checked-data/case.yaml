@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: messy-csv-to-checked-data
+expected_outcome: |
+  A cleaned, single-unit series (thousands converted), the 2021 outlier flagged and handled with a written
+  reason, the 2014 and 2016 gaps noted, the duplicate 2019 row counted once, a provenance record with URL,
+  licence and date and the spot checks marked as still to do, and a storyboard with no narrator, looping, timed
+  in bars to 20-45 s, short on-screen cards, honest axes and the two-master plan.
+context:
+  scaffold_script: place-files.sh

@@ -1,0 +1,67 @@
+{
+  "voices": [
+    {
+      "name": "Techyon Narrator (young American, E)",
+      "voice_id": "r3CSRNuTBNTuPufjI9Vj",
+      "made": "designed (text_to_voice)",
+      "prompt": "young American man, early twenties, natural conversational tech-YouTuber delivery, a little dry and sarcastic",
+      "model": "eleven_v4 (current; picked on v3)",
+      "settings": {
+        "speed": 1.0,
+        "stability": 0.35,
+        "then": "mm voice finish"
+      },
+      "for": "Techyon narrator, and the first voice of the 2026-11-11 dialogue the user picked",
+      "picked": "2026-11-09: the user picked E after rejecting five stock voices as \"these all seem ai\""
+    },
+    {
+      "name": "Liam (ElevenLabs library)",
+      "voice_id": "TX3LPaxmHKxFdv7VOQHJ",
+      "made": "stock library voice",
+      "model": "eleven_multilingual_v2",
+      "settings": {
+        "speed": 1.1,
+        "stability": 0.5,
+        "similarity_boost": 0.75,
+        "style": 0
+      },
+      "for": "Techyon's first 14 Shorts (8-9 Nov 2026). As the second voice in a dialogue with a natural script and the room finish, it was part of the user's pick on 2026-11-11 (\"4: our voices + room\").",
+      "picked": "2026-11-08 from four samples; on 2026-11-09 the user said the stock voices \"all seem ai\""
+    },
+    {
+      "name": "Techyon Zoe candidate A (American)",
+      "voice_id": "c9Ht1Ugej4DI3KT3iB6g",
+      "made": "designed (text_to_voice), preview 2 of 3 (the brightest and quickest: median f0 258 Hz, 14.4 s for the preview text)",
+      "prompt": "American English. A young woman in her mid twenties, studio-quality recording, close mic, clean. A blunt, fast, curious tech-podcast co-host: sceptical, quick to react, warm but never bubbly. Bright medium-high pitch, quick and clear.",
+      "model": "eleven_v4",
+      "settings": {
+        "stability": 0.35,
+        "then": "mm voice finish"
+      },
+      "for": "Zoe, the asker in Techyon's dialogue Shorts (brands/techyon/cast/cast.json), opposite E as Kai",
+      "picked": "2026-11-11: \"A: American\", over a designed British woman (PjNTh4zMDaJUIdruFTdn, kept in the account) and the library voice Vanishree (EQajdcMa8fccc3KCqwGO), each heard in the same 5-line exchange with E with the room finish"
+    }
+  ],
+  "tried": [
+    {
+      "name": "Sia - Natural Conversational Creator (library)",
+      "voice_id": "eeJeJFwOg4YUm91SPtjt",
+      "result": "tried 2026-11-11 in a dialogue; the user picked our own voices instead"
+    },
+    {
+      "name": "Wyman - Conversational, Relaxed, Podcast (library)",
+      "voice_id": "OF8aycveTXJGiYWzf5IN",
+      "result": "tried 2026-11-11 in a dialogue; the user picked our own voices instead"
+    },
+    {
+      "name": "Techyon Zoe candidate B (British)",
+      "voice_id": "PjNTh4zMDaJUIdruFTdn",
+      "result": "tried 2026-11-11 as Zoe; the user picked A (American). Still saved in the account (a voice slot)"
+    },
+    {
+      "name": "Vanishree - Best Casual Indian English (library)",
+      "voice_id": "EQajdcMa8fccc3KCqwGO",
+      "result": "tried 2026-11-11 as Zoe; the user picked A (American)"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: dialogue-without-phrasly
+expected_outcome: |
+  A two-speaker dialogue voice script with short reacting turns and natural speech (fillers, reactions, a laugh), every fact kept with numbers spoken, captions without fillers, eleven_v4 at stability 0.35, a note that humanizing was skipped, and a dry-run price; nothing generated.
+context:
+  scaffold_script: place-files.sh

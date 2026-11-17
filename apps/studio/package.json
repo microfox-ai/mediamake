@@ -57,6 +57,7 @@
     "editor-check": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/editor-check.ts",
     "look-grid": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/look-grid.ts",
     "transcribe": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/transcribe.ts",
+    "voice": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/voice.ts",
     "kinetictype": "uv run --project analysis python scripts/kinetictype/cli.py",
     "yt-grab": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/youtube-grab.ts",
     "test:migrate": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test scripts/migrate.test.ts",

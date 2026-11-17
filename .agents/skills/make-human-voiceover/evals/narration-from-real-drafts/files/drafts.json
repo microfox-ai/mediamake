@@ -1,0 +1,39 @@
+{
+ "ok": true,
+ "wordsIn": 58,
+ "draftsWanted": 3,
+ "drafts": [
+  {
+   "draft": 1,
+   "text": "Linux recently accepted around 20k commits in a span of 2 weeks. Normal amount is usually around 15k. Linus Torvalds has stated its due to AI. There are about 3k commits marked as using AI which is 2.4x the previous release. He said he was more ok with these floods of commits happening now instead of fixing bugs.",
+   "words": 58
+  },
+  {
+   "draft": 2,
+   "text": "Linux had about 20k commits recently over 2 weeks. Normally its around 15k. Linus torvalds stated it's because of ai. He has around 3k commits with ai tag on them which is 2.4x more then the previous release. Torvalds would rather have that happen now then as bugfixes.",
+   "words": 48
+  },
+  {
+   "draft": 3,
+   "text": "Linux has had close to 20k commits over the past 2 weeks. Typically its around 15k. Linus Torvalds believes that AI is the cause. There has been about 3k commits from AI. Which is 2.4x higher than the previous release. He states that he is happy this is happening now instead of bugs being fixed later.",
+   "words": 56
+  }
+ ],
+ "settingsUsed": {
+  "model": "Phrasly Ultra",
+  "mode": "Balanced",
+  "sentences": "Shorter"
+ },
+ "defaults": {
+  "model": "Phrasly Ultra",
+  "mode": "Max",
+  "sentences": "Shorter"
+ },
+ "overridden": [
+  "mode"
+ ],
+ "pageSettingsRestored": true,
+ "runsToday": 14,
+ "ultraToday": 14,
+ "ultraWarnAt": 40
+}

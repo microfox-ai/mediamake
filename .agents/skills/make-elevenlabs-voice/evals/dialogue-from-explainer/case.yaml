@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: dialogue-from-explainer
+expected_outcome: |
+  A two-speaker dialogue script for the voice tool with short alternating turns, reactions or interruptions,
+  fitting audio tags, the explainer's facts kept, eleven_v4, two clearly different voices (existing ids or new
+  design prompts), and a dry-run price, with nothing generated.
+context:
+  scaffold_script: place-files.sh
