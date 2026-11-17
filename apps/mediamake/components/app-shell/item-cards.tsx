@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { GithubLinkSync } from '@/lib/space/github';
 import { linkedSummary, type LinkedItemView } from '@/lib/space/links';
 import type { SpaceItemView, SpaceView } from '@/lib/space/space';
+import { detailsKey } from '@/lib/app-shell/details';
+import { DetailsButton } from './item-details';
 import { NextStep, SyncPill } from './space-items';
 
 /**
@@ -15,7 +17,8 @@ import { NextStep, SyncPill } from './space-items';
  * whether they are the same on every computer. A linked item
  * (lib/space/links) stays its owner's and says who it is shared with; its
  * owner opens Share, a dialog to tick projects, add people and choose who
- * can edit. Used by Mine and by a space's page.
+ * can edit. Used by Mine and by a space's page. On Mine a card opens the
+ * item's details (./item-details).
  */
 
 const KIND: Record<SpaceItemView['kind'], string> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
@@ -145,20 +148,24 @@ function Share({ item, projects, onChanged }: { item: LinkedItemView; projects: 
   );
 }
 
-function Card({ kind, version, title, summary, status, children, foot, action }: { kind: SpaceItemView['kind']; version?: string; title: string; summary?: string; status?: React.ReactNode; children?: React.ReactNode; foot: React.ReactNode; action?: React.ReactNode }) {
+function Card({ kind, version, title, summary, status, children, foot, action, details }: { kind: SpaceItemView['kind']; version?: string; title: string; summary?: string; status?: React.ReactNode; children?: React.ReactNode; foot: React.ReactNode; action?: React.ReactNode; /** The key its details open by, where the page has them. */ details?: string }) {
   return (
-    <li className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-xs">
+    <li className="relative flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-xs has-[button[data-details]]:hover:border-foreground/30">
       <div className="flex min-h-6 flex-wrap items-center gap-2">
         <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{KIND[kind]}</span>
         {version && <span className="text-xs tabular-nums text-muted-foreground">v{version.replace(/^v/, '')}</span>}
         {status && <span className="ml-auto">{status}</span>}
       </div>
-      <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+      <h3 className="mt-3 text-sm font-semibold">
+        <DetailsButton detailsKey={details} cover>
+          {title}
+        </DetailsButton>
+      </h3>
       {summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{summary}</p>}
       {children}
       <div className="mt-auto flex min-h-7 items-center gap-2 pt-3">
         <span className="min-w-0 flex-1 text-xs text-muted-foreground">{foot}</span>
-        {action}
+        {action && <span className="relative z-10">{action}</span>}
       </div>
     </li>
   );
@@ -203,7 +210,7 @@ export function ItemCards({
     <>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {(space?.items ?? []).map(item => (
-          <Card key={item.key} kind={item.kind} version={item.version} title={item.title} summary={item.summary} status={<SyncPill item={item} computers={space!.devices.length} />} foot={audience}>
+          <Card key={item.key} kind={item.kind} version={item.version} title={item.title} summary={item.summary} status={<SyncPill item={item} computers={space!.devices.length} />} foot={audience} details={detailsKey.space(space!.id, item.key)}>
             <NextStep item={item} />
           </Card>
         ))}
@@ -215,6 +222,7 @@ export function ItemCards({
             title={item.title}
             summary={item.summary}
             foot={whoLine(item)}
+            details={detailsKey.linked(item.id)}
             action={
               item.role === 'owner' ? (
                 <button type="button" className={button} onClick={() => setOpen(item.id)}>

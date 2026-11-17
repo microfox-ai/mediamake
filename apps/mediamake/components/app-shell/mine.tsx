@@ -1,17 +1,21 @@
 import Link from 'next/link';
-import { AlertTriangleIcon, ArrowRightIcon, UsersIcon } from 'lucide-react';
-import { KIND_LABEL, MEMBER_KINDS, type LocalOnly, type Mine, type MineItem } from '@/lib/app-shell/member';
+import { AlertTriangleIcon, ArrowRightIcon } from 'lucide-react';
+import { detailsKey, usedLine, type ItemDetails } from '@/lib/app-shell/details';
+import { KIND_LABEL, type LocalOnly, type MemberKind, type Mine, type MineItem } from '@/lib/app-shell/member';
 import { deviceName } from '@/lib/space/space';
 import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemCards } from './item-cards';
 import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
+import { DetailsButton, ItemDetailsProvider } from './item-details';
 
 /**
  * Mine (lib/app-shell/member › mine), one tab each: what the member
- * installed, what is theirs (their personal space and the items they
- * shared from it), what their projects have, what members shared with them
- * by name, and the other skills on their computers.
+ * installed (the last used first: skills in a wide column, MCPs and apps
+ * beside it), what is theirs (their personal space and the items they
+ * shared from it), what their projects have (a tab per project), what
+ * members shared with them by name, and the other skills on their
+ * computers. Clicking an item anywhere opens its details (./item-details).
  */
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -21,32 +25,47 @@ function onLine(on: { device: string; version?: string }[]): string | null {
   return `On ${on.map(entry => `${deviceName(entry.device)}${entry.version && !entry.version.startsWith('sha:') ? ` (${entry.version})` : ''}`).join(', ')}`;
 }
 
-function InstalledRow({ entry }: { entry: MineItem }) {
+function InstalledRow({ entry, now }: { entry: MineItem; now: number }) {
   const { item } = entry;
-  const facts = [
-    entry.installedAt && `Installed ${day(entry.installedAt)}${entry.installedVersion ? `, v${entry.installedVersion}` : ''}`,
-    onLine(entry.on),
-    item.version && `Latest v${item.version}`,
-  ].filter(Boolean);
   return (
-    <li className="flex flex-col gap-2 py-3">
+    <li className="relative flex flex-col gap-2 py-3">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Link href={item.page} className="truncate text-sm font-medium underline-offset-4 hover:underline">
+            <DetailsButton detailsKey={detailsKey.catalog(item.id)} cover className="truncate text-sm font-medium">
               {item.title}
-            </Link>
+            </DetailsButton>
             {item.beta && <BetaBadge />}
             <TierBadge item={item} />
             {entry.updateAvailable && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium">Update out</span>}
           </div>
-          <p className="text-xs text-muted-foreground">{facts.join(' · ')}</p>
+          <p className="text-xs text-muted-foreground">{usedLine(entry.used, now)}</p>
         </div>
-        <ItemActions item={item} updateAvailable={entry.updateAvailable} />
+        <ItemActions item={item} updateAvailable={entry.updateAvailable} className="relative z-10" />
       </div>
       {item.failed && <FailedNote item={item} installed />}
-      {item.locked && <p className="text-xs text-muted-foreground">Your membership no longer opens it: it needs {item.opensWith}. What you installed keeps working, without updates.</p>}
     </li>
+  );
+}
+
+/** One kind of installed items as a card: its name, how many, and a row each. */
+function InstalledList({ kind, rows, now }: { kind: MemberKind; rows: MineItem[]; now: number }) {
+  return (
+    <section className="rounded-xl border bg-card px-4 py-3">
+      <h2 className="flex items-baseline gap-1.5 text-sm font-semibold">
+        {KIND_LABEL[kind].many}
+        <span className="text-xs font-normal tabular-nums text-muted-foreground">{rows.length}</span>
+      </h2>
+      {rows.length ? (
+        <ul className="mt-1 divide-y">
+          {rows.map(entry => (
+            <InstalledRow key={entry.item.id} entry={entry} now={now} />
+          ))}
+        </ul>
+      ) : (
+        <p className="py-3 text-xs text-muted-foreground">None installed yet.</p>
+      )}
+    </section>
   );
 }
 
@@ -55,7 +74,9 @@ function LocalRows({ rows, variant = false }: { rows: LocalOnly[]; variant?: boo
     <ul className="divide-y">
       {rows.map(row => (
         <li key={row.name} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-2">
-          <span className="font-mono text-sm">{row.name}</span>
+          <DetailsButton detailsKey={detailsKey.local(row.name)} className="font-mono text-sm">
+            {row.name}
+          </DetailsButton>
           {variant && row.variantOf && (
             <span className="text-xs text-muted-foreground">
               variant of{' '}
@@ -88,7 +109,22 @@ function Tab({ value, label, count }: { value: MineTab; label: string; count: nu
   );
 }
 
-export function MineView({ mine, spaces = null, tab }: { mine: Mine; spaces?: MySpaces | null; /** The tab to open first. */ tab?: MineTab }) {
+export function MineView({
+  mine,
+  spaces = null,
+  tab,
+  details = {},
+  now,
+}: {
+  mine: Mine;
+  spaces?: MySpaces | null;
+  /** The tab to open first. */
+  tab?: MineTab;
+  /** What each item's dialog says (lib/app-shell/details › mineDetails). */
+  details?: Record<string, ItemDetails>;
+  /** The time "used 3 days ago" counts from. */
+  now: number;
+}) {
   const projects = spaces?.projects ?? [];
   const linked = spaces?.linked ?? [];
   const own = linked.filter(item => item.role === 'owner');
@@ -107,123 +143,128 @@ export function MineView({ mine, spaces = null, tab }: { mine: Mine; spaces?: My
   const local = mine.local.filter(row => !inSpace.has(row.name));
   const failed = mine.installed.filter(entry => entry.item.failed);
   const first = tab === 'shared' && !direct.length ? 'yours' : (tab ?? 'installed');
+  const installed = (kind: MemberKind) => mine.installed.filter(entry => entry.item.kind === kind);
+  const inProject = (project: (typeof projects)[number]) => (project.space?.items.length ?? 0) + linkedTo(project.projectId).length;
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
-      {failed.length > 0 && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300" role="alert">
-          <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>
-            <span className="font-medium">
-              {failed.length === 1 ? `${failed[0].item.title} is failed right now.` : `${failed.length} things you installed are failed right now.`}
-            </span>{' '}
-            The reason is on {failed.length === 1 ? 'its row' : 'each row'} under Installed. Leave {failed.length === 1 ? 'it' : 'them'} out of your work until fixed.
-          </p>
-        </div>
-      )}
-
-      <Tabs defaultValue={first} className="gap-4">
-        <div className="-mx-4 overflow-x-auto px-4">
-          <TabsList>
-            <Tab value="installed" label="Installed" count={mine.installed.length} />
-            <Tab value="yours" label="Yours" count={(spaces?.mine?.items.length ?? 0) + own.length} />
-            <Tab value="projects" label="Projects" count={inProjects} />
-            {direct.length > 0 && <Tab value="shared" label="Shared with you" count={direct.length} />}
-            <Tab value="computers" label="On your computers" count={variants.length + local.length} />
-          </TabsList>
-        </div>
-
-        <TabsContent value="installed">
-          {mine.installed.length ? (
-            <div className="rounded-xl border bg-card px-4 py-1">
-              {MEMBER_KINDS.map(kind => {
-                const rows = mine.installed.filter(entry => entry.item.kind === kind);
-                if (!rows.length) return null;
-                return (
-                  <div key={kind} className="mt-3 first:mt-2">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{KIND_LABEL[kind].many}</p>
-                    <ul className="divide-y">
-                      {rows.map(entry => (
-                        <InstalledRow key={entry.item.id} entry={entry} />
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty>
-              Nothing installed yet. Copy an item&apos;s install prompt in{' '}
-              <Link href="/app/explore" className="font-medium text-foreground underline underline-offset-4">
-                Explore
-              </Link>{' '}
-              and paste it into Claude.
-            </Empty>
-          )}
-        </TabsContent>
-
-        <TabsContent value="yours">
-          <ItemCards
-            space={spaces?.mine ?? null}
-            audience="Only you"
-            linked={own}
-            projects={targets}
-            empty={
-              <>
-                Nothing of your own yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
-              </>
-            }
-          />
-          {targets.length > 0 && <Hint>To share one and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its card changes who has it.</Hint>}
-        </TabsContent>
-
-        <TabsContent value="projects" className="flex flex-col gap-6">
-          {projects.length ? (
-            projects.map(project => (
-              <section key={project.projectId}>
-                <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
-                  <h2 className="text-sm font-semibold">{project.name}</h2>
-                  <span className="text-xs text-muted-foreground">{project.people > 1 ? `${project.people} people` : 'Only you so far'}</span>
-                  <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline">
-                    Open space <ArrowRightIcon className="size-3" aria-hidden />
-                  </Link>
-                </div>
-                <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} empty="Nothing made for this project yet." />
-              </section>
-            ))
-          ) : (
-            <Empty>You are on no project yet. A project&apos;s skills, MCPs and apps show here once you are on one.</Empty>
-          )}
-        </TabsContent>
-
-        {direct.length > 0 && (
-          <TabsContent value="shared">
-            <ItemCards linked={direct} projects={targets} />
-          </TabsContent>
+    <ItemDetailsProvider details={details}>
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 lg:px-6">
+        {failed.length > 0 && (
+          <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300" role="alert">
+            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <p>
+              <span className="font-medium">
+                {failed.length === 1 ? `${failed[0].item.title} is failed right now.` : `${failed.length} things you installed are failed right now.`}
+              </span>{' '}
+              The reason is on {failed.length === 1 ? 'its row' : 'each row'} under Installed. Leave {failed.length === 1 ? 'it' : 'them'} out of your work until fixed.
+            </p>
+          </div>
         )}
 
-        <TabsContent value="computers">
-          {(variants.length > 0 || local.length > 0) && (
-            <div className="rounded-xl border bg-card px-4 py-1">
-              {variants.length > 0 && <LocalRows rows={variants} variant />}
-              {local.length > 0 && <LocalRows rows={local} />}
-            </div>
+        <Tabs defaultValue={first} className="gap-4">
+          <div className="-mx-4 overflow-x-auto px-4">
+            <TabsList>
+              <Tab value="installed" label="Installed" count={mine.installed.length} />
+              <Tab value="yours" label="Yours" count={(spaces?.mine?.items.length ?? 0) + own.length} />
+              <Tab value="projects" label="Projects" count={inProjects} />
+              {direct.length > 0 && <Tab value="shared" label="Shared with you" count={direct.length} />}
+              <Tab value="computers" label="On your computers" count={variants.length + local.length} />
+            </TabsList>
+          </div>
+
+          <TabsContent value="installed">
+            {mine.installed.length ? (
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
+                <InstalledList kind="skill" rows={installed('skill')} now={now} />
+                <div className="flex flex-col gap-4">
+                  <InstalledList kind="mcp" rows={installed('mcp')} now={now} />
+                  <InstalledList kind="app" rows={installed('app')} now={now} />
+                </div>
+              </div>
+            ) : (
+              <Empty>
+                Nothing installed yet. Copy an item&apos;s install prompt in{' '}
+                <Link href="/app/explore" className="font-medium text-foreground underline underline-offset-4">
+                  Explore
+                </Link>{' '}
+                and paste it into Claude.
+              </Empty>
+            )}
+          </TabsContent>
+
+          <TabsContent value="yours">
+            <ItemCards
+              space={spaces?.mine ?? null}
+              audience="Only you"
+              linked={own}
+              projects={targets}
+              empty={
+                <>
+                  Nothing of your own yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
+                </>
+              }
+            />
+            {targets.length > 0 && <Hint>To share one and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its card changes who has it.</Hint>}
+          </TabsContent>
+
+          <TabsContent value="projects">
+            {projects.length ? (
+              <Tabs defaultValue={projects[0].projectId} className="gap-4">
+                <div className="-mx-4 overflow-x-auto px-4">
+                  <TabsList className="h-auto gap-1.5 bg-transparent p-0">
+                    {projects.map(project => (
+                      <TabsTrigger key={project.projectId} value={project.projectId} className="h-8 flex-none rounded-full border-border px-3 data-[state=active]:border-foreground/40 data-[state=active]:bg-muted data-[state=active]:shadow-none">
+                        {project.name}
+                        <span className="text-xs font-normal tabular-nums text-muted-foreground">{inProject(project)}</span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
+                {projects.map(project => (
+                  <TabsContent key={project.projectId} value={project.projectId}>
+                    <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                      <span>{project.people > 1 ? `${project.people} people have these` : 'Only you so far'}</span>
+                      <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
+                        Open space <ArrowRightIcon className="size-3" aria-hidden />
+                      </Link>
+                    </div>
+                    <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} empty="Nothing made for this project yet." />
+                  </TabsContent>
+                ))}
+              </Tabs>
+            ) : (
+              <Empty>You are on no project yet. A project&apos;s skills, MCPs and apps show here once you are on one.</Empty>
+            )}
+          </TabsContent>
+
+          {direct.length > 0 && (
+            <TabsContent value="shared">
+              <ItemCards linked={direct} projects={targets} />
+            </TabsContent>
           )}
-          {variants.length > 0 && (
-            <Hint>
-              A variant lives on one computer until it is in your space: <span className={code}>mm space add &lt;name&gt;</span> moves it there.
-            </Hint>
-          )}
-          {mine.devices.length ? (
-            <Hint>Reported by {mine.devices.map(device => `${deviceName(device.device)} (${device.skills} skill${device.skills === 1 ? '' : 's'}, ${day(device.reportedAt)})`).join(', ')}. Names and versions only.</Hint>
-          ) : (
-            <Empty>
-              No computer has reported its skills yet. It happens by itself once a day on a computer with MediaMake (<span className={code}>mm usage skills</span> does it now).{' '}
-              <span className={code}>mm usage off</span> stops it, and <span className={code}>mm usage forget</span> deletes what was sent.
-            </Empty>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+
+          <TabsContent value="computers">
+            {(variants.length > 0 || local.length > 0) && (
+              <div className="rounded-xl border bg-card px-4 py-1">
+                {variants.length > 0 && <LocalRows rows={variants} variant />}
+                {local.length > 0 && <LocalRows rows={local} />}
+              </div>
+            )}
+            {variants.length > 0 && (
+              <Hint>
+                A variant lives on one computer until it is in your space: <span className={code}>mm space add &lt;name&gt;</span> moves it there.
+              </Hint>
+            )}
+            {mine.devices.length ? (
+              <Hint>Reported by {mine.devices.map(device => `${deviceName(device.device)} (${device.skills} skill${device.skills === 1 ? '' : 's'}, ${day(device.reportedAt)})`).join(', ')}. Names and versions only.</Hint>
+            ) : (
+              <Empty>
+                No computer has reported its skills yet. It happens by itself once a day on a computer with MediaMake (<span className={code}>mm usage skills</span> does it now).{' '}
+                <span className={code}>mm usage off</span> stops it, and <span className={code}>mm usage forget</span> deletes what was sent.
+              </Empty>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ItemDetailsProvider>
   );
 }

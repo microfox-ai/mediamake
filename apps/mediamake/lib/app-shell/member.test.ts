@@ -180,11 +180,14 @@ describe('most used', () => {
 });
 
 describe('Mine', () => {
-  const result = mine(items, ACTIVITY);
+  const result = mine(items, ACTIVITY, SKILLS);
 
-  it('lists what was installed and the MediaMake skills on a computer, failed first', () => {
-    assert.deepEqual(result.installed.map(entry => entry.item.id), ['mcp/broken', 'skill/cleanup-out', 'skill/make-lyrics-video', 'mcp/elevenlabs']);
-    assert.equal(result.installed[0].item.healthNote, 'Its sign-in changed');
+  it('lists what was installed and the MediaMake skills on a computer, the last used first, then the last installed', () => {
+    assert.deepEqual(result.installed.map(entry => entry.item.id), ['mcp/elevenlabs', 'skill/make-lyrics-video', 'mcp/broken', 'skill/cleanup-out']);
+    // an MCP is used when a skill that works with it runs
+    assert.deepEqual(result.installed[0].used, { at: '2026-11-12T10:00:00.000Z', count: 15, type: 'runs' });
+    assert.equal(result.installed[2].used, undefined);
+    assert.equal(result.installed[2].item.healthNote, 'Its sign-in changed');
     const lyrics = result.installed.find(entry => entry.item.id === 'skill/make-lyrics-video')!;
     assert.deepEqual(lyrics.on, [{ device: 'mac-3f9a', version: '1.1.0' }]);
     assert.equal(lyrics.updateAvailable, true);
