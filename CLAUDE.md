@@ -96,7 +96,8 @@ computer: their own space (`space/` in the workspace, only theirs) and one per p
   `--yes` once they agree): it makes the project's space when there is none and invites the project's
   members. Tell the user who could not be invited (no GitHub account linked in MediaMake).
 - Adding someone to a project in the app invites them to the project's repo on GitHub when the owner
-  connected GitHub there (once, in the access panel). Otherwise `mm space invite <project id>` on the
+  connected GitHub there (once, in the access panel; MediaMake's GitHub App, set up as
+  `apps/mediamake/docs/private-spaces.md` says). Otherwise `mm space invite <project id>` on the
   owner's computer sends it (the app shows the line with a copy button). That connection's token is
   sealed in `github_grants`: never print, log or copy it, and use it only through `lib/space/github.ts`.
 - A member new to a project runs the line on the project's page, `mm space join <project id>`: it signs

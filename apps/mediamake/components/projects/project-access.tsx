@@ -106,7 +106,7 @@ type GithubShare =
   | { state: 'failed'; repo?: string; reason: string };
 
 /** After an add: whether they were invited on GitHub, what is left to do, and the line to send them. */
-function AfterAdd({ projectId, name, github, connect, onHide }: { projectId: string; name: string; github?: GithubShare; connect: string; onHide: () => void }) {
+function AfterAdd({ projectId, name, github, connect, onHide }: { projectId: string; name: string; github?: GithubShare; /** Where Connect GitHub starts, when this site has its GitHub App. */ connect?: string; onHide: () => void }) {
   const done = github?.state === 'invited' || github?.state === 'already';
   return (
     <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
@@ -127,14 +127,17 @@ function AfterAdd({ projectId, name, github, connect, onHide }: { projectId: str
       {github?.state === 'other-owner' && <p className="mt-1">The project&apos;s repo is {github.repo}, under {github.owner}&apos;s GitHub account, so only {github.owner} can invite: they run the line below on their computer.</p>}
       {github?.state === 'failed' && <p className="mt-1">{github.reason} The line below does it from your computer.</p>}
       {!github && <p className="mt-1">{name} has no MediaMake account yet. Once they have signed up, run the line below on your computer to invite them to the project&apos;s repo on GitHub.</p>}
-      {github?.state === 'not-connected' && (
-        <p className="mt-1">
-          <a href={connect} className="font-medium text-foreground underline underline-offset-2">
-            Connect GitHub
-          </a>{' '}
-          once and MediaMake sends this invitation by itself from now on. Or run the line below on your computer.
-        </p>
-      )}
+      {github?.state === 'not-connected' &&
+        (connect ? (
+          <p className="mt-1">
+            <a href={connect} className="font-medium text-foreground underline underline-offset-2">
+              Connect GitHub
+            </a>{' '}
+            once and MediaMake sends this invitation by itself from now on. Or run the line below on your computer.
+          </p>
+        ) : (
+          <p className="mt-1">Run the line below on your computer to invite them to the project&apos;s private repo on GitHub.</p>
+        ))}
       {!done && (
         <div className="mt-2">
           <CopyLine line={`mm space invite ${projectId}`} label="the invite line" />
@@ -329,7 +332,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
         </form>
       )}
 
-      {added && view.isOwner && <AfterAdd projectId={projectId} name={added.name} github={added.github} connect={connectHref} onHide={() => setAdded(null)} />}
+      {added && view.isOwner && <AfterAdd projectId={projectId} name={added.name} github={added.github} connect={github?.available ? connectHref : undefined} onHide={() => setAdded(null)} />}
 
       {view.isOwner && github?.available && !added && (
         <p className="text-xs text-muted-foreground">
@@ -356,7 +359,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
               <a href={connectHref} className="font-medium text-foreground underline underline-offset-2">
                 Connect GitHub
               </a>{' '}
-              so that adding someone also invites them to the project&apos;s private repo. MediaMake only makes the project&apos;s repo and manages who is on it.
+              so that adding someone also invites them to the project&apos;s private repo. It installs the MediaMake app on your GitHub account, which can make repos and manage who is on them, and cannot read your files.
             </>
           )}
         </p>

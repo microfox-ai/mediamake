@@ -90,7 +90,8 @@ Only the owner and editors of a project can make its space or share into it.
 
 Adding someone to a project in the app can send the GitHub invitation by
 itself. The project's owner clicks **Connect GitHub** once in the project's
-access panel and gives the sign-in app the `repo` scope. From then on:
+access panel: they authorize MediaMake's GitHub App and install it on their
+GitHub account. From then on:
 
 - Adding a member invites their linked GitHub account to the project's repo
   (editors push, viewers pull). When the project has no repo yet, it is made,
@@ -99,29 +100,72 @@ access panel and gives the sign-in app the `repo` scope. From then on:
   (or their leaving) takes them off it and withdraws a pending invitation.
 - The panel says how it went, and gives the line to send the new member
   (`mm space join <project id>`). When it could not invite (the member has no
-  GitHub account linked, or the repo is under someone else's account), it
-  says why and gives `mm space invite <project id>` for the owner's computer.
+  GitHub account linked, the repo is under someone else's account, or the App
+  can't reach the repo), it says why and gives `mm space invite <project id>`
+  for the owner's computer.
+- **Disconnect** in the same panel revokes the authorization at GitHub and
+  deletes it here. The App stays installed until the owner removes it on
+  GitHub (Settings, Applications).
 
-What this gives MediaMake, plainly: GitHub's `repo` scope reaches every private
-repo of that owner. MediaMake uses the token for four calls only: look up or
-make the project's repo, add or change a collaborator, remove one, list
-pending invitations (`lib/space/github.ts`). It never reads a repo's files.
-The token is stored sealed (AES-256-GCM, with a key derived from
-`GITHUB_CLIENT_SECRET`, or `MEDIAMAKE_SECRETS_KEY` when set; `github_grants`),
-never logged and never sent to a browser. **Disconnect** in the same panel
-revokes it at GitHub and deletes it. Sign-in itself still asks only for the
-profile and email, so nobody grants this by signing in. Rotating the client
-secret means owners connect again.
+A site without the App (the three variables below unset) shows only the line
+for the owner's computer.
 
-Nothing to set up on GitHub: the callback is
-`/api/auth/github/callback/repos`, under the sign-in callback the app already
-has. Someone invited by email who has no account yet is not invited on GitHub
-when they sign up: the owner runs `mm space invite` then.
+### The GitHub App (set up once, by whoever runs the site)
+
+It is a separate App from the one people sign in with, so sign-in keeps asking
+for the profile and email only.
+
+1. On GitHub: Settings, Developer settings, GitHub Apps, **New GitHub App**
+   (under the organisation or account that owns the site).
+2. Name it (for example "MediaMake Spaces") and give the site as its homepage.
+3. **Callback URL**: `https://<site>/api/space/github/callback`. Leave
+   "Expire user authorization tokens" on, and leave "Request user
+   authorization (OAuth) during installation" off.
+4. **Setup URL**: the same address, `https://<site>/api/space/github/callback`,
+   and tick "Redirect on update".
+5. Webhook: untick "Active". It needs none.
+6. **Repository permissions**: Administration, read and write. Metadata, read
+   only (GitHub adds it). Nothing else: no Contents, so the App cannot read or
+   change a file in any repo.
+7. "Where can this GitHub App be installed?": **Any account**, so members can
+   install it on theirs.
+8. Create it, then **Generate a new client secret**.
+9. In the site's environment (Vercel), set and redeploy:
+
+   ```
+   GITHUB_APP_SLUG=<the name in the App's URL, github.com/apps/<slug>>
+   GITHUB_APP_CLIENT_ID=<its Client ID>
+   GITHUB_APP_CLIENT_SECRET=<the client secret>
+   ```
+
+   For a preview deployment to work too, add its address as a second callback
+   URL on the App.
+
+An owner who connects picks **All repositories** when installing, so the App
+can reach the repos it makes and any project repo made earlier from a
+computer. With "Only select repositories" they add each project's repo to it.
+
+### What it gives MediaMake
+
+Administration on the repos the owner installed it on: make a repo, add,
+change or remove a collaborator, list and withdraw invitations. MediaMake
+makes exactly those calls (`lib/space/github.ts`) and no others. It has no
+permission for contents, issues, pull requests or secrets.
+
+The owner's token is stored sealed (AES-256-GCM, with a key derived from
+`GITHUB_APP_CLIENT_SECRET`, or `MEDIAMAKE_SECRETS_KEY` when set; collection
+`github_grants`), never logged and never sent to a browser. It lasts 8 hours
+and is refreshed when used; after 6 months without use the owner connects
+again. It is kept only when it belongs to the GitHub account linked to that
+MediaMake account. Rotating the client secret means owners connect again.
+
+Someone invited by email who has no account yet is not invited on GitHub when
+they sign up: the owner runs `mm space invite` then.
 
 | Route | |
 | --- | --- |
-| `GET /api/space/github/start?redirectTo=` | Off to GitHub for the scope (a browser session only) |
-| `GET /api/auth/github/callback/repos` | Back from GitHub: kept only for the GitHub account linked to this MediaMake account |
+| `GET /api/space/github/start?redirectTo=` | Off to GitHub to authorize the App (a browser session only) |
+| `GET /api/space/github/callback` | Back from authorizing: kept, or on to install the App. Back from installing: starts again |
 | `GET /api/space/github` | Whether you connected it, and as whom |
 | `DELETE /api/space/github` | Disconnect: revoked at GitHub, deleted here |
 
