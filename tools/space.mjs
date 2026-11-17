@@ -518,7 +518,7 @@ const signedIn = (env = process.env) => {
 };
 
 /** The account's spaces as MediaMake has them (its own, and one per project it is on), or null when it can't be asked. */
-async function remoteSpaces(env = process.env) {
+export async function remoteSpaces(env = process.env) {
   const at = signedIn(env);
   if (!at) return null;
   try {
@@ -803,6 +803,8 @@ async function sendReports(list, env = process.env, { loud = false } = {}) {
       items += report.items.length;
     }
     console.log(`Mine is up to date: ${url}/app/mine (${plural(items, 'item')} as ${deviceLabel(env)}).`);
+    // the register keeps what this computer can do current with the same report (tools/access.mjs)
+    await import('./access.mjs').then(access => access.sendPlace(env)).catch(() => null);
     return true;
   } catch (error) {
     return say(true, `Could not tell MediaMake (${error instanceof Error ? error.message : error}). mm space report tries again.`);
@@ -914,7 +916,7 @@ async function connectProject(project, repo, env) {
 }
 
 /** One of the account's projects by id or name, from what MediaMake lists. */
-function findProject(remote, wanted) {
+export function findProject(remote, wanted) {
   const projects = remote?.projects ?? [];
   const q = String(wanted ?? '').trim().toLowerCase();
   const hits = projects.filter(p => p.projectId === wanted || p.name.toLowerCase() === q || slugify(p.name) === slugify(q));

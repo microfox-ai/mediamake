@@ -77,6 +77,21 @@ so those steps never run in a cloud session. `apps/mediamake/docs/cloud-device-r
 - In a cloud session, do the steps that can run there and stop at one that needs a device: say which
   step, what it needs and what the sheet's "Without it" says. Don't work around it.
 
+## The register: where a step can run
+
+Each computer and cloud environment says what it can do, in the run sheets' words, and a project's page
+(Where it runs) shows which place has what its skills need. `mm access` shows this computer and tells
+MediaMake; `mm cloud` does it for a cloud environment (named by `MEDIAMAKE_PLACE`), which belongs to the
+projects whose space repos it holds. `apps/mediamake/docs/cloud-device-runs.md` › The register has the rest.
+
+- A computer is its owner's and closed to every project. Open it to a project (`mm access open <project>`)
+  only when its owner says so, in this session; never to make a step runnable. `mm access close`, `busy`
+  and `free` are the owner's too.
+- What can't be detected is said by the owner: `mm access add browser:youtube/<channel>` (or `app:`,
+  `key:`). Add one only when it is true on that computer; never a secret.
+- A spend limit is the owner's words beside a key (`mm access limit <key> "<text>"`, or
+  `<KEY VARIABLE>_LIMIT` in a cloud environment). Never write one for them.
+
 ## Git: main stays a clean copy of GitHub
 
 What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,
@@ -285,6 +300,8 @@ sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` dele
 space also reports its items' names, versions, titles, one-line summaries and what each needs to run (its run
 sheet's words: key names, MCPs, apps, sign-ins by site and account; never a key), and for the app's Code tab its file
 paths, its README.md and its last 30 commits (short id, time, author's name, subject), never another file (`mm space
-report --dry` shows it, the same switch stops it). When
+report --dry` shows it, the same switch stops it). A computer and a cloud session also report what they can do for
+the register: a random label, the name its owner gave, the run sheets' words, the limit written beside a key, and a
+cloud environment's space repos (`mm access --dry` shows it, `mm access forget` removes it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

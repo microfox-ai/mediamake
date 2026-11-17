@@ -16,6 +16,7 @@ import { CopyLine } from './copy-line';
 import { BrandTab } from './space-tabs';
 import { CodeTab } from './space-code';
 import { CloudSetupCard } from './space-cloud';
+import { PlacesTab } from './space-places';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
@@ -117,7 +118,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
  * it: files, README, commits, who has it and where each computer stands),
  * its skills, MCPs and apps, its brand kit, what it keeps on MediaMake (its
  * productions, its releases and its media), who can open it, which its owner
- * changes here, and how to set it up: the line for a computer, and for a Claude cloud
+ * changes here, where its steps can run (its cloud environments and the computers
+ * open to it), and how to set it up: the line for a computer, and for a Claude cloud
  * environment the repos to add and the keys to set. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
@@ -263,6 +265,7 @@ export function ProjectDetail({
             <Tab value="releases" label="Releases" count={releases?.total} />
             <Tab value="media" label="Media" count={media?.total} />
             {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
+            {!personal && <Tab value="places" label="Where it runs" />}
             <Tab value="setup" label="Set up" />
           </TabsList>
         </div>
@@ -343,6 +346,12 @@ export function ProjectDetail({
               <h2 className="text-sm font-semibold">{role === 'owner' ? 'Share and manage access' : 'Who has access'}</h2>
               <ProjectAccessPanel projectId={projectId} me={me} onLeft={() => router.push('/app/spaces')} className="mt-3" />
             </section>
+          </TabsContent>
+        )}
+
+        {!personal && (
+          <TabsContent value="places">
+            <PlacesTab projectId={projectId} />
           </TabsContent>
         )}
 

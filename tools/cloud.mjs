@@ -9,6 +9,8 @@
  *                            spaces: every space repo the environment cloned next to this checkout is
  *                            connected and its skills linked. Then it says what is missing.
  *   mm cloud status          what is set up, changing nothing
+ *                            (mm cloud also tells the projects' register what this environment can do:
+ *                            renders, key names, its space repos; MEDIAMAKE_PLACE names the environment)
  *   mm cloud deliver <slug> [--to=<folder>] [--no-project]
  *                            copies the project's renders (out/<slug>/*.mp4, its preview, its stills) and
  *                            its code (no analysis, derived media or file over 2 MB) to where you can get
@@ -373,7 +375,7 @@ function deliver(args, flags, env) {
 
 /* ---------- the command ---------- */
 
-function main(argv = process.argv.slice(2), env = process.env) {
+async function main(argv = process.argv.slice(2), env = process.env) {
   const flags = argv.filter(a => a.startsWith('--'));
   const [cmd = 'setup', ...args] = argv.filter(a => !a.startsWith('--'));
   if (flags.includes('--help') || cmd === 'help') {
@@ -413,6 +415,14 @@ function main(argv = process.argv.slice(2), env = process.env) {
   }
   for (const l of lines) console.log(l);
   for (const m of missing) console.log(`✖ ${m}`);
+  // the projects' register learns what this environment can do (names only: tools/access.mjs)
+  try {
+    const { sendPlace } = await import('./access.mjs');
+    const saved = await sendPlace(env);
+    if (saved) console.log(`✔ in the register of ${saved.projects?.length ?? 0} project(s) as "${env.MEDIAMAKE_PLACE?.trim() || 'cloud'}" (mm access shows what it can do)`);
+  } catch (error) {
+    console.log(`ℹ the register wasn't told what this environment can do (${error instanceof Error ? error.message : error}); mm access tries again`);
+  }
   console.log(
     missing.length
       ? '\nFix what is missing, then run mm cloud again.'
@@ -422,10 +432,11 @@ function main(argv = process.argv.slice(2), env = process.env) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === SELF) {
-  try {
-    process.exitCode = main();
-  } catch (error) {
-    console.error(`mm cloud: ${error instanceof Error ? error.message : error}`);
-    process.exitCode = 1;
-  }
+  main().then(
+    code => (process.exitCode = code),
+    error => {
+      console.error(`mm cloud: ${error instanceof Error ? error.message : error}`);
+      process.exitCode = 1;
+    },
+  );
 }
