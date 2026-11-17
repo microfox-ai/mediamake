@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canWrite, getProjectRole } from '@/lib/editor/project-access';
 import { getDatabase } from '@/lib/mongodb';
+import { linkId, linkSpaceId } from '@/lib/space/links';
+import { allSpaces, linkDB } from '@/lib/space/links-store';
 import { applyReport, deviceLabel, dropDevice, parseSpaceReport, projectId, projectSpaceId, repoName, repoNow, userSpaceId } from '@/lib/space/space';
 import { spaceDB } from '@/lib/space/store';
 
@@ -12,13 +14,15 @@ import { spaceDB } from '@/lib/space/store';
  *
  * GET    the account's own space and the space of every project it is on: each item and where
  *        it stands on each computer. People who may change a project also get its members'
- *        GitHub logins, to invite them to the project's repo.
- * PUT    { device, repo, project?, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media }] }
+ *        GitHub logins, to invite them to the project's repo. `linked` has the linked items
+ *        (lib/space/links) the account owns or may use; they are changed at /api/space/links.
+ * PUT    { device, repo, project?, item?, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media }] }
  *        what one computer's clone holds now. Names, versions, titles and one-line summaries
  *        only: never a file or a token. With `project`, the report is about that project's
- *        space, from anyone on the project.
+ *        space, from anyone on the project; with `item`, about that linked item's repo, from
+ *        anyone who has it.
  * POST   { project, repo }   names the repo of a project's space. Its owner and editors only.
- * DELETE ?device=<label>[&project=<id>]   that computer disconnected; with neither, forget
+ * DELETE ?device=<label>[&project=<id>|&item=<id>]   that computer disconnected; with neither, forget
  *        the account's own space and its computers everywhere (the repos are untouched).
  */
 const signIn = () => NextResponse.json({ error: 'Sign in first' }, { status: 401 });
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return signIn();
   try {
-    return NextResponse.json(await spaceDB.mySpaces(clientId));
+    return NextResponse.json(await allSpaces(clientId));
   } catch (error) {
     return failed('read the spaces', error);
   }
@@ -48,6 +52,16 @@ export async function PUT(req: NextRequest) {
       const role = await getProjectRole(await getDatabase(), report.project, clientId);
       if (!role) return NextResponse.json({ error: 'You are not on that project' }, { status: 403 });
       spaceId = projectSpaceId(report.project);
+    }
+    if (report.item) {
+      const link = await linkDB.byId(report.item);
+      if (!link || !(await linkDB.roleOf(link, clientId))) return NextResponse.json({ error: 'That item is not shared with you' }, { status: 403 });
+      // only POST /api/space/links names a linked item's repo
+      if (repoNow(link, report.repo) !== link.repo) return NextResponse.json({ error: `That item's repo is ${link.repo}` }, { status: 409 });
+      report.repo = link.repo;
+      // the repo holds that one item: nothing else is taken from a report about it
+      report.items = report.items.filter(item => item.kind === link.kind && item.name === link.name);
+      spaceId = linkSpaceId(link.id);
     }
     const before = await spaceDB.stateOf(spaceId);
     // a repo renamed on GitHub is the same repo for a computer still on its old name
@@ -87,9 +101,10 @@ export async function DELETE(req: NextRequest) {
   if (!clientId) return signIn();
   const device = req.nextUrl.searchParams.get('device');
   const project = projectId(req.nextUrl.searchParams.get('project'));
+  const item = linkId(req.nextUrl.searchParams.get('item'));
   try {
     if (!device) return NextResponse.json({ forgotten: await spaceDB.forget(clientId) });
-    const spaceId = project ? projectSpaceId(project) : userSpaceId(clientId);
+    const spaceId = item ? linkSpaceId(item) : project ? projectSpaceId(project) : userSpaceId(clientId);
     const before = await spaceDB.stateOf(spaceId);
     const change = dropDevice(before, spaceId, clientId, deviceLabel(device));
     if (change) await spaceDB.save(before, change);

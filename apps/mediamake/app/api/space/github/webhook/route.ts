@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { githubGrants } from '@/lib/space/github-store';
 import { readHook, signatureOk, webhookSecret } from '@/lib/space/github-webhook';
+import { linkDB } from '@/lib/space/links-store';
 import { spaceDB } from '@/lib/space/store';
 
 /**
@@ -34,8 +35,13 @@ export async function POST(req: NextRequest) {
       const forgotten = await githubGrants.forgetGithubAccount(act.githubId, act.revoke);
       return NextResponse.json({ ok: true, did: act.do, connections: forgotten });
     }
-    if (act.do === 'rename-repo') return NextResponse.json({ ok: true, did: act.do, spaces: await spaceDB.renameRepo(act.from, act.to) });
-    return NextResponse.json({ ok: true, did: act.do, spaces: await spaceDB.forgetRepo(act.repo) });
+    // a linked item's repo (lib/space/links) follows the same way as a space's
+    if (act.do === 'rename-repo') {
+      const [spaces, linked] = await Promise.all([spaceDB.renameRepo(act.from, act.to), linkDB.renameRepo(act.from, act.to)]);
+      return NextResponse.json({ ok: true, did: act.do, spaces, linked });
+    }
+    const [spaces, linked] = await Promise.all([spaceDB.forgetRepo(act.repo), linkDB.forgetRepo(act.repo)]);
+    return NextResponse.json({ ok: true, did: act.do, spaces, linked });
   } catch (error) {
     // a 5xx makes the delivery show as failed on the App's page, where it can be sent again
     console.error(`[spaces] GitHub webhook ${event} failed:`, error instanceof Error ? error.message : 'error');

@@ -7,8 +7,11 @@
  * - A project's space (`project:<projectId>`): what was made for that
  *   project, in a private repo its members are collaborators on, so
  *   everyone on the project pulls and pushes the same items.
+ * - A linked item (`item:<id>`, ./links): one item of a member in a repo of
+ *   its own, used by the people of every project it is linked to and by
+ *   the members its owner named.
  *
- * An item is in exactly one space, and which space says who gets it. Pure:
+ * An item is in exactly one place, and which place says who gets it. Pure:
  * what a computer's report may hold, and how reports add up into the item
  * records. ./store keeps them; docs/private-spaces.md is the guide.
  *
@@ -60,6 +63,8 @@ export interface SpaceReport {
   repo: string;
   /** The project whose space this is; none for the member's own. */
   project?: string;
+  /** The linked item (./links) this clone is; none for a space. */
+  item?: string;
   branch?: string;
   commit?: string;
   /** When that commit was made: ISO 8601. The newest one says which computer is up to date. */
@@ -141,10 +146,12 @@ export const deviceLabel = (value: unknown): string => (typeof value === 'string
  * Only these are read. An item whose name isn't a folder name is left out.
  */
 export function parseSpaceReport(body: unknown): SpaceReport | { error: string } {
-  const { device, repo, project, branch, commit, commitAt, pushed, items } = (body ?? {}) as Record<string, unknown>;
+  const { device, repo, project, item: linked, branch, commit, commitAt, pushed, items } = (body ?? {}) as Record<string, unknown>;
   const name = repoName(repo);
   if (!name) return { error: "Send { repo }: the space's repo as owner/name" };
   if (project !== undefined && !projectId(project)) return { error: 'project is a project id' };
+  if (linked !== undefined && !projectId(linked)) return { error: 'item is a linked item id' };
+  if (project !== undefined && linked !== undefined) return { error: 'Send project or item, not both' };
   if (!Array.isArray(items)) return { error: 'Send { device, repo, items: [{ kind, name, version }] }' };
   if (items.length > MAX_SPACE_ITEMS) return { error: `Send ${MAX_SPACE_ITEMS} items at most` };
   const byKey = new Map<string, ReportedItem>();
@@ -170,6 +177,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
     device: deviceLabel(device),
     repo: name,
     ...(typeof project === 'string' && { project }),
+    ...(typeof linked === 'string' && { item: linked }),
     ...(text(branch, 100) && { branch: text(branch, 100) }),
     ...(typeof commit === 'string' && COMMIT.test(commit) && { commit }),
     ...(Number.isFinite(when) && { commitAt: new Date(when).toISOString() }),

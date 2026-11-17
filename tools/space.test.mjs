@@ -44,22 +44,51 @@ if (args[0] === 'repo' && args[1] === 'clone') {
   process.exit(spawnSync('git', ['clone', '-q', path.join(root, args[2] + '.git'), args[3]], { stdio: 'inherit' }).status);
 }
 if (args[0] === 'api') {
-  const put = args.includes('PUT'), patch = args.includes('PATCH');
-  const route = args.find(a => /^(repos|user)\//.test(a));
+  const put = args.includes('PUT'), patch = args.includes('PATCH'), del = args.includes('DELETE');
+  const route = args.find(a => /^(repos|user)\//.test(a)).replace(/\?.*$/, '');
+  const detailed = args.some(a => a.includes('.permissions'));
   let m;
   if ((m = route.match(/^repos\/(.+)\/collaborators\/([^/]+)$/)) && put) {
     const a = access(m[1]);
     if (!a || a.owner !== me) process.exit(1);
-    if (!a.collaborators.includes(m[2]) && !a.invitations.some(i => i.login === m[2])) a.invitations.push({ login: m[2], permission: args.find(x => x.startsWith('permission=')).slice(11) });
+    const permission = args.find(x => x.startsWith('permission=')).slice(11);
+    const invitation = a.invitations.find(i => i.login === m[2]);
+    if (a.collaborators.includes(m[2])) a.perms = { ...a.perms, [m[2]]: permission };
+    else if (invitation) invitation.permission = permission;
+    else a.invitations.push({ login: m[2], permission });
     save(m[1], a);
     process.exit(0);
   }
-  if ((m = route.match(/^repos\/(.+)\/collaborators$/))) { console.log((access(m[1])?.collaborators ?? []).join('\n')); process.exit(0); }
-  if ((m = route.match(/^repos\/(.+)\/invitations$/))) { console.log((access(m[1])?.invitations ?? []).map(i => i.login).join('\n')); process.exit(0); }
+  if ((m = route.match(/^repos\/(.+)\/collaborators\/([^/]+)$/)) && del) {
+    const a = access(m[1]);
+    if (!a || a.owner !== me) process.exit(1);
+    a.collaborators = a.collaborators.filter(l => l !== m[2]);
+    save(m[1], a);
+    process.exit(0);
+  }
+  if ((m = route.match(/^repos\/(.+)\/invitations\/([^/]+)$/)) && del) {
+    const a = access(m[1]);
+    if (!a || a.owner !== me) process.exit(1);
+    a.invitations = a.invitations.filter(i => i.login !== m[2]);
+    save(m[1], a);
+    process.exit(0);
+  }
+  if ((m = route.match(/^repos\/(.+)\/collaborators$/))) {
+    const a = access(m[1]);
+    if (detailed && (!a || a.owner !== me)) process.exit(1);
+    console.log((a?.collaborators ?? []).map(l => detailed ? l + ' ' + ((a.perms ?? {})[l] === 'push') : l).join('\n'));
+    process.exit(0);
+  }
+  if ((m = route.match(/^repos\/(.+)\/invitations$/))) {
+    const a = access(m[1]);
+    console.log((a?.invitations ?? []).map(i => detailed ? i.login + ' ' + i.login + ' ' + (i.permission === 'push' ? 'write' : 'read') : i.login).join('\n'));
+    process.exit(0);
+  }
   if (route === 'user/repository_invitations') { console.log(repos().filter(r => access(r).invitations.some(i => i.login === me)).map(r => Buffer.from(r).toString('hex') + ' ' + r).join('\n')); process.exit(0); }
   if ((m = route.match(/^user\/repository_invitations\/([0-9a-f]+)$/)) && patch) {
     const repo = Buffer.from(m[1], 'hex').toString();
     const a = access(repo);
+    a.perms = { ...a.perms, [me]: a.invitations.find(i => i.login === me).permission };
     a.invitations = a.invitations.filter(i => i.login !== me);
     a.collaborators.push(me);
     save(repo, a);
@@ -72,15 +101,51 @@ process.exit(1);
 const PROJECT = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const projectRepos = {};
 const people = [
-  { key: 'key-ann', name: 'Ann', githubLogin: 'ann', role: 'owner' },
-  { key: 'key-bob', name: 'Bob', githubLogin: 'bob', role: 'editor' },
-  { key: 'key-cy', name: 'Cy', role: 'viewer' },
+  { key: 'key-ann', name: 'Ann', githubLogin: 'ann', role: 'owner', email: 'ann@example.com' },
+  { key: 'key-bob', name: 'Bob', githubLogin: 'bob', role: 'editor', email: 'bob@example.com' },
+  { key: 'key-cy', name: 'Cy', role: 'viewer', email: 'cy@example.com' },
 ];
+/** Members who are on no project. */
+const outsiders = [{ key: 'key-eve', name: 'Eve', githubLogin: 'eve', email: 'eve@example.com' }];
+const everyone = () => [...people, ...outsiders];
+const whoIs = auth => everyone().find(p => `Bearer ${p.key}` === auth);
+/** The linked items the fake site knows: { id, owner, kind, name, repo, projects: [ids], people: [{ email, editor }] }. */
+const links = [];
+const linkedFor = who =>
+  links.flatMap(l => {
+    const onProject = l.projects.includes(PROJECT) && people.includes(who);
+    const named = l.people.find(p => p.email === who.email);
+    const role = l.owner === who.name ? 'owner' : named?.editor ? 'editor' : named || onProject ? 'user' : null;
+    if (!role) return [];
+    const wanted = new Map();
+    if (l.projects.includes(PROJECT)) for (const p of people) wanted.set(p.name, { name: p.name, ...(p.githubLogin && { githubLogin: p.githubLogin }), permission: 'pull' });
+    for (const n of l.people) {
+      const p = everyone().find(e => e.email === n.email);
+      if (p) wanted.set(p.name, { name: p.name, ...(p.githubLogin && { githubLogin: p.githubLogin }), permission: n.editor ? 'push' : 'pull' });
+    }
+    wanted.delete(l.owner);
+    return [
+      {
+        id: l.id,
+        kind: l.kind,
+        name: l.name,
+        repo: l.repo,
+        role,
+        owner: l.owner,
+        projects: l.projects.includes(PROJECT) && (role === 'owner' || onProject) ? [{ id: PROJECT, name: 'Anime Music Zone' }] : [],
+        ...(named && { direct: true }),
+        ...(role === 'owner' && { people: l.people.map(n => ({ name: everyone().find(e => e.email === n.email)?.name ?? n.email, email: n.email, editor: !!n.editor })), invites: [], collaborators: [...wanted.values()] }),
+        space: null,
+      },
+    ];
+  });
 const spacesFor = auth => {
-  const who = people.find(p => `Bearer ${p.key}` === auth);
+  const who = whoIs(auth);
   if (!who) return { mine: null, projects: [] };
+  if (!people.includes(who)) return { mine: null, projects: [], linked: linkedFor(who) };
   return {
     mine: null,
+    linked: linkedFor(who),
     projects: [
       {
         projectId: PROJECT,
@@ -114,6 +179,23 @@ before(async () => {
       got.push(sent);
       res.setHeader('Content-Type', 'application/json');
       if (req.method === 'GET') return res.end(JSON.stringify(spacesFor(sent.auth)));
+      if (req.url === '/api/space/links') {
+        const who = whoIs(sent.auth);
+        if (req.method === 'POST') {
+          let l = links.find(x => x.owner === who.name && x.kind === sent.body.kind && x.name === sent.body.name);
+          if (!l) links.push((l = { id: String(links.length + 1).padStart(24, 'c'), owner: who.name, kind: sent.body.kind, name: sent.body.name, projects: [], people: [] }));
+          l.repo = sent.body.repo;
+          return res.end(JSON.stringify({ item: l.id, repo: l.repo }));
+        }
+        const l = links.find(x => x.id === sent.body.item);
+        const { action, project, email, editor } = sent.body;
+        if (action === 'link' && !l.projects.includes(project)) l.projects.push(project);
+        if (action === 'unlink') l.projects = l.projects.filter(id => id !== project);
+        if (action === 'add') l.people = [...l.people.filter(p => p.email !== email), { email, editor: !!editor }];
+        if (action === 'remove') l.people = l.people.filter(p => p.email !== email);
+        const linked = linkedFor(who);
+        return res.end(JSON.stringify({ linked, item: linked.find(v => v.id === l.id) ?? null, ...(action === 'add' && { mailed: true }) }));
+      }
       if (req.method === 'POST') projectRepos[sent.body.project] = sent.body.repo;
       res.end(JSON.stringify(req.method === 'DELETE' ? { forgotten: { items: 2 } } : { ok: true }));
     });
@@ -168,6 +250,7 @@ const computer = (name, login = '') => {
     dir,
     space,
     projectDir: slug => path.join(workspace, 'spaces', slug),
+    linkedDir: slug => path.join(workspace, 'linked', slug),
     write: (rel, text, base = dir) => {
       fs.mkdirSync(path.dirname(path.join(base, rel)), { recursive: true });
       fs.writeFileSync(path.join(base, rel), text);
@@ -483,4 +566,145 @@ test('someone not invited yet is told, and nothing else stops', async () => {
   const r = await cy.space(['sync'], { FAKE_GH_LOGIN: 'cy' });
   assert.match(r.out, /Anime Music Zone: Could not clone ann\/mediamake-anime-music-zone/);
   assert.ok(!fs.existsSync(cy.projectDir(zone)));
+});
+
+/* ---------- linked items: one copy in its owner's hands, used by the people of linked projects and named members ---------- */
+
+const thumb = 'make-thumb-style';
+const thumbRepo = 'ann/mediamake-skill-make-thumb-style';
+const accessOf = repo => JSON.parse(fs.readFileSync(path.join(hub, `${repo}.access.json`), 'utf8'));
+const eve = computer('eve', 'eve');
+
+test('link gives an item its own repo, keeps it its owner\'s, and gives it to a project\'s people and a named editor', async () => {
+  assert.equal((await ann.space(['new', 'skill', thumb])).status, 0);
+  ann.write(`skills/${thumb}/SKILL.md`, skillMd(thumb));
+  assert.equal((await ann.space(['sync', '--yes'])).status, 0);
+
+  const nowhere = await ann.space(['link', thumb]);
+  assert.equal(nowhere.status, 1);
+  assert.match(nowhere.out, /Say who gets skill\/make-thumb-style/);
+  assert.match((await cy.space(['link', 'x', '--project=Anime Music Zone'], { FAKE_GH_LOGIN: 'cy' })).out, /You are a viewer on Anime Music Zone/);
+
+  const dry = await ann.space(['link', thumb, '--project=Anime Music Zone', '--editor=eve@example.com']);
+  assert.equal(dry.status, 0, dry.out);
+  assert.match(dry.out, /It stays yours, one copy with one history, and only you and the editors you name can change it/);
+  assert.match(dry.out, /a private repo of its own on your GitHub, mediamake-skill-make-thumb-style/);
+  assert.match(dry.out, /link it to Anime Music Zone: the 3 people on it get it/);
+  assert.match(dry.out, /share it with eve@example\.com: can use it and change it/);
+  assert.match(dry.out, /A dry run/);
+  assert.ok(!fs.existsSync(path.join(hub, `${thumbRepo}.git`)));
+  assert.equal(links.length, 0);
+
+  const done = await ann.space(['link', thumb, '--project=Anime Music Zone', '--editor=eve@example.com', '--yes']);
+  assert.equal(done.status, 0, done.out);
+  assert.match(done.out, /made the private repo ann\/mediamake-skill-make-thumb-style/);
+  assert.match(done.out, /is linked to Anime Music Zone/);
+  assert.match(done.out, /is shared with eve@example\.com \(can change it\): they were told by mail/);
+  assert.match(done.out, /invited on GitHub: Bob, Eve/);
+  assert.match(done.out, /Cy has no GitHub account linked to MediaMake/);
+  // one copy: in its own repo, gone from her space, and still loaded on her computer
+  assert.deepEqual(hubFiles(thumbRepo).filter(f => f.startsWith('skills/')), [`skills/${thumb}/SKILL.md`]);
+  assert.ok(!hubFiles('ann/mediamake-space').includes(`skills/${thumb}/SKILL.md`));
+  assert.ok(!fs.existsSync(path.join(ann.dir, 'skills', thumb)));
+  assert.equal(fs.realpathSync(ann.claudeSkill(thumb)), fs.realpathSync(path.join(ann.linkedDir(thumb), 'skills', thumb)));
+  // everyone on the project may pull, only the named editor may push
+  assert.deepEqual(accessOf(thumbRepo).invitations, [{ login: 'bob', permission: 'pull' }, { login: 'eve', permission: 'push' }]);
+  assert.deepEqual([links[0].repo, links[0].projects, links[0].people], [thumbRepo, [PROJECT], [{ email: 'eve@example.com', editor: true }]]);
+  const told = reports().filter(r => r.body.item === links[0].id).at(-1);
+  assert.deepEqual([told.body.repo, told.body.items.map(i => i.name)], [thumbRepo, [thumb]]);
+
+  const status = await ann.space([]);
+  assert.match(status.out, /Your skill make-thumb-style: ann\/mediamake-skill-make-thumb-style .*\(yours, linked to Anime Music Zone and 1 person\)/);
+  const where = await ann.space(['link', thumb]);
+  assert.match(where.out, /skill\/make-thumb-style: yours, linked to Anime Music Zone and 1 person/);
+  assert.match(where.out, /Eve <eve@example\.com>: can change it/);
+});
+
+test('a project member gets a linked item with their sync, and can use it but not change it', async () => {
+  const got1 = await bob.space(['sync']);
+  assert.equal(got1.status, 0, got1.out);
+  assert.match(got1.out, /Ann's skill make-thumb-style: ann\/mediamake-skill-make-thumb-style .*\(from Ann, through Anime Music Zone; you can use it, not change it\)/);
+  assert.equal(fs.realpathSync(bob.claudeSkill(thumb)), fs.realpathSync(path.join(bob.linkedDir(thumb), 'skills', thumb)));
+
+  bob.write(`skills/${thumb}/SKILL.md`, skillMd(thumb, 'Bob changed it.'), bob.linkedDir(thumb));
+  const sent = await bob.space(['sync', '--yes']);
+  assert.equal(sent.status, 0, sent.out);
+  assert.match(sent.out, /Ann's skill make-thumb-style: changed on this computer \(1 file\), and it stays here\. Only Ann and the editors they name can change it/);
+  assert.doesNotMatch(spawnSync('git', ['show', `main:skills/${thumb}/SKILL.md`], { cwd: path.join(hub, `${thumbRepo}.git`), encoding: 'utf8' }).stdout, /Bob changed it/);
+});
+
+test('a named editor outside every project gets it, and what they change reaches its owner', async () => {
+  const got1 = await eve.space(['sync']);
+  assert.equal(got1.status, 0, got1.out);
+  assert.match(got1.out, /Ann's skill make-thumb-style: .*\(from Ann, shared with you; you can change it\)/);
+  assert.ok(fs.existsSync(eve.claudeSkill(thumb)));
+  assert.ok(!fs.existsSync(eve.dir), 'no space of her own was made for her');
+
+  eve.write(`skills/${thumb}/notes.md`, 'From Eve.\n', eve.linkedDir(thumb));
+  const sent = await eve.space(['sync', '--yes']);
+  assert.equal(sent.status, 0, sent.out);
+  assert.match(sent.out, /pushed to ann\/mediamake-skill-make-thumb-style/);
+  const back = await ann.space(['sync']);
+  assert.equal(back.status, 0, back.out);
+  assert.match(back.out, /Your skill make-thumb-style: pulled 1 change/);
+  assert.equal(fs.readFileSync(path.join(ann.linkedDir(thumb), 'skills', thumb, 'notes.md'), 'utf8'), 'From Eve.\n');
+});
+
+test('join brings a project\'s linked items with its space', async () => {
+  const fay = computer('fay', 'fay');
+  people.push({ key: 'key-fay', name: 'Fay', githubLogin: 'fay', role: 'viewer', email: 'fay@example.com' });
+  // her owner-side sync invites the new member to the project's repo and to the linked item's
+  const invited = await ann.space(['sync']);
+  assert.match(invited.out, /skill\/make-thumb-style: invited on GitHub: Fay/);
+  const done = await fay.space(['join', PROJECT, '--no-media']);
+  assert.equal(done.status, 0, done.out);
+  assert.match(done.out, /Ann's skill make-thumb-style: ann\/mediamake-skill-make-thumb-style/);
+  assert.ok(fs.existsSync(fay.claudeSkill(thumb)));
+  assert.ok(fs.existsSync(fay.claudeSkill('make-zone-intro')));
+  people.pop();
+  // off the project, she is taken off the linked item's repo at the owner's next sync, and loses it at hers
+  const removed = await ann.space(['sync']);
+  assert.match(removed.out, /skill\/make-thumb-style: taken off its repo on GitHub: fay/);
+  people.push({ key: 'key-fay', name: 'Fay', githubLogin: 'fay', role: 'viewer', email: 'fay@example.com' });
+  links[0].projects = [];
+  const lost = await fay.space(['sync']);
+  assert.match(lost.out, /The skill make-thumb-style \(Ann's\) is no longer shared with you: removed from this computer/);
+  assert.ok(!fs.existsSync(fay.linkedDir(thumb)));
+  assert.ok(!fs.existsSync(fay.claudeSkill(thumb)));
+  links[0].projects = [PROJECT];
+  people.pop();
+});
+
+test('unlink takes it from that project\'s people only, and an editor can be made a user again', async () => {
+  const dry = await ann.space(['unlink', thumb, '--project=Anime Music Zone']);
+  assert.match(dry.out, /from Anime Music Zone: the people who have it only through that project lose it/);
+  assert.match(dry.out, /It stays yours, with its history\. A dry run/);
+  assert.deepEqual(links[0].projects, [PROJECT]);
+
+  const done = await ann.space(['unlink', thumb, '--project=Anime Music Zone', '--yes']);
+  assert.equal(done.status, 0, done.out);
+  assert.match(done.out, /skill\/make-thumb-style is unlinked from Anime Music Zone/);
+  assert.match(done.out, /taken off its repo on GitHub: bob/);
+  assert.deepEqual(accessOf(thumbRepo).collaborators, ['eve']);
+
+  // Bob changed his copy, so the folder stays; Claude no longer loads it
+  const lost = await bob.space(['sync']);
+  assert.equal(lost.status, 0, lost.out);
+  assert.match(lost.out, /The skill make-thumb-style \(Ann's\) is no longer shared with you: unlinked from Claude\. .* stays, because you changed it here/);
+  assert.ok(!fs.existsSync(bob.claudeSkill(thumb)));
+  assert.ok(fs.existsSync(bob.linkedDir(thumb)));
+  // the named editor still has it, and so does its owner
+  assert.equal((await eve.space(['sync'])).status, 0);
+  assert.ok(fs.existsSync(eve.claudeSkill(thumb)));
+  assert.ok(fs.existsSync(ann.claudeSkill(thumb)));
+
+  const demoted = await ann.space(['link', thumb, '--to=eve@example.com', '--yes']);
+  assert.equal(demoted.status, 0, demoted.out);
+  assert.equal(accessOf(thumbRepo).perms.eve, 'pull');
+  assert.match((await eve.space([])).out, /from Ann, shared with you; you can use it, not change it/);
+
+  const gone = await ann.space(['unlink', thumb, '--from=eve@example.com', '--yes']);
+  assert.equal(gone.status, 0, gone.out);
+  assert.deepEqual(accessOf(thumbRepo).collaborators, []);
+  assert.match((await ann.space(['link', thumb])).out, /yours, linked to nobody yet/);
 });

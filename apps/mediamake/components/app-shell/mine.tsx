@@ -1,12 +1,18 @@
 import Link from 'next/link';
-import { AlertTriangleIcon, LockIcon, UsersIcon } from 'lucide-react';
+import { AlertTriangleIcon, ArrowRightIcon, UsersIcon } from 'lucide-react';
 import { KIND_LABEL, MEMBER_KINDS, type LocalOnly, type Mine, type MineItem } from '@/lib/app-shell/member';
-import { deviceName, type SpaceView } from '@/lib/space/space';
+import { deviceName } from '@/lib/space/space';
 import type { MySpaces } from '@/lib/space/store';
-import { SpaceItems } from './space-items';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ItemCards } from './item-cards';
 import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
 
-/** Mine (lib/app-shell/member › mine): what the member installed, their private space, their variants, and the skills on their computers. */
+/**
+ * Mine (lib/app-shell/member › mine), one tab each: what the member
+ * installed, what is theirs (their personal space and the items they
+ * shared from it), what their projects have, what members shared with them
+ * by name, and the other skills on their computers.
+ */
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
@@ -65,133 +71,42 @@ function LocalRows({ rows, variant = false }: { rows: LocalOnly[]; variant?: boo
   );
 }
 
-function Section({ id, title, count, about, children }: { id: string; title: string; count: number; about: string; children: React.ReactNode }) {
-  return (
-    <section id={id} className="scroll-mt-16 rounded-xl border bg-card p-4">
-      <h2 className="flex items-baseline gap-2 text-base font-semibold">
-        {title} <span className="text-xs font-normal text-muted-foreground">{count}</span>
-      </h2>
-      <p className="mt-0.5 text-xs text-muted-foreground">{about}</p>
-      <div className="mt-2">{children}</div>
-    </section>
-  );
-}
-
-const Empty = ({ children }: { children: React.ReactNode }) => <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">{children}</p>;
+const Empty = ({ children }: { children: React.ReactNode }) => <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">{children}</p>;
+const Hint = ({ children }: { children: React.ReactNode }) => <p className="mt-4 text-xs text-muted-foreground">{children}</p>;
 
 const code = 'rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground';
 
-/** One space as a card: who has it, then its items. */
-function SpaceCard({ title, who, Icon, href, space, empty }: { title: string; who: string; Icon: typeof LockIcon; href?: string; space: SpaceView | null; empty: React.ReactNode }) {
-  const computers = space?.devices.length ?? 0;
+export const MINE_TABS = ['installed', 'yours', 'projects', 'shared', 'computers'] as const;
+export type MineTab = (typeof MINE_TABS)[number];
+
+function Tab({ value, label, count }: { value: MineTab; label: string; count: number }) {
   return (
-    <div className="rounded-lg border">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-muted/40 px-3 py-2">
-        <Icon className="size-4 text-muted-foreground" aria-hidden />
-        {href ? (
-          <Link href={href} className="text-sm font-medium underline-offset-4 hover:underline">
-            {title}
-          </Link>
-        ) : (
-          <span className="text-sm font-medium">{title}</span>
-        )}
-        <span className="text-xs text-muted-foreground">{who}</span>
-        {space && (
-          <span className="ml-auto text-xs text-muted-foreground">
-            {space.items.length} item{space.items.length === 1 ? '' : 's'} · {computers} computer{computers === 1 ? '' : 's'}
-            {space.repoUrl && (
-              <>
-                {' · '}
-                <a href={space.repoUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2" title={`The private repo that holds it: ${space.repo}`}>
-                  GitHub
-                </a>
-              </>
-            )}
-          </span>
-        )}
-      </div>
-      <div className="px-3">{space?.items.length ? <SpaceItems space={space} /> : <p className="py-3 text-xs text-muted-foreground">{empty}</p>}</div>
-    </div>
+    <TabsTrigger value={value} className="flex-none px-3">
+      {label}
+      <span className="text-xs font-normal tabular-nums text-muted-foreground">{count}</span>
+    </TabsTrigger>
   );
 }
 
-const STEPS = [
-  { title: 'Make it', text: 'Ask Claude to make a skill for you. It is saved in your personal space, which Claude sets up by itself the first time.' },
-  { title: 'Share it, if you want', text: 'Say "share it with the <project> project" and everyone on that project gets it. Otherwise it stays only yours.' },
-  { title: 'Keep it the same', text: 'On any computer, "sync my MediaMake spaces" brings in what changed elsewhere and sends what changed there.' },
-];
-
-/** What the member made: their private space, then one space per project they are on. */
-function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
+export function MineView({ mine, spaces = null, tab }: { mine: Mine; spaces?: MySpaces | null; /** The tab to open first. */ tab?: MineTab }) {
   const projects = spaces?.projects ?? [];
-  const withSpace = projects.filter(project => project.space);
-  const open = projects.filter(project => !project.space && project.role !== 'viewer');
-  const count = (spaces?.mine?.items.length ?? 0) + withSpace.reduce((sum, project) => sum + project.space!.items.length, 0);
-  const started = !!spaces?.mine || withSpace.length > 0;
-  return (
-    <Section id="space" title="Made in your spaces" count={count} about="Skills, MCPs and apps in your personal space and your project spaces. Personal ones are only yours, a project's go to everyone on it, and all of them stay the same on every computer.">
-      {!started && (
-        <ol className="grid gap-2 sm:grid-cols-3">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="rounded-lg border border-dashed p-3">
-              <p className="text-sm font-medium">
-                <span className="mr-1.5 inline-flex size-5 items-center justify-center rounded-full bg-primary/10 text-[11px]">{index + 1}</span>
-                {step.title}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{step.text}</p>
-            </li>
-          ))}
-        </ol>
-      )}
-      {started && (
-        <div className="flex flex-col gap-3">
-          <SpaceCard
-            title="Personal"
-            who="Only you"
-            href="/app/spaces"
-            Icon={LockIcon}
-            space={spaces?.mine ?? null}
-            empty={
-              <>
-                Nothing personal yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
-              </>
-            }
-          />
-          {withSpace.map(project => (
-            <SpaceCard
-              key={project.projectId}
-              title={project.name}
-              who={project.people > 1 ? `Shared with the ${project.people} people on this project` : 'A project with only you on it so far'}
-              Icon={UsersIcon}
-              href={`/app/spaces/${project.projectId}`}
-              space={project.space}
-              empty="Nothing shared into this project yet."
-            />
-          ))}
-        </div>
-      )}
-      {open.length > 0 && started && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          You can also share into {open.map(project => project.name).join(', ')}: ask Claude to &quot;share &lt;skill&gt; with the &lt;project&gt; project&quot;, or run{' '}
-          <span className={code}>mm space share &lt;skill&gt; --project=&quot;&lt;project&gt;&quot;</span>.
-        </p>
-      )}
-      {started && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          To make a computer match: <span className={code}>mm space sync</span> brings everything in and shows what would go out, <span className={code}>mm space sync --yes</span> sends it too. MediaMake sees names
-          and versions only, never the files.
-        </p>
-      )}
-    </Section>
-  );
-}
+  const linked = spaces?.linked ?? [];
+  const own = linked.filter(item => item.role === 'owner');
+  // an item shared by name shows once, under Shared with you; the others on each linked project
+  const direct = linked.filter(item => item.role !== 'owner' && item.direct);
+  const linkedTo = (projectId: string) => linked.filter(item => item.role !== 'owner' && !item.direct && item.projects.some(project => project.id === projectId));
+  const targets = projects.filter(project => project.role !== 'viewer').map(project => ({ id: project.projectId, name: project.name }));
+  const inProjects = projects.reduce((sum, project) => sum + (project.space?.items.length ?? 0) + linkedTo(project.projectId).length, 0);
 
-export function MineView({ mine, spaces = null }: { mine: Mine; spaces?: MySpaces | null }) {
   // a skill in a space is listed there, not again among the skills a computer reported
-  const inSpace = new Set([spaces?.mine, ...(spaces?.projects ?? []).map(project => project.space)].flatMap(space => space?.items.filter(item => item.kind === 'skill').map(item => item.name) ?? []));
+  const inSpace = new Set([
+    ...[spaces?.mine, ...projects.map(project => project.space)].flatMap(space => space?.items.filter(item => item.kind === 'skill').map(item => item.name) ?? []),
+    ...linked.filter(item => item.kind === 'skill').map(item => item.name),
+  ]);
   const variants = mine.variants.filter(row => !inSpace.has(row.name));
   const local = mine.local.filter(row => !inSpace.has(row.name));
   const failed = mine.installed.filter(entry => entry.item.failed);
+  const first = tab === 'shared' && !direct.length ? 'yours' : (tab ?? 'installed');
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
       {failed.length > 0 && (
@@ -201,59 +116,114 @@ export function MineView({ mine, spaces = null }: { mine: Mine; spaces?: MySpace
             <span className="font-medium">
               {failed.length === 1 ? `${failed[0].item.title} is failed right now.` : `${failed.length} things you installed are failed right now.`}
             </span>{' '}
-            The reason is on {failed.length === 1 ? 'its row' : 'each row'} below. Leave {failed.length === 1 ? 'it' : 'them'} out of your work until fixed.
+            The reason is on {failed.length === 1 ? 'its row' : 'each row'} under Installed. Leave {failed.length === 1 ? 'it' : 'them'} out of your work until fixed.
           </p>
         </div>
       )}
 
-      <Section id="installed" title="Installed" count={mine.installed.length} about="What you installed from MediaMake, and the MediaMake skills your computers have.">
-        {mine.installed.length ? (
-          MEMBER_KINDS.map(kind => {
-            const rows = mine.installed.filter(entry => entry.item.kind === kind);
-            if (!rows.length) return null;
-            return (
-              <div key={kind} className="mt-3 first:mt-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{KIND_LABEL[kind].many}</p>
-                <ul className="divide-y">
-                  {rows.map(entry => (
-                    <InstalledRow key={entry.item.id} entry={entry} />
-                  ))}
-                </ul>
-              </div>
-            );
-          })
-        ) : (
-          <Empty>
-            Nothing installed yet. Copy an item&apos;s install prompt in{' '}
-            <Link href="/app/explore" className="font-medium text-foreground underline underline-offset-4">
-              Explore
-            </Link>{' '}
-            and paste it into Claude.
-          </Empty>
-        )}
-      </Section>
+      <Tabs defaultValue={first} className="gap-4">
+        <div className="-mx-4 overflow-x-auto px-4">
+          <TabsList>
+            <Tab value="installed" label="Installed" count={mine.installed.length} />
+            <Tab value="yours" label="Yours" count={(spaces?.mine?.items.length ?? 0) + own.length} />
+            <Tab value="projects" label="Projects" count={inProjects} />
+            {direct.length > 0 && <Tab value="shared" label="Shared with you" count={direct.length} />}
+            <Tab value="computers" label="On your computers" count={variants.length + local.length} />
+          </TabsList>
+        </div>
 
-      <MadeByYou spaces={spaces} />
+        <TabsContent value="installed">
+          {mine.installed.length ? (
+            <div className="rounded-xl border bg-card px-4 py-1">
+              {MEMBER_KINDS.map(kind => {
+                const rows = mine.installed.filter(entry => entry.item.kind === kind);
+                if (!rows.length) return null;
+                return (
+                  <div key={kind} className="mt-3 first:mt-2">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{KIND_LABEL[kind].many}</p>
+                    <ul className="divide-y">
+                      {rows.map(entry => (
+                        <InstalledRow key={entry.item.id} entry={entry} />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <Empty>
+              Nothing installed yet. Copy an item&apos;s install prompt in{' '}
+              <Link href="/app/explore" className="font-medium text-foreground underline underline-offset-4">
+                Explore
+              </Link>{' '}
+              and paste it into Claude.
+            </Empty>
+          )}
+        </TabsContent>
 
-      <Section id="local" title="Also on your computers" count={variants.length + local.length} about="Other skills your computers reported: your variants of MediaMake skills that aren't in a space yet, and skills from elsewhere. Names and versions only.">
-        {variants.length > 0 && <LocalRows rows={variants} variant />}
-        {local.length > 0 && <LocalRows rows={local} />}
-        {variants.length > 0 && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            A variant lives on one computer until it is in your space: <span className={code}>mm space add &lt;name&gt;</span> moves it there.
-          </p>
+        <TabsContent value="yours">
+          <ItemCards
+            space={spaces?.mine ?? null}
+            audience="Only you"
+            linked={own}
+            projects={targets}
+            empty={
+              <>
+                Nothing of your own yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
+              </>
+            }
+          />
+          {targets.length > 0 && <Hint>To share one and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its card changes who has it.</Hint>}
+        </TabsContent>
+
+        <TabsContent value="projects" className="flex flex-col gap-6">
+          {projects.length ? (
+            projects.map(project => (
+              <section key={project.projectId}>
+                <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <UsersIcon className="size-4 text-muted-foreground" aria-hidden />
+                  <h2 className="text-sm font-semibold">{project.name}</h2>
+                  <span className="text-xs text-muted-foreground">{project.people > 1 ? `${project.people} people` : 'Only you so far'}</span>
+                  <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline">
+                    Open space <ArrowRightIcon className="size-3" aria-hidden />
+                  </Link>
+                </div>
+                <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} empty="Nothing made for this project yet." />
+              </section>
+            ))
+          ) : (
+            <Empty>You are on no project yet. A project&apos;s skills, MCPs and apps show here once you are on one.</Empty>
+          )}
+        </TabsContent>
+
+        {direct.length > 0 && (
+          <TabsContent value="shared">
+            <ItemCards linked={direct} projects={targets} />
+          </TabsContent>
         )}
-        {mine.devices.length ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Reported by {mine.devices.map(device => `${deviceName(device.device)} (${device.skills} skill${device.skills === 1 ? '' : 's'}, ${day(device.reportedAt)})`).join(', ')}.
-          </p>
-        ) : (
-          <Empty>
-            No computer has reported its skills yet. It happens by itself once a day on a computer with MediaMake (<span className={code}>mm usage skills</span> does it now).{' '}
-            <span className={code}>mm usage off</span> stops it, and <span className={code}>mm usage forget</span> deletes what was sent.
-          </Empty>
-        )}
-      </Section>
+
+        <TabsContent value="computers">
+          {(variants.length > 0 || local.length > 0) && (
+            <div className="rounded-xl border bg-card px-4 py-1">
+              {variants.length > 0 && <LocalRows rows={variants} variant />}
+              {local.length > 0 && <LocalRows rows={local} />}
+            </div>
+          )}
+          {variants.length > 0 && (
+            <Hint>
+              A variant lives on one computer until it is in your space: <span className={code}>mm space add &lt;name&gt;</span> moves it there.
+            </Hint>
+          )}
+          {mine.devices.length ? (
+            <Hint>Reported by {mine.devices.map(device => `${deviceName(device.device)} (${device.skills} skill${device.skills === 1 ? '' : 's'}, ${day(device.reportedAt)})`).join(', ')}. Names and versions only.</Hint>
+          ) : (
+            <Empty>
+              No computer has reported its skills yet. It happens by itself once a day on a computer with MediaMake (<span className={code}>mm usage skills</span> does it now).{' '}
+              <span className={code}>mm usage off</span> stops it, and <span className={code}>mm usage forget</span> deletes what was sent.
+            </Empty>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

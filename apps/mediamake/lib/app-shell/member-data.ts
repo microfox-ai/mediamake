@@ -3,7 +3,8 @@ import { getEntitlements } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
 import { catalogItemsDB } from '@/lib/catalog/store';
 import { registry } from '@/lib/skills/registry';
-import { spaceDB, type MySpaces } from '@/lib/space/store';
+import { allSpaces } from '@/lib/space/links-store';
+import type { MySpaces } from '@/lib/space/store';
 import { usageDB } from '@/lib/usage/store';
 import { sinceDays } from '@/lib/usage/usage';
 import { appItems, type AppItem, type MemberActivity } from './member';
@@ -49,7 +50,7 @@ export const getMemberActivity = cache(async (clientId: string): Promise<MemberA
 /** The member's spaces as their computers reported them (mm space): their own and their projects'. Null when the store can't be reached. */
 export const getSpaces = cache(async (clientId: string): Promise<MySpaces | null> => {
   try {
-    return await spaceDB.mySpaces(clientId);
+    return await allSpaces(clientId);
   } catch (error) {
     console.error('[app] Could not load the spaces:', error);
     return null;

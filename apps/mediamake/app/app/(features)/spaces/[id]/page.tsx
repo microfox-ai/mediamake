@@ -18,10 +18,14 @@ export default async function AppSpacePage({ params }: { params: Promise<{ id: s
   const [{ id }, viewer] = await Promise.all([params, getAppViewer()]);
   if (!canUseCloudProjects(viewer.tier)) redirect('/app/spaces');
   const spaces = viewer.clientId ? await getSpaces(viewer.clientId) : null;
-  const space = spaces?.personalProjectId === id ? spaces.mine : (spaces?.projects.find(project => project.projectId === id)?.space ?? null);
+  const personal = spaces?.personalProjectId === id;
+  const space = personal ? spaces!.mine : (spaces?.projects.find(project => project.projectId === id)?.space ?? null);
+  // the items linked to this project from members' spaces; on the personal space, the member's own linked items
+  const linked = (spaces?.linked ?? []).filter(item => (personal ? item.role === 'owner' : item.projects.some(project => project.id === id)));
+  const linkTargets = (spaces?.projects ?? []).filter(project => project.role !== 'viewer').map(project => ({ id: project.projectId, name: project.name }));
   return (
     <AppPage title="Spaces">
-      <ProjectDetail projectId={id} me={viewer.clientId ?? undefined} oldEditor={viewer.isAdmin} space={space} />
+      <ProjectDetail projectId={id} me={viewer.clientId ?? undefined} oldEditor={viewer.isAdmin} space={space} linked={linked} linkTargets={linkTargets} />
     </AppPage>
   );
 }

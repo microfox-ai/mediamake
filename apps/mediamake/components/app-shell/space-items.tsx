@@ -13,7 +13,7 @@ const names = (devices: { name: string }[]) => devices.map(device => device.name
 
 const pill = 'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium';
 
-function SyncPill({ item, computers }: { item: SpaceItemView; computers: number }) {
+export function SyncPill({ item, computers }: { item: SpaceItemView; computers: number }) {
   if (item.sync === 'unsent') {
     return (
       <span className={`${pill} bg-amber-500/15 text-amber-800 dark:text-amber-200`}>
@@ -41,7 +41,7 @@ function SyncPill({ item, computers }: { item: SpaceItemView; computers: number 
 const cmd = 'rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground';
 
 /** What to do about an item that isn't the same everywhere, in one line. */
-function NextStep({ item }: { item: SpaceItemView }) {
+export function NextStep({ item }: { item: SpaceItemView }) {
   if (item.sync === 'synced') return null;
   return (
     <p className="mt-1 text-xs text-muted-foreground">

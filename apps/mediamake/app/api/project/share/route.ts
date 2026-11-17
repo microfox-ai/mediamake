@@ -9,6 +9,7 @@ import { parseShare, type MemberRole, type ProjectInvite, type ProjectMember } f
 import { accessView, accountFor, findProject, type ProjectDoc } from '@/lib/projects/access-store';
 import { PERSONAL_ONLY_YOURS } from '@/lib/projects/personal';
 import { githubAfterAdd, githubAfterChange } from '@/lib/space/github-store';
+import { githubAfterProjectChange } from '@/lib/space/links-store';
 
 /**
  * Who can open a project (lib/projects/access). Behind the middleware, so
@@ -109,6 +110,8 @@ export async function POST(req: NextRequest) {
     tell(email, project, clientId, role, true),
     // the project's private repo (its space): made when there is none, and the new member invited to it
     githubAfterAdd({ id: project._id.toString(), name: project.displayName }, clientId, { clientId: account.clientId, role }),
+    // and to the repo of every item linked to this project (lib/space/links)
+    githubAfterProjectChange(target.projectId),
   ]);
   return viewAfter(db, target.projectId, clientId, { member, mailed, github }, 201);
 }
@@ -154,6 +157,8 @@ export async function DELETE(req: NextRequest) {
   );
   // off the project's repo too, with the owner's GitHub connection when there is one
   if (target.clientId && found.project.clientId) await githubAfterChange(target.projectId, found.project.clientId, target.clientId, null);
+  // and off the repo of every item linked to this project, unless they have it another way
+  if (target.clientId) await githubAfterProjectChange(target.projectId);
   if (leaving) return json({ success: true, left: true });
   return viewAfter(db, target.projectId, clientId, { success: true });
 }

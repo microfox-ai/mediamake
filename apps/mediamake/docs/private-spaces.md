@@ -21,7 +21,12 @@ then shows each space's files waiting to come down or go up. In the app,
 Spaces (`/app/spaces`; `/app/projects` redirects there) shows the personal
 space first and then each project space; a space's page shows its files, its
 skills and who can open it, with the one line that sets it up on a computer.
-(UI refactor plan, steps 2a and the sharing half of 2b.)
+(UI refactor plan, steps 2a and 2b.)
+
+One more shape sits beside the two spaces: a **linked item**, a skill, MCP
+or app that stays its owner's and is used by the people of every project it
+is linked to, and by the members its owner names ([Linked
+items](#linked-items-one-copy-several-spaces)).
 
 Who gets what: skills, MCPs and apps in a personal space are for every member.
 Files in a space, project spaces and the MediaMake Spaces MCP (a catalog
@@ -59,6 +64,8 @@ that the app doesn't show.
 | `mm space new <skill\|mcp\|app> <name>` | Start an item in your space (`--project=<project>` starts it in a project's) |
 | `mm space add <skill>` | Move one of your workspace skills (a variant) into your space (dry run, `--yes`) |
 | `mm space share <item> --project=<project>` | Move an item into a project's space, so everyone on it gets it (dry run, `--yes`; `--copy` keeps yours too) |
+| `mm space link <item> --project=<project> [--project=…] [--to=<email>] [--editor=<email>]` | Keep an item yours and give it to more people: everyone on each linked project, and the members you name (dry run, `--yes`). With only the item, it says where it is linked |
+| `mm space unlink <item> --project=<project>` or `--from=<email>` | Take a linked item away from that project's people, or from one person (dry run, `--yes`) |
 | `mm space join <project>` | Set one project up on this computer: sign in when needed, accept the GitHub invitation, clone its space, link its skills, show its shared media. The project's page has the line to copy |
 | `mm space invite <project>` | Invite everyone on a project to its repo on GitHub, and make the repo when there is none. The app shows this line to the owner right after they add someone |
 | `mm space ensure` | Make and connect your own space when this computer has none |
@@ -109,6 +116,70 @@ Only the owner and editors of a project can make its space or share into it.
   plain git in the folder, then synced.
 - Everything a computer has that GitHub doesn't goes up as one commit, and only
   with `--yes`: show the dry run to the user first.
+
+## Linked items: one copy, several spaces
+
+`mm space share` moves an item into a project's space: it becomes the
+project's, and the project's owner and editors change it. Some items are
+made by one person and make sense for several projects, or for a few people
+on no project together. Those are **linked**. A linked item:
+
+- **stays its owner's, one copy with one history.** The first
+  `mm space link` gives it a small private repo of its own under the owner's
+  GitHub account, `<owner>/mediamake-<kind>-<name>`, laid out like a space
+  with that one item in it, and moves it there from the owner's space
+  (cloned to `<workspace>/linked/<name>`). Its history from then on is that
+  repo's.
+- **is linked to any number of project spaces.** Everyone on a linked
+  project can use it. Their next `mm space sync`, or `mm space join
+  <project>`, accepts the invitation, clones it to `linked/<name>` and links
+  it into Claude, like any skill of a space.
+- **can be shared with named members** who are on none of those projects
+  (`--to=<email>`). An email with no account waits as an invite, taken up the
+  first time that address looks at its spaces.
+- **is changed only by its owner and the editors the owner names**
+  (`--editor=<email>`). They may push to its repo; everyone else pulls.
+  Being an editor of a linked project does not make someone an editor of
+  the item. When someone who can only use it edits their copy,
+  `mm space sync` leaves the edit on their computer and says so.
+- **is unlinked from one place at a time.** `mm space unlink <item>
+  --project=<project>` takes it away from the people who have it only
+  through that project: at the owner's next sync (or at once, with GitHub
+  connected) they are taken off its repo, and at their own next sync the
+  clone and its link into Claude are removed (the folder stays when they
+  changed something in it). The other linked projects and the named members
+  keep it. The project's owner can unlink someone else's item from their
+  project too.
+
+Who is on the item's repo follows who has it: everyone on a linked project
+and every named member may pull, editors push. The owner's `mm space sync`
+makes the repo match (inviting, changing who may push, removing), and
+changes made in the app do it right away when the owner connected GitHub
+(below), also when someone is added to or removed from a linked project.
+Someone with no GitHub account linked to MediaMake can't get it yet; the
+command and the page name them. Because that list is kept exact, a
+collaborator added to the repo by hand on GitHub is removed at the next sync.
+
+In the app, a linked item is a card in **Mine** (yours under the Yours tab,
+others' under Projects on each linked project, or under Shared with you) and
+in the **Skills** tab of each linked space's page. Its owner has **Share**
+on its card: a dialog to tick the projects it is linked to, add a member by
+email, choose who can edit it, remove someone. Linking an item for the
+first time needs a computer, because the files move: `mm space link`, or
+asking Claude to "link <skill> to the <project> project".
+
+Only the owner of an item links it, and only to a project they own or edit
+(project spaces open at Plus). Sharing with named members is open to every
+member.
+
+| Route | |
+| --- | --- |
+| `GET /api/space` | `linked`: every linked item you own or may use, with what you may do (`owner`, `editor`, `user`), its repo and where it stands on each computer. Its owner also gets who it is shared with and who should be on its repo |
+| `POST /api/space/links` `{ kind, name, repo }` | Your item now lives in that repo (`mm space link` made it). Answers its id |
+| `PATCH /api/space/links` `{ item, action: 'link' \| 'unlink', project }` | Links it to a project (its owner, who owns or edits the project) or unlinks it (its owner, or the project's owner) |
+| `PATCH /api/space/links` `{ item, action: 'add', email \| clientId, editor? }` | The owner names a member, or changes whether a named member is an editor. The member is told by mail |
+| `PATCH /api/space/links` `{ item, action: 'remove', email \| clientId }` | The owner takes a named member off; a named member can leave |
+| `PUT /api/space` with `item: <id>` | What one computer's clone of a linked item holds, from anyone who has it |
 
 ## Inviting from the site: Connect GitHub
 
@@ -181,8 +252,9 @@ ids and names from it, never a token or a file.
 | --- | --- |
 | An owner revokes the App's authorization (Settings, Applications) | Their connection is forgotten: the panel offers Connect GitHub again |
 | An owner removes the App from their account | The same, and the authorization is taken back at GitHub |
-| A space's repo is renamed, or moved to another account | The space follows it. Computers still on the old name keep working (GitHub redirects them) and keep reporting |
+| A space's repo, or a linked item's, is renamed or moved to another account | The space or the item follows it. Computers still on the old name keep working (GitHub redirects them) and keep reporting |
 | A space's repo is deleted | The space is forgotten here, so the next share makes a new repo |
+| A linked item's repo is deleted | The item is no longer linked anywhere; at their next sync it leaves the computers of the people it was shared with |
 
 The first two are sent to every GitHub App by themselves; the last two come
 from the Repository event. The App's page on GitHub (Advanced, Recent
@@ -197,7 +269,9 @@ computer. With "Only select repositories" they add each project's repo to it.
 ### What it gives MediaMake
 
 Administration on the repos the owner installed it on: make a repo, add,
-change or remove a collaborator, list and withdraw invitations. MediaMake
+change or remove a collaborator, list collaborators, list and withdraw
+invitations (the listing keeps a linked item's repo to exactly the people
+who have the item). MediaMake
 makes exactly those calls (`lib/space/github.ts`) and no others. It has no
 permission for contents, issues, pull requests or secrets.
 
@@ -265,14 +339,22 @@ and naming a project's repo when you make its space.
 - `space_items`, one per item: `{ space, kind, name, title, summary, version,
   media, devices: [{ device, version, changed }], createdAt, updatedAt }`.
 
-An item lives in one space. Who gets it is who the space belongs to: you, or
-the people on the project. An item no computer has any more is removed. In the
+- `space_links`, one per linked item: `{ id, owner, kind, name, repo,
+  projects: [{ id, by, at }], people: [{ clientId, editor, by, at }],
+  invites: [{ email, editor, by, at }], createdAt, updatedAt }`. What its
+  computers report is kept like a space's, under the id `item:<id>`.
+
+An item lives in one place: a space, or a repo of its own when it is linked.
+Who gets it is who the space belongs to (you, or the people on the project),
+or, for a linked item, the people of its linked projects and the members its
+owner named. An item no computer has any more is removed. In the
 app each item has one state: the same on every computer, not sent yet (a
 computer changed it and hasn't synced), or an update waiting (a computer has
 an older copy or none).
 
 ## Not in this step
 
-Sharing an item with single people outside a project, submitting to the store
-(2c), and registering a space's MCPs in Claude: an MCP's folder is cloned and
-listed, and its README says how to run it.
+Submitting to the store (2c), moving a linked item back into a space,
+handing a linked item to another owner, and registering a space's MCPs in
+Claude: an MCP's folder is cloned and listed, and its README says how to run
+it.

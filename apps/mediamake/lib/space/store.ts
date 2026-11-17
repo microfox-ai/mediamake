@@ -15,6 +15,7 @@ import {
   type SpaceState,
   type SpaceView,
 } from './space';
+import type { LinkedItemView } from './links';
 
 /**
  * Spaces in MongoDB (see ./space for what they are):
@@ -97,6 +98,8 @@ export interface MySpaces {
     /** For the people who may change the project: who to invite to the repo, by GitHub login. */
     members?: { name: string; githubLogin?: string; role: ProjectRole; you?: boolean }[];
   })[];
+  /** The linked items (./links) the account owns or may use: through a project they are linked to, or by name. Set by ./links-store's allSpaces. */
+  linked?: LinkedItemView[];
 }
 
 export const spaceDB = {

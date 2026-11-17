@@ -5,24 +5,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
-  ClapperboardIcon,
-  ImageIcon,
   Loader2Icon,
   LockIcon,
-  PackageIcon,
-  SparklesIcon,
-  UsersIcon,
 } from 'lucide-react';
 import {
   ProjectAccessPanel,
   RoleBadge,
 } from '@/components/projects/project-access';
 import { CopyLine } from './copy-line';
-import { SpaceItems } from '@/components/app-shell/space-items';
+import { ItemCards } from '@/components/app-shell/item-cards';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
+import type { LinkedItemView } from '@/lib/space/links';
 import type { SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
-import { cn } from '@/lib/utils';
 
 interface Bundle {
   id: string;
@@ -114,9 +110,10 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
 }
 
 /**
- * One space in the app: what it keeps on MediaMake (its productions, its
- * releases and its media), the skills, MCPs and apps made for it, and beside
- * them who can open it, which its owner changes here. A personal space is
+ * One space in the app, one tab each: the skills, MCPs and apps made for
+ * it, what it keeps on MediaMake (its productions, its releases and its
+ * media), who can open it, which its owner changes here, and the line that
+ * sets it up on a computer. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
  * `mm media sync`.
@@ -126,7 +123,11 @@ export function ProjectDetail({
   me,
   oldEditor,
   space = null,
+  linked = [],
+  linkTargets = [],
 }: {
+  /** The items linked to this project from members' spaces; on the personal space, the member's own linked items. */ linked?: LinkedItemView[];
+  /** The projects the viewer owns or edits: where they may link their own items. */ linkTargets?: { id: string; name: string }[];
   /** What was made for this project (its space), as its people's computers reported it. */ space?: SpaceView | null;
   projectId: string;
   /** The signed-in account. */ me?: string;
@@ -170,7 +171,7 @@ export function ProjectDetail({
 
   if (error) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
         {back}
         <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
           {error}
@@ -187,7 +188,7 @@ export function ProjectDetail({
     : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 lg:px-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
       {back}
       <div className="flex flex-wrap items-center gap-3">
         {project?.brandKit?.logo && (
@@ -238,225 +239,125 @@ export function ProjectDetail({
               Timelines in the old editor
             </Link>
           )}
-          {!personal && (
-            <a
-              href="#access"
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted lg:hidden"
-            >
-              <UsersIcon className="size-4" aria-hidden />{' '}
-              {role === 'owner' ? 'Share' : 'Access'}
-            </a>
-          )}
         </div>
       </div>
 
-      <div className={cn('grid items-start gap-4', !personal && 'lg:grid-cols-[minmax(0,1fr)_24rem]')}>
-        <div className="flex min-w-0 flex-col gap-4">
-          <SetUp projectId={projectId} personal={personal} />
-          <Bundles
-            title="Productions"
-            Icon={ClapperboardIcon}
-            listing={productions}
-            empty="No productions yet. A production is a video's code and renders, kept so any computer on the space can pick it up."
-          />
-          <Bundles
-            title="Releases"
-            Icon={PackageIcon}
-            listing={releases}
-            empty="No releases yet. A release is a whole kit: a YouTube upload pack, a DistroKid release."
-          />
-
-          <Group
-            title="Media"
-            Icon={ImageIcon}
-            count={media?.total}
-            bytes={media?.items.reduce(
-              (sum, item) => sum + (item.size ?? 0),
-              0,
-            )}
-          >
-            {!media ? (
-              <Loading />
-            ) : media.items.length ? (
-              <ul className="divide-y">
-                {media.items.map(item => (
-                  <li
-                    key={item.id}
-                    className="flex items-baseline gap-3 py-2 text-sm"
-                  >
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="min-w-0 truncate underline-offset-4 hover:underline"
-                    >
-                      {item.name}
-                    </a>
-                    <span className="text-xs text-muted-foreground">
-                      {item.contentType}
-                    </span>
-                    <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {formatBytes(item.size ?? 0)} · {day(item.createdAt)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>
-                No media yet. Shared pictures, songs and clips of the space
-                show here.
-              </Empty>
-            )}
-            {media && media.total > media.items.length && (
-              <p className="pt-2 text-xs text-muted-foreground">
-                Showing the newest {media.items.length} of {media.total}.
-              </p>
-            )}
-          </Group>
-
-          <Group title="Skills, MCPs and apps" Icon={SparklesIcon}>
-            {space?.items.length ? (
-              <>
-                <SpaceItems space={space} />
-                <p className="pt-2 text-xs text-muted-foreground">
-                  {personal ? 'Every computer of yours gets these with' : 'Everyone on the project gets these with'}{' '}
-                  <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
-                </p>
-              </>
-            ) : (
-              <Empty>
-                {personal ? (
-                  <>
-                    Nothing yet. Ask Claude to make a skill for you, or run <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space new skill &lt;name&gt;</span>.
-                  </>
-                ) : (
-                  <>
-                Nothing made for this project yet. Ask Claude to &quot;share &lt;skill&gt; with the {project?.displayName ?? 'project'} project&quot; and everyone on it gets it (
-                <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space share &lt;skill&gt; --project=…</span>).
-                  </>
-                )}
-              </Empty>
-            )}
-          </Group>
-
-          <p className="text-xs text-muted-foreground">
-            Productions, releases and media are added from Claude: ask it to
-            share or sync them (the MediaMake Spaces MCP, or{' '}
-            <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-              mm media sync
-            </span>
-            ).
-          </p>
+      <Tabs defaultValue="skills" className="gap-4">
+        <div className="-mx-4 overflow-x-auto px-4">
+          <TabsList>
+            <Tab value="skills" label="Skills" count={(space?.items.length ?? 0) + linked.length} />
+            <Tab value="productions" label="Productions" count={productions?.total} />
+            <Tab value="releases" label="Releases" count={releases?.total} />
+            <Tab value="media" label="Media" count={media?.total} />
+            {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
+            <Tab value="setup" label="Set up" />
+          </TabsList>
         </div>
+
+        <TabsContent value="skills">
+          <ItemCards
+            space={space}
+            audience={personal ? 'Only you' : `Everyone on ${project?.displayName ?? 'the project'}`}
+            linked={linked}
+            projects={linkTargets}
+            unlinkFrom={!personal && project?.isOwned ? { id: projectId, name: project.displayName } : undefined}
+            empty={
+              personal
+                ? 'Nothing yet. Ask Claude to make a skill for you.'
+                : `Nothing made for this project yet. Ask Claude to "share <skill> with the ${project?.displayName ?? 'project'} project" and everyone on it gets it.`
+            }
+          />
+          {!personal && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              To add one of your own skills here and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot;.
+            </p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="productions">
+          <Bundles listing={productions} empty="No productions yet. A production is a video's code and renders, kept so any computer on the space can pick it up." />
+        </TabsContent>
+
+        <TabsContent value="releases">
+          <Bundles listing={releases} empty="No releases yet. A release is a whole kit: a YouTube upload pack, a DistroKid release." />
+        </TabsContent>
+
+        <TabsContent value="media">
+          {!media ? (
+            <Loading />
+          ) : media.items.length ? (
+            <ul className="divide-y rounded-xl border bg-card px-4">
+              {media.items.map(item => (
+                <li key={item.id} className="flex items-baseline gap-3 py-2.5 text-sm">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate underline-offset-4 hover:underline">
+                    {item.name}
+                  </a>
+                  <span className="text-xs text-muted-foreground">{item.contentType}</span>
+                  <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {formatBytes(item.size ?? 0)} · {day(item.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty>No media yet. Shared pictures, songs and clips of the space show here.</Empty>
+          )}
+          {media && media.total > media.items.length && (
+            <p className="pt-2 text-xs text-muted-foreground">
+              Showing the newest {media.items.length} of {media.total}.
+            </p>
+          )}
+        </TabsContent>
 
         {!personal && (
-        <aside
-          id="access"
-          className="scroll-mt-20 rounded-xl border bg-card p-4 lg:sticky lg:top-20"
-        >
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <UsersIcon className="size-4 text-muted-foreground" aria-hidden />{' '}
-            {role === 'owner' ? 'Share and manage access' : 'Who has access'}
-          </h2>
-          <ProjectAccessPanel
-            projectId={projectId}
-            me={me}
-            onLeft={() => router.push('/app/spaces')}
-            className="mt-3"
-          />
-        </aside>
+          <TabsContent value="people">
+            <section className="max-w-xl rounded-xl border bg-card p-4">
+              <h2 className="text-sm font-semibold">{role === 'owner' ? 'Share and manage access' : 'Who has access'}</h2>
+              <ProjectAccessPanel projectId={projectId} me={me} onLeft={() => router.push('/app/spaces')} className="mt-3" />
+            </section>
+          </TabsContent>
         )}
-      </div>
+
+        <TabsContent value="setup" className="flex flex-col gap-3">
+          <SetUp projectId={projectId} personal={personal} />
+          <p className="text-xs text-muted-foreground">
+            Productions, releases and media are added from Claude: ask it to share or sync them (the MediaMake Spaces MCP, or{' '}
+            <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm media sync</span>).
+          </p>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function Bundles({
-  title,
-  Icon,
-  listing,
-  empty,
-}: {
-  title: string;
-  Icon: typeof PackageIcon;
-  listing: Listing<Bundle> | null;
-  empty: string;
-}) {
+function Tab({ value, label, count }: { value: string; label: string; count?: number }) {
   return (
-    <Group
-      title={title}
-      Icon={Icon}
-      count={listing?.total}
-      bytes={listing?.items.reduce((sum, item) => sum + item.bytes, 0)}
-    >
-      {!listing ? (
-        <Loading />
-      ) : listing.items.length ? (
-        <ul className="divide-y">
-          {listing.items.map(item => (
-            <li
-              key={item.id}
-              className="flex flex-wrap items-baseline gap-x-3 py-2 text-sm"
-            >
-              <span className="font-medium">{item.title}</span>
-              <span className="font-mono text-xs text-muted-foreground">
-                {item.slug}
-              </span>
-              {item.release && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                  {item.release.platform}
-                </span>
-              )}
-              {item.status !== 'ready' && (
-                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
-                  uploading
-                </span>
-              )}
-              <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                v{item.latestVersion || 1} · {item.fileCount} file
-                {item.fileCount === 1 ? '' : 's'} · {formatBytes(item.bytes)} ·{' '}
-                {day(item.updatedAt)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Empty>{empty}</Empty>
-      )}
-    </Group>
+    <TabsTrigger value={value} className="flex-none px-3">
+      {label}
+      {count !== undefined && <span className="text-xs font-normal tabular-nums text-muted-foreground">{count}</span>}
+    </TabsTrigger>
   );
 }
 
-function Group({
-  title,
-  Icon,
-  count,
-  bytes,
-  children,
-}: {
-  title: string;
-  Icon: typeof PackageIcon;
-  count?: number;
-  bytes?: number;
-  children: React.ReactNode;
-}) {
+function Bundles({ listing, empty }: { listing: Listing<Bundle> | null; empty: string }) {
+  if (!listing) return <Loading />;
+  if (!listing.items.length) return <Empty>{empty}</Empty>;
   return (
-    <section className="rounded-xl border bg-card p-4">
-      <h3 className="flex items-center gap-2 text-sm font-semibold">
-        <Icon className="size-4 text-muted-foreground" aria-hidden /> {title}
-        {count !== undefined && (
-          <span className="text-xs font-normal text-muted-foreground">
-            {count}
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {listing.items.map(item => (
+        <li key={item.id} className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold">{item.title}</span>
+            {item.release && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{item.release.platform}</span>}
+            {item.status !== 'ready' && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">uploading</span>}
+          </div>
+          <span className="mt-0.5 font-mono text-xs text-muted-foreground">{item.slug}</span>
+          <span className="mt-3 text-xs tabular-nums text-muted-foreground">
+            v{item.latestVersion || 1} · {item.fileCount} file{item.fileCount === 1 ? '' : 's'} · {formatBytes(item.bytes)} · {day(item.updatedAt)}
           </span>
-        )}
-        {!!bytes && (
-          <span className="ml-auto text-xs font-normal tabular-nums text-muted-foreground">
-            {formatBytes(bytes)}
-          </span>
-        )}
-      </h3>
-      <div className="mt-2">{children}</div>
-    </section>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -467,7 +368,7 @@ const Loading = () => (
 );
 
 const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+  <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
     {children}
   </p>
 );

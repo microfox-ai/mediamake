@@ -1,5 +1,5 @@
 import { AppPage } from '@/components/app-shell/app-page';
-import { MineView } from '@/components/app-shell/mine';
+import { MINE_TABS, MineView, type MineTab } from '@/components/app-shell/mine';
 import { mine } from '@/lib/app-shell/member';
 import { getAppItems, getMemberActivity, getSpaces } from '@/lib/app-shell/member-data';
 import { getAppViewer } from '@/lib/app-shell/viewer';
@@ -7,19 +7,20 @@ import { getAppViewer } from '@/lib/app-shell/viewer';
 export const metadata = { title: 'Mine · MediaMake' };
 
 /**
- * /app/mine: what the member installed, what they and their projects made
- * (their private space and one space per project: each item and whether it
- * is the same on every computer), and the other skills their computers
- * reported, with a warning on anything installed that is failed right now.
+ * /app/mine, one tab each (`?tab=` opens one): what the member installed,
+ * what is theirs, what their projects have, what members shared with them
+ * and the other skills their computers reported, with a warning on anything
+ * installed that is failed right now.
  */
-export default async function MinePage() {
+export default async function MinePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
   const { clientId } = await getAppViewer();
   if (!clientId) return null;
   const [items, activity, spaces] = await Promise.all([getAppItems(clientId), getMemberActivity(clientId), getSpaces(clientId)]);
 
   return (
     <AppPage title="Mine">
-      <MineView mine={mine(items, activity)} spaces={spaces} />
+      <MineView mine={mine(items, activity)} spaces={spaces} tab={MINE_TABS.find(name => name === tab) as MineTab | undefined} />
     </AppPage>
   );
 }
