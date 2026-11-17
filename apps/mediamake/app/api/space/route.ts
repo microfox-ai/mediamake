@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canWrite, getProjectRole } from '@/lib/editor/project-access';
 import { getDatabase } from '@/lib/mongodb';
-import { applyReport, deviceLabel, dropDevice, parseSpaceReport, projectId, projectSpaceId, repoName, userSpaceId } from '@/lib/space/space';
+import { applyReport, deviceLabel, dropDevice, parseSpaceReport, projectId, projectSpaceId, repoName, repoNow, userSpaceId } from '@/lib/space/space';
 import { spaceDB } from '@/lib/space/store';
 
 /**
@@ -50,6 +50,8 @@ export async function PUT(req: NextRequest) {
       spaceId = projectSpaceId(report.project);
     }
     const before = await spaceDB.stateOf(spaceId);
+    // a repo renamed on GitHub is the same repo for a computer still on its old name
+    report.repo = repoNow(before.space, report.repo);
     if (report.project && before.space?.repo !== report.repo) {
       // only POST names a project's repo, so a member's stray clone can't replace it
       return NextResponse.json({ error: before.space ? `That project's space is ${before.space.repo}` : "That project has no space yet: mm space share makes it" }, { status: 409 });

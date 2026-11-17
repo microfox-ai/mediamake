@@ -147,10 +147,15 @@ for the profile and email only.
    authorization (OAuth) during installation" off.
 4. **Setup URL**: the same address, `https://<site>/api/space/github/callback`,
    and tick "Redirect on update".
-5. Webhook: untick "Active". It needs none.
+5. **Webhook**: tick "Active". Webhook URL: `https://<site>/api/space/github/webhook`.
+   Secret: a long random value (`openssl rand -hex 32`), the same one that goes
+   in `GITHUB_APP_WEBHOOK_SECRET` below. Turn it on only once the site has
+   that variable, or GitHub's deliveries fail until it does.
 6. **Repository permissions**: Administration, read and write. Metadata, read
    only (GitHub adds it). Nothing else: no Contents, so the App cannot read or
    change a file in any repo.
+   Then, under **Subscribe to events**, tick **Repository** (Metadata allows it; it
+   asks for no new permission, so nobody who connected has to approve again).
 7. "Where can this GitHub App be installed?": **Any account**, so members can
    install it on theirs.
 8. Create it, then **Generate a new client secret**.
@@ -160,10 +165,30 @@ for the profile and email only.
    GITHUB_APP_SLUG=<the name in the App's URL, github.com/apps/<slug>>
    GITHUB_APP_CLIENT_ID=<its Client ID>
    GITHUB_APP_CLIENT_SECRET=<the client secret>
+   GITHUB_APP_WEBHOOK_SECRET=<the webhook secret of step 5>
    ```
 
    For a preview deployment to work too, add its address as a second callback
    URL on the App.
+
+### What GitHub tells the site (the webhook)
+
+GitHub signs every delivery with the webhook secret, and the site takes one
+only when the signature is right (`lib/space/github-webhook.ts`). It reads
+ids and names from it, never a token or a file.
+
+| On GitHub | Here |
+| --- | --- |
+| An owner revokes the App's authorization (Settings, Applications) | Their connection is forgotten: the panel offers Connect GitHub again |
+| An owner removes the App from their account | The same, and the authorization is taken back at GitHub |
+| A space's repo is renamed, or moved to another account | The space follows it. Computers still on the old name keep working (GitHub redirects them) and keep reporting |
+| A space's repo is deleted | The space is forgotten here, so the next share makes a new repo |
+
+The first two are sent to every GitHub App by themselves; the last two come
+from the Repository event. The App's page on GitHub (Advanced, Recent
+deliveries) shows each delivery and its answer, and can send one again.
+Without `GITHUB_APP_WEBHOOK_SECRET` the address answers 503 and nothing else
+changes: connecting and inviting work as before.
 
 An owner who connects picks **All repositories** when installing, so the App
 can reach the repos it makes and any project repo made earlier from a

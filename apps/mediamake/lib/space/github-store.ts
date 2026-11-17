@@ -85,6 +85,21 @@ export const githubGrants = {
     await db.collection(COL).deleteOne({ clientId });
     return true;
   },
+
+  /**
+   * GitHub said that account's connection ended (./github-webhook): every grant of it is deleted here.
+   * `revoke` also takes the authorization back at GitHub, for when only the App was removed.
+   */
+  async forgetGithubAccount(githubId: string, revoke: boolean): Promise<number> {
+    const db = await getDatabase();
+    const docs = await db.collection<GrantDoc>(COL).find({ githubId }, { projection: { _id: 0 } }).toArray();
+    for (const doc of docs) {
+      const token = revoke ? unseal(doc.token) : null;
+      if (token) await revokeGrant(token);
+    }
+    if (!docs.length) return 0;
+    return (await db.collection(COL).deleteMany({ githubId })).deletedCount;
+  },
 };
 
 const repoOf = async (db: Db, projectId: string) => (await db.collection<SpaceRecord>('spaces').findOne({ id: projectSpaceId(projectId) }, { projection: { _id: 0, repo: 1 } }))?.repo;

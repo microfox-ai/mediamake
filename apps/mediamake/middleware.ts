@@ -185,8 +185,10 @@ export const config = {
    *   viewer themselves and never trust x-client-id, see lib/access)
    * - feedback-hook (the feedback fix workflow in GitHub Actions; the route
    *   checks FEEDBACK_HOOK_SECRET itself)
+   * - space/github/webhook (GitHub's deliveries to MediaMake's GitHub App; the
+   *   route checks their signature with GITHUB_APP_WEBHOOK_SECRET itself)
    *
    * Note: Webhooks are NOT excluded - they use API key authentication too!
    */
-  matcher: '/api/((?!login|signup|auth|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog|feedback-hook).*)',
+  matcher: '/api/((?!login|signup|auth|session|dev-session|dev-lyrics|dev-reveal|dev-library|dev-ladder|catalog|feedback-hook|space/github/webhook).*)',
 };
