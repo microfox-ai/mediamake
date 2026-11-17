@@ -111,6 +111,12 @@ export const cloudUrl = () => {
   return typeof url === 'string' && url.trim() ? url.trim().replace(/\/+$/, '') : DEFAULT_SITE;
 };
 
+/** The key `mm login` keeps in the config where there is no Keychain (Windows, Linux). */
+export const savedApiKey = () => {
+  const key = readAll().apiKey;
+  return typeof key === 'string' && key.trim() ? key.trim() : undefined;
+};
+
 export const saveCloudUrl = (url: string) => writeAll({ ...readAll(), url: url.trim().replace(/\/+$/, '') });
 
 /** Where your work lives (scripts/workspace.ts reads it): written by mm migrate, kept as typed (~/MediaMake). */

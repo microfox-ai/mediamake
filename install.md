@@ -23,8 +23,11 @@ in the checkout) and it is signed in, the sign-in installs everything: no
 install prompt, no install code, no site address.
 
 1. `mm items --json`. `signedIn: false` (exit code 2): go on to step 0, unless
-   they want to sign in (`mm login`, once: it asks for an API key from
-   `/app/api-keys` on the site it names and keeps it in the Keychain).
+   they want to sign in: run `mm login` yourself and _Ask_ them to click
+   **Allow** in the browser tab it opens (signing in to the site there first
+   if it asks). Nothing is copied or pasted; the command waits up to 5
+   minutes, so give it that long. A computer with no browser: `mm login --key`
+   reads an API key on stdin.
    Otherwise it gives the account, its membership (`tier`) and every MCP and
    app the membership opens with its `state` here: `installed`, `behind` or
    `missing`.
@@ -105,7 +108,8 @@ API key when an earlier option applies.
    `~/.mediamake/config.json`: `$AUTH` = that key.
 4. None of these: try step 3 with no `Authorization` header (items open to
    everyone need none). Only if that answers **401**: where `mm` runs, _Ask_
-   them to sign the computer in once (`mm login`), then
+   them to sign the computer in once (run `mm login`; they click **Allow** in
+   the browser tab it opens), then
    `mm items install <item id> --yes`. Where it doesn't (no MediaMake repo on
    the computer), _Ask_ them to open the item's page on `$MEDIAMAKE_URL`,
    sign in, click **Copy** on the install prompt again and paste it to you;

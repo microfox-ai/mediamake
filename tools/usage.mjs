@@ -9,7 +9,7 @@
  *   mm usage forget     delete everything MediaMake holds of your usage (runs and skill lists)
  *
  * Two things are sent, and only when you are signed in to MediaMake on this computer (MEDIAMAKE_API_KEY,
- * or the key `mm media cloud login` keeps in the macOS Keychain):
+ * or the key `mm login` keeps in the macOS Keychain, or in the config elsewhere):
  *
  * 1. Each skill run, as the skill's name and the time. Never its arguments, the folder, the session or
  *    any file: those stay in the media library on this computer (tools/skill-runs.mjs). It fills "what
@@ -82,14 +82,18 @@ export function site(env = process.env, config = readJson(configFile(env))) {
   return url.replace(/\/+$/, '');
 }
 
-/** The key this computer is signed in with, or null: MEDIAMAKE_API_KEY, else the Keychain's (macOS). Never printed. */
+/** The key this computer is signed in with, or null: MEDIAMAKE_API_KEY, else the Keychain's (macOS), else `apiKey` in the config. Never printed. */
 export function apiKey(url, env = process.env) {
   const fromEnv = env.MEDIAMAKE_API_KEY?.trim();
   if (fromEnv && !fromEnv.startsWith('${')) return { key: fromEnv, from: 'MEDIAMAKE_API_KEY' };
-  if (process.platform !== 'darwin') return null;
-  const r = spawnSync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', new URL(url).origin, '-w'], { encoding: 'utf8', timeout: 5000 });
-  const key = r.status === 0 ? r.stdout.trim() : '';
-  return key ? { key, from: 'Keychain' } : null;
+  if (process.platform === 'darwin') {
+    const r = spawnSync('security', ['find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', new URL(url).origin, '-w'], { encoding: 'utf8', timeout: 5000 });
+    const key = r.status === 0 ? r.stdout.trim() : '';
+    if (key) return { key, from: 'Keychain' };
+  }
+  // where there is no Keychain (Windows, Linux), mm login keeps it in the config, readable by you only
+  const saved = readJson(configFile(env)).apiKey;
+  return typeof saved === 'string' && saved.trim() ? { key: saved.trim(), from: 'config' } : null;
 }
 
 /** A run as it is sent: the skill's name and the time, or null for a name that isn't one. */
@@ -250,7 +254,7 @@ async function main(args) {
     }
     if (!setting.on) return fail('Usage reports are off (mm usage on turns them on; --dry shows the list without sending).');
     const signedIn = apiKey(url, env);
-    if (!signedIn) return fail(`Not signed in to ${url}: run mm media cloud login, or set MEDIAMAKE_API_KEY.`);
+    if (!signedIn) return fail(`Not signed in to ${url}: run mm login, or set MEDIAMAKE_API_KEY.`);
     const { saved } = await sendLocalSkills(url, signedIn.key, env);
     console.log(`Sent ${saved?.saved ?? skills.length} skill names and versions to ${url} as ${saved?.device ?? deviceLabel(env)}.`);
     return 0;
@@ -258,7 +262,7 @@ async function main(args) {
 
   if (cmd === 'forget') {
     const signedIn = apiKey(url, env);
-    if (!signedIn) return fail(`Not signed in to ${url}: run mm media cloud login, or set MEDIAMAKE_API_KEY.`);
+    if (!signedIn) return fail(`Not signed in to ${url}: run mm login, or set MEDIAMAKE_API_KEY.`);
     const { forgotten } = await call('DELETE', `${url}/api/usage/skill-runs`, signedIn.key);
     console.log(`Deleted ${forgotten?.runs ?? 0} runs, ${forgotten?.devices ?? 0} skill lists and ${forgotten?.opens ?? 0} app opens from ${url}.`);
     if (setting.on) console.log('Usage reports are still on: mm usage off stops new ones.');

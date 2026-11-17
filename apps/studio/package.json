@@ -46,6 +46,7 @@
     "doctor": "node ../../tools/doctor.mjs",
     "usage": "node ../../tools/usage.mjs",
     "items": "node ../../tools/items.mjs",
+    "login": "node ../../tools/login.mjs",
     "notes": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/notes.ts",
     "wait-revision": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/wait-revision.ts",
     "loop-stats": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/loop-stats.ts",

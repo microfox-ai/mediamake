@@ -149,7 +149,8 @@ what it is, who can open it, where it lives, what installing it does, and what n
 
 ## Items: installed with the sign-in
 
-A computer signed in to MediaMake (`mm login`, once: the key stays in the Keychain) installs what
+A computer signed in to MediaMake (`mm login`, once: it opens the browser, the user clicks Allow, and
+the key it makes for this computer stays in the Keychain; no key is pasted) installs what
 the account's membership opens by itself. `mm items` shows the account, its tier and each MCP and
 app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
 them all, `mm items install <id> --yes` one (`tools/items.mjs`).
@@ -159,6 +160,10 @@ them all, `mm items install <id> --yes` one (`tools/items.mjs`).
   `https://mediamake.microfox.app`.
 - Having access is the yes: install what their membership opens without asking, then do what the
   command lists as left (a new Chrome extension needs their one click on "Load unpacked").
+- Not signed in: run `mm login` yourself (give it up to 5 minutes) and ask the user to click Allow in
+  the tab it opens. Never ask them to make, copy or paste an API key; `mm login --key` (a key on
+  stdin) is only for a computer with no browser. `mm login status` says who is signed in,
+  `mm logout` signs out (`tools/login.mjs`).
 - The install prompt with its code (`install.md`) is for computers without the repo or a sign-in.
 
 ## Feedback: read it on /app/feedback, never paste it in public

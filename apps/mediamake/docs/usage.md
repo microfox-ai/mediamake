@@ -25,7 +25,7 @@ version is the SKILL.md's `version`, else a short hash of the SKILL.md.
   only, then hands the name and the time to `tools/usage.mjs`, which posts
   them from a detached process so the skill never waits. Once a day the same
   process sends the skill list. Only when the computer is signed in
-  (`MEDIAMAKE_API_KEY`, or the key `mm media cloud login` keeps in the macOS
+  (`MEDIAMAKE_API_KEY`, or the key `mm login` keeps in the macOS
   Keychain); signed out, nothing leaves.
 - **mm-use**, the members' MCP (`/mcp/use`), where no hook runs (the Claude
   apps on the web or a phone): `report_skill_run` and `report_local_skills`.

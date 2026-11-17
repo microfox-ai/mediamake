@@ -14,7 +14,7 @@ an item without the person copying a new install prompt. Never print the token.
 
 ## Signed in on this computer: `mm items`
 
-Where the MediaMake repo is on the computer and it is signed in (`mm login`, once), nothing else is
+Where the MediaMake repo is on the computer and it is signed in (`mm login`, once: a browser tab where they click Allow, no key to paste), nothing else is
 needed, not even the update token:
 
 - `mm items` shows the account, its membership and each MCP and app it opens as installed (with its

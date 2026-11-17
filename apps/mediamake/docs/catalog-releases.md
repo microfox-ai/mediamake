@@ -519,7 +519,9 @@ the homepage has a **Copy install prompt** button and links to
 
 > Set up mcp/browse-hack from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
-On a computer that has the MediaMake repo and is signed in (`mm login`), no
+On a computer that has the MediaMake repo and is signed in (`mm login`: the
+site's OAuth sign-in in the browser, after which `mm` makes one API key for
+that computer; `tools/login.mjs`), no
 prompt is pasted at all: `mm items` asks the site who the account is
 (`GET /api/me`: its tier), what it opens (`GET /api/catalog`) and what is live
 (`GET /api/catalog/versions`), and `mm items install --yes` installs every MCP

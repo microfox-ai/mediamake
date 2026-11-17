@@ -205,7 +205,7 @@ const cloudCommand = async () => {
   if (op === 'logout') return console.log(deleteKeychainKey(url) ? `Signed out of ${url}: the key is gone from the Keychain.` : `No key for ${url} in the Keychain.`);
   if (op === 'status') {
     const from = keySource(url);
-    console.log(`${url}  key: ${from ?? 'none (media cloud login)'}`);
+    console.log(`${url}  key: ${from ?? 'none (mm login)'}`);
     if (!from) return;
     const projects = await connect({ url }).get<unknown[]>('/api/project');
     return console.log(`✔ ${Array.isArray(projects) ? projects.length : 0} projects you can open`);

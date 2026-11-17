@@ -18,7 +18,7 @@ here". It drives the repo's own commands, never hand-made copies of them:
 | `mm migrate` / `--yes` | sets up the workspace (`~/MediaMake`) and moves the user's work out of the checkout; a dry run until `--yes` |
 | `mm update` / `--yes` | brings an existing checkout up to GitHub, then `npm ci`, migrate (dry run) and doctor |
 | `mm media init` | the media library's folders, `~/.mediamake/config.json` and the catalog |
-| `mm login` | signs the computer in to MediaMake once (an API key from the site's `/app/api-keys`, kept in the Keychain) |
+| `mm login` | signs the computer in to MediaMake once, through the browser: the user clicks Allow, nothing is pasted (`mm login status`, `mm logout`) |
 | `mm items` / `mm items install --yes` | who is signed in, their membership and the MCPs and apps it opens; installs them with that sign-in, no install prompt or code |
 | `mm doctor` / `--fix` | checks the machine and the checkout; `--fix` does the installs, builds and downloads it can (never git, never the user's files) |
 
@@ -113,7 +113,7 @@ In the checkout:
    don't make a second one.
 4. Optional, **Ask** first, one line each with what it gives:
    - the inbox watcher, `mm media init --watch` (files downloads into the library by itself; macOS);
-   - a team: `mm media cloud login`, then `mm media channel list` / `mm media channel link <channel> <projectId>`,
+   - a team: `mm login` (the browser sign-in of step 6a, if not signed in yet), then `mm media channel list` / `mm media channel link <channel> <projectId>`,
      then `mm media sync status --channel=<id>` (a dry run) and `pull … --yes` once they agree.
 
 ## 6. What their MediaMake membership opens, then keys
@@ -128,11 +128,12 @@ have.
 1. `mm items --json`.
    - `signedIn: true`: it lists the account, its membership (`tier`) and each item it opens as
      `installed`, `behind` or `missing`. Go to 2.
-   - `signedIn: false`: **Ask** once whether they have a MediaMake account. Yes: they make an API
-     key at the `/app/api-keys` page of the site the message names and run `mm login` in a terminal
-     (the key isn't shown as they type), or paste the key as their next message alone and you run
-     `mm login` with it on stdin (never on a command line, never in a file). Then `mm items --json`
-     again. No account, or they'd rather not: skip 6a; it is final for this run.
+   - `signedIn: false`: **Ask** once whether they have a MediaMake account. Yes: run `mm login`
+     yourself (allow it 5 minutes: it waits for the browser) and tell them a browser tab is opening
+     where they sign in if asked and click **Allow**. Nothing is copied or pasted: never ask for an
+     API key. It makes one key on their account for this computer and keeps it in the Keychain.
+     Then `mm items --json` again. Only on a computer with no browser: `mm login --key` with a key
+     on stdin. No account, or they'd rather not: skip 6a; it is final for this run.
 2. Anything `missing` or `behind`: `mm items install --yes --json`, without asking. Their membership
    is the yes. It downloads and checks each package, unpacks the MCPs into `~/.mediamake/mcp/`, adds
    them to Claude Code for every project, unzips a Chrome extension into `~/Extensions/`, and saves

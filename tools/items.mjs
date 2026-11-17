@@ -505,7 +505,7 @@ async function main(args) {
   const url = site(env);
   const signedIn = signIn(url, env);
   if (!signedIn) {
-    const message = `Not signed in to ${url} on this computer. Sign in once: mm login (it asks for an API key from ${url}/app/api-keys and keeps it in the Keychain), or set MEDIAMAKE_API_KEY.`;
+    const message = `Not signed in to ${url} on this computer. Sign in once: mm login (it opens your browser; click Allow), or set MEDIAMAKE_API_KEY.`;
     if (json) console.log(JSON.stringify({ site: url, signedIn: false, error: message }, null, 2));
     else console.error(message);
     return 2;
