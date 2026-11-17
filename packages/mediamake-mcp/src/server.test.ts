@@ -243,6 +243,18 @@ describe('catalog admin tools', () => {
     expect(calls[1].body).toEqual({ type: 'set_health', itemIds: ['skill/x'], health: null });
   });
 
+  it("sets an item's tags and screenshots, and needs one of them", async () => {
+    const calls = stubApi(() => ({ listing: { tags: ['anime'], media: [] } }));
+    expect((await call('catalog_set_listing', { item: 'skill/x' })).out).toContain('tags, media or both');
+    expect(calls).toHaveLength(0);
+    const media = [{ kind: 'image', url: 'https://cdn.test/shot.png', title: 'The board' }];
+    const { out } = await call('catalog_set_listing', { item: 'skill/x', tags: ['anime'], media });
+    expect(calls[0].body).toEqual({ type: 'set_listing', itemId: 'skill/x', tags: ['anime'], media });
+    expect(out.page).toBe('http://mm.test/core/releases/skill/x');
+    await call('catalog_set_listing', { item: 'skill/x', tags: [] });
+    expect(calls[1].body).toEqual({ type: 'set_listing', itemId: 'skill/x', tags: [] });
+  });
+
   it('marks items Ready only with proof, and Beta without', async () => {
     const calls = stubApi(() => ({}));
     expect((await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'ready' })).out).toContain('proof');

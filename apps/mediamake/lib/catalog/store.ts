@@ -29,6 +29,7 @@ import {
   type ReadyProof,
   type Visibility,
 } from './types';
+import type { ItemListing, ListingMedia } from './listing';
 
 const COL = {
   items: 'catalog_items',
@@ -36,6 +37,7 @@ const COL = {
   videos: 'catalog_videos',
   health: 'catalog_health',
   readiness: 'catalog_readiness',
+  listing: 'catalog_listing',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -74,6 +76,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.videos).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
   await db.collection(COL.readiness).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.listing).createIndex({ id: 1 }, { unique: true });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -479,6 +482,38 @@ export const catalogVideosDB = {
   async remove(id: string) {
     const db = await getDatabase();
     await db.collection(COL.videos).deleteOne({ id });
+  },
+};
+
+// ── Listings ─────────────────────────────────────────────────────────────────
+
+/** Store listings (see ItemListing): an admin's tags and screenshots for any id, a skill from the repo too. */
+export const catalogListingDB = {
+  async list(): Promise<ItemListing[]> {
+    const db = await getDatabase();
+    return db.collection<ItemListing>(COL.listing).find({}, { projection: { _id: 0 } }).toArray();
+  },
+
+  async get(id: string): Promise<ItemListing | null> {
+    const db = await getDatabase();
+    return db.collection<ItemListing>(COL.listing).findOne({ id }, { projection: { _id: 0 } });
+  },
+
+  /** Sets an item's tags and screenshots, replacing the ones it had; with neither, the listing goes. */
+  async set(id: string, listing: { tags: string[]; media: ListingMedia[] }, actor?: string): Promise<ItemListing | null> {
+    const db = await getDatabase();
+    if (!listing.tags.length && !listing.media.length) {
+      await db.collection(COL.listing).deleteOne({ id });
+      return null;
+    }
+    const record = withoutUndefined({ id, tags: listing.tags, media: listing.media, updatedAt: nowISO(), updatedBy: actor }) as ItemListing;
+    await db.collection<ItemListing>(COL.listing).replaceOne({ id }, record, { upsert: true });
+    return record;
+  },
+
+  async remove(id: string) {
+    const db = await getDatabase();
+    await db.collection(COL.listing).deleteOne({ id });
   },
 };
 

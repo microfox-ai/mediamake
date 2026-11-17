@@ -197,7 +197,7 @@ what it is, who can open it, where it lives, what installing it does, and what n
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
   plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
-  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_video` (a skill's
+  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_listing` (an item's tags and screenshots, by link), `catalog_set_video` (a skill's
   intro, a tutorial's video, a course's lessons; YouTube only) and `catalog_add_video_item` (a new
   tutorial or course), and for people `catalog_people`,
   `catalog_set_tier` and `catalog_membership` (the ladder is strict: Public, Plus, Pro, Cohort, Admin,

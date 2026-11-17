@@ -193,13 +193,44 @@ Admin API (`POST /api/admin/catalog`):
 From Claude, mm-release's `catalog_set_video` and `catalog_add_video_item`
 do the same (see below).
 
+### Store listing: tags and screenshots
+
+A skill, MCP or app has a store listing, kept in MongoDB `catalog_listing`
+apart from the items (so a skill from the repo has one too, see
+`lib/catalog/listing.ts`): the tags an admin adds beside the item's own (a
+skill's category), and its screenshots, pictures and videos of the item added
+by https link, like an app store listing's. A video is a YouTube link, or an
+MP4 or WebM. The item's own page shows the tags, and the screenshots in a
+gallery under "Made with this"; cards carry the tags too.
+
+On the item's release page it is the Store listing panel: Add tags and Add
+screenshot or video each open a dialog, and every change saves at once.
+
+- `{ type: 'set_listing', itemId, tags?, media?: [{ kind: 'image' | 'video', url, title? }] }`:
+  each one given replaces what was there (an empty list clears it); left out,
+  it stays. At most 12 tags and 12 screenshots.
+
+From Claude, mm-release's `catalog_set_listing` does the same.
+
+### The release page
+
+`/app/releases/<kind>/<slug>` has a wide column for what the item shows (its
+intro video, its store listing, what installing it does, its history) and a
+narrow one for what an admin does with it: the actions (install prompt, item
+page, Made with this, code, Archive, health), who can open it with its Tier
+(`set_item_tier`: a skill in the public repo, an item made by others and a
+card in `lib/catalog/items.ts` can't be moved, and the select says why), its
+connections and where it lives. Each panel's buttons sit under it. The intro
+video is one row with two buttons, Copy launch video prompt and Add Launch
+Video (its form is a dialog).
+
 ### Launch videos
 
 A skill, MCP or app gets a launch video: a Cook with Claude episode made with
 the `make-cwc-tutorial` skill by an admin on their own computer (it renders
 there and is reviewed in rounds, so the site makes no video itself).
 
-- The item's release page has **Copy launch video prompt** at the top of its
+- The item's release page has **Copy launch video prompt** under its
   Intro video panel. The prompt carries what the catalog knows about the item:
   its id and version, what it is, who can open it, Beta or Ready, a skill's
   first prompt, the install prompt to show (for a computer without MediaMake),
@@ -212,10 +243,10 @@ there and is reviewed in rounds, so the site makes no video itself).
   has Claude set up a missing skill or MCP with `mm update` and
   `mm items install --yes`, never by asking for an install prompt or code.
 - The panel says what the prompt still lacks (no production on record, still
-  Beta, not public, nothing to install), and **See the prompt** shows it.
+  Beta, not public, nothing to install).
 - The finished video comes back as the item's intro: the prompt ends with
   `catalog_set_video` for the item (title and description as uploaded), or the
-  admin pastes the YouTube link into the panel's fields. An intro the item
+  admin adds its YouTube link with **Add Launch Video**, beside the prompt button. An intro the item
   already has is replaced only after the admin says so.
 - `GET /api/admin/catalog/item` answers with it as `launchVideoPrompt`, so
   mm-release's `catalog_item` gives it too. Built by `launchVideoPromptFor` in
@@ -236,6 +267,7 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_set_stage` | Set the lowest membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (`set_item_tier`): public, plus, pro, cohort or vault, optionally with a gate. Repo skills and items made by others refuse: archive them instead. |
 | `catalog_set_health` | Say whether items of any kind work (`set_health`): healthy, inactive, archived, or failed with its reason. |
 | `catalog_set_readiness` | Mark items Ready with the finished productions that prove it, or back to Beta (`set_readiness`). |
+| `catalog_set_listing` | Set an item's tags and screenshots (`set_listing`), shown on its own page. |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
 | `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts with the cohort. |
@@ -718,7 +750,7 @@ session cookie or Bearer key themselves):
 | `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token or API key, or the session) | Live version of each item and its releases with notes, newest first; no links, not logged |
 | `POST /api/catalog/update-token { items, token? }` (Bearer API key) | An update token for the installed items (or adds them to `token`); `mm items install` asks for it |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
-| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `create_video_item`, `create_thumbnail_upload` |
+| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `set_listing`, `create_video_item`, `create_thumbnail_upload` |
 | `GET /api/admin/catalog/items[?kind=][&tier=][&archived=][&q=]` | Admin: every item in a line (`ItemSummary`), read-only |
 | `GET /api/admin/catalog/item?id=<id>` | Admin: one item as its release page shows it, read-only |
 

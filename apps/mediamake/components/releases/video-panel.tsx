@@ -4,20 +4,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowDown, ArrowUp, ExternalLink, ImageUp, Loader2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ExternalLink, ImageUp, Loader2, Pencil, Trash2, Video, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
+import { VideoThumb } from '@/components/catalog/video';
 import { cn } from '@/lib/utils';
 import { catalogItemId, isValidSlug, type CatalogItemRecord, type CatalogVideo } from '@/lib/catalog/types';
 import { parseYouTubeId, watchPath, youtubeThumbnail, youtubeUrl } from '@/lib/catalog/video';
 import { GroupLabel, Panel, TierPill } from './parts';
 import { adminCall, itemPath, type ItemDetail } from './model';
-import { LaunchVideo } from './launch-video';
+import { CopyLaunchPrompt, LaunchVideoGaps } from './launch-video';
 
 /**
  * The videos on the release pages: an item's intro (a skill's, or an MCP's or
@@ -215,73 +215,45 @@ function ThumbnailField({
 
 /**
  * An item's intro video (a skill's, or an MCP's or app's), or a tutorial's
- * video: it plays on the item's page, and its thumbnail tops its card.
+ * video: it plays on the item's page, and its thumbnail tops its card. The
+ * panel shows the video in one row; its form opens in a dialog from the
+ * buttons under it, beside the launch video prompt (see ./launch-video).
  */
 export function VideoPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: () => void }) {
   const { item, video } = detail;
   const tutorial = item.kind === 'tutorial';
-  const saved = useMemo(() => draftOf(video), [video]);
-  const [draft, setDraft] = useState(saved);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => setDraft(saved), [saved]);
-
-  const dirty = !sameDraft(draft, saved);
-  const valid = !!parseYouTubeId(draft.url) && !!draft.title.trim();
-
-  async function save(body: ReturnType<typeof videoBody> | null, done: string) {
-    setBusy(true);
-    try {
-      await adminCall({ type: 'set_video', itemId: item.id, video: body });
-      toast.success(done);
-      onSaved();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const [editing, setEditing] = useState(false);
 
   return (
     <Panel
       title={tutorial ? 'Video' : 'Intro video'}
-      description={
-        tutorial
-          ? 'The tutorial itself: it plays on its page, and its title and description are the card’s.'
-          : `Plays on its page (${watchPath(item.id)}), and its thumbnail tops its card on the homepage.`
+      footer={
+        <>
+          {detail.launchVideoPrompt && <CopyLaunchPrompt prompt={detail.launchVideoPrompt} />}
+          <Button size="sm" onClick={() => setEditing(true)}>
+            {video ? <Pencil /> : <Video />}
+            {video ? (tutorial ? 'Edit video' : 'Edit Launch Video') : tutorial ? 'Add video' : 'Add Launch Video'}
+          </Button>
+        </>
       }
     >
-      <LaunchVideo detail={detail} />
-      {video?.youtubeId && <YouTubeEmbed youtubeId={video.youtubeId} title={video.title} className="mb-5" />}
-      <VideoFields itemId={item.id} draft={draft} onChange={setDraft} withUrl />
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
-        <Button size="sm" disabled={!dirty || !valid || busy} onClick={() => save(videoBody(draft), video ? 'Video saved' : 'Intro video added')}>
-          {busy && <Loader2 className="animate-spin" />}
-          {video ? 'Save' : tutorial ? 'Save video' : 'Add intro video'}
-        </Button>
-        {dirty && video && (
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => setDraft(saved)}>
-            Discard changes
-          </Button>
-        )}
-        {video && (
-          <Button size="sm" variant="outline" asChild>
-            <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
-              See it live <ExternalLink />
+      {video ? (
+        <div className="flex items-start gap-4">
+          <a href={watchPath(item.id)} target="_blank" rel="noreferrer" className="w-36 shrink-0 sm:w-44" title="See it live">
+            <VideoThumb id={item.id} title={video.title} src={video.thumbnail || (video.youtubeId ? youtubeThumbnail(video.youtubeId) : undefined)} size="sm" className="rounded-lg border" />
+          </a>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{video.title}</p>
+            {video.description && <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-xs text-muted-foreground">{video.description}</p>}
+            <a href={watchPath(item.id)} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              See it live <ExternalLink className="size-3" />
             </a>
-          </Button>
-        )}
-        {video && !tutorial && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto text-destructive hover:text-destructive"
-            disabled={busy}
-            onClick={() => window.confirm(`Remove ${item.title}'s intro video?`) && save(null, 'Intro video removed')}
-          >
-            Remove video
-          </Button>
-        )}
-      </div>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">{tutorial ? 'No video yet.' : 'No launch video yet. Its page and card show none.'}</p>
+      )}
+      <LaunchVideoGaps detail={detail} />
       {tutorial && (
         <div className="mt-4 border-t pt-4">
           <GroupLabel>In courses</GroupLabel>
@@ -300,7 +272,73 @@ export function VideoPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: (
           )}
         </div>
       )}
+      {editing && <VideoDialog detail={detail} onClose={() => setEditing(false)} onSaved={onSaved} />}
     </Panel>
+  );
+}
+
+/** The video's form (link, title, description, thumbnail), in a dialog: add it, change it or remove it. */
+function VideoDialog({ detail, onClose, onSaved }: { detail: ItemDetail; onClose: () => void; onSaved: () => void }) {
+  const { item, video } = detail;
+  const tutorial = item.kind === 'tutorial';
+  const saved = useMemo(() => draftOf(video), [video]);
+  const [draft, setDraft] = useState(saved);
+  const [busy, setBusy] = useState(false);
+
+  const dirty = !sameDraft(draft, saved);
+  const valid = !!parseYouTubeId(draft.url) && !!draft.title.trim();
+
+  async function save(body: ReturnType<typeof videoBody> | null, done: string) {
+    setBusy(true);
+    try {
+      await adminCall({ type: 'set_video', itemId: item.id, video: body });
+      toast.success(done);
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{tutorial ? 'Video' : video ? 'Launch video' : 'Add launch video'}</DialogTitle>
+          <DialogDescription>
+            {tutorial
+              ? 'The tutorial itself: its title and description are the card’s.'
+              : `Its YouTube link. It plays on ${item.title}’s page, and its thumbnail tops its card.`}
+          </DialogDescription>
+        </DialogHeader>
+        <VideoFields itemId={item.id} draft={draft} onChange={setDraft} withUrl />
+        <DialogFooter className="sm:justify-between">
+          {video && !tutorial ? (
+            <Button
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={busy}
+              onClick={() => window.confirm(`Remove ${item.title}'s launch video?`) && save(null, 'Launch video removed')}
+            >
+              <Trash2 /> Remove video
+            </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button variant="ghost" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button disabled={!dirty || !valid || busy} onClick={() => save(videoBody(draft), video ? 'Video saved' : tutorial ? 'Video added' : 'Launch video added')}>
+              {busy && <Loader2 className="animate-spin" />}
+              {video ? 'Save' : tutorial ? 'Add video' : 'Add Launch Video'}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -343,7 +381,36 @@ export function CoursePanel({ detail, onSaved }: { detail: ItemDetail; onSaved: 
   }
 
   return (
-    <Panel title="Course" description={`Its tutorials play in this order on ${watchPath(item.id)}. Viewers see only the lessons they can open.`}>
+    <Panel
+      title="Course"
+      description={`Its tutorials play in this order on ${watchPath(item.id)}. Viewers see only the lessons they can open.`}
+      footer={
+        <>
+          <Button size="sm" variant="outline" asChild className="mr-auto">
+            <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
+              Course page <ExternalLink />
+            </a>
+          </Button>
+          {dirty && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                setDraft(saved.draft);
+                setLessons(saved.lessons);
+              }}
+            >
+              Discard changes
+            </Button>
+          )}
+          <Button size="sm" disabled={!dirty || !draft.title.trim() || busy} onClick={save}>
+            {busy && <Loader2 className="animate-spin" />}
+            Save course
+          </Button>
+        </>
+      }
+    >
       <VideoFields
         itemId={item.id}
         draft={draft}
@@ -415,30 +482,6 @@ export function CoursePanel({ detail, onSaved }: { detail: ItemDetail; onSaved: 
             </p>
           )}
         </div>
-      </div>
-      <div className="mt-5 flex flex-wrap items-center gap-2 border-t pt-4">
-        <Button size="sm" disabled={!dirty || !draft.title.trim() || busy} onClick={save}>
-          {busy && <Loader2 className="animate-spin" />}
-          Save course
-        </Button>
-        {dirty && (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              setDraft(saved.draft);
-              setLessons(saved.lessons);
-            }}
-          >
-            Discard changes
-          </Button>
-        )}
-        <Button size="sm" variant="outline" asChild className="ml-auto">
-          <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
-            Course page <ExternalLink />
-          </a>
-        </Button>
       </div>
     </Panel>
   );
