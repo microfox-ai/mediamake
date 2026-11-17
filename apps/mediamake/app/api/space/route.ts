@@ -1,21 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { applyReport, deviceLabel, dropDevice, parseSpaceReport, spaceView } from '@/lib/space/space';
+import { canWrite, getProjectRole } from '@/lib/editor/project-access';
+import { getDatabase } from '@/lib/mongodb';
+import { applyReport, deviceLabel, dropDevice, parseSpaceReport, projectId, projectSpaceId, repoName, userSpaceId } from '@/lib/space/space';
 import { spaceDB } from '@/lib/space/store';
 
 /**
- * A member's private space: the private git repo with their own skills,
- * MCPs and apps (`mm space`), as their computers report it. Behind the
- * middleware, so x-client-id is the signed-in account, and an account
- * reads, reports and deletes only its own.
+ * Spaces: the private git repos with what members made for themselves
+ * (`mm space`), as their computers report them. A member has a space of
+ * their own, and every project has one its members share. Behind the
+ * middleware, so x-client-id is the signed-in account.
  *
- * PUT  { device, repo, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media }] }
- *        what one computer's clone holds now. It replaces what that computer said before.
- *        Names, versions, titles and one-line summaries only: never a file or a token.
- * GET    the space as Mine shows it: every item, its version and which computers have it.
- * DELETE ?device=<label>   that computer disconnected; without it, forget the whole space
- *        (what MediaMake holds: the repo is the member's and is untouched).
+ * GET    the account's own space and the space of every project it is on: each item and where
+ *        it stands on each computer. People who may change a project also get its members'
+ *        GitHub logins, to invite them to the project's repo.
+ * PUT    { device, repo, project?, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media }] }
+ *        what one computer's clone holds now. Names, versions, titles and one-line summaries
+ *        only: never a file or a token. With `project`, the report is about that project's
+ *        space, from anyone on the project.
+ * POST   { project, repo }   names the repo of a project's space. Its owner and editors only.
+ * DELETE ?device=<label>[&project=<id>]   that computer disconnected; with neither, forget
+ *        the account's own space and its computers everywhere (the repos are untouched).
  */
 const signIn = () => NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+const failed = (what: string, error: unknown) => {
+  console.error(`[space] Could not ${what}:`, error);
+  return NextResponse.json({ error: `Could not ${what}` }, { status: 503 });
+};
+
+export async function GET(req: NextRequest) {
+  const clientId = req.headers.get('x-client-id');
+  if (!clientId) return signIn();
+  try {
+    return NextResponse.json(await spaceDB.mySpaces(clientId));
+  } catch (error) {
+    return failed('read the spaces', error);
+  }
+}
 
 export async function PUT(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
@@ -23,24 +43,40 @@ export async function PUT(req: NextRequest) {
   const report = parseSpaceReport(await req.json().catch(() => null));
   if ('error' in report) return NextResponse.json({ error: report.error }, { status: 400 });
   try {
-    const before = await spaceDB.stateOf(clientId);
-    const change = applyReport(before, clientId, report);
-    await spaceDB.save(clientId, before, change);
-    return NextResponse.json({ repo: change.space.repo, device: report.device, items: report.items.length, devices: change.space.devices.length });
+    let spaceId = userSpaceId(clientId);
+    if (report.project) {
+      const role = await getProjectRole(await getDatabase(), report.project, clientId);
+      if (!role) return NextResponse.json({ error: 'You are not on that project' }, { status: 403 });
+      spaceId = projectSpaceId(report.project);
+    }
+    const before = await spaceDB.stateOf(spaceId);
+    if (report.project && before.space?.repo !== report.repo) {
+      // only POST names a project's repo, so a member's stray clone can't replace it
+      return NextResponse.json({ error: before.space ? `That project's space is ${before.space.repo}` : "That project has no space yet: mm space share makes it" }, { status: 409 });
+    }
+    const change = applyReport(before, spaceId, clientId, report);
+    await spaceDB.save(before, change);
+    return NextResponse.json({ space: spaceId, repo: change.space.repo, device: report.device, items: report.items.length });
   } catch (error) {
-    console.error('[space] Could not save a report:', error);
-    return NextResponse.json({ error: 'Could not save the space' }, { status: 503 });
+    return failed('save the report', error);
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return signIn();
+  const body = (await req.json().catch(() => null)) as { project?: unknown; repo?: unknown } | null;
+  const project = projectId(body?.project);
+  const repo = repoName(body?.repo);
+  if (!project || !repo) return NextResponse.json({ error: 'Send { project, repo }: a project id and its repo as owner/name' }, { status: 400 });
   try {
-    return NextResponse.json({ space: spaceView(await spaceDB.stateOf(clientId)) });
+    const role = await getProjectRole(await getDatabase(), project, clientId);
+    if (!role) return NextResponse.json({ error: 'You are not on that project' }, { status: 403 });
+    if (!canWrite(role)) return NextResponse.json({ error: "Only the project's owner and editors can set up its space" }, { status: 403 });
+    const space = await spaceDB.setProjectRepo(project, repo);
+    return NextResponse.json({ space: space.id, repo: space.repo });
   } catch (error) {
-    console.error('[space] Could not read the space:', error);
-    return NextResponse.json({ error: 'Could not read the space' }, { status: 503 });
+    return failed("set the project's space", error);
   }
 }
 
@@ -48,14 +84,15 @@ export async function DELETE(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return signIn();
   const device = req.nextUrl.searchParams.get('device');
+  const project = projectId(req.nextUrl.searchParams.get('project'));
   try {
     if (!device) return NextResponse.json({ forgotten: await spaceDB.forget(clientId) });
-    const before = await spaceDB.stateOf(clientId);
-    const change = dropDevice(before, clientId, deviceLabel(device));
-    if (change) await spaceDB.save(clientId, before, change);
+    const spaceId = project ? projectSpaceId(project) : userSpaceId(clientId);
+    const before = await spaceDB.stateOf(spaceId);
+    const change = dropDevice(before, spaceId, clientId, deviceLabel(device));
+    if (change) await spaceDB.save(before, change);
     return NextResponse.json({ dropped: change ? deviceLabel(device) : null });
   } catch (error) {
-    console.error('[space] Could not delete:', error);
-    return NextResponse.json({ error: 'Could not delete' }, { status: 503 });
+    return failed('delete', error);
   }
 }

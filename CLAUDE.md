@@ -81,17 +81,23 @@ log is shared and changes only in a pull request: when the user wants their note
 `mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
 touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
-## Private spaces: the user's own skills, MCPs and apps
+## Spaces: the user's own skills, MCPs and apps, and their projects'
 
-A member's own skills, MCPs and apps live in a private GitHub repo of theirs (`skills/`, `mcps/`,
-`apps/`), cloned to `space/` in the workspace and the same on every computer: `mm space` (`mm space help`,
+What a member makes lives in private GitHub repos (`skills/`, `mcps/`, `apps/`), the same on every
+computer: their own space (`space/` in the workspace, only theirs) and one per project they are on
+(`spaces/<project>/`, everyone on that project): `mm space` (`mm space help`,
 `apps/mediamake/docs/private-spaces.md`).
 
-- `mm space` shows it; `mm space connect <owner/repo>` (or `--create`) sets it up, `mm space pull` brings
-  what other computers pushed. `mm space push` is a dry run: show it to the user and run `--yes` once they agree.
-- A new skill of the user's own goes in the space when they have one (`mm space new skill <name>`, or
-  `mm space add <name>` for a variant in the workspace), never in this repo.
-- Large media never goes in the space: the media library carries it, and the item names it under
+- Repos are made without asking: a new skill of the user's own goes in their space
+  (`mm space new skill <name>`, or `mm space add <name>` for a variant in the workspace), never in this
+  repo, and the space is created by itself when there is none. Only a missing GitHub sign-in
+  (`gh auth login`) is the user's step.
+- "Share it with the <project> project" is `mm space share <item> --project=<project>` (a dry run, then
+  `--yes` once they agree): it makes the project's space when there is none and invites the project's
+  members. Tell the user who could not be invited (no GitHub account linked in MediaMake).
+- `mm space sync` at the start of a session that uses their skills brings in what other computers and
+  teammates sent. What would go out is a dry run: show it and run `--yes` once they agree.
+- Large media never goes in a space: the media library carries it, and the item names it under
   `media` in its `item.json`.
 - A space is private. Publishing an item from it follows the rule at the top like any other.
 
@@ -167,7 +173,7 @@ Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and 
 hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
 versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
 sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
-connected private space also reports its items' names, versions, titles and one-line summaries (`mm space
+space also reports its items' names, versions, titles and one-line summaries (`mm space
 report --dry` shows it, the same switch stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

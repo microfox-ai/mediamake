@@ -77,14 +77,16 @@ account reads and deletes only its own.
 | `POST /api/usage/app-opens` `{ app }` | One app opened from the app: its catalog id. The time is the server's |
 | `GET /api/usage/app-opens?days=90` | The account's apps by how often it opened them |
 
-## Private spaces
+## Spaces
 
-A member who connects a private space (`mm space`, `docs/private-spaces.md`)
-also reports what that space holds on each computer: the repo's name, the
-commit, and each item's kind, name, version, title and one-line summary
-(`PUT /api/space`, stored in `spaces` and `space_items`). Never a file or a
-token. The same switch stops it (`mm usage off`), `mm space report --dry`
-shows it, and `mm space forget` deletes it.
+A member with a space (`mm space`, `docs/private-spaces.md`) also reports what
+each space holds on each computer: the repo's name, the computer's label, the
+commit, and each item's kind, name, version, title and one-line summary, plus
+the project's id for a project's space (`PUT /api/space`, stored in `spaces`
+and `space_items`). Never a file or a token. The same switch stops it
+(`mm usage off`), `mm space report --dry` shows it, and `mm space forget`
+deletes it. Which repo is a project's space is told when someone makes it,
+whatever the switch says: the project's members need it to find the space.
 
 ## Feedback
 

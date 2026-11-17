@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyReport, dropDevice, parseSpaceReport, spaceItemId, spaceView, type SpaceReport, type SpaceState } from './space';
+import { applyReport, deviceName, dropDevice, parseSpaceReport, projectOf, projectSpaceId, spaceView, userSpaceId, type SpaceReport, type SpaceState } from './space';
 
+const MINE = userSpaceId('me');
+const PROJECT = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const empty: SpaceState = { space: null, items: [] };
-const report = (device: string, more: Partial<SpaceReport> = {}): SpaceReport => ({ device, repo: 'me/my-space', pushed: true, items: [], ...more });
-const after = (state: SpaceState, r: SpaceReport, now: string): SpaceState => {
-  const change = applyReport(state, 'me', r, now);
+const report = (device: string, more: Partial<SpaceReport> = {}): SpaceReport => ({ device, repo: 'me/mediamake-space', pushed: true, items: [], ...more });
+const after = (state: SpaceState, r: SpaceReport, now: string, space = MINE, who = 'me'): SpaceState => {
+  const change = applyReport(state, space, who, r, now);
   return { space: change.space, items: change.items };
 };
 
@@ -13,7 +15,8 @@ describe('parseSpaceReport', () => {
   it('keeps names, versions, titles and summaries, and nothing else', () => {
     const parsed = parseSpaceReport({
       device: 'mac-3f9a',
-      repo: 'me/my-space',
+      repo: 'me/mediamake-space',
+      project: PROJECT,
       branch: 'main',
       commit: 'abcdef123456',
       commitAt: '2026-11-16T10:00:00+05:30',
@@ -26,10 +29,10 @@ describe('parseSpaceReport', () => {
         { kind: 'mcp', name: 'my-tools', version: '/Users/me/secret path' },
       ],
     });
-    assert.ok(!('error' in parsed));
     assert.deepEqual(parsed, {
       device: 'mac-3f9a',
-      repo: 'me/my-space',
+      repo: 'me/mediamake-space',
+      project: PROJECT,
       branch: 'main',
       commit: 'abcdef123456',
       commitAt: '2026-11-16T04:30:00.000Z',
@@ -41,100 +44,128 @@ describe('parseSpaceReport', () => {
     });
   });
 
-  it('refuses a repo that is an address, and a body without items', () => {
+  it('refuses a repo that is an address, a project that is not an id, and a body without items', () => {
     assert.ok('error' in parseSpaceReport({ repo: 'https://x:token@github.com/me/my-space', items: [] }));
+    assert.ok('error' in parseSpaceReport({ repo: 'me/my-space', project: '../x', items: [] }));
     assert.ok('error' in parseSpaceReport({ repo: 'me/my-space' }));
     assert.ok('error' in parseSpaceReport(null));
   });
 });
 
-describe('applyReport', () => {
+describe('a member\'s own space', () => {
   const mac1 = after(
     empty,
-    report('mac', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0', title: 'My intro' }, { kind: 'mcp', name: 'my-tools', version: '0.1.0' }] }),
+    report('mac-3f9a', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0', title: 'My intro' }, { kind: 'mcp', name: 'my-tools', version: 'tree:0123456789ab' }] }),
     '2026-11-16T10:01:00.000Z',
   );
 
-  it('makes an item record ready for sharing', () => {
-    assert.equal(mac1.space?.repo, 'me/my-space');
-    const item = mac1.items[0];
-    assert.deepEqual(item, {
-      owner: 'me',
+  it('keeps one record per item, with the computers that have it', () => {
+    assert.deepEqual(mac1.space, {
+      id: 'user:me',
+      repo: 'me/mediamake-space',
+      connectedAt: '2026-11-16T10:01:00.000Z',
+      updatedAt: '2026-11-16T10:01:00.000Z',
+      devices: [{ key: 'me/mac-3f9a', clientId: 'me', label: 'mac-3f9a', commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', pushed: true, reportedAt: '2026-11-16T10:01:00.000Z' }],
+    });
+    assert.deepEqual(mac1.items[0], {
+      space: 'user:me',
       kind: 'skill',
       name: 'make-my-intro',
       title: 'My intro',
       version: '1.0.0',
-      devices: [{ device: 'mac', version: '1.0.0' }],
-      projects: [],
-      people: [],
-      editors: [],
+      devices: [{ device: 'me/mac-3f9a', version: '1.0.0' }],
       createdAt: '2026-11-16T10:01:00.000Z',
       updatedAt: '2026-11-16T10:01:00.000Z',
     });
-    assert.equal(spaceItemId(item), 'me:skill/make-my-intro');
     assert.equal(mac1.items[1].title, 'My tools');
   });
 
-  it('shows which computers have an item and which are behind', () => {
-    // the pc joins at the same commit, then the mac pushes 1.1.0
-    const pc = after(mac1, report('pc', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
+  it('says where each item stands: synced, behind or not sent', () => {
+    const view1 = spaceView(mac1, 'me')!;
+    assert.deepEqual(view1.items.map(i => [i.name, i.sync, i.upToDate]), [['make-my-intro', 'synced', 1], ['my-tools', 'synced', 1]]);
+    // a hash is not a version a person would recognise
+    assert.equal(view1.items[1].version, undefined);
+    assert.equal(view1.repoUrl, 'https://github.com/me/mediamake-space');
+
+    // a second computer joins at the same commit, then the first pushes 1.1.0
+    const pc = after(mac1, report('windows-71c2', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
     const mac2 = after(
       pc,
-      report('mac', { commit: 'bbbbbbb', commitAt: '2026-11-16T12:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.1.0', title: 'My intro, better' }, { kind: 'mcp', name: 'my-tools', version: '0.1.0' }] }),
+      report('mac-3f9a', { commit: 'bbbbbbb', commitAt: '2026-11-16T12:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.1.0', title: 'My intro, better' }, { kind: 'mcp', name: 'my-tools', version: 'tree:0123456789ab', changed: true }] }),
       '2026-11-16T12:01:00.000Z',
     );
-    const view = spaceView(mac2)!;
-    assert.deepEqual(view.devices.map(d => [d.device, d.behind]), [['mac', false], ['pc', true]]);
+    const view = spaceView(mac2, 'me')!;
+    assert.deepEqual(view.devices.map(d => [d.name, d.behind, d.mine]), [['Mac 3f9a', false, true], ['Windows PC 71c2', true, true]]);
     const skill = view.items.find(i => i.name === 'make-my-intro')!;
-    assert.equal(skill.version, '1.1.0');
-    assert.equal(skill.title, 'My intro, better');
-    assert.deepEqual(skill.on, [{ device: 'mac', version: '1.1.0' }, { device: 'pc', version: '1.0.0', behind: true }]);
+    assert.deepEqual([skill.version, skill.title, skill.sync, skill.upToDate], ['1.1.0', 'My intro, better', 'behind', 1]);
+    assert.deepEqual(skill.behindOn.map(d => d.name), ['Windows PC 71c2']);
     const mcp = view.items.find(i => i.name === 'my-tools')!;
-    assert.deepEqual(mcp.missingOn, ['pc']);
-    assert.deepEqual(view.items.map(i => i.kind), ['skill', 'mcp']);
+    assert.deepEqual([mcp.sync, mcp.unsentOn.map(d => d.name), mcp.behindOn.map(d => d.name)], ['unsent', ['Mac 3f9a'], ['Windows PC 71c2']]);
 
     // a report from the computer that is behind doesn't take the title or the version back
-    const pcAgain = after(mac2, report('pc', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0', title: 'My intro' }] }), '2026-11-16T13:00:00.000Z');
+    const pcAgain = after(mac2, report('windows-71c2', { commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0', title: 'My intro' }] }), '2026-11-16T13:00:00.000Z');
     const again = pcAgain.items.find(i => i.name === 'make-my-intro')!;
-    assert.equal(again.title, 'My intro, better');
-    assert.equal(again.version, '1.1.0');
+    assert.deepEqual([again.title, again.version], ['My intro, better', '1.1.0']);
     // and an item nothing changed for keeps its record as it was
     assert.equal(pcAgain.items.find(i => i.name === 'my-tools'), mac2.items.find(i => i.name === 'my-tools'));
   });
 
-  it('removes an item no computer has, unless it is shared, and never touches sharing', () => {
-    const shared: SpaceState = { space: mac1.space, items: mac1.items.map(item => (item.kind === 'mcp' ? { ...item, projects: ['proj-1'], editors: ['friend'] } : item)) };
-    const change = applyReport(shared, 'me', report('mac', { commit: 'ccccccc', commitAt: '2026-11-16T14:00:00.000Z', items: [] }), '2026-11-16T14:01:00.000Z');
-    assert.deepEqual(change.removed, ['skill/make-my-intro']);
-    assert.equal(change.items.length, 1);
-    assert.deepEqual([change.items[0].projects, change.items[0].editors, change.items[0].devices], [['proj-1'], ['friend'], []]);
+  it('removes an item no computer has, and starts again when another repo is connected', () => {
+    const gone = applyReport(mac1, MINE, 'me', report('mac-3f9a', { items: [{ kind: 'mcp', name: 'my-tools' }] }), '2026-11-16T14:00:00.000Z');
+    assert.deepEqual(gone.removed, ['skill/make-my-intro']);
+    assert.deepEqual(gone.items.map(i => i.name), ['my-tools']);
 
-    const edited = applyReport(shared, 'me', report('mac', { items: [{ kind: 'mcp', name: 'my-tools', version: '0.2.0', changed: true }] }), '2026-11-16T15:00:00.000Z');
-    const mcp = edited.items.find(i => i.kind === 'mcp')!;
-    assert.deepEqual([mcp.projects, mcp.editors, mcp.version], [['proj-1'], ['friend'], '0.2.0']);
-    assert.equal(spaceView({ space: edited.space, items: edited.items })!.items[0].on[0].changed, true);
-    assert.equal(spaceView({ space: edited.space, items: edited.items })!.items[0].projects, 1);
-  });
-
-  it('starts the computers again when another repo is connected', () => {
-    const pc = after(mac1, report('pc', { items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
-    const moved = applyReport(pc, 'me', report('mac', { repo: 'me/other-space', items: [{ kind: 'app', name: 'my-board' }] }), '2026-11-16T16:00:00.000Z');
+    const pc = after(mac1, report('windows-71c2', { items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
+    const moved = applyReport(pc, MINE, 'me', report('mac-3f9a', { repo: 'me/other-space', items: [{ kind: 'app', name: 'my-board' }] }), '2026-11-16T16:00:00.000Z');
     assert.equal(moved.space.repo, 'me/other-space');
-    assert.deepEqual(moved.space.devices.map(d => d.device), ['mac']);
+    assert.deepEqual(moved.space.devices.map(d => d.label), ['mac-3f9a']);
     assert.deepEqual(moved.items.map(i => i.name), ['my-board']);
     assert.deepEqual(moved.removed.sort(), ['mcp/my-tools', 'skill/make-my-intro']);
   });
+
+  it('takes a computer off the space and off its items', () => {
+    const both = after(mac1, report('windows-71c2', { items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
+    const change = dropDevice(both, MINE, 'me', 'mac-3f9a', '2026-11-16T12:00:00.000Z')!;
+    assert.deepEqual(change.space.devices.map(d => d.label), ['windows-71c2']);
+    assert.deepEqual(change.removed, ['mcp/my-tools']);
+    assert.deepEqual(change.items[0].devices, [{ device: 'me/windows-71c2', version: '1.0.0' }]);
+    assert.equal(dropDevice(both, MINE, 'me', 'nobody'), null);
+    assert.equal(spaceView(empty, 'me'), null);
+  });
 });
 
-describe('dropDevice', () => {
-  it('takes a computer off the space and off its items', () => {
-    const mac = after(empty, report('mac', { items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }, { kind: 'app', name: 'mac-only' }] }), '2026-11-16T10:00:00.000Z');
-    const both = after(mac, report('pc', { items: [{ kind: 'skill', name: 'make-my-intro', version: '1.0.0' }] }), '2026-11-16T11:00:00.000Z');
-    const change = dropDevice(both, 'me', 'mac', '2026-11-16T12:00:00.000Z')!;
-    assert.deepEqual(change.space.devices.map(d => d.device), ['pc']);
-    assert.deepEqual(change.removed, ['app/mac-only']);
-    assert.deepEqual(change.items[0].devices, [{ device: 'pc', version: '1.0.0' }]);
-    assert.equal(dropDevice(both, 'me', 'nobody'), null);
-    assert.equal(spaceView(empty), null);
+describe('a project\'s space', () => {
+  const id = projectSpaceId(PROJECT);
+  const items = [{ kind: 'skill' as const, name: 'make-zone-intro', version: '0.2.0' }];
+  const ann = after(empty, report('mac-3f9a', { repo: 'ann/mediamake-zone', project: PROJECT, commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items }), '2026-11-16T10:01:00.000Z', id, 'ann');
+  // two members whose computers happen to carry the same label are still two computers
+  const both = after(ann, report('mac-3f9a', { repo: 'ann/mediamake-zone', project: PROJECT, commit: 'aaaaaaa', commitAt: '2026-11-16T10:00:00.000Z', items }), '2026-11-16T11:00:00.000Z', id, 'bob');
+
+  it('holds every member\'s computers, named for the person looking', () => {
+    assert.equal(projectOf(id), PROJECT);
+    assert.equal(projectOf(MINE), null);
+    assert.deepEqual(both.space!.devices.map(d => d.key).sort(), ['ann/mac-3f9a', 'bob/mac-3f9a']);
+    assert.equal(both.items[0].space, id);
+    const view = spaceView(both, 'bob', { ann: 'Ann', bob: 'Bob' })!;
+    assert.deepEqual(view.devices.map(d => d.name).sort(), ["Ann's Mac 3f9a", 'Mac 3f9a']);
+    assert.deepEqual([view.items[0].sync, view.items[0].upToDate], ['synced', 2]);
+  });
+
+  it('shows whose computer is behind after someone pushes', () => {
+    const pushed = after(both, report('mac-3f9a', { repo: 'ann/mediamake-zone', project: PROJECT, commit: 'bbbbbbb', commitAt: '2026-11-16T12:00:00.000Z', items: [{ ...items[0], version: '0.3.0' }] }), '2026-11-16T12:01:00.000Z', id, 'bob');
+    const view = spaceView(pushed, 'bob', { ann: 'Ann' })!;
+    assert.deepEqual([view.items[0].version, view.items[0].sync, view.items[0].behindOn.map(d => d.name)], ['0.3.0', 'behind', ["Ann's Mac 3f9a"]]);
+    // one member leaving takes only their computer away
+    const left = dropDevice(pushed, id, 'bob', 'mac-3f9a')!;
+    assert.deepEqual(left.space.devices.map(d => d.key), ['ann/mac-3f9a']);
+    assert.equal(left.items.length, 1);
+  });
+});
+
+describe('deviceName', () => {
+  it('reads a label as a person would', () => {
+    assert.equal(deviceName('mac-3f9a'), 'Mac 3f9a');
+    assert.equal(deviceName('linux-00ff', 'Asha'), "Asha's Linux PC 00ff");
+    assert.equal(deviceName('computer'), 'computer');
   });
 });

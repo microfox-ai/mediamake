@@ -16,7 +16,9 @@ import {
   ProjectAccessPanel,
   RoleBadge,
 } from '@/components/projects/project-access';
+import { SpaceItems } from '@/components/app-shell/space-items';
 import type { ProjectRole } from '@/lib/editor/project-access';
+import type { SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
 
 interface Bundle {
@@ -81,7 +83,9 @@ export function ProjectDetail({
   projectId,
   me,
   oldEditor,
+  space = null,
 }: {
+  /** What was made for this project (its space), as its people's computers reported it. */ space?: SpaceView | null;
   projectId: string;
   /** The signed-in account. */ me?: string;
   /** Admins still reach the deprecated timeline editor. */ oldEditor?: boolean;
@@ -253,11 +257,21 @@ export function ProjectDetail({
             )}
           </Group>
 
-          <Group title="Skills" Icon={SparklesIcon}>
-            <Empty>
-              <span className="mr-1.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">Coming</span>
-              Private skills made for this project will be linked here, so everyone on it has them. MCPs and apps follow.
-            </Empty>
+          <Group title="Skills, MCPs and apps" Icon={SparklesIcon}>
+            {space?.items.length ? (
+              <>
+                <SpaceItems space={space} />
+                <p className="pt-2 text-xs text-muted-foreground">
+                  Everyone on the project gets these with{' '}
+                  <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
+                </p>
+              </>
+            ) : (
+              <Empty>
+                Nothing made for this project yet. Ask Claude to &quot;share &lt;skill&gt; with the {project?.displayName ?? 'project'} project&quot; and everyone on it gets it (
+                <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space share &lt;skill&gt; --project=…</span>).
+              </Empty>
+            )}
           </Group>
 
           <p className="text-xs text-muted-foreground">

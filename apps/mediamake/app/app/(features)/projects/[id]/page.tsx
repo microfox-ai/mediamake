@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { AppPage } from '@/components/app-shell/app-page';
 import { ProjectDetail } from '@/components/projects/project-detail';
 import { canUseCloudProjects } from '@/lib/access';
+import { getSpaces } from '@/lib/app-shell/member-data';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 
 export const metadata = { title: 'Project · MediaMake' };
@@ -14,9 +15,10 @@ export const metadata = { title: 'Project · MediaMake' };
 export default async function AppProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, viewer] = await Promise.all([params, getAppViewer()]);
   if (!canUseCloudProjects(viewer.tier)) redirect('/app/projects');
+  const space = viewer.clientId ? ((await getSpaces(viewer.clientId))?.projects.find(project => project.projectId === id)?.space ?? null) : null;
   return (
     <AppPage title="Projects">
-      <ProjectDetail projectId={id} me={viewer.clientId ?? undefined} oldEditor={viewer.isAdmin} />
+      <ProjectDetail projectId={id} me={viewer.clientId ?? undefined} oldEditor={viewer.isAdmin} space={space} />
     </AppPage>
   );
 }
