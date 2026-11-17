@@ -226,7 +226,10 @@ wrapper that sends it through the session's proxy (`browser` in `~/.mediamake/co
 it as `MM_BROWSER`). Your skills come from your space: add `<you>/mediamake-space` (and a project's
 `<owner>/mediamake-<project>`, a linked item's `<owner>/mediamake-<kind>-<name>`) to the cloud
 environment's repositories, so the session clones them beside this checkout; `mm cloud` links them into
-the workspace and Claude. Skills linked during a session load in the next one; read their SKILL.md until
+the workspace and Claude, then checks the keys their run sheets name (`ELEVENLABS_API_KEY` for
+`key:elevenlabs`, and so on): set them as the environment's variables. The space's page in the app (Set
+up › Run it in the cloud) lists the repositories and the keys for an environment before you make it.
+Skills linked during a session load in the next one; read their SKILL.md until
 then. A session's machine is thrown away afterwards: `mm cloud deliver` copies the renders and the
 project's code (no analysis or media over 2 MB) to where you can get them, and changes to a skill go back
 with `mm space sync --yes`. Not yet in a cloud session: Browse Hack, Midjourney, anything signed in on

@@ -65,12 +65,27 @@
  * Need is required (its main job needs it), recommended or optional; no `|` inside a cell. The
  * MCPs are catalog items: ours, or ones made by others listed in
  * apps/mediamake/lib/catalog/third-party.json. `check` fails on a malformed table.
+ *
+ * Where a skill's steps can run goes in a second table, its run sheet (by convention under
+ * `## Where it runs`): each step, what it needs from the place that runs it (the words in
+ * tools/places.mjs), whether a person must say yes first, whether it is safe to do twice, and what
+ * happens when no place has what it needs. A run in the cloud that reaches a step only a device can
+ * do posts it as a to-do (apps/mediamake/docs/cloud-device-runs.md):
+ *
+ *   | Step | Needs | A person's yes | Safe to repeat | Without it |
+ *   |---|---|---|---|---|
+ *   | Render | `render` | no | yes | runs anywhere |
+ *   | Upload to YouTube | `mcp:browse-hack`, `browser:youtube` | no | no | a to-do: upload the release from a device signed in to the channel |
+ *
+ * `check` fails on a malformed table; `add`, `publish` and `mm submit` refuse a skill that has none. A
+ * skill from before run sheets runs whole, where it was started.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { deviceOnly, parseNeeds, runsOf } from './places.mjs';
 import { openPr, stamp } from './upstream.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -111,6 +126,9 @@ export const NEEDS = ['required', 'recommended', 'optional'];
 /** Our own MCPs, released through the catalog rather than listed in third-party.json. */
 const OUR_MCPS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/projectsync']);
 const MCP_HEADER = /^\|\s*MCP\s*\|\s*Need\s*\|\s*Used for\s*\|\s*Without it\s*\|$/i;
+const RUN_HEADER = /^\|\s*Step\s*\|\s*Needs\s*\|\s*(A person's\s+)?yes\s*\|\s*(Safe to\s+)?repeat\s*\|\s*Without it\s*\|$/i;
+/** What stops `add`, `publish` and `mm submit`: a skill is made with its run sheet. */
+export const NO_RUN_SHEET = "SKILL.md has no run sheet: add `## Where it runs` with the table | Step | Needs | A person's yes | Safe to repeat | Without it | (apps/mediamake/docs/cloud-device-runs.md)";
 
 /**
  * Category by name prefix: what each verb means. Order is the order the site lists them in. `internal`
@@ -237,6 +255,45 @@ const mcpTable = file => {
   return { mcps, errors };
 };
 
+/**
+ * A skill's run sheet, from the `| Step | Needs | A person's yes | Safe to repeat | Without it |` table
+ * in its SKILL.md (see the header comment): its steps in order, and what is wrong with the table, by line.
+ */
+export const runSheet = file => {
+  const lines = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').split('\n');
+  let fenced = false;
+  const start = lines.findIndex(line => {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    return !fenced && RUN_HEADER.test(line.trim());
+  });
+  const steps = [];
+  const errors = [];
+  if (start < 0) return { steps, errors, found: false };
+  if (!/^\|[\s:|-]+\|$/.test(lines[start + 1]?.trim() ?? '')) errors.push(`SKILL.md:${start + 2}: the run sheet needs its |---| row under the header`);
+  const yesNo = cell => ({ yes: true, no: false })[plainCell(cell).toLowerCase()];
+  for (let i = start + 2; i < lines.length && lines[i].trim().startsWith('|'); i++) {
+    const at = `SKILL.md:${i + 1}`;
+    const cells = lines[i].trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    if (cells.length !== 5) {
+      errors.push(`${at}: a run sheet row has 5 cells (Step | Needs | A person's yes | Safe to repeat | Without it), this one ${cells.length}; no | inside a cell`);
+      continue;
+    }
+    const step = plainCell(cells[0]).replace(/^\d+[.)]\s*/, '');
+    const { needs, bad } = parseNeeds(cells[1]);
+    const [yes, repeat] = [yesNo(cells[2]), yesNo(cells[3])];
+    const without = plainCell(cells[4]);
+    if (!step) errors.push(`${at}: the step has no name`);
+    else if (steps.some(s => s.step === step)) errors.push(`${at}: the step "${step}" is in the run sheet twice`);
+    else if (bad.length) errors.push(`${at}: "${bad.join('", "')}" isn't a need: render, key:<name>, mcp:<id>, app:<name>, browser:<site>, media:library, or nothing (tools/places.mjs)`);
+    else if (yes === undefined || repeat === undefined) errors.push(`${at}: "A person's yes" and "Safe to repeat" are yes or no`);
+    // every place that is set up renders, so only a need a place may lack asks for its "Without it"
+    else if (needs.some(n => n !== 'render') && (!without || /^(-|–|—)$/.test(without))) errors.push(`${at}: say what happens when no place has ${needs.filter(n => n !== 'render').join(', ')}`);
+    else steps.push({ step, needs, yes, repeat, ...(without && !/^(-|–|—)$/.test(without) && { without }) });
+  }
+  if (!steps.length && !errors.length) errors.push(`SKILL.md:${start + 1}: the run sheet has no steps`);
+  return { steps, errors, found: true };
+};
+
 /** skills-lock.json: skills vendored from other repos (`npx skills add`), by name → `owner/repo`. */
 const vendored = () => {
   try {
@@ -264,6 +321,7 @@ export const skillAt = (name, dir, where = {}) => {
   const fm = frontmatter(path.join(dir, 'SKILL.md'));
   const variantOf = fm.metadata['variant-of'];
   const { mcps, errors: mcpErrors } = mcpTable(path.join(dir, 'SKILL.md'));
+  const sheet = runSheet(path.join(dir, 'SKILL.md'));
   return {
     name,
     dir,
@@ -280,6 +338,10 @@ export const skillAt = (name, dir, where = {}) => {
     dependsOn: (fm.metadata['depends-on'] ?? '').split(',').map(d => d.trim()).filter(Boolean),
     mcps,
     mcpErrors,
+    /** The run sheet's steps (none: a skill from before run sheets, which runs whole where it was started). */
+    steps: sheet.steps,
+    stepErrors: sheet.errors,
+    hasRunSheet: sheet.found,
     upstream: where.upstream,
     version: fm.version ?? fm.metadata.version,
     description: fm.description ?? '',
@@ -443,6 +505,8 @@ export const registry = (skills = allSkills()) => {
       forkedFrom: s.forkedFrom,
       dependsOn: s.dependsOn.length ? s.dependsOn : undefined,
       mcps: s.mcps.length ? s.mcps : undefined,
+      steps: s.steps.length ? s.steps.map(step => ({ ...step, ...(step.needs.some(deviceOnly) && { device: true }) })) : undefined,
+      runsOn: runsOf(s.steps),
       upstream: s.upstream,
       version: s.version,
     };
@@ -493,11 +557,20 @@ const mcpTables = () => {
   return found.length ? `These MCP tables can't be read (| MCP | Need | Used for | Without it |, need: ${NEEDS.join(' / ')}):\n${found.map(f => `  ✖ ${f}`).join('\n')}` : null;
 };
 
+/** Malformed run sheets in any skill, as one message, or null. */
+const runSheets = () => {
+  const found = allSkills().flatMap(s => s.stepErrors.map(e => `${s.name}/${e}`));
+  return found.length ? `These run sheets can't be read (| Step | Needs | A person's yes | Safe to repeat | Without it |):\n${found.map(f => `  ✖ ${f}`).join('\n')}` : null;
+};
+
 const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
-  const stale = [leaks(), mcpTables(), lessonLogs()].filter(Boolean).join('\n') || null;
-  if (!stale) return hook ? undefined : console.log(`✔ ${allSkills().length} skills: no keys, tokens or machine paths, MCP tables readable, lessons in notes`);
+  const stale = [leaks(), mcpTables(), runSheets(), lessonLogs()].filter(Boolean).join('\n') || null;
+  if (!stale) {
+    const sheets = allSkills().filter(s => s.hasRunSheet).length;
+    return hook ? undefined : console.log(`✔ ${allSkills().length} skills: no keys, tokens or machine paths, MCP tables and run sheets readable (${sheets} with a run sheet), lessons in notes`);
+  }
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
     return console.log(JSON.stringify({ systemMessage: `⚠ ${stale}`, hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: stale } }));
@@ -523,7 +596,7 @@ const add = () => {
   for (const skill of skills) {
     if (skill.moved) throw new Error(`${skill.name} is in .agents/skills already`);
     const { problems: leaked, notes } = checks(skill);
-    const problems = [...leaked, ...skill.mcpErrors, ...lessonProblems(skill)];
+    const problems = [...leaked, ...skill.mcpErrors, ...skill.stepErrors, ...(skill.hasRunSheet ? [] : [NO_RUN_SHEET]), ...lessonProblems(skill)];
     for (const p of problems) console.log(`✖ ${skill.name}: ${p}`);
     for (const n of notes) console.log(`⚠ ${skill.name}: ${n}`);
     if (problems.length) {
@@ -632,7 +705,7 @@ const publish = () => {
   if (skill.moved && !skill.own) throw new Error(`${skill.name} is in the repo already: change it on a branch and a PR`);
   if (allSkills().some(s => s.name === skill.name && s.moved)) throw new Error(`the repo has ${skill.name} already: node tools/skills.mjs tidy drops your copy when they are the same`);
   const { problems: leaked, notes } = checks(skill);
-  const problems = [...leaked, ...skill.mcpErrors, ...lessonProblems(skill)];
+  const problems = [...leaked, ...skill.mcpErrors, ...skill.stepErrors, ...(skill.hasRunSheet ? [] : [NO_RUN_SHEET]), ...lessonProblems(skill)];
   for (const p of problems) console.log(`✖ ${skill.name}: ${p}`);
   for (const n of notes) console.log(`⚠ ${skill.name}: ${n}`);
   if (problems.length) throw new Error('Fix the ✖ lines, then publish again');

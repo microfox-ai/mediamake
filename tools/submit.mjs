@@ -29,7 +29,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { frontmatter, lineProblems, ownSkillsDir, RULE } from './skills.mjs';
+import { frontmatter, lineProblems, NO_RUN_SHEET, ownSkillsDir, RULE, runSheet } from './skills.mjs';
 import { KINDS, localSpaces } from './space.mjs';
 import { apiKey, call, site } from './usage.mjs';
 
@@ -121,6 +121,10 @@ export function check(item, files) {
     const front = frontmatter(path.join(item.dir, 'SKILL.md'));
     if (front.name !== item.name) problems.push(`SKILL.md says name: ${front.name ?? '(none)'}, the folder is ${item.name}`);
     if (!front.description) problems.push('SKILL.md has no description in its front matter');
+    // a skill is made with its run sheet: what each step needs, so a run can be split between the cloud and a device
+    const sheet = runSheet(path.join(item.dir, 'SKILL.md'));
+    if (!sheet.found) problems.push(NO_RUN_SHEET);
+    problems.push(...sheet.errors);
   }
   for (const file of files) {
     if (file.encoding !== 'utf8') continue;

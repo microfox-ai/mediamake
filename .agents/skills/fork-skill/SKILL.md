@@ -37,7 +37,9 @@ as a pull request (step 6, and `publish-skill`).
 3. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
    section, transitions, type, sound, colour, what the user praised and rejected), each with where
    it came from. Then edit the body only where the variant really differs; the rest stays the base
-   as of today.
+   as of today. When the variant's steps need something else (another key, a sign-in, a device), change
+   its run sheet too (`## Where it runs`; a base with none yet needs one written before the variant is
+   published).
 4. **Description**: replace the `<what is different>` placeholder with one sentence. Keep the
    trigger narrow ("Use only when the user names this variant or asks for the <ref> style;
    otherwise <base>"), so the base stays the default and the two never compete.

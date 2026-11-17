@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [".agents/skills/**", "tools/skills.mjs"],
+  "globalDependencies": [".agents/skills/**", "tools/skills.mjs", "tools/places.mjs", "tools/places.json"],
   "globalEnv": [
     "NODE_ENV",
     "WORKER_BASE_URL",

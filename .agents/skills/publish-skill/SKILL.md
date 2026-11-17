@@ -59,6 +59,9 @@ the question when there is one, or the user named it; otherwise ask which to pub
   frontmatter `name` that doesn't match the folder. Fix it in the skill first (a repo-relative
   path, an env var name instead of a value), then check again.
 - ✖ an MCP table it can't read (see "MCPs it works with" below).
+- ✖ no run sheet, or a row of it that can't be read: every skill has a `## Where it runs` table
+  (`| Step | Needs | A person's yes | Safe to repeat | Without it |`) saying what each step needs,
+  so a cloud session knows what it can run (`apps/mediamake/docs/cloud-device-runs.md`).
 - ⚠ a `depends-on` naming a skill that isn't in the repo, an MCP that isn't ours or listed in
   `apps/mediamake/lib/catalog/third-party.json`, an email address, or a file over 1 MB.
 

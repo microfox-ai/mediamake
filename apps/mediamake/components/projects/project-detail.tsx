@@ -15,6 +15,7 @@ import {
 import { CopyLine } from './copy-line';
 import { BrandTab } from './space-tabs';
 import { CodeTab } from './space-code';
+import { CloudSetupCard } from './space-cloud';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
@@ -116,7 +117,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
  * it: files, README, commits, who has it and where each computer stands),
  * its skills, MCPs and apps, its brand kit, what it keeps on MediaMake (its
  * productions, its releases and its media), who can open it, which its owner
- * changes here, and the line that sets it up on a computer. A personal space is
+ * changes here, and how to set it up: the line for a computer, and for a Claude cloud
+ * environment the repos to add and the keys to set. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
  * `mm media sync`.
@@ -346,6 +348,7 @@ export function ProjectDetail({
 
         <TabsContent value="setup" className="flex flex-col gap-3">
           <SetUp projectId={projectId} personal={personal} />
+          <CloudSetupCard space={space} linked={linked} personal={personal} />
           <p className="text-xs text-muted-foreground">
             Productions, releases and media are added from Claude: ask it to share or sync them (the MediaMake Spaces MCP, or{' '}
             <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm media sync</span>).

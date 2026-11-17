@@ -48,7 +48,7 @@ space: `mm space share --project=` never lists it.
 skills/<name>/SKILL.md      a skill, with anything it needs beside it (code, small assets)
 mcps/<name>/                an MCP: its code, a README that says how to run it, an item.json
 apps/<name>/                an app, the same way
-<kind>/<name>/item.json     optional: { "title", "summary", "version", "media": ["<library id>"] }
+<kind>/<name>/item.json     optional: { "title", "summary", "version", "needs": ["key:<name>"], "media": ["<library id>"] }
 CLAUDE.md, prefs.md, engine/ …   the space's central files: what guides and runs every production
 README.md                   what the space is, and "What's here": a list `mm space push` keeps up to date
 ```
@@ -60,7 +60,11 @@ the latest commit over the file list (folders open in place, a file opens on Git
 it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
 and Devices (each computer that has the space, and how many updates it is behind the newest one or has
 not sent). It comes from the computer furthest along: a computer reports the repo's file paths, its
-README and its last commits, never another file's contents.
+README and its last commits, never another file's contents. **Set up** has the line that sets the space
+up on a computer and, for a Claude cloud session or a routine, what to add to the cloud environment: the
+repositories (MediaMake, the space's, each linked item's) and the keys its skills need, by the name of
+their environment variable, read from the skills' run sheets (`docs/cloud-device-runs.md`). Only names: a
+key's value is set in Claude and never comes to MediaMake.
 
 **Central files** are whatever sits at the top of the repo beside `skills/`, `mcps/` and `apps/`: the
 guidance, prefs and shared code that every production of the space follows. Static files (pictures,
@@ -345,7 +349,8 @@ usage reports are on (`mm usage`):
 PUT /api/space
 { device, repo, project?, branch, commit, commitAt, pushed, ahead,
   history: [{ sha, at, author, subject }],          the last 30 commits
-  items: [{ kind, name, version, title, summary, changed, media }],
+  items: [{ kind, name, version, title, summary, changed, media,
+            needs: ["key:elevenlabs", "browser:youtube"] }],     what it needs to run; left out when it doesn't say
   code: { files: ["<path in the repo>"], truncated?, readme } }   a space's, not a linked item's
 ```
 

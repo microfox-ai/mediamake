@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { NO_RUN_SHEET } from './skills.mjs';
 import { candidates, check, collect, describe, madeProblem, payload } from './submit.mjs';
 
 const SKILL_MD = '---\nname: make-thing\ndescription: Makes a thing from a song and a picture\nmetadata:\n  version: 1.2.0\n---\n\n# make-thing\n';
+const SHEET = "\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Make it | `key:elevenlabs` | no | yes | a to-do for a place with the key |\n";
 
 function workspace() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-submit-'));
@@ -68,7 +70,11 @@ test('checks stop on keys, machine paths and a wrong name, and note emails', () 
     w.write('make-thing/run.mjs', `const k = 'ghp_${'a'.repeat(36)}';\n`);
     const item = { kind: 'skill', name: 'make-thing', dir: path.join(w.root, 'make-thing') };
     const { problems, notes } = check(item, collect(item.dir).files);
-    assert.deepEqual(problems, ['SKILL.md says name: other, the folder is make-thing', 'SKILL.md:9 has a path on this machine', 'run.mjs:1 looks like an API key or token']);
+    // a skill is made with its run sheet, and a broken one stops it too
+    assert.equal(problems[1], NO_RUN_SHEET);
+    assert.deepEqual(problems.filter(p => p !== NO_RUN_SHEET), ['SKILL.md says name: other, the folder is make-thing', 'SKILL.md:9 has a path on this machine', 'run.mjs:1 looks like an API key or token']);
+    w.write('make-thing/SKILL.md', `${SKILL_MD}${SHEET.replace('key:elevenlabs', 'a key')}`);
+    assert.match(check(item, collect(item.dir).files).problems.join('\n'), /SKILL\.md:\d+: "a key" isn't a need/);
     assert.deepEqual(notes, ['SKILL.md:10 has an email address']);
   } finally {
     w.done();
@@ -78,7 +84,7 @@ test('checks stop on keys, machine paths and a wrong name, and note emails', () 
 test('a clean skill passes, and its payload carries the production and the files', () => {
   const w = workspace();
   try {
-    w.write('make-thing/SKILL.md', SKILL_MD);
+    w.write('make-thing/SKILL.md', SKILL_MD + SHEET);
     const item = { kind: 'skill', name: 'make-thing', dir: path.join(w.root, 'make-thing') };
     const { files } = collect(item.dir);
     assert.deepEqual(check(item, files).problems, []);
@@ -90,7 +96,7 @@ test('a clean skill passes, and its payload carries the production and the files
       version: '1.2.0',
       made: { title: 'Akhilanda Natha lyric video', url: 'https://youtu.be/abc' },
       source: 'mm-submit',
-      files: [{ path: 'SKILL.md', content: SKILL_MD, encoding: 'utf8' }],
+      files: [{ path: 'SKILL.md', content: SKILL_MD + SHEET, encoding: 'utf8' }],
     });
   } finally {
     w.done();

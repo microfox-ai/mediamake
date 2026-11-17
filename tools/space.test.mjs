@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { parseRepo } from './space.mjs';
+import { parseRepo, spaceItems } from './space.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mm-space-test-')));
@@ -276,6 +276,38 @@ test('parseRepo reads the ways a repo is typed', () => {
   const local = parseRepo(remote);
   assert.deepEqual([local.repo, local.github, local.url], ['me/my-space', false, remote]);
   assert.equal(parseRepo(''), null);
+});
+
+test("an item says what it needs to run: a skill's run sheet, an MCP's item.json, and nothing made up", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-space-needs-'));
+  try {
+    spawnSync('git', ['init', '-q', dir]);
+    const write = (rel, body) => {
+      fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(dir, rel), body);
+    };
+    const front = name => `---\nname: ${name}\ndescription: x\n---\n`;
+    write(
+      'skills/doomcat/SKILL.md',
+      `${front('doomcat')}\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Voice | \`key:elevenlabs\` | no | yes | a to-do |\n| Render | \`render\` | no | yes | - |\n| Upload | \`mcp:browse-hack\`, \`browser:youtube/doomcat\`, \`key:elevenlabs\` | no | no | a to-do |\n`,
+    );
+    write('skills/plain/SKILL.md', `${front('plain')}\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Write | nothing | no | yes | - |\n`);
+    write('skills/old/SKILL.md', front('old'));
+    write('mcps/weather/item.json', JSON.stringify({ title: 'Weather', needs: ['key:open-weather', 'OPEN_WEATHER_API_KEY=abc', 7] }));
+    write('apps/board/index.html', '<p>hi</p>');
+    assert.deepEqual(
+      spaceItems(dir).map(item => [item.name, item.needs]),
+      [
+        ['doomcat', ['key:elevenlabs', 'render', 'mcp:browse-hack', 'browser:youtube/doomcat']],
+        ['old', null],
+        ['plain', []],
+        ['weather', ['key:open-weather']],
+        ['board', null],
+      ],
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('with no space, status says how to connect and the other commands refuse', async () => {

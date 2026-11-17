@@ -1,0 +1,23 @@
+{
+  "deviceMcps": ["browse-hack"],
+  "keys": {
+    "elevenlabs": {
+      "env": "ELEVENLABS_API_KEY",
+      "title": "ElevenLabs",
+      "host": "api.elevenlabs.io",
+      "from": "https://elevenlabs.io/app/settings/api-keys"
+    },
+    "mediamake": {
+      "env": "MEDIAMAKE_API_KEY",
+      "title": "MediaMake",
+      "host": "mediamake.microfox.app",
+      "from": "https://mediamake.microfox.app/app/api-keys"
+    },
+    "youtube": {
+      "env": "YOUTUBE_API_KEY",
+      "title": "YouTube Data API",
+      "host": "www.googleapis.com",
+      "from": "https://console.cloud.google.com/apis/credentials"
+    }
+  }
+}

@@ -54,9 +54,31 @@ export interface RegistrySkill {
    * catalog offers them when the skill is installed, with what each is for and what it costs to skip.
    */
   mcps?: ItemUse[];
+  /**
+   * Its run sheet, from the `## Where it runs` table in its SKILL.md: what each step needs to run, in the
+   * words of tools/places.mjs (docs/cloud-device-runs.md). Left out when the skill has none yet.
+   */
+  steps?: RunStep[];
+  /** Where its steps can run: no step needs a device, every step that needs anything does, or some do. */
+  runsOn?: 'anywhere' | 'device' | 'mixed';
   /** `owner/repo` a skill was vendored from (skills-lock.json), e.g. remotion-dev/skills. */
   upstream?: string;
   version?: string;
+}
+
+/** One step of a skill's run sheet. */
+export interface RunStep {
+  step: string;
+  /** `key:elevenlabs`, `render`, `browser:youtube/<channel>`; empty when it needs nothing. */
+  needs: string[];
+  /** It must not run until a person agreed. */
+  yes: boolean;
+  /** Running it twice does no harm. */
+  repeat: boolean;
+  /** What happens when no place has what it needs. */
+  without?: string;
+  /** Only a device can run it. */
+  device?: boolean;
 }
 
 export interface SkillsRegistry {

@@ -16,12 +16,14 @@
  * records. ./store keeps them; docs/private-spaces.md is the guide.
  *
  * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
- * reports names, versions, titles and one-line summaries, and for the Code tab the repo's file paths, its
+ * reports names, versions, titles, one-line summaries and what each item needs to run (key names, MCPs,
+ * apps, sign-ins by site and account: never a key), and for the Code tab the repo's file paths, its
  * README.md and its last commits (short id, time, author's name, subject); git moves the files with each
  * member's own sign-in.
  */
 
 import type { BrandMarks } from '@/lib/brand-kit';
+import { needList } from './places';
 
 export const SPACE_KINDS = ['skill', 'mcp', 'app'] as const;
 export type SpaceKind = (typeof SPACE_KINDS)[number];
@@ -58,6 +60,11 @@ export interface ReportedItem {
   changed?: boolean;
   /** How many media files it names in its item.json (they travel through the media library). */
   media?: number;
+  /**
+   * What it needs to run, in the words of lib/space/places.ts (a skill's run sheet, an MCP's or an app's
+   * item.json). Empty: it needs nothing. Left out: it doesn't say (a skill with no run sheet yet).
+   */
+  needs?: string[];
 }
 
 /** One commit as a computer reports it: its short id, when, who (the git author's name) and its subject. */
@@ -193,6 +200,8 @@ export interface SpaceItemRecord {
   /** Its version on the computer that is furthest along. */
   version?: string;
   media?: number;
+  /** What it needs to run, as the computer furthest along reports it. */
+  needs?: string[];
   devices: ItemOnDevice[];
   createdAt: string;
   updatedAt: string;
@@ -213,7 +222,7 @@ export const deviceLabel = (value: unknown): string => (typeof value === 'string
 
 /**
  * A computer's report: `{ device, repo, project, branch, commit, commitAt,
- * pushed, items: [{ kind, name, version, title, summary, changed, media }] }`.
+ * pushed, items: [{ kind, name, version, title, summary, changed, media, needs }] }`.
  * Only these are read. An item whose name isn't a folder name is left out.
  */
 export function parseSpaceReport(body: unknown): SpaceReport | { error: string } {
@@ -227,7 +236,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
   if (items.length > MAX_SPACE_ITEMS) return { error: `Send ${MAX_SPACE_ITEMS} items at most` };
   const byKey = new Map<string, ReportedItem>();
   for (const entry of items) {
-    const { kind, name: itemName, version, title, summary, changed, media } = (entry ?? {}) as Record<string, unknown>;
+    const { kind, name: itemName, version, title, summary, changed, media, needs } = (entry ?? {}) as Record<string, unknown>;
     if (typeof kind !== 'string' || !(SPACE_KINDS as readonly string[]).includes(kind)) continue;
     if (typeof itemName !== 'string' || itemName.length > 100 || !ITEM_NAME.test(itemName)) continue;
     const v = typeof version === 'string' && VERSION.test(version.trim()) ? version.trim() : undefined;
@@ -240,6 +249,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
       ...(text(summary, 200) && { summary: text(summary, 200) }),
       ...(changed === true && { changed: true }),
       ...(count && { media: count }),
+      ...(Array.isArray(needs) && { needs: needList(needs) }),
     };
     byKey.set(spaceItemKey(item), item);
   }
@@ -333,6 +343,8 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
       else delete next.summary;
       if (item.media) next.media = item.media;
       else delete next.media;
+      if (item.needs) next.needs = item.needs;
+      else delete next.needs;
     }
     if (version) next.version = version;
     else delete next.version;
@@ -348,6 +360,7 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
       ...(item.summary && { summary: item.summary }),
       ...(item.version && { version: item.version }),
       ...(item.media && { media: item.media }),
+      ...(item.needs && { needs: item.needs }),
       devices: [{ device: key, ...(item.version && { version: item.version }), ...(item.changed && { changed: true }) }],
       createdAt: now,
       updatedAt: now,
@@ -407,6 +420,8 @@ export interface SpaceItemView {
   /** A version a person stated (`1.2.0`); a content hash is left out. */
   version?: string;
   media?: number;
+  /** What it needs to run: `key:elevenlabs`, `browser:youtube`. Left out when it doesn't say. */
+  needs?: string[];
   sync: ItemSync;
   /** The computers with edits that were not pushed. */
   unsentOn: DeviceView[];
@@ -473,6 +488,7 @@ export function spaceView(state: SpaceState, me: string, names: Record<string, s
         ...(item.summary && { summary: item.summary }),
         ...(version && { version }),
         ...(item.media && { media: item.media }),
+        ...(item.needs && { needs: item.needs }),
         sync: unsentOn.length ? 'unsent' : behindOn.length ? 'behind' : 'synced',
         unsentOn,
         behindOn,

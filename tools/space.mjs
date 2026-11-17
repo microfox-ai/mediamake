@@ -59,8 +59,9 @@
  * anything that looks like a key or a token (--force sends it anyway).
  *
  * What MediaMake is told (when this computer is signed in and usage reports are on: mm usage): each
- * repo's name, this computer's random label, the commit, and each item's kind, name, version, title
- * and one-line summary; for the app's Code tab, the last 30 commits (short id, time, author's name,
+ * repo's name, this computer's random label, the commit, and each item's kind, name, version, title,
+ * one-line summary and what it needs to run (its run sheet's words: key names, MCPs, apps and sign-ins
+ * by site and account, never a key or a password); for the app's Code tab, the last 30 commits (short id, time, author's name,
  * subject), the paths of the repo's files and its README.md. Never another file's contents.
  * mm space report --dry shows it exactly. Which repo is a
  * project's space is told whenever you share into it, so its members can find it.
@@ -70,7 +71,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { frontmatter, lineProblems, linkOwn, ownSkillsDir, TEXT_FILE, userSkillsDir, workspaceRoot } from './skills.mjs';
+import { needList } from './places.mjs';
+import { frontmatter, lineProblems, linkOwn, ownSkillsDir, runSheet, TEXT_FILE, userSkillsDir, workspaceRoot } from './skills.mjs';
 import { apiKey, call, configFile, deviceLabel, site, skillVersion, usageSetting } from './usage.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -337,6 +339,10 @@ function itemAt(dir, kind, name) {
   const stated = text(meta.version, 80) ?? text(pkg.version, 80);
   const version = (stated && /^[A-Za-z0-9][A-Za-z0-9._+:-]{0,79}$/.test(stated) ? stated : undefined) ?? (front ? skillVersion(skillFile) : tree ? `tree:${tree.slice(0, 12)}` : 'new');
   const summary = text(meta.summary, SUMMARY_MAX) ?? text(front?.description, SUMMARY_MAX) ?? text(pkg.description, SUMMARY_MAX);
+  // what it needs to run, in the words of tools/places.mjs: a skill's run sheet, an MCP's or an app's item.json
+  // (null: it doesn't say, a skill with no run sheet or an item.json with no `needs`)
+  const sheet = front ? runSheet(skillFile) : null;
+  const needs = (sheet ? sheet.found : Array.isArray(meta.needs)) ? needList(sheet ? sheet.steps.flatMap(step => step.needs) : meta.needs) : null;
   return {
     kind,
     name,
@@ -344,6 +350,7 @@ function itemAt(dir, kind, name) {
     version,
     title: text(meta.title, 120) ?? text(pkg.display_name, 120) ?? humanize(name),
     ...(summary && { summary }),
+    needs,
     media: Array.isArray(meta.media) ? meta.media.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim()) : [],
     changed: !!git(dir, ['status', '--porcelain', '-uall', '--', rel]).out,
   };
@@ -577,7 +584,8 @@ function acceptInvites(repos) {
 
 /**
  * The report: the repo's name, this computer's label, the commit and its last commits, each item's name,
- * version, title and summary, and for a space (not a linked item) what the app's Code tab shows.
+ * version, title, summary and what it needs to run (its run sheet's words: key names, MCPs, apps, sign-ins
+ * by site and account, never a key), and for a space (not a linked item) what the app's Code tab shows.
  */
 export function spaceReport(space, env = process.env) {
   const state = gitState(space.dir);
@@ -598,6 +606,7 @@ export function spaceReport(space, env = process.env) {
       ...(item.summary && { summary: item.summary }),
       ...(item.changed && { changed: true }),
       ...(item.media.length && { media: item.media.length }),
+      ...(item.needs && { needs: item.needs }),
     })),
     ...(!space.item && { code: spaceCode(space.dir) }),
   };
@@ -1736,6 +1745,18 @@ async function add(args, flags, env) {
   return 0;
 }
 
+/** The run sheet a new skill starts with: one row a step, filled in as the skill is written. */
+const RUN_SHEET = `## Where it runs
+
+What each step needs, so it runs in the cloud or on a device (the words: render, key:<name>, mcp:<id>,
+app:<name>, browser:<site>[/<account>], media:library; \`nothing\` for none). The space's page reads the
+keys from here.
+
+| Step | Needs | A person's yes | Safe to repeat | Without it |
+|---|---|---|---|---|
+| 1. <The first step> | nothing | no | yes | - |
+`;
+
 async function create(args, flags, env) {
   const [kind, name] = args;
   if (!KINDS[kind] || !name) throw new Error('mm space new <skill|mcp|app> <name> [--project=<project>]');
@@ -1752,9 +1773,9 @@ async function create(args, flags, env) {
   if (fs.existsSync(at)) throw new Error(`${KINDS[kind]}/${name} already exists.`);
   fs.mkdirSync(at, { recursive: true });
   if (kind === 'skill') {
-    fs.writeFileSync(path.join(at, 'SKILL.md'), `---\nname: ${name}\ndescription: <What it does, and when Claude should use it: "Use when the user says …">\nmetadata:\n  version: 0.1.0\n---\n\n# ${humanize(name)}\n\n<The steps.>\n`);
+    fs.writeFileSync(path.join(at, 'SKILL.md'), `---\nname: ${name}\ndescription: <What it does, and when Claude should use it: "Use when the user says …">\nmetadata:\n  version: 0.1.0\n---\n\n# ${humanize(name)}\n\n<The steps.>\n\n${RUN_SHEET}`);
   } else {
-    writeJson(path.join(at, 'item.json'), { title: humanize(name), summary: `<What this ${kind === 'mcp' ? 'MCP' : 'app'} does, in one line>`, version: '0.1.0', media: [] });
+    writeJson(path.join(at, 'item.json'), { title: humanize(name), summary: `<What this ${kind === 'mcp' ? 'MCP' : 'app'} does, in one line>`, version: '0.1.0', needs: [], media: [] });
     fs.writeFileSync(path.join(at, 'README.md'), `# ${humanize(name)}\n\n<What it is, and how to run or install it on a new computer.>\n`);
   }
   console.log(`✔ ${tilde(at)}${space.project ? ` (${space.project.name}'s space: everyone on the project gets it)` : ' (your space: only you)'}`);
