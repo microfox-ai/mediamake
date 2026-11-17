@@ -17,17 +17,15 @@ import { usePost } from './use-post';
 export function LinkForm({
   provider,
   label,
-  maySignUp,
   redirectTo,
 }: {
   provider: string;
   label: string;
-  maySignUp: boolean;
   redirectTo?: string;
 }) {
   const [clientId, setClientId] = useState('');
   const [clientKey, setClientKey] = useState('');
-  const [showKeyForm, setShowKeyForm] = useState(!maySignUp);
+  const [showKeyForm, setShowKeyForm] = useState(false);
   const { post, busy, error } = usePost();
   const done = (result: { redirectTo?: string } | null) => {
     if (result) window.location.assign(safeRedirect(result.redirectTo ?? redirectTo, AFTER_SIGN_IN));
@@ -53,23 +51,17 @@ export function LinkForm({
         </Link>
       }
     >
-      {maySignUp ? (
-        <Button className="w-full" onClick={create} disabled={busy}>
-          Create a new account
-        </Button>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Sign-up is invite only for now. Open your invite link to make an account, or link the account you already have.
-        </p>
-      )}
-      {maySignUp && !showKeyForm && (
+      <Button className="w-full" onClick={create} disabled={busy}>
+        Create a new account
+      </Button>
+      {!showKeyForm && (
         <Button variant="ghost" className="w-full" onClick={() => setShowKeyForm(true)}>
           I already have a client ID and key
         </Button>
       )}
       {showKeyForm && (
         <>
-          {maySignUp && <Divider>or link the account you have</Divider>}
+          <Divider>or link the account you have</Divider>
           <form onSubmit={link} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="clientId">Client ID</Label>
@@ -88,7 +80,7 @@ export function LinkForm({
                 Any working API key of that account. From then on you sign in with {provider}.
               </p>
             </div>
-            <Button type="submit" variant={maySignUp ? 'outline' : 'default'} className="w-full" disabled={busy}>
+            <Button type="submit" variant="outline" className="w-full" disabled={busy}>
               Link my account
             </Button>
           </form>

@@ -125,11 +125,11 @@ export function HomePage({
                 'Nothing shared with you here yet.'
               ) : (
                 <>
-                  Releases are invite only for now.{' '}
+                  Releases open by membership.{' '}
                   <Link href="/login" className="font-medium text-foreground underline underline-offset-4">
                     Sign in
                   </Link>{' '}
-                  to see what's shared with you.
+                  to see what yours opens.
                 </>
               )}
             </div>

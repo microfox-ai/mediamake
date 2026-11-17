@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { requireAdmin } from '@/lib/admin-utils';
 import { listAccounts } from '@/lib/auth/accounts';
 import { catalogIndex } from '@/lib/catalog/admin-index';
-import { accessGroupsDB, accessInvitesDB, accessRequestsDB } from '@/lib/catalog/store';
+import { accessGroupsDB, accessRequestsDB } from '@/lib/catalog/store';
 import { NETWORK_GROUP, PRIVATE_GROUP } from '@/lib/catalog/types';
 import { mailConfigured } from '@/lib/mail/send';
-import { adminsAmong, changeTier, grantContribution, inviteByMail, inviteLink, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
+import { adminsAmong, changeTier, grantContribution, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
 import { auditLog } from '@/lib/memberships/audit';
 import { buildPeople } from '@/lib/memberships/people';
 import { membershipsDB } from '@/lib/memberships/store';
@@ -19,14 +19,12 @@ import { publicOrigin } from '@/lib/mcp/oauth';
  * Manage Memberships, for admins (behind the middleware, so x-client-id is
  * the caller).
  *
- * GET   everyone with their tier and how they got it, pending requests, live
- *       invites and the audit log (lib/memberships/people and /audit).
+ * GET   everyone with their tier and how they got it, pending requests and the
+ *       audit log (lib/memberships/people and /audit). There are no invites: a
+ *       membership is applied for (a contribution, reviewed) or given by an admin.
  * POST  { type: 'set_tier', clientId, tier, reason, source?, ref?, days?, permanent?, notify? }
  *         puts a person at one tier. A reason is required here: it is what the audit log shows.
  *       { type: 'make_permanent', membershipId, notify? }
- *       { type: 'invite', tier, email?, note?, grantDays? }
- *         with an email, mails a link that works once; without, makes a link for up to `maxUses` people.
- *       { type: 'disable_invite', code }
  *       { type: 'resolve_request', requestId, approve, note?, days?, notify? }
  *       { type: 'confirm_suggestion', clientId, pull, notify? }
  *         gives Plus for 3 months for a merged pull request (`pull` is owner/name#12, from `suggestions`).
@@ -64,12 +62,11 @@ async function safely<T>(what: string, load: Promise<T>, fallback: T): Promise<T
 export async function GET(req: NextRequest) {
   if (!(await admin(req))) return forbidden();
 
-  const [accounts, keyHolders, memberships, groups, invites, requests, titles, merged, dismissed] = await Promise.all([
+  const [accounts, keyHolders, memberships, groups, requests, titles, merged, dismissed] = await Promise.all([
     safely('accounts', listAccounts(), []),
     listKeyHolders(),
     safely('memberships', membershipsDB.list({ includeEnded: true }), []),
     safely('groups', accessGroupsDB.list(), []),
-    safely('invites', accessInvitesDB.list(), []),
     safely('requests', accessRequestsDB.list(), []),
     safely(
       'item titles',
@@ -89,16 +86,10 @@ export async function GET(req: NextRequest) {
     admins: await adminsAmong(everyone),
   });
 
-  const now = new Date().toISOString();
-  const origin = publicOrigin(req);
   return NextResponse.json({
     people,
     requests: requests.filter(request => request.status === 'pending'),
-    // invites into a membership; the ones that only open items are on Releases
-    invites: invites
-      .filter(invite => invite.tier && !invite.disabledAt && invite.uses < invite.maxUses && (!invite.expiresAt || invite.expiresAt > now))
-      .map(invite => ({ ...invite, url: inviteLink(origin, invite.code) })),
-    audit: auditLog({ memberships, invites, requests }),
+    audit: auditLog({ memberships, requests }),
     suggestions: suggestGrants({ pulls: merged.pulls, people, dismissed }),
     suggestionProblems: merged.problems,
     titles,
@@ -123,15 +114,6 @@ const actions = z.discriminatedUnion('type', [
     notify: z.boolean().optional(),
   }),
   z.object({ type: z.literal('make_permanent'), membershipId: text(100).min(1), notify: z.boolean().optional() }),
-  z.object({
-    type: z.literal('invite'),
-    tier,
-    email: z.union([z.literal(''), text(254).email('That is not an email address')]).optional(),
-    note: text(500).optional(),
-    grantDays: days.optional(),
-    maxUses: z.coerce.number().int().min(1).max(100).optional(),
-  }),
-  z.object({ type: z.literal('disable_invite'), code: text(100).min(1) }),
   z.object({
     type: z.literal('resolve_request'),
     requestId: text(100).min(1),
@@ -174,30 +156,6 @@ export async function POST(req: NextRequest) {
       case 'make_permanent': {
         const made = await makePermanent({ membershipId: body.membershipId, by: adminId, origin, notify: body.notify });
         return made ? NextResponse.json(made) : NextResponse.json({ error: 'No live membership with that id' }, { status: 404 });
-      }
-
-      case 'invite': {
-        const inviteTier = body.tier as (typeof GRANTABLE_TIERS)[number];
-        if (body.email) {
-          return NextResponse.json(
-            await inviteByMail({ email: body.email, tier: inviteTier, note: body.note || undefined, grantDays: body.grantDays, by: adminId, origin }),
-          );
-        }
-        const invite = await accessInvitesDB.create({
-          itemIds: [],
-          tier: inviteTier,
-          maxUses: body.maxUses ?? 10,
-          grantDays: body.grantDays,
-          expiresAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
-          createdBy: adminId,
-          note: body.note || undefined,
-        });
-        return NextResponse.json({ invite, url: inviteLink(origin, invite.code) });
-      }
-
-      case 'disable_invite': {
-        await accessInvitesDB.disable(body.code);
-        return NextResponse.json({ success: true });
       }
 
       case 'resolve_request': {

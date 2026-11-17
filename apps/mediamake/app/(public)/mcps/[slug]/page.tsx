@@ -5,7 +5,7 @@ import { CatalogItemPage, viewableItem } from '@/components/catalog/item-page';
 
 type Props = { params: Promise<{ slug: string }> };
 
-// who is viewing decides what they can see and do (private items, install codes)
+// who is viewing decides what they can see and do (what their membership opens)
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { CheckIcon, CopyIcon, LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 
 /** A skill page's buttons: copy the install prompt, and copy (or share) the page's link. */
-export function SkillActions({ itemId, installPrompt, title }: { itemId: string; installPrompt: string; title: string }) {
+export function SkillActions({ installPrompt, title }: { installPrompt: string; title: string }) {
   const [copied, setCopied] = useState<'prompt' | 'link' | null>(null);
   const flash = (what: 'prompt' | 'link') => {
     setCopied(what);
@@ -18,7 +17,7 @@ export function SkillActions({ itemId, installPrompt, title }: { itemId: string;
       <Button
         title={installPrompt}
         onClick={async () => {
-          await copyInstallPrompt(itemId, installPrompt).catch(() => navigator.clipboard?.writeText(installPrompt));
+          await navigator.clipboard?.writeText(installPrompt).catch(() => undefined);
           flash('prompt');
         }}
       >

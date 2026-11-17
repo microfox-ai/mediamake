@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import { LoginForm } from '@/components/auth/login-form';
-import { maySignUp } from '@/lib/auth/accounts';
 import { configuredProviders } from '@/lib/auth/providers';
 import { safeRedirect } from '@/lib/auth/redirect';
 
@@ -23,7 +22,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Params
       <LoginForm
         providers={configuredProviders()}
         redirectTo={redirectTo}
-        showSignup={await maySignUp(redirectTo)}
         initialError={one(params.error)?.slice(0, 200)}
       />
     </Suspense>

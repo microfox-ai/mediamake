@@ -2,21 +2,18 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { toast } from 'sonner';
-import { Copy, Link2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { isAlwaysPublic, type CatalogItemRecord } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { siteUrl } from '@/lib/catalog/install-prompt';
 import { cn } from '@/lib/utils';
 import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { PersonPicker } from './person-picker';
 import {
   TIER_META,
-  adminCall,
   formatDate,
   gateOf,
   grantsFor,
@@ -28,7 +25,7 @@ import {
   type AdminCatalog,
 } from './model';
 
-/** Who can open one item, and controls to grant, revoke and invite. */
+/** Who can open one item, and controls to grant and revoke. */
 export function ItemAccessSheet({
   data,
   item,
@@ -41,8 +38,6 @@ export function ItemAccessSheet({
   run: (label: string, body: Record<string, unknown>) => Promise<boolean>;
 }) {
   const [days, setDays] = useState('');
-  const [uses, setUses] = useState('5');
-  const [invite, setInvite] = useState<string | null>(null);
 
   if (!item) return <Sheet open={false} />;
 
@@ -60,28 +55,11 @@ export function ItemAccessSheet({
       : { label: data.publicReleasesOpen ? 'Everyone' : 'Everyone (locked site-wide)', on: tier === 'public' && data.publicReleasesOpen },
   ];
 
-  const createInvite = async () => {
-    try {
-      const { invite: created } = await adminCall<{ invite: { code: string } }>({
-        type: 'create_invite',
-        itemIds: [item.id],
-        maxUses: Number(uses) || 1,
-        grantDays: Number(days) || undefined,
-      });
-      setInvite(`${siteUrl() ?? window.location.origin}/access?code=${created.code}`);
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  };
-
   return (
     <Sheet
       open
       onOpenChange={open => {
-        if (!open) {
-          setInvite(null);
-          onClose();
-        }
+        if (!open) onClose();
       }}
     >
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-md">
@@ -137,7 +115,6 @@ export function ItemAccessSheet({
                     <p className="truncate text-xs text-muted-foreground">
                       {g.itemId === item.id ? 'This item' : g.itemId === '*' ? 'Every item' : `Every ${item.kind}`}
                       {g.expiresAt ? ` · until ${formatDate(g.expiresAt)}` : ''}
-                      {g.inviteCode ? ' · via invite' : ''}
                     </p>
                   </div>
                   {g.itemId === item.id && (
@@ -157,6 +134,10 @@ export function ItemAccessSheet({
           ) : (
             <p className="text-sm text-muted-foreground">No one has a grant yet.</p>
           )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="grant-days" className="text-xs text-muted-foreground">Access lasts (days)</Label>
+            <Input id="grant-days" type="number" min={1} placeholder="No limit" value={days} onChange={e => setDays(e.target.value)} className="h-9 w-32" />
+          </div>
           <div className="flex flex-col gap-2">
             <Label className="text-xs text-muted-foreground">Give someone access{tier === 'admin' ? ' (vault items open only by grant)' : ''}</Label>
             <PersonPicker
@@ -175,37 +156,6 @@ export function ItemAccessSheet({
           </div>
         </section>
 
-        <section className="flex flex-col gap-3 p-5">
-          <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Invite link</h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="invite-uses" className="text-xs">Uses</Label>
-              <Input id="invite-uses" type="number" min={1} value={uses} onChange={e => setUses(e.target.value)} className="h-9" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="grant-days" className="text-xs">Access lasts (days)</Label>
-              <Input id="grant-days" type="number" min={1} placeholder="No limit" value={days} onChange={e => setDays(e.target.value)} className="h-9" />
-            </div>
-          </div>
-          {invite ? (
-            <div className="flex gap-2">
-              <Input readOnly value={invite} className="h-9 font-mono text-xs" />
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9"
-                onClick={() => navigator.clipboard.writeText(invite).then(() => toast.success('Invite link copied'))}
-              >
-                <Copy className="size-4" />
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={createInvite}>
-              <Link2 className="size-4" /> Create invite link
-            </Button>
-          )}
-          <p className="text-xs text-muted-foreground">The access length also applies to grants made above.</p>
-        </section>
       </SheetContent>
     </Sheet>
   );

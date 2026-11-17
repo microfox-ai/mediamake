@@ -7,7 +7,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogVisibility, ViewerTier } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +22,7 @@ const stageLabel: Record<Stage, string> = {
 };
 
 /** Where people go for their own projects: the tools that moved out of this MCP. */
-const PROJECTSYNC = '/access?item=mcp/projectsync';
+const PROJECTSYNC = '/mcps/projectsync';
 
 /** What the old connector still offers, by area (packages/mediamake-mcp/src/tools); the catalog is mm-release's. */
 const TOOL_AREAS: { area: string; does: string; tools: string[] }[] = [
@@ -99,10 +98,9 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
       {canConnect && (
         <Section title="The quick way: one prompt">
           <p>
-            Paste this into Claude Code. Claude adds the connector and tells you how to sign in. The copy has an install
-            code in it, so Claude won&apos;t ask for your API key.
+            Paste this into Claude Code. Claude adds the connector and tells you how to sign in.
           </p>
-          <CopyBlock text={installPrompt} label="Copy setup prompt" onCopy={() => copyInstallPrompt('mcp/mediamake', installPrompt)} />
+          <CopyBlock text={installPrompt} label="Copy setup prompt" />
         </Section>
       )}
 
@@ -360,8 +358,8 @@ function Kbd({ children }: { children: React.ReactNode }) {
   return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">{children}</code>;
 }
 
-/** Text to copy, shown whole, with its copy button. `onCopy` replaces the plain clipboard write. */
-function CopyBlock({ text, label, onCopy, className }: { text: string; label: string; onCopy?: () => Promise<void>; className?: string }) {
+/** Text to copy, shown whole, with its copy button. */
+function CopyBlock({ text, label, className }: { text: string; label: string; className?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className={cn('flex flex-col gap-2 rounded-lg border bg-muted/40 p-3 sm:flex-row sm:items-start', className)}>
@@ -372,7 +370,7 @@ function CopyBlock({ text, label, onCopy, className }: { text: string; label: st
         className="shrink-0 self-end sm:self-start"
         onClick={async () => {
           try {
-            await (onCopy ? onCopy() : navigator.clipboard.writeText(text));
+            await navigator.clipboard.writeText(text);
           } catch {
             return; // no clipboard access: the text is right there to copy by hand
           }

@@ -145,21 +145,6 @@ export function membershipChangedMail(to: string, change: MembershipChange): Mai
   });
 }
 
-/** Sent to someone an admin invites into a membership. The link works once. */
-export function inviteMail(to: string, input: { tier: string; url: string; note?: string; days?: number }): Mail {
-  const lines = [`You are invited to MediaMake as a ${input.tier} member.`];
-  if (input.note) lines.push(input.note);
-  lines.push('Open the link, sign in or make an account, and the membership is yours.');
-  return layout({
-    to,
-    subject: `Your invite to MediaMake (${input.tier})`,
-    heading: 'You are invited to MediaMake',
-    lines,
-    button: { label: 'Accept the invite', url: input.url },
-    footer: `The link works once${input.days ? `, for ${input.days} days` : ''}. If you were not expecting it, ignore this mail and nothing happens.`,
-  });
-}
-
 /** Someone was given a cloud project, or invited to one before they have an account. */
 export function projectSharedMail(to: string, input: { project: string; by: string; role: 'editor' | 'viewer'; url: string; hasAccount: boolean }): Mail {
   const can = input.role === 'editor' ? 'open everything in it, and add or change its productions, releases, media and brand kit' : 'open and download everything in it';

@@ -160,7 +160,8 @@ download from.
 Every catalog item (skill, MCP, app, tutorial) has a page for admins,
 `https://mediamake.microfox.app/app/releases/<kind>/<slug>` (e.g. `/app/releases/mcp/browse-hack`):
 what it is, who can open it, where it lives, what installing it does, and what needs or uses it.
-`/app/releases` lists every item.
+`/app/releases` lists every item. The item's public page, the link to share, is
+`https://mediamake.microfox.app/skills/<slug>` (`/mcps/<slug>`, `/apps/<slug>`).
 
 - After any release step, give the user the link of each item it touched: `npm run catalog --
   release | add | promote | schedule | vault | grant | archive` and mm-release's `catalog_*`
@@ -172,12 +173,13 @@ what it is, who can open it, where it lives, what installing it does, and what n
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
   plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
-  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_invite`, `catalog_set_video` (a skill's
+  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_video` (a skill's
   intro, a tutorial's video, a course's lessons; YouTube only) and `catalog_add_video_item` (a new
   tutorial or course), and for people `catalog_people`,
   `catalog_set_tier` and `catalog_membership` (the ladder is strict: Public, Plus, Pro, Cohort, Admin,
   each opening everything below it; a membership earned by contributing lasts 3 months unless an admin
-  makes it permanent).
+  makes it permanent). There are no invite codes: a membership is applied for (a contribution,
+  reviewed by an admin, or a request on the Subscription page) or given by an admin.
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
 
 ## Items: installed with the sign-in
@@ -188,16 +190,16 @@ the account's membership opens by itself. `mm items` shows the account, its tier
 app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
 them all, `mm items install <id> --yes` one (`tools/items.mjs`).
 
-- Never ask the user for the site address, an install prompt or an install code when `mm items` says
-  they are signed in. The site is `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else
-  `https://mediamake.microfox.app`.
+- Never ask the user for the site address or an install prompt when `mm items` says they are
+  signed in. Access follows the membership: there are no release or install codes. The site is
+  `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else `https://mediamake.microfox.app`.
 - Having access is the yes: install what their membership opens without asking, then do what the
   command lists as left (a new Chrome extension needs their one click on "Load unpacked").
 - Not signed in: run `mm login` yourself (give it up to 5 minutes) and ask the user to click Allow in
   the tab it opens. Never ask them to make, copy or paste an API key; `mm login --key` (a key on
   stdin) is only for a computer with no browser. `mm login status` says who is signed in,
   `mm logout` signs out (`tools/login.mjs`).
-- The install prompt with its code (`install.md`) is for computers without the repo or a sign-in.
+- The install prompt (`install.md`, no code in it) is for computers without the repo or a sign-in.
 
 ## Feedback: read it on /app/feedback, never paste it in public
 

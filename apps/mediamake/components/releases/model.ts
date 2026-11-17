@@ -4,7 +4,6 @@ import {
   itemTier,
   type AccessGrant,
   type AccessGroup,
-  type AccessInvite,
   type AccessRequest,
   type ArchiveMark,
   type CatalogItemRecord,
@@ -37,7 +36,6 @@ export interface AdminCatalog {
   cards: CatalogItemRecord[];
   grants: AccessGrant[];
   groups: AccessGroup[];
-  invites: AccessInvite[];
   requests: AccessRequest[];
   people: Person[];
   /** Every membership record, ended ones too (see lib/memberships). */
@@ -80,6 +78,8 @@ export interface ItemDetail {
   /** Titles by id, for everything in the catalog. */
   names: Record<string, string>;
   installPrompt?: string;
+  /** The public site the item's page is on (its link: site + itemPagePath). */
+  site?: string;
   /** A skill's, MCP's or app's launch video prompt: runs make-cwc-tutorial for it on an admin's computer (lib/catalog/launch-video). */
   launchVideoPrompt?: string;
   /** The titles of its open known issues (lib/feedback/known-issues). */

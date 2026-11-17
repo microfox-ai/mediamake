@@ -10,7 +10,6 @@ import {
   visibilityOfTier,
   type AccessGrant,
   type AccessGroup,
-  type AccessInvite,
   type AccessRequest,
   type AccessRequestStatus,
   type ArchiveMark,
@@ -21,7 +20,6 @@ import {
   type CatalogStatus,
   type CatalogVersion,
   type CatalogVideo,
-  type GrantableTier,
   type GrantSubject,
   type HealthMark,
   type InstallSpec,
@@ -41,7 +39,6 @@ const COL = {
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
-  invites: 'access_invites',
   requests: 'access_requests',
 } as const;
 
@@ -69,7 +66,6 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.grants).createIndex({ itemId: 1 });
   await db.collection(COL.groups).createIndex({ groupId: 1 }, { unique: true });
   await db.collection(COL.groups).createIndex({ members: 1 });
-  await db.collection(COL.invites).createIndex({ code: 1 }, { unique: true });
   await db.collection(COL.requests).createIndex({ requestId: 1 }, { unique: true });
   await db.collection(COL.requests).createIndex({ status: 1, createdAt: -1 });
   await db.collection(COL.downloads).createIndex({ itemId: 1, at: -1 });
@@ -601,86 +597,6 @@ export const accessGroupsDB = {
     await db
       .collection<AccessGroup>(COL.groups)
       .updateOne({ groupId }, { $pull: { members: { $in: clientIds } }, $set: { updatedAt: nowISO() } });
-  },
-};
-
-// ── Invites ──────────────────────────────────────────────────────────────────
-
-export const accessInvitesDB = {
-  async create(input: {
-    itemIds: (string | '*')[];
-    groupId?: string;
-    tier?: GrantableTier;
-    email?: string;
-    maxUses?: number;
-    grantDays?: number;
-    expiresAt?: string;
-    createdBy?: string;
-    note?: string;
-  }): Promise<AccessInvite> {
-    const db = await getDatabase();
-    const invite: AccessInvite = {
-      // Short enough to paste in a chat, long enough not to be guessed.
-      code: randomBytes(8).toString('base64url'),
-      itemIds: input.itemIds,
-      groupId: input.groupId,
-      tier: input.tier,
-      email: input.email,
-      maxUses: input.maxUses ?? 1,
-      uses: 0,
-      redeemedBy: [],
-      grantDays: input.grantDays,
-      createdBy: input.createdBy,
-      createdAt: nowISO(),
-      expiresAt: input.expiresAt,
-      note: input.note,
-    };
-    await db.collection<AccessInvite>(COL.invites).insertOne(withoutUndefined(invite) as AccessInvite);
-    return invite;
-  },
-
-  async list(): Promise<AccessInvite[]> {
-    const db = await getDatabase();
-    return db
-      .collection<AccessInvite>(COL.invites)
-      .find({}, { projection: { _id: 0 } })
-      .sort({ createdAt: -1 })
-      .toArray();
-  },
-
-  async disable(code: string) {
-    const db = await getDatabase();
-    await db.collection<AccessInvite>(COL.invites).updateOne({ code }, { $set: { disabledAt: nowISO() } });
-  },
-
-  /**
-   * Atomically takes one use of a live invite for `clientId`. Returns the
-   * invite, or a reason it cannot be used.
-   */
-  async claim(code: string, clientId: string): Promise<{ invite: AccessInvite } | { error: string }> {
-    const db = await getDatabase();
-    const now = nowISO();
-    const claimed = await db.collection<AccessInvite>(COL.invites).findOneAndUpdate(
-      {
-        code,
-        disabledAt: { $exists: false },
-        'redeemedBy.clientId': { $ne: clientId },
-        $expr: { $lt: ['$uses', '$maxUses'] },
-        $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }],
-      },
-      { $inc: { uses: 1 }, $push: { redeemedBy: { clientId, at: now } } },
-      { returnDocument: 'after', projection: { _id: 0 } },
-    );
-    if (claimed) return { invite: claimed };
-
-    const existing = await db.collection<AccessInvite>(COL.invites).findOne({ code });
-    if (!existing) return { error: 'This invite code does not exist.' };
-    if (existing.redeemedBy.some(r => r.clientId === clientId)) {
-      return { error: 'You already redeemed this invite.' };
-    }
-    if (existing.disabledAt) return { error: 'This invite was turned off.' };
-    if (existing.expiresAt && existing.expiresAt <= now) return { error: 'This invite has expired.' };
-    return { error: 'This invite has been used up.' };
   },
 };
 

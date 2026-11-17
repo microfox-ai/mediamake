@@ -2,11 +2,12 @@ import { Redis } from '@upstash/redis';
 import { createHash, randomBytes } from 'crypto';
 
 /**
- * Update tokens keep installed items up to date without an install code each
- * time. At the end of an install, install.md trades the install code for one
- * (POST /api/catalog/update-token) and saves it in ~/.mediamake/config.json
- * as `updateToken`. Installed MCPs use it to check for new versions on their
- * own, and Claude uses it when someone says "update <item>".
+ * Update tokens keep installed items up to date without the computer's API
+ * key, which stays in the Keychain. At the end of an install, `mm items
+ * install` asks for one (POST /api/catalog/update-token) and saves it in
+ * ~/.mediamake/config.json as `updateToken`. Installed MCPs use it to check
+ * for new versions on their own, and Claude uses it when someone says
+ * "update <item>".
  *
  * A token stands for one person and the items installed with it (plus their
  * dependencies). It is only accepted by GET /api/catalog/versions and

@@ -1,12 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { AccessLevel } from '@/lib/catalog/types';
 
 export function AccessActions({
@@ -37,7 +34,7 @@ export function AccessActions({
   if (access !== 'locked') {
     if (!installPrompt) return <p className="text-sm text-muted-foreground">You have access. No download is published yet.</p>;
     // installed from where it lives (a skill in the repo, an MCP from its maker): nothing of ours to download
-    if (!hasPackage) return <InstallPrompt itemId={itemId} prompt={installPrompt} signedIn={signedIn} worksWith={worksWith} />;
+    if (!hasPackage) return <InstallPrompt itemId={itemId} prompt={installPrompt} worksWith={worksWith} />;
     if (!signedIn) {
       return (
         <Button asChild>
@@ -47,7 +44,7 @@ export function AccessActions({
     }
     return (
       <div className="space-y-4">
-        <InstallPrompt itemId={itemId} prompt={installPrompt} signedIn worksWith={worksWith} />
+        <InstallPrompt itemId={itemId} prompt={installPrompt} worksWith={worksWith} />
         <Button asChild variant="outline">
           <a href={`/api/catalog/download?item=${encodeURIComponent(itemId)}&redirect=1`}>Download package</a>
         </Button>
@@ -99,94 +96,43 @@ export function AccessActions({
   );
 }
 
-export function RedeemInvite({
-  initialCode,
-  signedIn,
-  loginHref,
-}: {
-  initialCode: string;
-  signedIn: boolean;
-  loginHref: string;
-}) {
-  const router = useRouter();
-  const [code, setCode] = useState(initialCode);
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-
-  if (!signedIn) {
-    return (
-      <Button asChild variant="outline">
-        <Link href={loginHref}>Sign in to redeem</Link>
-      </Button>
-    );
-  }
-
-  async function redeem() {
-    setBusy(true);
-    setResult(null);
-    const res = await fetch('/api/catalog/redeem', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.trim() }),
-    });
-    const json = await res.json().catch(() => ({}));
-    setBusy(false);
-    if (!res.ok) return setResult({ ok: false, text: json.error ?? 'Something went wrong' });
-    const what = [
-      ...(json.itemIds ?? []).map((id: string) => (id === '*' ? 'everything' : id)),
-      ...(json.groupId ? [`the ${json.groupId} group`] : []),
-    ].join(', ');
-    // an invite into a membership names its tier
-    const tier = typeof json.tier === 'string' ? json.tier[0].toUpperCase() + json.tier.slice(1) : null;
-    setResult({ ok: true, text: [tier && `You are a ${tier} member now.`, what && `Unlocked ${what}.`].filter(Boolean).join(' ') || 'Done.' });
-    router.refresh();
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Input placeholder="Invite code" value={code} onChange={e => setCode(e.target.value)} />
-        <Button onClick={redeem} disabled={busy || !code.trim()}>
-          {busy ? 'Redeeming…' : 'Redeem'}
-        </Button>
-      </div>
-      {result && <p className={`text-sm ${result.ok ? 'text-muted-foreground' : 'text-destructive'}`}>{result.text}</p>}
-    </div>
-  );
-}
-
-/** The paste-into-Claude prompt that installs an item and what it needs. */
+/**
+ * How to install an item: on a computer signed in to MediaMake, `mm items install` (it installs what
+ * the membership opens, nothing pasted); elsewhere, the paste-into-Claude prompt that installs it and
+ * what it needs, where whoever pastes it signs in as themselves.
+ */
 export function InstallPrompt({
   itemId,
   prompt,
-  signedIn,
   worksWith = false,
 }: {
   itemId: string;
   prompt: string;
-  signedIn: boolean;
   worksWith?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const membersOnly = !itemId.startsWith('skill/');
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">Install with Claude</p>
+      {membersOnly && (
+        <p className="text-sm text-muted-foreground">
+          On a computer with MediaMake, sign in once with <code className="text-xs">mm login</code>; then{' '}
+          <code className="text-xs">mm items install {itemId} --yes</code> installs it, and{' '}
+          <code className="text-xs">mm items install --yes</code> everything your membership opens.
+        </p>
+      )}
       <p className="text-sm text-muted-foreground">
-        Copy this and paste it into Claude Code or Claude Desktop. It installs this and everything it needs
+        {membersOnly ? 'Anywhere else, copy' : 'Copy'} this and paste it into Claude Code or Claude Desktop. It installs this and everything it needs
         {worksWith ? ', asks which of the MCPs it works with to add (and what you lose without each),' : ''} and tells you
-        when it needs you.{' '}
-        {signedIn
-          ? "The copy carries a one-time install code (valid for 2 hours), so Claude won't ask for your API key."
-          : worksWith
-            ? 'Sign in first if MediaMake shared MCPs with you: the copy then carries an install code, so Claude can add them too.'
-            : ''}
+        when it needs you.
       </p>
       <div className="flex flex-wrap gap-2">
         <code className="min-w-0 flex-1 basis-56 rounded-md border bg-muted px-3 py-2 text-xs break-words">{prompt}</code>
         <Button
           variant="secondary"
           onClick={async () => {
-            await copyInstallPrompt(itemId, prompt);
+            await navigator.clipboard?.writeText(prompt).catch(() => undefined);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}

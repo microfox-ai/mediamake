@@ -101,7 +101,7 @@ Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is se
 
 ### mm-release (admins)
 
-`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_invite`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
+`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
 
 ### mediamake (deprecated, admins)
 
@@ -126,14 +126,14 @@ inactive, archived, or failed with the reason, shown on their cards and pages), 
 Ready with the finished productions that prove it (or back to Beta), `catalog_set_stage` sets the lowest
 membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (public, plus, pro, cohort or
 the vault), `catalog_add_third_party`
-lists an open-source or hosted MCP or skill made by others, and `catalog_invite` makes an invite link
-(to items, or into a tier). Videos are YouTube links only: `catalog_set_video` sets a skill's intro (or
+lists an open-source or hosted MCP or skill made by others. There are no invite links: a membership is applied
+for (a contribution, reviewed) or given by an admin. Videos are YouTube links only: `catalog_set_video` sets a skill's intro (or
 an MCP's or app's), a tutorial's video or a course's lessons, keeping the fields left out, and
 `catalog_add_video_item` adds a tutorial or course (it starts with the cohort). On the local server
 `thumbnailFile` uploads a thumbnail from this computer; on the hosted one, pass an https link. People: the memberships are a
 strict ladder (Public, Plus, Pro, Cohort, Admin), each opening everything below it. `catalog_people` shows who holds
 each one, how they got it and how long it lasts; `catalog_set_tier` gives people a Plus, Pro or Cohort membership
-(or takes it away) by client id or name, with its source (an admin grant, a contribution, an invite); and
+(or takes it away) by client id or name, with its source (an admin grant or a contribution); and
 `catalog_membership` makes one permanent, renews it for a new contribution or ends it. A membership earned by
 contributing lasts 3 months unless an admin makes it permanent.
 Every answer carries the release page of each item (`/core/releases/<kind>/<slug>`) to give the user.

@@ -141,17 +141,12 @@ before(async () => {
   routes.oldSignup = (await import('../../app/api/signup/route')).POST as unknown as Handler;
 });
 
-let liveInvites: string[] = [];
 
 beforeEach(() => {
   redis.clear();
   users.clear();
   mails.length = 0;
   for (const key of Object.keys(profiles)) delete profiles[key];
-  liveInvites = [];
-  accounts.authDeps.inviteIsLive = async code => liveInvites.includes(code);
-  // Anyone can sign up unless MEDIAMAKE_SIGNUP=invite.
-  delete process.env.MEDIAMAKE_SIGNUP;
   // Accounts from before sign-in: a client id and a key, no user record.
   for (const [clientId, apiKey] of [['alice', 'key-alice'], ['bob', 'key-bob'], ['admin', 'key-admin']]) {
     redis.hset(`apiKeys:${apiKey}`, ['id', apiKey, 'apiKey', apiKey, 'clientId', clientId, 'clientName', clientId, 'isValid', 'true']);
@@ -361,49 +356,7 @@ describe('email and password', () => {
   });
 });
 
-describe('invite-only sign-up', () => {
-  beforeEach(() => {
-    process.env.MEDIAMAKE_SIGNUP = 'invite';
-    liveInvites = ['INVITE1'];
-  });
-
-  it('refuses a new account without a live invite, by mail or by Google', async () => {
-    const browser = new Browser();
-    const body = { email: 'dana@example.com', password: 'correct horse', name: 'Dana' };
-    assert.equal((await browser.post(routes.signup, '/api/auth/signup', body)).status, 403);
-    assert.equal((await browser.post(routes.signup, '/api/auth/signup', { ...body, redirectTo: '/access?code=WRONG' })).status, 403);
-    assert.equal(mails.length, 0);
-
-    const { location } = await browser.oauth('google', { id: 'g-1', email: 'dana@example.com' });
-    assert.equal(location, '/login/link');
-    assert.equal((await accounts.describePending(browser.cookies.get('pending_identity')))!.maySignUp, false);
-    assert.equal((await browser.post(routes.link, '/api/auth/link', { create: true })).status, 403);
-    assert.equal(users.size, 0);
-  });
-
-  it('makes one for someone who came from an invite link, and sends them back to it', async () => {
-    const invite = '/access?code=INVITE1';
-    const mail = await signUp(new Browser(), 'dana@example.com', 'correct horse', 'Dana', invite);
-    assert.equal(mail.confirmed.body.redirectTo, invite);
-
-    const browser = new Browser();
-    const { location } = await browser.oauth('github', { id: '77', login: 'erin', email: 'erin@example.com' }, `?redirectTo=${encodeURIComponent(invite)}`);
-    assert.equal(location, `/login/link?redirectTo=${encodeURIComponent(invite)}`);
-    const made = await browser.post(routes.link, '/api/auth/link', { create: true });
-    assert.equal(made.status, 200);
-    assert.equal(made.body.redirectTo, invite);
-    assert.equal(users.get(made.body.clientId)!.githubLogin, 'erin');
-  });
-
-  it('still signs existing accounts in', async () => {
-    delete process.env.MEDIAMAKE_SIGNUP;
-    const { clientId } = await signUp(new Browser(), 'dana@example.com');
-    process.env.MEDIAMAKE_SIGNUP = 'invite';
-    const browser = new Browser();
-    assert.equal((await browser.post(routes.login, '/api/auth/login', { email: 'dana@example.com', password: 'correct horse' })).status, 200);
-    assert.equal(await browser.whoAmI(), clientId);
-  });
-
+describe('the old sign-up', () => {
   it('has retired the old route that gave anyone a key', async () => {
     const response = await new Browser().post(routes.oldSignup, '/api/signup', { clientId: 'mallory', clientName: 'Mallory' });
     assert.equal(response.status, 410);
@@ -423,7 +376,6 @@ describe('Google and GitHub', () => {
       provider: 'google',
       label: 'dana@example.com',
       redirectTo: '/apps',
-      maySignUp: true,
     });
 
     const made = await browser.post(routes.link, '/api/auth/link', { create: true });
@@ -734,14 +686,11 @@ describe('admins', () => {
 });
 
 describe('redirects', () => {
-  it('reads the invite code from an invite link’s address only', async () => {
-    const { inviteCodeFrom, safeRedirect, withRedirect } = await import('./redirect');
-    assert.equal(inviteCodeFrom('/access?code=ABC&item=skill%2Fx'), 'ABC');
-    assert.equal(inviteCodeFrom('/apps?code=ABC'), undefined);
-    assert.equal(inviteCodeFrom(undefined), undefined);
+  it('keeps redirects on this site', async () => {
+    const { safeRedirect, withRedirect } = await import('./redirect');
     assert.equal(safeRedirect('/oauth/authorize?client_id=x'), '/oauth/authorize?client_id=x');
     assert.equal(safeRedirect('https://evil.example', '/'), '/');
-    assert.equal(withRedirect('/signup', '/access?code=ABC'), '/signup?redirectTo=%2Faccess%3Fcode%3DABC');
+    assert.equal(withRedirect('/signup', '/access?item=skill%2Fx'), '/signup?redirectTo=%2Faccess%3Fitem%3Dskill%252Fx');
     assert.equal(withRedirect('/signup', '//evil.example'), '/signup');
   });
 });

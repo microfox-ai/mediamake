@@ -14,7 +14,7 @@
  * It uses the sign-in already on this computer (MEDIAMAKE_API_KEY, else the key `mm login` keeps in
  * the macOS Keychain, else `apiKey` in ~/.mediamake/config.json) and the site every other tool uses
  * (MEDIAMAKE_API_URL, else `url` in the config, else mediamake.microfox.app): nobody is asked for a
- * site address, an install prompt or an install code. The key is never printed.
+ * site address or an install prompt. The key is never printed.
  *
  * What install does itself, in the plan's order (install.md has the rules it follows):
  *   - a Chrome extension from a GitHub release: unzipped into ~/Extensions/<name>

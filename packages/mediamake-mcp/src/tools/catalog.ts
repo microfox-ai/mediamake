@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, mimeFromName, rejectLocalArgs, safe, withoutLocalArgs, type ToolOptions } from '../util.js';
+import { itemPagePath, json, mimeFromName, rejectLocalArgs, safe, withoutLocalArgs, type ToolOptions } from '../util.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: true } as const;
@@ -28,7 +28,7 @@ const PEOPLE_TIER = z.enum(['public', 'plus', 'pro', 'cohort']);
 const MEMBER_TIERS = ['cohort', 'pro', 'plus'] as const;
 const HEALTH = z.enum(['healthy', 'inactive', 'archived', 'failed']);
 /** How a membership was got (MEMBERSHIP_SOURCES in the app's lib/memberships/membership.ts). */
-const SOURCE_OF = z.enum(['admin', 'contribution', 'invite', 'paid']);
+const SOURCE_OF = z.enum(['admin', 'contribution', 'paid']);
 /** The groups of the tiers before the ladder, until the migration clears them. */
 const EARLIER_GROUPS: Record<string, (typeof MEMBER_TIERS)[number]> = { private: 'cohort', network: 'pro' };
 
@@ -50,7 +50,6 @@ type AdminPeople = {
   people: { clientId: string; name: string; activeKeys: number }[];
   groups: { groupId: string; members: string[] }[];
   memberships?: MembershipRecord[];
-  invites: { code: string; tier?: string; groupId?: string; uses: number; maxUses: number; expiresAt?: string; disabledAt?: string }[];
   requests: { clientId: string; itemId: string; message?: string }[];
 };
 
@@ -204,8 +203,12 @@ function stepLine(step: PlanStep): string {
 export function registerCatalogTools(server: McpServer, client: MediamakeClient, options: ToolOptions = { localFiles: true }) {
   /** The item's release page on the admin dashboard: give it to the user after any change. */
   const page = (id: string) => client.url(`/core/releases/${id}`);
-  /** Where the item's video plays: a course's own page, else the item's page. */
-  const plays = (id: string) => (id.startsWith('course/') ? client.url(`/${id.replace('course/', 'courses/')}`) : client.url('/access', { item: id }));
+  /** The item's own page for viewers, where its video plays: /skills/<slug>, /mcps/<slug>, /apps/<slug>, /courses/<slug>. */
+  const itemPage = (id: string) => {
+    const { path, query } = itemPagePath(id);
+    return client.url(path, query);
+  };
+  const plays = itemPage;
 
   /** Saves an item's whole video (POST set_video) and answers with what was stored. */
   const saveVideo = async (itemId: string, video: VideoBody) =>
@@ -314,7 +317,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: "Set items' health (admins)",
       description:
-        "Admins only. Say whether items work right now, for any kind (skills, MCPs, apps, tutorials), shown on their cards and install pages: healthy (works), inactive (works, but nobody uses or looks after it now), archived (kept for reference, no longer maintained) or failed (broken: people shouldn't install it until it is fixed). failed needs the reason in note: it is shown with the item. A failed item leaves the public site and Explore's default view, and stays on its own page with the reason. default clears an admin's mark, back to the repo's default (healthy when it has none). catalog_items shows each item's health (and filters by it). Give the user the release page links it answers with.",
+        "Admins only. Say whether items work right now, for any kind (skills, MCPs, apps, tutorials), shown on their cards and item pages: healthy (works), inactive (works, but nobody uses or looks after it now), archived (kept for reference, no longer maintained) or failed (broken: people shouldn't install it until it is fixed). failed needs the reason in note: it is shown with the item. A failed item leaves the public site and Explore's default view, and stays on its own page with the reason. default clears an admin's mark, back to the repo's default (healthy when it has none). catalog_items shows each item's health (and filters by it). Give the user the release page links it answers with.",
       inputSchema: {
         items: z.array(ITEM_ID).min(1).max(200),
         health: z.enum(['healthy', 'inactive', 'archived', 'failed', 'default']),
@@ -427,7 +430,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
         type: 'upsert_item',
         item: { kind, slug, title, summary, status: 'live', tags, madeBy, install: { source, ...(notes && { notes }) } },
       });
-      return json({ id, page: page(id), installPage: client.url('/access', { item: id }) });
+      return json({ id, page: page(id), itemPage: itemPage(id) });
     }),
   );
 
@@ -514,44 +517,6 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     }),
   );
 
-  server.registerTool(
-    'catalog_invite',
-    {
-      title: 'Invite people to catalog items or a membership (admins)',
-      description:
-        "Admins only. Make an invite link for whoever redeems it while signed in (new people sign up first); send it to the people the user names. With tier, it gives them that membership (plus, pro or cohort), recorded as joined by invite: the easy way to add people who have no MediaMake account yet. With items, it opens just those gated items. uses is how many people it works for, grantDays how long the membership or item access lasts (leave out for no limit), expiresInDays how long the link itself stays valid.",
-      inputSchema: {
-        items: z.array(ITEM_ID).min(1).max(20).optional(),
-        tier: PEOPLE_TIER.exclude(['public']).optional().describe('Give whoever redeems it this membership'),
-        uses: z.number().int().min(1).max(100).default(1),
-        grantDays: z.number().int().min(1).max(365).optional(),
-        expiresInDays: z.number().int().min(1).max(365).optional(),
-        note: z.string().max(200).optional().describe('Who it is for, shown to admins'),
-      },
-      annotations: WRITE,
-    },
-    safe(async ({ items, tier, uses, grantDays, expiresInDays, note }) => {
-      if (!items?.length && !tier) throw new Error('Give items, a tier (plus, pro or cohort), or both');
-      const { invite } = await client.post<{ invite: { code: string; maxUses: number; expiresAt?: string } }>('/api/admin/catalog', {
-        type: 'create_invite',
-        itemIds: items ?? [],
-        ...(tier && { tier }),
-        maxUses: uses,
-        grantDays,
-        expiresInDays,
-        note,
-      });
-      return json({
-        link: client.url('/access', { code: invite.code }),
-        uses: invite.maxUses,
-        ...(invite.expiresAt && { expiresAt: invite.expiresAt }),
-        ...(tier && { makesThem: `${tier} members` }),
-        ...(items && { items: items.map(id => ({ id, page: page(id) })) }),
-        people: client.url('/core/releases', { tab: 'people' }),
-      });
-    }),
-  );
-
   /** The admin dashboard's data: everything about people in one call. */
   const people = () => client.get<AdminPeople>('/api/admin/catalog');
 
@@ -581,7 +546,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Members and their tiers (admins)',
       description:
-        "Admins only. Who holds each membership: the cohort (everything but the vault; invisible to everyone below, admin-given only), Pro, Plus (cloud projects and Plus items), and everyone else with an API key (public). The ladder is strict: each tier opens everything below it. Each member comes with how they got it (an admin grant, a contribution with its PR or item, an invite, carried over from the earlier tiers), how long it lasts (a contribution lasts 3 months and renews by contributing again, unless an admin made it permanent) and its membership id. Also the live invite links into a tier and the pending access requests. Use it before catalog_set_tier to find people by name.",
+        "Admins only. Who holds each membership: the cohort (everything but the vault; invisible to everyone below, admin-given only), Pro, Plus (cloud projects and Plus items), and everyone else with an API key (public). The ladder is strict: each tier opens everything below it. Each member comes with how they got it (an admin grant, a contribution with its PR or item, an invite from before they were retired, carried over from the earlier tiers), how long it lasts (a contribution lasts 3 months and renews by contributing again, unless an admin made it permanent) and its membership id. Also the pending access requests. Use it before catalog_set_tier to find people by name.",
       inputSchema: {},
       annotations: READ,
     },
@@ -604,20 +569,11 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
                 }
               : { how: 'the earlier tiers, with no membership record yet: `npm run catalog -- migrate-tiers` gives them one' }),
           }));
-      const now = new Date().toISOString();
       return json({
         cohort: members('cohort'),
         pro: members('pro'),
         plus: members('plus'),
         public: data.people.filter(p => !held.has(p.clientId)).map(p => ({ clientId: p.clientId, name: p.name })),
-        tierInvites: data.invites
-          .filter(i => (i.tier || i.groupId) && !i.disabledAt && i.uses < i.maxUses && (!i.expiresAt || i.expiresAt > now))
-          .map(i => ({
-            tier: i.tier ?? EARLIER_GROUPS[i.groupId!] ?? i.groupId,
-            link: client.url('/access', { code: i.code }),
-            used: `${i.uses}/${i.maxUses}`,
-            ...(i.expiresAt && { expiresAt: i.expiresAt }),
-          })),
         pendingRequests: data.requests.map(r => ({ who: name(r.clientId), item: r.itemId, ...(r.message && { message: r.message }) })),
         page: client.url('/core/releases', { tab: 'people' }),
       });
@@ -629,7 +585,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Give people a membership (admins)',
       description:
-        "Admins only. Put people at a tier: plus, pro, cohort, or public (takes their membership away). Each person holds one tier, so this moves them: their live memberships end (kept as history) and one new record gives the tier, saying how they got it. source says how: admin (the default: you gave it, say why in note), contribution (earned with an accepted item or merged PR: name it in ref; it lasts 3 months and renews by contributing again), invite or paid. days sets how long it lasts; permanent: true makes it last until an admin removes it. Name people by client id or by the name on their API key (catalog_people lists them). Someone without a MediaMake account yet: make an invite link with catalog_invite and tier instead. To make an existing membership permanent or end it without moving the person, use catalog_membership.",
+        "Admins only. Put people at a tier: plus, pro, cohort, or public (takes their membership away). Each person holds one tier, so this moves them: their live memberships end (kept as history) and one new record gives the tier, saying how they got it. source says how: admin (the default: you gave it, say why in note), contribution (earned with an accepted item or merged PR: name it in ref; it lasts 3 months and renews by contributing again) or paid. days sets how long it lasts; permanent: true makes it last until an admin removes it. Name people by client id or by the name on their API key (catalog_people lists them). Someone without a MediaMake account yet signs up first (/signup); there are no invite links. To make an existing membership permanent or end it without moving the person, use catalog_membership.",
       inputSchema: {
         people: z.array(z.string().min(1)).min(1).max(50).describe('Client ids or names'),
         tier: PEOPLE_TIER,
@@ -651,7 +607,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
         if (byId) resolved.push(byId);
         else if (byName.length === 1) resolved.push(byName[0]);
         else if (byName.length > 1) problems.push(`"${typed}" matches ${byName.map(p => p.clientId).join(', ')}: use the client id`);
-        else problems.push(`No one with an API key is called "${typed}": check catalog_people, or invite them with catalog_invite and tier "${tier === 'public' ? 'plus' : tier}"`);
+        else problems.push(`No one with an API key is called "${typed}": check catalog_people; someone without an account signs up first (/signup)`);
       }
       if (problems.length) throw new Error(problems.join('\n'));
       const given: { clientId: string; name: string; lasts?: string }[] = [];

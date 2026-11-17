@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
 import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, mcpRunsOf, slugOf, toCard, toEntry, withHealth, type CatalogEntry, type CatalogItemRecord, type CatalogVideo, type HealthMark, type McpRuns, type UseShown } from '@/lib/catalog';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
 import { accessRequestsDB, catalogArchiveDB, catalogHealthDB, catalogVideosDB } from '@/lib/catalog/store';
 import { watchPath } from '@/lib/catalog/video';
+import { skillNamed } from '@/lib/skills/registry';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,23 +15,27 @@ import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { HealthBadge, HEALTH } from '@/components/catalog/health';
 import { OldBadge, RunsBadges } from '@/components/catalog/runs';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
-import { AccessActions, RedeemInvite } from './access-actions';
+import { AccessActions } from './access-actions';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * /access?item=skill/lyric-video  — install or download one item you have access to,
- *                                   and watch its video (a skill's intro, a tutorial).
- * /access?code=XXXX               — redeem an invite someone shared with you.
+ * /access?item=mcp/browse-hack — an item the viewer can open goes to its own page
+ *                                (/skills/<slug>, /mcps/<slug>, /apps/<slug>); here stay
+ *                                tutorials, skills with no page of their own (third-party,
+ *                                released by hand) and locked items (asking for access).
+ * /access with no item (an old invite link, /access?code=…) goes to Subscription:
+ * a membership is applied for there (a contribution, reviewed), or given by an admin.
  */
 export default async function AccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ item?: string; code?: string }>;
+  searchParams: Promise<{ item?: string }>;
 }) {
-  const { item: itemId, code } = await searchParams;
+  const { item: itemId } = await searchParams;
+  if (!itemId) redirect('/app/subscription');
   const viewer = await getViewer();
-  const here = `/access?${new URLSearchParams({ ...(itemId ? { item: itemId } : {}), ...(code ? { code } : {}) })}`;
+  const here = `/access?${new URLSearchParams({ item: itemId })}`;
   const loginHref = `/login?redirectTo=${encodeURIComponent(here)}`;
 
   let item: CatalogEntry | null = null;
@@ -59,6 +66,10 @@ export default async function AccessPage({
       const entry = toEntry(entitlements, toCard(record));
       // Locked items are hidden: answer as if they don't exist.
       if (entry.access !== 'locked') {
+        // old links: an MCP, an app or a repo skill has its own page
+        if ((record.kind === 'mcp' || record.kind === 'app' || (record.kind === 'skill' && skillNamed(slugOf(record.id))))) {
+          redirect(itemPagePath(record.id));
+        }
         item = entry;
         video = found;
         releases = releasesOf(record.versions, 20);
@@ -74,7 +85,7 @@ export default async function AccessPage({
             const used = healthy(fetchedUse);
             const shown = { ...use, runs: mcpRunsOf(used), alternativeTo: used.alternativeTo, health: used.health };
             return accessLevel(entitlements, used) !== 'locked'
-              ? { ...shown, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` }
+              ? { ...shown, title: used.title, href: itemPagePath(use.id) }
               : shown;
           }),
         );
@@ -82,7 +93,7 @@ export default async function AccessPage({
           const first = await getCatalogRecord(record.alternativeTo);
           preferred =
             first && accessLevel(entitlements, first) !== 'locked'
-              ? { id: first.id, title: first.title, href: `/access?item=${encodeURIComponent(first.id)}` }
+              ? { id: first.id, title: first.title, href: itemPagePath(first.id) }
               : { id: record.alternativeTo };
         }
       }
@@ -214,15 +225,6 @@ export default async function AccessPage({
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Have an invite code?</CardTitle>
-            <CardDescription>Redeem it to unlock what was shared with you.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RedeemInvite initialCode={code ?? ''} signedIn={!!viewer.clientId} loginHref={loginHref} />
-          </CardContent>
-        </Card>
       </div>
     </main>
   );

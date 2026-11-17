@@ -281,23 +281,13 @@ describe('catalog admin tools', () => {
     expect(out).toEqual({
       id: 'mcp/suno',
       page: 'http://mm.test/core/releases/mcp/suno',
-      installPage: 'http://mm.test/access?item=mcp%2Fsuno',
+      itemPage: 'http://mm.test/mcps/suno',
     });
   });
 
-  it('makes an invite link on the site', async () => {
-    const calls = stubApi(() => ({ invite: { code: 'abc123', maxUses: 5 } }));
-    const { out } = await call('catalog_invite', { items: ['mcp/browse-hack'], uses: 5, grantDays: 30 });
-    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: ['mcp/browse-hack'], maxUses: 5, grantDays: 30 });
-    expect(out.link).toBe('http://mm.test/access?code=abc123');
-  });
-
-  it('makes an invite link into a tier, and needs items or a tier', async () => {
-    const calls = stubApi(() => ({ invite: { code: 'grp1', maxUses: 10 } }));
-    const { out } = await call('catalog_invite', { tier: 'pro', uses: 10 });
-    expect(calls[0].body).toEqual({ type: 'create_invite', itemIds: [], tier: 'pro', maxUses: 10 });
-    expect(out.makesThem).toBe('pro members');
-    expect((await call('catalog_invite', {})).isError).toBe(true);
+  it('has no invite tool: memberships are applied for or given', async () => {
+    const { tools } = await (await connect(false, 'release')).listTools();
+    expect(tools.map(t => t.name)).not.toContain('catalog_invite');
   });
 
   const PEOPLE = {
@@ -316,14 +306,10 @@ describe('catalog admin tools', () => {
       { membershipId: 'mem_2', clientId: 'c3', tier: 'pro', source: 'admin', grantedAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-02-01T00:00:00.000Z' },
       { membershipId: 'mem_3', clientId: 'c2', tier: 'cohort', source: 'admin', grantedAt: '2026-01-01T00:00:00.000Z', revokedAt: '2026-03-01T00:00:00.000Z' },
     ],
-    invites: [
-      { code: 'live', tier: 'cohort', uses: 1, maxUses: 5 },
-      { code: 'off', groupId: 'network', uses: 0, maxUses: 5, disabledAt: '2026-01-01T00:00:00.000Z' },
-    ],
     requests: [{ clientId: 'c3', itemId: 'mcp/x' }],
   };
 
-  it('lists people by tier with live tier invites', async () => {
+  it('lists people by tier', async () => {
     stubApi(() => PEOPLE);
     const { out } = await call('catalog_people', {});
     // the earlier groups still count (private testers are the cohort, the community is Pro); ended memberships don't
@@ -332,7 +318,7 @@ describe('catalog admin tools', () => {
     expect(out.pro).toMatchObject([{ clientId: 'c2', name: 'Mia' }]);
     expect(out.plus).toEqual([{ clientId: 'c3', name: 'Ana', how: 'contribution (skill/y)', lasts: 'until 2999-02-01', membership: 'mem_1' }]);
     expect(out.public.map((p: any) => p.clientId)).toEqual(['c4']);
-    expect(out.tierInvites).toEqual([{ tier: 'cohort', link: 'http://mm.test/access?code=live', used: '1/5' }]);
+    expect(out.tierInvites).toBeUndefined();
     expect(out.pendingRequests).toEqual([{ who: 'Ana', item: 'mcp/x' }]);
   });
 
@@ -355,7 +341,7 @@ describe('catalog admin tools', () => {
     const bad = await call('catalog_set_tier', { people: ['Ana', 'Zed'], tier: 'pro' });
     expect(bad.isError).toBe(true);
     expect(bad.out).toContain('c3, c4');
-    expect(bad.out).toContain('catalog_invite');
+    expect(bad.out).toContain('/signup');
     expect(none.filter(c => c.method === 'POST')).toHaveLength(0);
   });
 
@@ -397,7 +383,7 @@ describe('catalog admin tools', () => {
       item: 'skill/pack-brand-kit',
       video: { title: 'Brand kit in one prompt', description: 'Episode 1.', thumbnail: 'https://cdn.test/t.jpg', youtube: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
       page: 'http://mm.test/core/releases/skill/pack-brand-kit',
-      plays: 'http://mm.test/access?item=skill%2Fpack-brand-kit',
+      plays: 'http://mm.test/skills/pack-brand-kit',
     });
   });
 
@@ -628,7 +614,7 @@ describe('mm-use', () => {
     stubApi((_m, path) => (path === '/api/catalog' ? { items: ITEMS } : { items: [{ id: 'skill/pack-brand-kit', version: '1.0.0' }] }));
     const open = (await call('get_item', { item: 'skill/pack-brand-kit' })).out;
     expect(open.open).toBe(true);
-    expect(open.page).toBe('http://mm.test/access?item=skill%2Fpack-brand-kit');
+    expect(open.page).toBe('http://mm.test/skills/pack-brand-kit');
     expect(open.releases).toEqual({ id: 'skill/pack-brand-kit', version: '1.0.0' });
     const locked = (await call('get_item', { item: 'mcp/browse-hack' })).out;
     expect(locked.open).toBe(false);
@@ -693,6 +679,6 @@ describe('mm-use', () => {
     expect(calls.find(c => c.url.pathname === '/api/feedback')!.url.searchParams.get('item')).toBe('skill/make-lyrics-video');
     const { out } = await call('known_issues', { item: 'skill/make-lyrics-video' });
     expect(out.issues).toHaveLength(1);
-    expect(out.page).toContain('/access?item=');
+    expect(out.page).toBe('http://mm.test/skills/make-lyrics-video');
   });
 });

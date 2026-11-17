@@ -1,4 +1,5 @@
 import { installPromptFor } from './install-prompt';
+import { itemPagePath } from './paths';
 import { youtubeUrl } from './video';
 import { slugOf, type CatalogKind, type ItemTier, type ItemUse, type ReadyProof, type Readiness } from './types';
 
@@ -93,7 +94,7 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   const page = `${site}/app/releases/${id}`;
   const lines: string[] = [
     `Make the Cook with Claude launch video for ${facts.title} (${id}${version}) with the ${LAUNCH_VIDEO_SKILL} skill.`,
-    `If this computer lacks that skill, an MCP it needs or mm-release, set them up yourself: mm update, then mm items install --yes (mm login first when mm items says it is signed out). Don't ask me for a site address, an install prompt or an install code.`,
+    `If this computer lacks that skill, an MCP it needs or mm-release, set them up yourself: mm update, then mm items install --yes (mm login first when mm items says it is signed out). Don't ask me for a site address or an install prompt.`,
     '',
     `These facts are from MediaMake's catalog${facts.asOf ? ` on ${facts.asOf}` : ''}. Check each one before it goes in the script, and ask me for anything missing instead of filling it in.`,
     '',
@@ -106,11 +107,11 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   lines.push(`- Readiness: ${facts.readiness === 'ready' ? 'Ready' : 'Beta (not marked Ready yet: tell me before going on)'}`);
   if (facts.kind === 'skill') lines.push(`- Its first prompt: /${slugOf(id)} (read its SKILL.md for what it asks back)`);
   if (facts.installable) {
-    lines.push(`- Install prompt to show, with no install code in it: ${installPromptFor(id)}`);
+    lines.push(`- Install prompt to show (for a computer without MediaMake): ${installPromptFor(id)}`);
     lines.push(`- On a signed-in computer it installs with: mm items install ${id} --yes (show this way in for members${facts.tier === 'public' ? '' : ', since it is not open to everyone'})`);
   }
   else lines.push('- Nothing to install: it opens as a page, so the copy and paste beat needs another way in. Ask me.');
-  lines.push(`- Its page for viewers: ${site}/access?item=${id}`);
+  lines.push(`- Its page for viewers: ${site}${itemPagePath(id)}`);
   if (facts.code) lines.push(`- Code: ${facts.code}`);
   if (facts.tier === 'cohort' || facts.tier === 'admin') lines.push('- It is not public. Ask me before uploading or publishing anything about it.');
 

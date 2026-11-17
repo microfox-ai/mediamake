@@ -1,3 +1,4 @@
+import { itemPagePath } from './paths';
 import { slugOf, type CatalogVideo, type ItemVideo } from './types';
 
 /**
@@ -38,11 +39,13 @@ export function parseYouTubeId(input: string): string | null {
 
 /**
  * Where an item's video plays for viewers: a course on its own page, which
- * plays its lessons in order; anything else on its item page (/access).
+ * plays its lessons in order; a skill, MCP or app on its own page (a skill's
+ * intro opens its gallery); a tutorial on /access, its only page.
  */
 export function watchPath(id: string) {
+  if (id.startsWith('course/')) return `/courses/${slugOf(id)}`;
   // ids are `<kind>/<slug>` in [a-z0-9-]: safe in a query as they are
-  return id.startsWith('course/') ? `/courses/${slugOf(id)}` : `/access?item=${id}`;
+  return id.startsWith('tutorial/') ? `/access?item=${id}` : itemPagePath(id);
 }
 
 /** The video's page on YouTube. */

@@ -9,6 +9,7 @@ import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { SkillActions } from '@/components/skills/skill-actions';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { catalogArchiveDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import { slugOf } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
@@ -102,7 +103,7 @@ export default async function SkillPage({ params }: Props) {
             <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground">{skill.summary}</p>
             {/* on a phone the side column comes after SKILL.md: the buttons go up here too */}
             <div className="lg:hidden">
-              <SkillActions itemId={id} installPrompt={installPromptFor(id)} title={skill.name} />
+              <SkillActions installPrompt={installPromptFor(id)} title={skill.name} />
             </div>
             {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
             {skill.variantOf && (
@@ -141,7 +142,7 @@ export default async function SkillPage({ params }: Props) {
         <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
           <section className="flex flex-col gap-3 rounded-xl border bg-card p-4">
             <p className="text-sm text-muted-foreground">Paste the install prompt into Claude: it sets the skill up, with what it needs.</p>
-            <SkillActions itemId={id} installPrompt={installPromptFor(id)} title={skill.name} />
+            <SkillActions installPrompt={installPromptFor(id)} title={skill.name} />
             <div className="flex flex-col gap-1 pt-1 text-xs">
               <a href={skillMdUrl(skill)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
                 SKILL.md on GitHub <ExternalLinkIcon className="size-3" />
@@ -157,7 +158,7 @@ export default async function SkillPage({ params }: Props) {
               {skill.mcps.map(mcp => (
                 <li key={mcp.id} className="flex flex-col gap-1 py-2">
                   <div className="flex items-center gap-2">
-                    <Link href={`/access?item=${encodeURIComponent(mcp.id)}`} className="font-mono text-sm font-medium hover:underline">
+                    <Link href={itemPagePath(mcp.id)} className="font-mono text-sm font-medium hover:underline">
                       {slugOf(mcp.id)}
                     </Link>
                     <NeedBadge need={mcp.need} />

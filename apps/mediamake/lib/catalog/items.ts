@@ -141,7 +141,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     kind: 'mcp',
     title: 'mm-release',
     summary:
-      'For MediaMake admins: run the catalog from Claude. Skill, MCP, app, tutorial and course releases, who can open them, Beta and Ready, health, videos, memberships and invites. The hosted connector: sign in with your MediaMake account.',
+      'For MediaMake admins: run the catalog from Claude. Skill, MCP, app, tutorial and course releases, who can open them, Beta and Ready, health, videos, memberships. The hosted connector: sign in with your MediaMake account.',
     // Admins only: it runs the releases. In the vault, so the cohort doesn't get it; a grant naming it does
     visibility: 'private',
     tier: 'admin',

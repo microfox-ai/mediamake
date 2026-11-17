@@ -33,7 +33,7 @@ describe('launchVideoPromptFor', () => {
     assert.match(prompt, /- Readiness: Ready\n/);
     assert.match(prompt, /- Its first prompt: \/pack-brand-kit /);
     assert.match(prompt, /- Code: https:\/\/github\.com\/microfox-ai\/mediamake\/tree/);
-    assert.match(prompt, /- Its page for viewers: https:\/\/mediamake\.microfox\.app\/access\?item=skill\/pack-brand-kit/);
+    assert.match(prompt, /- Its page for viewers: https:\/\/mediamake\.microfox\.app\/skills\/pack-brand-kit\n/);
   });
 
   it("leaves a skill's trigger phrases out of what it is", () => {
@@ -43,10 +43,15 @@ describe('launchVideoPromptFor', () => {
     assert.match(launchVideoPromptFor(facts({ id: 'mcp/x', kind: 'mcp' })), /\(an MCP, v1\.4\.0\)/);
   });
 
-  it('shows the plain install prompt, never one with an install code', () => {
+  it('shows the plain install prompt, with no code in it', () => {
     const prompt = launchVideoPromptFor(facts());
-    assert.match(prompt, /Install prompt to show, with no install code in it: Set up skill\/pack-brand-kit from MediaMake/);
-    assert.doesNotMatch(prompt, /with install code/);
+    assert.match(prompt, /Install prompt to show \(for a computer without MediaMake\): Set up skill\/pack-brand-kit from MediaMake/);
+    assert.doesNotMatch(prompt, /install code/);
+  });
+
+  it("links an MCP's own page for viewers", () => {
+    const prompt = launchVideoPromptFor(facts({ id: 'mcp/browse-hack', kind: 'mcp' }));
+    assert.match(prompt, /- Its page for viewers: https:\/\/mediamake\.microfox\.app\/mcps\/browse-hack\n/);
   });
 
   it('lists what was made with it, and asks when nothing is on record', () => {
@@ -87,7 +92,7 @@ describe('launchVideoPromptFor', () => {
   it('sets itself up with the sign-in, and shows members the signed-in install', () => {
     const prompt = launchVideoPromptFor(facts({ id: 'mcp/browse-hack', kind: 'mcp', tier: 'pro' }));
     assert.match(prompt, /mm update, then mm items install --yes \(mm login first/);
-    assert.match(prompt, /Don't ask me for a site address, an install prompt or an install code\./);
+    assert.match(prompt, /Don't ask me for a site address or an install prompt\./);
     assert.match(prompt, /mm items install mcp\/browse-hack --yes \(show this way in for members, since it is not open to everyone\)/);
   });
 

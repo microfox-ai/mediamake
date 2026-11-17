@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ITEM_HEALTH, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemHealth, type ItemTier } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
+import { itemPagePath } from '@/lib/catalog/paths';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
 import { ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './parts';
@@ -288,13 +289,14 @@ function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ItemTi
               {item.kind === 'course' ? 'Course page' : 'Its page'} <ExternalLink />
             </a>
           </Button>
-        ) : installPrompt || !item.href ? (
+        ) : (
           <Button variant="outline" size="sm" asChild>
-            <a href={`/access?item=${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer">
-              Install page <ExternalLink />
+            <a href={itemPagePath(item.id)} target="_blank" rel="noreferrer">
+              Item page <ExternalLink />
             </a>
           </Button>
-        ) : (
+        )}
+        {item.href && !VIDEO_KINDS.includes(item.kind) && (
           <Button variant="outline" size="sm" asChild>
             <a href={item.href} target="_blank" rel="noreferrer">
               Open it <ExternalLink />
@@ -400,7 +402,7 @@ function ArchiveButton({ id, archived, onDone }: { id: string; archived: boolean
   );
 }
 
-/** Copies the plain install prompt: no install code in it, so whoever pastes it signs in as themselves. */
+/** Copies the item's install prompt, for a computer without MediaMake: whoever pastes it signs in as themselves. */
 function CopyPrompt({ prompt }: { prompt: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -707,7 +709,8 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier;
 }
 
 function WherePanel({ detail }: { detail: ItemDetail }) {
-  const { item, definedIn, code } = detail;
+  const { item, definedIn, code, site = '' } = detail;
+  const pageUrl = `${site}${itemPagePath(item.id)}`;
   const latest = item.versions.at(-1);
   const directoryUrl = directoryUrlOf(item.install?.source);
   const rows: [string, React.ReactNode][] = [
@@ -768,19 +771,22 @@ function WherePanel({ detail }: { detail: ItemDetail }) {
             {watchPath(item.id)}
           </a>,
         ]
-      : detail.installPrompt || !item.href
-      ? [
-          'Install page',
-          <a key="page" href={`/access?item=${encodeURIComponent(item.id)}`} target="_blank" rel="noreferrer" className="break-all hover:underline">
-            /access?item={item.id}
-          </a>,
-        ]
       : [
-          'Opens at',
-          <a key="page" href={item.href} target="_blank" rel="noreferrer" className="break-all hover:underline">
-            {item.href}
+          'Item page',
+          <a key="page" href={pageUrl} target="_blank" rel="noreferrer" className="break-all hover:underline">
+            {pageUrl.replace(/^https?:\/\//, '')}
           </a>,
         ],
+    ...(item.href && !VIDEO_KINDS.includes(item.kind)
+      ? ([
+          [
+            'Opens at',
+            <a key="opens" href={item.href} target="_blank" rel="noreferrer" className="break-all hover:underline">
+              {item.href}
+            </a>,
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
   ];
   return (
     <Panel title="Where it lives">

@@ -3,11 +3,11 @@ import { Redis } from '@upstash/redis';
 import type { ApiKeyInfo } from '@/app/types/db';
 import { getEntitlements, viewerTier } from '@/lib/access';
 import { isAdmin } from '@/lib/admin-utils';
-import { getUserByClientId, getUserByEmail, normalizeEmail } from '@/lib/auth/users';
-import { accessGrantsDB, accessGroupsDB, accessInvitesDB, accessRequestsDB } from '@/lib/catalog/store';
-import { NETWORK_GROUP, PRIVATE_GROUP, type AccessGrant, type AccessInvite, type AccessRequest } from '@/lib/catalog/types';
+import { getUserByClientId } from '@/lib/auth/users';
+import { accessGrantsDB, accessGroupsDB, accessRequestsDB } from '@/lib/catalog/store';
+import { NETWORK_GROUP, PRIVATE_GROUP, type AccessGrant, type AccessRequest } from '@/lib/catalog/types';
 import { MailNotConfiguredError, sendMail, type Mail } from '@/lib/mail/send';
-import { inviteMail, membershipChangedMail } from '@/lib/mail/templates';
+import { membershipChangedMail } from '@/lib/mail/templates';
 import type { Membership, MembershipSource } from './membership';
 import { requestedTier } from './requests';
 import { membershipsDB } from './store';
@@ -161,48 +161,6 @@ export async function grantContribution(input: {
       ? undefined
       : await tellPerson({ clientId: input.clientId, from, to: renewed ? from : input.tier, membership, reason: input.note, origin: input.origin });
   return { membership, renewed, mailed };
-}
-
-/** A membership a person got by themselves (an invite they opened): told like any other change. */
-export async function tellAboutNewMembership(input: { clientId: string; from: MemberTier; membership: Membership; origin: string }): Promise<Mailed> {
-  // an invite never moves anyone down: say nothing when they already hold as much
-  if (tierRank(input.from) >= tierRank(input.membership.tier)) return { sent: false, why: 'Their membership did not change' };
-  return tellPerson({ clientId: input.clientId, from: input.from, to: input.membership.tier, membership: input.membership, origin: input.origin });
-}
-
-/** How long a mailed invite's link works. */
-export const INVITE_LINK_DAYS = 30;
-
-export const inviteLink = (origin: string, code: string) => `${origin}/access?code=${encodeURIComponent(code)}`;
-
-/**
- * Invites one person into a tier by mail: a link that works once, for
- * INVITE_LINK_DAYS. Opening it, signed in or after making an account, gives
- * the membership (source `invite`), for `grantDays` when set.
- */
-export async function inviteByMail(input: {
-  email: string;
-  tier: GrantableTier;
-  note?: string;
-  grantDays?: number;
-  by?: string;
-  origin: string;
-}): Promise<{ invite: AccessInvite; url: string; mailed: Mailed; existing?: string }> {
-  const email = normalizeEmail(input.email);
-  const invite = await accessInvitesDB.create({
-    itemIds: [],
-    tier: input.tier,
-    email,
-    maxUses: 1,
-    grantDays: input.grantDays,
-    expiresAt: new Date(Date.now() + INVITE_LINK_DAYS * 86_400_000).toISOString(),
-    createdBy: input.by,
-    note: input.note,
-  });
-  const url = inviteLink(input.origin, invite.code);
-  const mailed = await deliver(inviteMail(email, { tier: tierLabel(input.tier), url, note: input.note, days: INVITE_LINK_DAYS }));
-  const existing = (await getUserByEmail(email).catch(() => null))?.clientId;
-  return { invite, url, mailed, existing };
 }
 
 /**

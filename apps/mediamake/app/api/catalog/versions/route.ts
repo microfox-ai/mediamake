@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { accessLevel, getEntitlements, resolveViewer, type Viewer } from '@/lib/access';
-import { isInstallCode, readInstallCode } from '@/lib/catalog/install-code';
 import { releasesOf } from '@/lib/catalog/releases';
 import { catalogItemsDB } from '@/lib/catalog/store';
 import { isUpdateToken, readUpdateToken } from '@/lib/catalog/update-token';
 
 /**
  * GET /api/catalog/versions?items=mcp/browse-hack,skill/lyric-video[&notes=10]
- * Authorization: Bearer <update token, install code or API key> (or the session cookie)
+ * Authorization: Bearer <update token or API key> (or the session cookie)
  *
  * The live version of each item with its release notes, newest first, so an
  * installed item (or Claude, asked to "update <item>") can tell whether it is
@@ -29,17 +28,12 @@ export async function GET(req: NextRequest) {
     const token = await readUpdateToken(bearer);
     if (!token) {
       return NextResponse.json(
-        { error: 'This update token has lapsed. Copy the install prompt again from MediaMake.' },
+        { error: 'This update token has lapsed. Sign this computer in (mm login) and run mm items install --yes, which saves a new one.' },
         { status: 401 },
       );
     }
     viewer = { clientId: token.clientId };
     allowed = token.items;
-  } else if (isInstallCode(bearer)) {
-    const code = await readInstallCode(bearer);
-    if (!code) return NextResponse.json({ error: 'This install code has expired.' }, { status: 401 });
-    viewer = { clientId: code.clientId };
-    allowed = [code.itemId];
   } else {
     viewer = await resolveViewer(req);
   }

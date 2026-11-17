@@ -6,7 +6,6 @@ import { requireAdmin } from '@/lib/admin-utils';
 import {
   accessGrantsDB,
   accessGroupsDB,
-  accessInvitesDB,
   accessRequestsDB,
   catalogArchiveDB,
   catalogHealthDB,
@@ -34,8 +33,6 @@ import {
   ALWAYS_PUBLIC_ERROR,
   ITEM_HEALTH,
   ITEM_TIERS,
-  NETWORK_GROUP,
-  PRIVATE_GROUP,
   USE_NEEDS,
   VIDEO_KINDS,
   VISIBILITIES,
@@ -64,7 +61,7 @@ import {
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
  * aren't stored as items (each with its `tier`'s fields, its `readiness`,
  * `archivedAt` when archived, its `video` and its `health`), live grants,
- * groups, invites, pending access requests, the people who hold API keys,
+ * groups, pending access requests, the people who hold API keys,
  * every membership record (ended ones too: the audit log), the tier ladder,
  * and whether public releases are open site-wide.
  */
@@ -75,11 +72,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, invites, requests, people, archived, videos, health, readiness, memberships] = await Promise.all([
+  const [items, grants, groups, requests, people, archived, videos, health, readiness, memberships] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
-    accessInvitesDB.list(),
     accessRequestsDB.list('pending'),
     listKeyHolders(),
     catalogArchiveDB.list(),
@@ -100,7 +96,6 @@ export async function GET(req: NextRequest) {
     cards: marked(cardRecords(items)),
     grants,
     groups,
-    invites,
     requests,
     people,
     memberships,
@@ -347,8 +342,6 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *  { type: 'revoke',          grantId } | { type: 'revoke', itemId | '*', clientId | groupId }
  *  { type: 'group_add',       groupId, clientIds: string[], name? }
  *  { type: 'group_remove',    groupId, clientIds: string[] }
- *  { type: 'create_invite',   itemIds?: string[], tier?: 'plus' | 'pro' | 'cohort', groupId?, maxUses?, grantDays?, expiresInDays?, note? }
- *  { type: 'disable_invite',  code }
  *  { type: 'resolve_request', requestId, approve: boolean, days? }
  *  { type: 'init_indexes' }
  */
@@ -727,37 +720,6 @@ export async function POST(req: NextRequest) {
       if (!body.groupId?.trim() || !clientIds.length) return bad('groupId and clientIds are required');
       if (body.type === 'group_add') await accessGroupsDB.addMembers(body.groupId.trim(), clientIds, body.name);
       else await accessGroupsDB.removeMembers(body.groupId.trim(), clientIds);
-      return NextResponse.json({ success: true });
-    }
-
-    case 'create_invite': {
-      const itemIds = (body.itemIds as string[] | undefined) ?? [];
-      // the earlier groups name a tier now: private is the cohort, network is Pro
-      const legacyTier = body.groupId === PRIVATE_GROUP ? LEGACY_PERSON_TIER.private : body.groupId === NETWORK_GROUP ? LEGACY_PERSON_TIER.community : undefined;
-      const inviteTier = body.tier === undefined ? legacyTier : personTier(body.tier);
-      if (body.tier !== undefined && (!inviteTier || inviteTier === 'public')) return bad(`tier must be one of ${GRANTABLE_TIERS.join(', ')}`);
-      const groupId = legacyTier ? undefined : body.groupId;
-      if (!itemIds.length && !groupId && !inviteTier) return bad('itemIds, tier or groupId is required');
-      for (const id of itemIds) {
-        if (id !== '*' && !staticRecord(id) && !(await catalogItemsDB.get(id))) {
-          return NextResponse.json({ error: `Unknown item ${id}` }, { status: 404 });
-        }
-      }
-      const invite = await accessInvitesDB.create({
-        itemIds,
-        groupId,
-        tier: inviteTier && inviteTier !== 'public' ? inviteTier : undefined,
-        maxUses: Math.max(1, Number(body.maxUses) || 1),
-        grantDays: body.grantDays,
-        expiresAt: daysFromNow(body.expiresInDays),
-        createdBy: adminId,
-        note: body.note,
-      });
-      return NextResponse.json({ invite });
-    }
-
-    case 'disable_invite': {
-      await accessInvitesDB.disable(body.code);
       return NextResponse.json({ success: true });
     }
 

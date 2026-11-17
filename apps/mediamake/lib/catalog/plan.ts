@@ -114,7 +114,7 @@ export interface PlanSources {
 
 /** Said for a choice that isn't in the catalog or isn't shared with the person: the same words for both, so neither leaks. */
 export const UNAVAILABLE =
-  "MediaMake can't install it for you yet: it isn't shared with you, or isn't in the catalog. Ask whoever gave you MediaMake access (an invite link opens /access?code=…).";
+  "MediaMake can't install it for you yet: your membership doesn't open it, or it isn't in the catalog. The Subscription page (/app/subscription) says how to get the membership that opens it.";
 
 function defaultMethod(record: CatalogItemRecord): InstallMethod {
   if (record.install?.method) return record.install.method;

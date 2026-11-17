@@ -19,11 +19,11 @@ here". It drives the repo's own commands, never hand-made copies of them:
 | `mm update` / `--yes` | brings an existing checkout up to GitHub, then `npm ci`, migrate (dry run) and doctor |
 | `mm media init` | the media library's folders, `~/.mediamake/config.json` and the catalog |
 | `mm login` | signs the computer in to MediaMake once, through the browser: the user clicks Allow, nothing is pasted (`mm login status`, `mm logout`) |
-| `mm items` / `mm items install --yes` | who is signed in, their membership and the MCPs and apps it opens; installs them with that sign-in, no install prompt or code |
+| `mm items` / `mm items install --yes` | who is signed in, their membership and the MCPs and apps it opens; installs them with that sign-in, no install prompt |
 | `mm doctor` / `--fix` | checks the machine and the checkout; `--fix` does the installs, builds and downloads it can (never git, never the user's files) |
 
-Work quietly and report at the end. Stop and ask only where a step says **Ask**. Never print a key,
-token or install code back, and never write one anywhere but where a step says.
+Work quietly and report at the end. Stop and ask only where a step says **Ask**. Never print a key or
+token back, and never write one anywhere but where a step says.
 
 ## 0. Where this runs
 
@@ -121,7 +121,7 @@ In the checkout:
 ### 6a. Their MediaMake items: installed with the sign-in
 
 Browse Hack, MediaMake Spaces (it was ProjectSync) and every other MCP or app of MediaMake's come from the user's account.
-Never ask for the site address, an install prompt or an install code: `mm` knows the site
+Never ask for the site address or an install prompt: `mm` knows the site
 (`mediamake.microfox.app` unless their config names another) and the sign-in says what they may
 have.
 

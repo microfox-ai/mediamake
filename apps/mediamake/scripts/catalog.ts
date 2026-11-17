@@ -29,7 +29,7 @@
  *   beta <itemId> [<itemId>...]                      (back to Beta)
  *   health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]
  *                                                    (any kind; failed needs --note)
- *   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
+ *   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
  *                                                    (puts a person at one tier; a contribution lasts 3 months)
  *   member add <clientId> <plus|pro|cohort> ...       (adds a record beside theirs: contributing again renews)
  *   member permanent <membershipId> | member revoke <membershipId>
@@ -39,7 +39,6 @@
  *   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
  *   revoke  <itemId|*> (--to <clientId> | --group <groupId>)   |   revoke --grant <grantId>
  *   group   add|remove <groupId> <clientId> [<clientId>...]
- *   invite  [<itemId>...] [--tier plus|pro|cohort] [--uses 5] [--days 30] [--expires 14] [--note "..."]
  *   requests
  *   approve <requestId> [--days 30]
  *   reject  <requestId>
@@ -81,7 +80,7 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
                                               (Ready needs a production made with it; the link, picture and clip fill its page's gallery)
   beta <itemId>...                                 (back to Beta)
   health <itemId>... <healthy|inactive|archived|failed|default> [--note "why"]   (any kind; failed needs --note)
-  member <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
+  member <clientId> <public|plus|pro|cohort> [--source admin|contribution|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
   member add <clientId> <plus|pro|cohort> ...       (adds a record beside theirs: contributing again renews)
   member permanent <membershipId> | member revoke <membershipId>
   members                                          (who holds each tier, and how they got it)
@@ -89,7 +88,6 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   grant   <itemId|*> (--to <clientId> | --group <groupId>) [--days 30] [--note "..."]
   revoke  <itemId|*> (--to <clientId> | --group <groupId>)  |  revoke --grant <grantId>
   group   add|remove <groupId> <clientId> [<clientId>...]
-  invite  [<itemId>...] [--tier plus|pro|cohort] [--uses 5] [--days 30] [--expires 14] [--note "..."]
   requests | approve <requestId> [--days 30] | reject <requestId>
   list | init
   add <file.catalog.json>                          (list an MCP or skill made by others: no package, always public)
@@ -298,7 +296,6 @@ async function release(pathArg: string | undefined, flags: Flags) {
 
     await admin({ type: 'publish_version', itemId, version, storageKey, sha256, bytes: bytes.length, notes });
     console.log(`✅ ${itemId}@${version} published (${(bytes.length / 1024).toFixed(1)} KB, sha256 ${sha256.slice(0, 12)}…)`);
-    console.log(`   Share access: npm run catalog -- invite ${itemId} --uses 5`);
     console.log(page(itemId, `v${version}`));
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -427,7 +424,7 @@ async function main() {
       }
       const adding = first === 'add';
       const [clientId, tier] = adding ? [second, third] : [first, second];
-      if (!clientId || !tier) fail('member [add] <clientId> <public|plus|pro|cohort> [--source admin|contribution|invite|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]');
+      if (!clientId || !tier) fail('member [add] <clientId> <public|plus|pro|cohort> [--source admin|contribution|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]');
       const { membership } = await admin({
         type: adding ? 'add_membership' : 'set_tier',
         clientId,
@@ -519,21 +516,6 @@ async function main() {
       return console.log(`✅ ${action === 'add' ? 'Added' : 'Removed'} ${clientIds.join(', ')} ${action === 'add' ? 'to' : 'from'} ${groupId}`);
     }
 
-    case 'invite': {
-      const { invite } = await admin({
-        type: 'create_invite',
-        itemIds: positional,
-        tier: flag(flags, 'tier'),
-        groupId: flag(flags, 'group'),
-        maxUses: flag(flags, 'uses') ? Number(flag(flags, 'uses')) : 1,
-        grantDays: days,
-        expiresInDays: flag(flags, 'expires') ? Number(flag(flags, 'expires')) : undefined,
-        note: flag(flags, 'note'),
-      });
-      console.log(`✅ Invite ${invite.code} (${invite.maxUses} use${invite.maxUses === 1 ? '' : 's'})`);
-      return console.log(`   ${BASE_URL}/access?code=${invite.code}`);
-    }
-
     case 'requests': {
       const { requests } = await admin({});
       if (!requests.length) return console.log('No pending requests.');
@@ -549,7 +531,7 @@ async function main() {
     }
 
     case 'list': {
-      const { items, grants, groups, invites } = await admin({});
+      const { items, grants, groups } = await admin({});
       // Who has access, and how: every live grant is a record in access_grants.
       const describe = (g: any) =>
         `    ${g.subject.kind} ${g.subject.id}  ${g.expiresAt ? `until ${g.expiresAt.slice(0, 10)}` : 'no expiry'}` +
@@ -565,11 +547,6 @@ async function main() {
       if (everything.length) console.log('every item / whole kinds:');
       for (const g of everything) console.log(`  ${g.itemId}`, describe(g).trim());
       for (const group of groups) console.log(`group ${group.groupId}: ${group.members.join(', ') || '(empty)'}`);
-      for (const invite of invites ?? []) {
-        if (invite.disabledAt) continue;
-        const redeemed = invite.redeemedBy.map((r: any) => r.clientId).join(', ');
-        console.log(`invite ${invite.code}: ${[...invite.itemIds, invite.tier ?? invite.groupId].filter(Boolean).join(', ')}  ${invite.uses}/${invite.maxUses} used${redeemed ? `  by ${redeemed}` : ''}`);
-      }
       return console.log(`\nEvery item, with what it is and where it lives: ${BASE_URL}/app/releases`);
     }
 

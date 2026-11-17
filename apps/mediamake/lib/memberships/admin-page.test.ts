@@ -116,10 +116,6 @@ describe('the audit log', () => {
         membership({ membershipId: 'mem_3', clientId: 'ghost', expiresAt: '2026-11-10T00:00:00.000Z' }),
         membership({ membershipId: 'mem_4', clientId: 'later', expiresAt: '2027-01-01T00:00:00.000Z' }),
       ],
-      invites: [
-        { code: 'abc', tier: 'plus', email: 'new@example.com', createdBy: 'boss', createdAt: '2026-11-07T00:00:00.000Z', redeemedBy: [{ clientId: 'new', at: '2026-11-08T00:00:00.000Z' }] },
-        { code: 'items-only', itemIds: ['mcp/browse-hack'], createdAt: '2026-11-07T00:00:00.000Z' },
-      ],
       requests: [
         { requestId: 'req_1', itemId: 'tier/plus', clientId: 'ghost', message: 'I make AMVs', status: 'approved', createdAt: '2026-11-11T00:00:00.000Z', resolvedAt: '2026-11-12T00:00:00.000Z', resolvedBy: 'boss' },
         { requestId: 'req_2', itemId: 'mcp/browse-hack', clientId: 'ana', status: 'pending', createdAt: '2026-11-13T00:00:00.000Z' },
@@ -148,18 +144,12 @@ describe('the audit log', () => {
     assert.deepEqual(kinds('later'), ['given']);
   });
 
-  it('follows invites into a membership, and leaves item invites to Releases', () => {
-    assert.deepEqual(log.filter(event => event.id.startsWith('abc:')).map(event => event.kind), ['invite_used', 'invite_made']);
-    assert.equal(log.some(event => event.id.startsWith('items-only')), false);
-  });
-
   it('says each line in words', () => {
     const text = (id: string, title?: string) => auditText(log.find(event => event.id === id)!, title);
     assert.equal(text('mem_2:given'), 'Given Pro for a contribution');
     assert.equal(text('mem_3:given'), 'Given Plus, until 10 Nov 2026');
     assert.equal(text('mem_3:expired'), 'Plus ran out');
     assert.equal(text('mem_2:permanent'), 'Pro made permanent');
-    assert.equal(text('abc:made'), 'Invite to Plus mailed to new@example.com');
     assert.equal(text('req_1:resolved'), 'Request for Plus approved');
     assert.equal(text('req_2:asked', 'Browse Hack'), 'Asked for Browse Hack');
   });

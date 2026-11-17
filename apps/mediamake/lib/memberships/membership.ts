@@ -20,7 +20,7 @@ import { tierRank, type GrantableTier, type MemberTier } from './tiers';
  *  - contribution: earned with an accepted item or a merged PR (`ref` names it). Lasts
  *                  CONTRIBUTION_MONTHS and renews by contributing again, unless an admin
  *                  makes it permanent.
- *  - invite:       an invite link was redeemed (`ref` is its code).
+ *  - invite:       an invite link was redeemed (`ref` is its code); old records only, invites are retired.
  *  - migration:    carried over from the tiers before the ladder (private testers, community).
  *  - paid:         for later: payments change no access code, only add records.
  */

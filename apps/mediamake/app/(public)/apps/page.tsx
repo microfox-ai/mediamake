@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowUpRight, Clapperboard, FilePenLine, Images, KeyRound, Layers, LayoutDashboard, Lock, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, Clapperboard, FilePenLine, Images, Layers, LayoutDashboard, Lock, type LucideIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getViewer } from '@/lib/access';
 
@@ -55,13 +55,6 @@ const apps: AppCard[] = [
     href: '/library',
     icon: Layers,
     tags: ['skills', 'media'],
-  },
-  {
-    title: 'Access & invites',
-    summary: 'Redeem an invite code, or install an item shared with you.',
-    href: '/access',
-    icon: KeyRound,
-    tags: ['catalog'],
   },
 ];
 
