@@ -34,7 +34,7 @@ song as a 73 MB WAV and as an 8 MB AAC). Nothing in this skill spends without th
 
 | Need | Where | Without it |
 |---|---|---|
-| A MediaMake API key with **cloud rendering access** | `MEDIAMAKE_API_KEY`, or `mm media cloud login` (Keychain); the site is `MEDIAMAKE_API_URL` or `url` in `~/.mediamake/config.json` | the API answers 403 with the reason: render locally, or ask for Lambda access (admins, the private tier, or a `lambdaRender` grant on the key) |
+| A MediaMake API key with **cloud rendering access** | `MEDIAMAKE_API_KEY`, or `mm login` (the browser sign-in; the key stays in the Keychain); the site is `MEDIAMAKE_API_URL` or `url` in `~/.mediamake/config.json` | the API answers 403 with the reason: render locally, or ask for Lambda access (admins, the private tier, or a `lambdaRender` grant on the key) |
 | AWS keys to deploy the site | `REMOTION_AWS_ACCESS_KEY_ID` / `REMOTION_AWS_SECRET_ACCESS_KEY` in `apps/mediamake/.env` (`REMOTION_AWS_REGION` picks the region) | no site can go up; nothing renders |
 | The project prepared | `projects/<slug>/manifest.json` (`mm prepare`) | nothing to pack |
 

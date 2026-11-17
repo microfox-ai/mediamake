@@ -67,7 +67,7 @@ folder (`"animemusiczone": "AMZ"`) or, once linked to its team's MediaMake cloud
 8. **Never move or rename library files by hand.** Use `media mv <id> --kind= --subject=` (or
    `--to=<folder>`), so the catalog and the folder's `.media.json` stay right.
 9. **Share a channel's work with its team through `media sync`, a dry run first.**
-   - Once: `media cloud login` (the API key goes in the macOS Keychain, never in the config), then
+   - Once: `mm login` (it opens your browser; the key it makes for this computer goes in the macOS Keychain), then
      `media channel link <channel> <projectId>` (`media channel list` shows the projects).
    - `media sync status --channel=<id>` shows what would go up and come down: the brand kit
      (`brands/<channel>/`), the skill variants its productions use, its productions'
