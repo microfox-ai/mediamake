@@ -3,18 +3,22 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2Icon, UsersIcon, XIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { GithubLinkSync } from '@/lib/space/github';
 import { linkedSummary, type LinkedItemView } from '@/lib/space/links';
+import type { SpaceItemView, SpaceView } from '@/lib/space/space';
+import { NextStep, SyncPill } from './space-items';
 
 /**
- * Linked items (lib/space/links): a skill, MCP or app that stays its
- * owner's and is shared with projects and people. One row each: what it
- * is, and in one line whose it is and who has it. Its owner opens Share to
- * tick projects, add people and say who can edit. Used by Mine and by a
- * space's page.
+ * The skills, MCPs and apps of a space as a grid of cards, one item each:
+ * what it is, who has it, and where it stands. A space's own items say
+ * whether they are the same on every computer. A linked item
+ * (lib/space/links) stays its owner's and says who it is shared with; its
+ * owner opens Share, a dialog to tick projects, add people and choose who
+ * can edit. Used by Mine and by a space's page.
  */
 
-const KIND: Record<LinkedItemView['kind'], string> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
+const KIND: Record<SpaceItemView['kind'], string> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
 const button = 'inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50';
 
 type Sync = GithubLinkSync & { noGithub?: string[] };
@@ -42,7 +46,7 @@ function followUp(github: Sync | undefined): string | null {
 
 /** Whose it is and who has it, in one line. */
 function whoLine(item: LinkedItemView): string {
-  if (item.role === 'owner') return `Yours · shared with ${linkedSummary(item)}`;
+  if (item.role === 'owner') return `Shared with ${linkedSummary(item)}`;
   return `From ${item.owner}${item.role === 'editor' ? ' · you can edit it' : ''}`;
 }
 
@@ -72,14 +76,14 @@ function Share({ item, projects, onChanged }: { item: LinkedItemView; projects: 
   const linked = new Set(item.projects.map(project => project.id));
   const options = [...projects, ...item.projects.filter(project => !projects.some(option => option.id === project.id))];
   const role = (editor: boolean, onChange: (editor: boolean) => void, label: string) => (
-    <select className="h-7 rounded-md border bg-background px-1.5 text-xs" value={editor ? 'edit' : 'use'} disabled={busy} onChange={event => onChange(event.target.value === 'edit')} aria-label={label}>
+    <select className="h-8 rounded-md border bg-background px-2 text-xs" value={editor ? 'edit' : 'use'} disabled={busy} onChange={event => onChange(event.target.value === 'edit')} aria-label={label}>
       <option value="use">Can use</option>
       <option value="edit">Can edit</option>
     </select>
   );
 
   return (
-    <div className="mt-2 flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 text-xs">
+    <div className="flex flex-col gap-4 text-sm">
       {options.length > 0 && (
         <div>
           <p className="font-medium">Projects</p>
@@ -125,7 +129,7 @@ function Share({ item, projects, onChanged }: { item: LinkedItemView; projects: 
             if (email.trim() && (await run({ action: 'add', email: email.trim(), editor: false }))) setEmail('');
           }}
         >
-          <input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="Add someone by email" aria-label="Email of the person to share with" className="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs" />
+          <input type="email" required value={email} onChange={event => setEmail(event.target.value)} placeholder="Add someone by email" aria-label="Email of the person to share with" className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm" />
           <button type="submit" className={button} disabled={busy}>
             {busy ? <Loader2Icon className="size-3 animate-spin" aria-hidden /> : null} Add
           </button>
@@ -141,41 +145,80 @@ function Share({ item, projects, onChanged }: { item: LinkedItemView; projects: 
   );
 }
 
-export function LinkedItems({
-  items,
+function Card({ kind, version, title, summary, status, children, foot, action }: { kind: SpaceItemView['kind']; version?: string; title: string; summary?: string; status?: React.ReactNode; children?: React.ReactNode; foot: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <li className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-xs">
+      <div className="flex min-h-6 flex-wrap items-center gap-2">
+        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{KIND[kind]}</span>
+        {version && <span className="text-xs tabular-nums text-muted-foreground">v{version.replace(/^v/, '')}</span>}
+        {status && <span className="ml-auto">{status}</span>}
+      </div>
+      <h3 className="mt-3 text-sm font-semibold">{title}</h3>
+      {summary && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{summary}</p>}
+      {children}
+      <div className="mt-auto flex min-h-7 items-center gap-2 pt-3">
+        <span className="min-w-0 flex-1 text-xs text-muted-foreground">{foot}</span>
+        {action}
+      </div>
+    </li>
+  );
+}
+
+export function ItemCards({
+  space = null,
+  audience,
+  linked = [],
   projects = [],
   unlinkFrom,
+  empty,
 }: {
-  items: LinkedItemView[];
+  /** The space's own items. */
+  space?: SpaceView | null;
+  /** Who has the space's own items, in a few words: "Only you", "Everyone on Kids TV". */
+  audience?: string;
+  /** Linked items to show beside them. */
+  linked?: LinkedItemView[];
   /** The projects the viewer owns or edits: where they may share their own items. */
   projects?: { id: string; name: string }[];
   /** On a project's page, for its owner: the project an item of someone else can be removed from. */
   unlinkFrom?: { id: string; name: string };
+  /** Shown when there is nothing. */
+  empty?: React.ReactNode;
 }) {
   const router = useRouter();
-  const [rows, setRows] = React.useState(items);
+  const [rows, setRows] = React.useState(linked);
   const [open, setOpen] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  React.useEffect(() => setRows(items), [items]);
+  React.useEffect(() => setRows(linked), [linked]);
 
   const onChanged = (answer: Answer) => {
     const fresh = new Map(answer.linked.map(view => [view.id, view]));
     setRows(current => current.map(row => fresh.get(row.id) ?? row));
     router.refresh();
   };
+  const sharing = rows.find(row => row.id === open && row.role === 'owner');
 
+  if (!space?.items.length && !rows.length) return empty ? <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">{empty}</p> : null;
   return (
-    <ul className="divide-y">
-      {rows.map(item => (
-        <li key={item.id} className="py-3">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">{item.title}</span>
-            <span className="rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{KIND[item.kind]}</span>
-            {item.version && <span className="text-xs tabular-nums text-muted-foreground">v{item.version.replace(/^v/, '')}</span>}
-            <span className="ml-auto">
-              {item.role === 'owner' ? (
-                <button type="button" className={button} onClick={() => setOpen(open === item.id ? null : item.id)} aria-expanded={open === item.id}>
-                  <UsersIcon className="size-3" aria-hidden /> {open === item.id ? 'Done' : 'Share'}
+    <>
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {(space?.items ?? []).map(item => (
+          <Card key={item.key} kind={item.kind} version={item.version} title={item.title} summary={item.summary} status={<SyncPill item={item} computers={space!.devices.length} />} foot={audience}>
+            <NextStep item={item} />
+          </Card>
+        ))}
+        {rows.map(item => (
+          <Card
+            key={item.id}
+            kind={item.kind}
+            version={item.version}
+            title={item.title}
+            summary={item.summary}
+            foot={whoLine(item)}
+            action={
+              item.role === 'owner' ? (
+                <button type="button" className={button} onClick={() => setOpen(item.id)}>
+                  <UsersIcon className="size-3" aria-hidden /> Share
                 </button>
               ) : unlinkFrom ? (
                 <button
@@ -194,19 +237,29 @@ export function LinkedItems({
                 >
                   Remove
                 </button>
-              ) : null}
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">{whoLine(item)}</p>
-          {item.summary && <p className="mt-0.5 line-clamp-1 max-w-prose text-xs text-muted-foreground">{item.summary}</p>}
-          {open === item.id && item.role === 'owner' && <Share item={item} projects={projects} onChanged={onChanged} />}
-        </li>
-      ))}
+              ) : null
+            }
+          />
+        ))}
+      </ul>
       {error && (
-        <li className="py-2 text-xs text-red-600 dark:text-red-400" role="alert">
+        <p className="mt-2 text-xs text-red-600 dark:text-red-400" role="alert">
           {error}
-        </li>
+        </p>
       )}
-    </ul>
+      <Dialog open={!!sharing} onOpenChange={next => !next && setOpen(null)}>
+        <DialogContent className="sm:max-w-md">
+          {sharing && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Share {sharing.title}</DialogTitle>
+                <DialogDescription>It stays yours. Choose who else gets it.</DialogDescription>
+              </DialogHeader>
+              <Share item={sharing} projects={projects} onChanged={onChanged} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

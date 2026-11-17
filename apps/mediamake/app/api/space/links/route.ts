@@ -58,7 +58,7 @@ async function tell(to: string | undefined, link: LinkRecord, editor: boolean, h
   try {
     const owner = await getUserByClientId(link.owner).catch(() => null);
     const site = siteUrl() ?? CANONICAL_SITE;
-    const url = hasAccount ? `${site}/app/mine#space` : `${site}/signup?redirectTo=${encodeURIComponent('/app/mine')}`;
+    const url = hasAccount ? `${site}/app/mine?tab=shared` : `${site}/signup?redirectTo=${encodeURIComponent('/app/mine')}`;
     return (await sendMail(itemSharedMail(to, { item: link.name, kind: link.kind, by: owner?.name || owner?.email || 'A MediaMake member', editor, url, hasAccount }))).sent;
   } catch (error) {
     console.error('[space] Could not send the share mail:', error);

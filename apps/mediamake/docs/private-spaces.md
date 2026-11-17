@@ -160,11 +160,11 @@ Someone with no GitHub account linked to MediaMake can't get it yet; the
 command and the page name them. Because that list is kept exact, a
 collaborator added to the repo by hand on GitHub is removed at the next sync.
 
-In the app, a linked item shows in **Mine** (yours on your Personal card,
-others' on each linked project's card or under "Shared with you") and in the
-**Skills, MCPs and apps** section of each linked space's page. Its owner
-has **Share** on its row: tick the projects it is linked to, add a member
-by email, choose who can edit it, remove someone. Linking an item for the
+In the app, a linked item is a card in **Mine** (yours under the Yours tab,
+others' under Projects on each linked project, or under Shared with you) and
+in the **Skills** tab of each linked space's page. Its owner has **Share**
+on its card: a dialog to tick the projects it is linked to, add a member by
+email, choose who can edit it, remove someone. Linking an item for the
 first time needs a computer, because the files move: `mm space link`, or
 asking Claude to "link <skill> to the <project> project".
 
