@@ -82,6 +82,8 @@ export interface ItemDetail {
   installPrompt?: string;
   /** A skill's, MCP's or app's launch video prompt: runs make-cwc-tutorial for it on an admin's computer (lib/catalog/launch-video). */
   launchVideoPrompt?: string;
+  /** The titles of its open known issues (lib/feedback/known-issues). */
+  openKnownIssues?: string[];
   /** Its code on GitHub, when known. */
   code?: string;
   /** A skill's whole description (its card's summary is the first sentence). */

@@ -84,6 +84,21 @@ describe('launchVideoPromptFor', () => {
     assert.match(prompt, /It is not public\. Ask me before uploading/);
   });
 
+  it('sets itself up with the sign-in, and shows members the signed-in install', () => {
+    const prompt = launchVideoPromptFor(facts({ id: 'mcp/browse-hack', kind: 'mcp', tier: 'pro' }));
+    assert.match(prompt, /mm update, then mm items install --yes \(mm login first/);
+    assert.match(prompt, /Don't ask me for a site address, an install prompt or an install code\./);
+    assert.match(prompt, /mm items install mcp\/browse-hack --yes \(show this way in for members, since it is not open to everyone\)/);
+  });
+
+  it('lists open known issues and keeps feedback out', () => {
+    const prompt = launchVideoPromptFor(facts({ knownIssues: ['Intros render without sound on Windows'] }));
+    assert.match(prompt, /Known issues open now[^\n]*\n- Intros render without sound on Windows/);
+    assert.match(prompt, /feedback on \/app\/feedback is private: never quote it/);
+    assert.doesNotMatch(launchVideoPromptFor(facts()), /Known issues open now/);
+    assert.match(launchVideoGaps(facts({ knownIssues: ['a'] }))[0], /1 open known issue\./);
+  });
+
   it('says so when there is nothing to install', () => {
     assert.match(launchVideoPromptFor(facts({ id: 'app/library', kind: 'app', installable: false })), /Nothing to install: it opens as a page/);
   });

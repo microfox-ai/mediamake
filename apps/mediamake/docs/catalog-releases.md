@@ -205,6 +205,11 @@ there and is reviewed in rounds, so the site makes no video itself).
   its code, what was made with it (the Ready mark's proof), what it works with
   and what uses it. It tells Claude to check each fact, to ask for what is
   missing, and to stop when no finished production was made with it.
+  It also lists the item's open known issues (the public list an admin writes,
+  never a member's feedback, which the prompt says to keep out of the video),
+  gives `mm items install <id> --yes` as the way in for signed-in members, and
+  has Claude set up a missing skill or MCP with `mm update` and
+  `mm items install --yes`, never by asking for an install prompt or code.
 - The panel says what the prompt still lacks (no production on record, still
   Beta, not public, nothing to install), and **See the prompt** shows it.
 - The finished video comes back as the item's intro: the prompt ends with

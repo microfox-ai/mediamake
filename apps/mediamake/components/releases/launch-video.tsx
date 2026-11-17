@@ -26,6 +26,7 @@ export function LaunchVideo({ detail }: { detail: ItemDetail }) {
     proof: detail.readinessMark?.proof ?? item.readyProof,
     tier: tierOf(item),
     installable: !!detail.installPrompt,
+    knownIssues: detail.openKnownIssues,
   });
 
   return (

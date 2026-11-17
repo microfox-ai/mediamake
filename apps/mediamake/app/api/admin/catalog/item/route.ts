@@ -8,6 +8,7 @@ import { codeUrlOf, staticOrigin } from '@/lib/catalog/items';
 import { planInstall } from '@/lib/catalog/plan';
 import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
 import { usedByOf } from '@/lib/catalog/summary';
+import { knownIssuesDB } from '@/lib/feedback/known-issues-store';
 import { registry } from '@/lib/skills/registry';
 import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, type CatalogItemRecord } from '@/lib/catalog/types';
 import { currentMembership } from '@/lib/memberships/membership';
@@ -63,6 +64,10 @@ export async function GET(req: NextRequest) {
   const usedBy = usedByOf(byId.values(), id);
   const description = item.kind === 'skill' ? registry?.skills.find(skill => skill.name === item.slug)?.description : undefined;
   const video = videos.get(id) ?? null;
+  // what everyone may read about what is broken; a member's feedback never goes in a prompt
+  const knownIssues = hasLaunchVideo(item.kind)
+    ? (await knownIssuesDB.forItem(id).catch(() => [])).filter(issue => issue.status === 'open').map(issue => issue.title)
+    : [];
 
   return NextResponse.json({
     item,
@@ -85,6 +90,7 @@ export async function GET(req: NextRequest) {
     // a skill's card carries the first sentence; its page shows the whole description
     description,
     video,
+    openKnownIssues: knownIssues,
     // what an admin pastes into Claude to make its Cook with Claude episode
     ...(hasLaunchVideo(item.kind) && {
       launchVideoPrompt: launchVideoPromptFor({
@@ -101,6 +107,7 @@ export async function GET(req: NextRequest) {
         uses: item.install?.uses?.map(use => ({ id: use.id, need: use.need, for: use.for, title: byId.get(use.id)?.title })),
         usedBy: usedBy.map(user => ({ id: user.id, title: user.title })),
         video,
+        knownIssues,
         site: siteUrl() ?? CANONICAL_SITE,
         asOf: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
       }),

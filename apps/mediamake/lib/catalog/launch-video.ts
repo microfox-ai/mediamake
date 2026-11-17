@@ -1,4 +1,4 @@
-import { INSTALL_GUIDE_URL, installPromptFor } from './install-prompt';
+import { installPromptFor } from './install-prompt';
 import { youtubeUrl } from './video';
 import { slugOf, type CatalogKind, type ItemTier, type ItemUse, type ReadyProof, type Readiness } from './types';
 
@@ -42,6 +42,8 @@ export interface LaunchVideoFacts {
   uses?: (Pick<ItemUse, 'id' | 'need' | 'for'> & { title?: string })[];
   /** What needs it or offers it as a choice. */
   usedBy?: { id: string; title: string }[];
+  /** Its open known issues, as an admin wrote them for everyone (never a member's feedback). */
+  knownIssues?: string[];
   /** The intro it already has: the episode replaces it. */
   video?: { title: string; youtubeId?: string } | null;
   /** The site the links point at (see siteUrl), with no slash at its end. */
@@ -69,11 +71,12 @@ function whatItIs(about?: string): string {
 }
 
 /** What a launch video still lacks, most important first; empty when the prompt has all it needs. */
-export function launchVideoGaps(facts: Pick<LaunchVideoFacts, 'readiness' | 'proof' | 'tier' | 'installable' | 'kind'>): string[] {
+export function launchVideoGaps(facts: Pick<LaunchVideoFacts, 'readiness' | 'proof' | 'tier' | 'installable' | 'kind' | 'knownIssues'>): string[] {
   const gaps: string[] = [];
   if (!facts.proof?.length) gaps.push('No finished production is on record, so Claude will ask what was made with it before it writes the script.');
   if (facts.readiness !== 'ready') gaps.push('It is still Beta. A launch video is for an item marked Ready.');
   if (facts.tier === 'cohort' || facts.tier === 'admin') gaps.push(`It is not public (${facts.tier === 'admin' ? 'the vault' : 'the cohort'}), so Claude will check with you before anything about it is uploaded.`);
+  if (facts.knownIssues?.length) gaps.push(`It has ${facts.knownIssues.length} open known issue${facts.knownIssues.length === 1 ? '' : 's'}. Fix what the video would show before making it.`);
   if (!facts.installable) gaps.push('It has nothing to install, so the episode has no install prompt to show.');
   return gaps;
 }
@@ -90,7 +93,7 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   const page = `${site}/app/releases/${id}`;
   const lines: string[] = [
     `Make the Cook with Claude launch video for ${facts.title} (${id}${version}) with the ${LAUNCH_VIDEO_SKILL} skill.`,
-    `If this computer doesn't have that skill, stop and tell me: it installs with "Set up skill/${LAUNCH_VIDEO_SKILL} from MediaMake (${site}) by following ${INSTALL_GUIDE_URL}".`,
+    `If this computer lacks that skill, an MCP it needs or mm-release, set them up yourself: mm update, then mm items install --yes (mm login first when mm items says it is signed out). Don't ask me for a site address, an install prompt or an install code.`,
     '',
     `These facts are from MediaMake's catalog${facts.asOf ? ` on ${facts.asOf}` : ''}. Check each one before it goes in the script, and ask me for anything missing instead of filling it in.`,
     '',
@@ -102,11 +105,20 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   lines.push(`- Who can open it: ${TIER_WORD[facts.tier]}`);
   lines.push(`- Readiness: ${facts.readiness === 'ready' ? 'Ready' : 'Beta (not marked Ready yet: tell me before going on)'}`);
   if (facts.kind === 'skill') lines.push(`- Its first prompt: /${slugOf(id)} (read its SKILL.md for what it asks back)`);
-  if (facts.installable) lines.push(`- Install prompt to show, with no install code in it: ${installPromptFor(id)}`);
+  if (facts.installable) {
+    lines.push(`- Install prompt to show, with no install code in it: ${installPromptFor(id)}`);
+    lines.push(`- On a signed-in computer it installs with: mm items install ${id} --yes (show this way in for members${facts.tier === 'public' ? '' : ', since it is not open to everyone'})`);
+  }
   else lines.push('- Nothing to install: it opens as a page, so the copy and paste beat needs another way in. Ask me.');
   lines.push(`- Its page for viewers: ${site}/access?item=${id}`);
   if (facts.code) lines.push(`- Code: ${facts.code}`);
   if (facts.tier === 'cohort' || facts.tier === 'admin') lines.push('- It is not public. Ask me before uploading or publishing anything about it.');
+
+  if (facts.knownIssues?.length) {
+    lines.push('', 'Known issues open now (public on its page: claim nothing these contradict)');
+    for (const issue of facts.knownIssues) lines.push(`- ${issue}`);
+  }
+  lines.push('', "Members' feedback on /app/feedback is private: never quote it or show it. The notes in the rounds are mine.");
 
   lines.push('', 'Made with it (for the cold open and the shelf)');
   if (facts.proof?.length) {
