@@ -6,6 +6,7 @@ import { prMaxUsd } from '@/lib/feedback/budget';
 import { feedbackDB } from '@/lib/feedback/store';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { publicOrigin } from '@/lib/mcp/oauth';
+import { submissionsMerged } from '@/lib/submissions/actions';
 
 /**
  * For the feedback workflows in GitHub Actions (.github/workflows/feedback-fix.yml
@@ -19,8 +20,10 @@ import { publicOrigin } from '@/lib/mcp/oauth';
  *                 how a fix run ended, and what it cost.
  * POST { event: 'merged', repo, prNumber }
  *                 a pull request merged: the feedback tied to it ships and
- *                 its writers are mailed. Sent for every merged PR; one that
- *                 answers no feedback changes nothing.
+ *                 its writers are mailed, and a store submission it delivers
+ *                 (lib/submissions) is live. Sent for every merged PR; one
+ *                 that answers no feedback and delivers no submission changes
+ *                 nothing.
  */
 export const maxDuration = 60;
 
@@ -64,7 +67,8 @@ export async function POST(req: NextRequest) {
   if ('error' in event) return NextResponse.json({ error: event.error }, { status: 400 });
   try {
     const result = await applyHookEvent(event, publicOrigin(req));
-    return NextResponse.json(result, { status: result.ok ? 200 : 404 });
+    const submissions = event.event === 'merged' ? await submissionsMerged(event.repo, event.prNumber) : 0;
+    return NextResponse.json({ ...result, ...(submissions > 0 && { submissions }) }, { status: result.ok ? 200 : 404 });
   } catch (error) {
     console.error('[feedback-hook] Could not apply the event:', error);
     return NextResponse.json({ error: 'Could not save it' }, { status: 503 });

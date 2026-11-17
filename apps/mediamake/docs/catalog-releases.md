@@ -29,6 +29,7 @@ installs from where it lives, not from a package of ours. See
 | Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
 | MCPs and skills made by others | `lib/catalog/third-party.json` (committed), or MongoDB `catalog_items` for ones added with `npm run catalog -- add` | Yes, always |
 | Cards for our apps and our hosted MCPs | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: mm-use installs its hosted connector (`/mcp/use`) for every member, mm-release (`/mcp/release`, it runs the catalog) and the old, deprecated MediaMake MCP (`/mcp`) theirs for admins only (their cards are in the vault); grants and invites can name a card too | As each card says |
+| Items members submitted and an admin accepted, other than Public skills | The private store repo `microfox-ai/mediamake-store` (`skills/`, `mcps/`, `apps/`), each released as a package ([submissions.md](submissions.md)) | No |
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
@@ -291,13 +292,14 @@ add records with `source: 'paid'`: no access code changes.
 
 #### Manage Memberships and Subscription
 
-`/app/memberships` (admins; the People tab of Releases moved here) has four tabs:
+`/app/memberships` (admins; the People tab of Releases moved here) has five tabs:
 
 | Tab | What it does |
 | --- | --- |
 | People | Everyone with an account, a key or a membership: their tier, how they got it, when it ends (amber when within 14 days). **Change** needs a reason, which is kept on the record and goes in the mail. **Make permanent** removes an expiry. **Link** links an old account (a key only) by a one-time link or an email, as on API Keys. |
 | Requests | People who asked for the next membership on their Subscription page (a request for `tier/<tier>`), or for one locked item. Approving a membership gives it; approving an item grants that item. |
 | Invites | Mail one person an invite into a tier (a link that works once, for 30 days), or make a link for up to 10 people. |
+| Suggested | Merged pull requests on the public repositories by people with a linked GitHub account, which no membership counts yet. **Grant Plus** gives it for 3 months, or renews it; **Dismiss** stops suggesting it ([submissions.md](submissions.md)). |
 | Audit log | Who changed whose membership, when and why. Nothing is stored for it: it is read from the membership, invite and request records, which are never deleted (`lib/memberships/audit.ts`). |
 
 The page reads and writes `/api/admin/memberships`. The changes themselves are
@@ -321,6 +323,7 @@ sign-in mails:
 | Welcome | Once, when an account is made (by a confirmed email, Google or GitHub). |
 | Membership changed | An admin gives, raises, lowers, ends or makes permanent a membership, approves a request for one, or the person opens an invite into a tier. Not sent to admins, or when the account has no email. |
 | Invite | An admin mails an invite from Manage Memberships. |
+| Submission decided | An admin accepts a store submission (with the membership it earned), asks for changes or declines it ([submissions.md](submissions.md)). |
 
 Mail never fails a change: without `RESEND_API_KEY`, or when Resend refuses,
 the change holds and the answer says why no mail went.
