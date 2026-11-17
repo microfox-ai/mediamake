@@ -57,6 +57,8 @@ the rest). The space is made by itself when there is none.
 - ✖ a path on this computer (`/Users/…`), something that looks like an API key or a token, a
   SKILL.md whose `name` is not the folder's, or more than 3 MB in all. Fix it in the item (a
   relative path, an env var's name instead of its value), then check again.
+- ✖ a skill with no run sheet, or a row of it that can't be read: its `## Where it runs` table says
+  what each step needs (`apps/mediamake/docs/cloud-device-runs.md`).
 - ⚠ an email address.
 - "left out": a file over 1 MB, a link, `.git`, `node_modules`, `.env` files. Builds and media
   never travel with an item; media goes through the media library, named under `media` in the

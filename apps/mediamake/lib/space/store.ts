@@ -27,7 +27,7 @@ import type { LinkedItemView } from './links';
  *   space's own page reads them.
  *   `id` is `user:<clientId>` or `project:<projectId>`.
  * - `space_items`: one document per item, `{ space, kind, name, title,
- *   summary, version, media, devices: [{ device, version, changed }],
+ *   summary, version, media, needs, devices: [{ device, version, changed }],
  *   createdAt, updatedAt }`.
  */
 const COL = { spaces: 'spaces', items: 'space_items' } as const;

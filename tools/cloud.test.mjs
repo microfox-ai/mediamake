@@ -15,7 +15,7 @@ process.env.HOME = home;
 process.env.MEDIAMAKE_CONFIG = path.join(home, '.mediamake', 'config.json');
 delete process.env.MEDIAMAKE_WORKSPACE;
 
-const { browserWrapper, clonedSpaces, deliverables, setup } = await import('./cloud.mjs');
+const { browserWrapper, clonedSpaces, deliverables, needsOf, setup } = await import('./cloud.mjs');
 const { codeOutside } = await import('./space.mjs');
 
 const sh = (cwd, ...args) => {
@@ -34,11 +34,14 @@ const clone = (dir, repo, files) => {
   }
 };
 
+const SHEET =
+  "\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Voice it | `key:elevenlabs` | no | yes | a to-do for a place with the key |\n| Render | `render` | no | yes | - |\n| Upload | `mcp:browse-hack`, `browser:youtube` | no | no | a to-do: upload the release |\n";
+
 test('setup connects the space repos cloned beside the checkout and links their skills', () => {
   const sessions = path.join(tmp, 'session');
   const top = path.join(sessions, 'mediamake');
   fs.mkdirSync(top, { recursive: true });
-  clone(path.join(sessions, 'mediamake-space'), 'me/mediamake-space', { 'skills/doomcat/SKILL.md': '---\nname: doomcat\ndescription: x\n---\n', 'skills/doomcat/engine/Cat.tsx': 'export const Cat = 1;\n' });
+  clone(path.join(sessions, 'mediamake-space'), 'me/mediamake-space', { 'skills/doomcat/SKILL.md': `---\nname: doomcat\ndescription: x\n---\n${SHEET}`, 'skills/doomcat/engine/Cat.tsx': 'export const Cat = 1;\n' });
   clone(path.join(sessions, 'mediamake-anime'), 'owner/mediamake-anime', { 'skills/amv-like-x/SKILL.md': '---\nname: amv-like-x\ndescription: x\n---\n' });
   clone(path.join(sessions, 'mediamake-skill-grade'), 'owner/mediamake-skill-grade', { 'skills/grade/SKILL.md': '---\nname: grade\ndescription: x\n---\n' });
   clone(path.join(sessions, 'mediamake-store'), 'microfox-ai/mediamake-store', { 'skills/no/SKILL.md': 'x' });
@@ -56,6 +59,28 @@ test('setup connects the space repos cloned beside the checkout and links their 
   const { missing, workspace } = setup({ env, top, install: false });
   assert.equal(workspace, ws);
   assert.ok(!missing.some(m => m.startsWith('your space')), missing.join('\n'));
+  // the keys its skills' run sheets name are asked for by their variable, never read out; a set one is ticked
+  assert.deepEqual(needsOf([path.join(ws, 'space')]), {
+    keys: [
+      { name: 'mediamake', env: 'MEDIAMAKE_API_KEY', by: [] },
+      { name: 'elevenlabs', env: 'ELEVENLABS_API_KEY', by: ['doomcat'] },
+    ],
+    device: [
+      { need: 'mcp:browse-hack', by: ['doomcat'] },
+      { need: 'browser:youtube', by: ['doomcat'] },
+    ],
+    unknown: [],
+  });
+  assert.deepEqual(needsOf([path.join(ws, 'spaces', 'anime')]).unknown, ['amv-like-x']);
+  const bare = { ...env, ELEVENLABS_API_KEY: '', MEDIAMAKE_API_KEY: '' };
+  const asked = setup({ env: bare, top, install: false });
+  assert.ok(asked.missing.some(m => m.startsWith('ELEVENLABS_API_KEY is not set: doomcat needs it')), asked.missing.join('\n'));
+  assert.ok(!asked.missing.some(m => m.includes('MEDIAMAKE_API_KEY')));
+  assert.ok(asked.lines.some(l => l.startsWith('ℹ MEDIAMAKE_API_KEY is not set')));
+  assert.ok(asked.lines.some(l => l.startsWith('ℹ browser:youtube is only on a device')));
+  const set = setup({ env: { ...env, ELEVENLABS_API_KEY: 'sk-secret-value', MEDIAMAKE_API_KEY: 'mm-secret-value' }, top, install: false });
+  assert.ok(set.lines.includes('✔ ELEVENLABS_API_KEY is set (doomcat)'));
+  assert.ok(![...set.lines, ...set.missing].join('\n').includes('secret-value'));
   const config = JSON.parse(fs.readFileSync(process.env.MEDIAMAKE_CONFIG, 'utf8'));
   assert.equal(config.workspace, '~/MediaMake');
   assert.equal(config.space.repo, 'me/mediamake-space');

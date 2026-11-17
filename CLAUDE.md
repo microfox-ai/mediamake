@@ -53,11 +53,29 @@ A project that needs nothing from the user's computer (pure code, or files it fe
 rendered in a Claude Code cloud session from start to end. Run `mm cloud` first (`npm run mm -- cloud`
 before `mm` is linked): it checks the setup, sets the workspace, connects the user's space repos that the
 environment cloned and links their skills, and points renders at the machine's browser. It says what is
-missing (a space repo not added to the environment, a key). Renders run in the session's machine
+missing (a space repo not added to the environment, a key one of its skills needs). The space's page in
+the app (Set up › Run it in the cloud) lists what to add to a cloud environment before that: the
+repositories, and the keys by their variable's name; give the user that page when they set up a cloud
+session or a routine. Renders run in the session's machine
 (`mm render <slug> --preview`, then the master). The files land in the workspace's `out/<slug>/`; give
 them to the user with `mm cloud deliver <slug>` (into the project's shared files when there are some). A
 project that needs Browse Hack, Midjourney or media only on the Mac is not for a cloud session yet.
 `apps/studio/README.md` › Cloud sessions has the details.
+
+## Run sheets: what each step needs
+
+Every skill says, a row a step, what the step needs to run: a `## Where it runs` table in its SKILL.md
+(`| Step | Needs | A person's yes | Safe to repeat | Without it |`), in the words of `tools/places.mjs`
+(`render`, `key:<name>`, `mcp:<id>`, `app:<name>`, `browser:<site>[/<account>]`, `media:library`;
+`nothing` for none). A browser sign-in, an app, the media library and Browse Hack exist only on a device,
+so those steps never run in a cloud session. `apps/mediamake/docs/cloud-device-runs.md` has the format.
+
+- Write the sheet when the skill is made (`mm space new skill` starts one) and keep it true when a step
+  changes. `skills.mjs add`, `publish` and `mm submit` stop on a skill without one.
+- A need names a thing, never a secret: `key:elevenlabs`, never the key; `browser:youtube/<channel>`,
+  never a password. Keys are set in the cloud environment or on the device, by the person.
+- In a cloud session, do the steps that can run there and stop at one that needs a device: say which
+  step, what it needs and what the sheet's "Without it" says. Don't work around it.
 
 ## Git: main stays a clean copy of GitHub
 
@@ -264,7 +282,8 @@ Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and 
 hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
 versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
 sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
-space also reports its items' names, versions, titles and one-line summaries, and for the app's Code tab its file
+space also reports its items' names, versions, titles, one-line summaries and what each needs to run (its run
+sheet's words: key names, MCPs, apps, sign-ins by site and account; never a key), and for the app's Code tab its file
 paths, its README.md and its last 30 commits (short id, time, author's name, subject), never another file (`mm space
 report --dry` shows it, the same switch stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never

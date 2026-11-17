@@ -52,6 +52,13 @@ description: Makes a demo video from a song. Use when the user asks for a demo. 
 
 Cut on the beat.
 
+## Where it runs
+
+| Step | Needs | A person's yes | Safe to repeat | Without it |
+|---|---|---|---|---|
+| Cut and render | \`render\` | no | yes | runs anywhere |
+| Upload | \`mcp:browse-hack\`, \`browser:youtube\` | no | no | a to-do: upload the release from a device signed in to the channel |
+
 ## Feedback log
 
 This log is shared. New lessons go in your notes:
@@ -71,7 +78,7 @@ fs.mkdirSync(origin);
 git(origin, 'init', '--quiet', '--bare');
 git(tmp, 'clone', '--quiet', origin, repo);
 git(repo, 'checkout', '--quiet', '-B', 'main');
-for (const f of ['skills.mjs', 'upstream.mjs']) write(path.join(repo, 'tools', f), fs.readFileSync(path.join(HERE, f)));
+for (const f of ['skills.mjs', 'upstream.mjs', 'places.mjs', 'places.json']) write(path.join(repo, 'tools', f), fs.readFileSync(path.join(HERE, f)));
 write(path.join(repo, '.agents', 'skills', 'make-demo', 'SKILL.md'), BASE);
 write(path.join(repo, '.agents', 'skills', 'make-demo', 'refs', 'cuts.md'), 'Cuts.\n');
 fs.mkdirSync(path.join(repo, '.claude', 'skills'), { recursive: true });
@@ -192,7 +199,7 @@ test('publish onto a base that still commits the registry updates it there', () 
   git(old, 'push', '--quiet', 'origin', 'old');
   git(repo, 'worktree', 'remove', '--force', old);
   git(repo, 'branch', '-D', 'old');
-  write(path.join(own, 'make-demo-like-z', 'SKILL.md'), '---\nname: make-demo-like-z\ndescription: Z.\nmetadata:\n  variant-of: make-demo\n---\n\n# make-demo-like-z\n');
+  write(path.join(own, 'make-demo-like-z', 'SKILL.md'), '---\nname: make-demo-like-z\ndescription: Z.\nmetadata:\n  variant-of: make-demo\n---\n\n# make-demo-like-z\n\n## Where it runs\n\n| Step | Needs | A person\'s yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Make it | nothing | no | yes | - |\n');
   const out = ok('publish', 'make-demo-like-z', '--yes', '--made=The Z short', '--base=old');
   const [, branch] = out.match(/on (skill\/make-demo-like-z-\S+) /) ?? [];
   git(repo, 'fetch', '--quiet', 'origin', branch);

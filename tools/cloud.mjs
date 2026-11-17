@@ -36,7 +36,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { linkSkills, parseRepo } from './space.mjs';
+import { deviceOnly, keyEnv, KEYS } from './places.mjs';
+import { linkSkills, parseRepo, spaceItems } from './space.mjs';
 import { ownSkillsDir, userSkillsDir } from './skills.mjs';
 import { configFile } from './usage.mjs';
 
@@ -262,16 +263,46 @@ export function setup({ env = process.env, top = TOP, install = true, log = () =
       lines.push(`✔ ${s.kind === 'mine' ? 'your space' : s.kind === 'linked' ? 'linked item' : 'project space'} ${s.repo} → ${tilde(s.at)}${linked.length ? ` (${linked.join(', ')})` : ''}`);
     }
   }
-  if (!spaces.some(s => s.kind === 'mine'))
-    missing.push("your space: no <you>/mediamake-space beside this checkout. Add it to this cloud environment's repositories (and a project's mediamake-<project>) so its skills are here");
+  if (!spaces.length)
+    missing.push("your space: no space repo beside this checkout. Add the project's (<owner>/mediamake-<project>) or yours (<you>/mediamake-space) to this cloud environment's repositories so its skills are here; the space's page in the app (Set up) lists them");
   if (skills.length)
     lines.push(`  Skills linked during a session load in the next one. Until then read them where they are: ${tilde(ownSkillsDir())}/<name>/SKILL.md (also linked from ${tilde(userSkillsDir())})`);
   for (const n of notes) lines.push(`⚠ ${n}`);
 
-  // keys a skill may need (named, never shown)
-  const keys = ['ELEVENLABS_API_KEY', 'MEDIAMAKE_API_KEY'].filter(k => !env[k]);
-  if (keys.length) lines.push(`ℹ not set in this environment: ${keys.join(', ')} (only skills that transcribe or talk to MediaMake need them; add them as the environment's secrets)`);
+  // what the spaces' skills need here (their run sheets): keys by name, never shown, and what only a device has
+  const { keys, device, unknown } = needsOf(spaces.filter(s => fs.existsSync(s.at)).map(s => s.at));
+  for (const key of keys) {
+    if (env[key.env]?.trim()) lines.push(`✔ ${key.env} is set${key.by.length ? ` (${key.by.join(', ')})` : ''}`);
+    else if (key.by.length) missing.push(`${key.env} is not set: ${key.by.join(', ')} ${key.by.length === 1 ? 'needs' : 'need'} it. Add it to this cloud environment's secrets${KEYS[key.name]?.from ? ` (made at ${KEYS[key.name].from})` : ''}; a new session picks it up`);
+    else lines.push(`ℹ ${key.env} is not set: MediaMake doesn't hear from this session (the space's page, its productions and releases) until it is. Add it to this cloud environment's secrets (made at ${KEYS[key.name].from})`);
+  }
+  if (unknown.length) lines.push(`ℹ no run sheet yet (what they need isn't known): ${unknown.join(', ')}. Add \`## Where it runs\` to each SKILL.md (apps/mediamake/docs/cloud-device-runs.md)`);
+  for (const d of device) lines.push(`ℹ ${d.need} is only on a device: that step of ${d.by.join(', ')} runs on a computer that has it, never here`);
   return { lines, missing, workspace };
+}
+
+/**
+ * What the items of these spaces need: `keys` ([{ name, env, by: [item names] }], MediaMake's own first:
+ * it is how a session with no browser is signed in), `device` ([{ need, by }]: only a device has it) and
+ * `unknown` (the skills with no run sheet yet).
+ */
+export function needsOf(dirs) {
+  const keys = new Map([['mediamake', []]]);
+  const device = new Map();
+  const unknown = [];
+  for (const dir of dirs) {
+    for (const item of spaceItems(dir)) {
+      if (!item.needs && item.kind === 'skill') unknown.push(item.name);
+      for (const need of item.needs ?? []) {
+        const into = need.startsWith('key:') ? [keys, need.slice('key:'.length)] : deviceOnly(need) ? [device, need] : null;
+        if (!into) continue;
+        const by = into[0].get(into[1]) ?? [];
+        if (!by.includes(item.name)) by.push(item.name);
+        into[0].set(into[1], by);
+      }
+    }
+  }
+  return { keys: [...keys].map(([name, by]) => ({ name, env: keyEnv(name), by })), device: [...device].map(([need, by]) => ({ need, by })), unknown };
 }
 
 /* ---------- deliver ---------- */
@@ -370,8 +401,10 @@ function main(argv = process.argv.slice(2), env = process.env) {
   const { lines, missing } = setup({ env, install: !hook, log: m => console.log(m) });
   if (hook) {
     // one line for the session's start: what is ready, and what to run
-    const setupLeft = missing.filter(m => !m.startsWith('your space'));
-    const space = missing.find(m => m.startsWith('your space'));
+    // what mm cloud itself fixes, and what only the environment's settings can (a space repo, a key)
+    const theirs = m => m.startsWith('your space') || / is not set: /.test(m);
+    const setupLeft = missing.filter(m => !theirs(m));
+    const space = missing.filter(theirs).join('; ');
     const ready = setupLeft.length
       ? `MediaMake cloud session: run \`mm cloud\` (npm run mm -- cloud) before building or rendering. Missing: ${setupLeft.join('; ')}`
       : 'MediaMake cloud session ready: renders run in this machine (never Lambda); mm cloud deliver <slug> hands the files over.';
