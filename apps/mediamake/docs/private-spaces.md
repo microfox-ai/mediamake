@@ -24,8 +24,8 @@ skills and who can open it, with the one line that sets it up on a computer.
 (UI refactor plan, steps 2a and the sharing half of 2b.)
 
 Who gets what: skills, MCPs and apps in a personal space are for every member.
-Files in a space, and project spaces, open at Plus. The MediaMake Spaces MCP
-is a catalog item at Pro.
+Files in a space, project spaces and the MediaMake Spaces MCP (a catalog
+item, whose stage an admin sets in Releases) open at Plus.
 
 ## The personal space's files
 

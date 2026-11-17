@@ -101,7 +101,7 @@ export function isHiddenTier(tier: MemberTier): boolean {
  * The lowest tier that opens each feature that isn't a catalog item. Cloud
  * projects (project spaces and a space's files, brand kits, channel sync, song takes) open at
  * Plus; the MediaMake Spaces MCP (mcp/projectsync) that syncs them from a computer is a catalog
- * item, at Pro. Lambda renders cost money per render, so they stay with the
+ * item, at Plus too. Lambda renders cost money per render, so they stay with the
  * cohort.
  */
 export const FEATURE_TIERS = {

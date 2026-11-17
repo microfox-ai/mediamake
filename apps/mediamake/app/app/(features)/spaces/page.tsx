@@ -22,8 +22,8 @@ export const metadata = { title: 'Spaces · MediaMake' };
 export default async function AppSpacesPage() {
   const { tier, isAdmin, clientId } = await getAppViewer();
   const spaces = clientId ? await getSpaces(clientId) : null;
-  // the Spaces MCP, which moves a space's files from a computer, is Pro (files in a space are Plus)
-  const canSync = tierOpens(tier, 'pro');
+  // the Spaces MCP, which moves a space's files from a computer, opens at Plus, like files in a space
+  const canSync = tierOpens(tier, 'plus');
   if (canUseCloudProjects(tier)) return <ProjectsPage isAdmin={isAdmin} canSync={canSync} mySpace={spaces?.mine ?? null} />;
 
   const needed = tierLabel(FEATURE_TIERS.cloudProjects);

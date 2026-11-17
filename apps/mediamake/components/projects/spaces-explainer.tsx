@@ -183,7 +183,7 @@ const WHY: { title: string; about: string }[] = [
   { title: 'It stays private', about: 'Files are stored privately and opened through links that last an hour, and skills sit in private repos, only for the people you gave the space to.' },
 ];
 
-export function SpacesExplainer({ canSync, className }: { /** Their membership opens the Spaces MCP (Pro and above). */ canSync?: boolean; className?: string }) {
+export function SpacesExplainer({ canSync, className }: { /** Their membership opens the Spaces MCP (Plus and above). */ canSync?: boolean; className?: string }) {
   return (
     <section className={cn('flex flex-col gap-8 border-t pt-10', className)} aria-labelledby="spaces-how">
       <div className="max-w-2xl">
@@ -258,7 +258,7 @@ export function SpacesExplainer({ canSync, className }: { /** Their membership o
         </div>
         <div>
           <p className="flex items-center gap-2 text-sm font-medium">
-            The MediaMake Spaces MCP <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Pro and above</span>
+            The MediaMake Spaces MCP <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Plus and above</span>
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             The part that runs on your computer, so Claude can upload and pull productions, releases and media for you.{' '}
