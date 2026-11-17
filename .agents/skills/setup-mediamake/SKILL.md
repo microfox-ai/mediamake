@@ -120,7 +120,7 @@ In the checkout:
 
 ### 6a. Their MediaMake items: installed with the sign-in
 
-Browse Hack, ProjectSync and every other MCP or app of MediaMake's come from the user's account.
+Browse Hack, MediaMake Spaces (it was ProjectSync) and every other MCP or app of MediaMake's come from the user's account.
 Never ask for the site address, an install prompt or an install code: `mm` knows the site
 (`mediamake.microfox.app` unless their config names another) and the sign-in says what they may
 have.
@@ -149,7 +149,26 @@ have.
 
 In the report, say what the membership is and what was installed for it (with versions).
 
-### 6b. Keys and other MCPs (optional, all of them)
+### 6b. MediaMake Spaces: their personal space and their projects'
+
+Only when 6a left the computer signed in. A space holds the skills, MCPs and apps made for one body
+of work (a private GitHub repo) and its files (the MediaMake Spaces MCP, `mcp/projectsync`, which 6a
+installs when their membership opens it). How to use them afterwards is the `use-mediamake-spaces`
+skill, which comes with the checkout: nothing to install.
+
+1. `gh auth status`. Not signed in to GitHub: **Ask** them to run `gh auth login` (the one step that
+   is theirs). They'd rather not: skip 6b and say spaces wait for it.
+2. `mm space ensure`: connects their personal space, making its private repo
+   (`<their login>/mediamake-space`) when they have none. Never ask them to create or name a repo.
+3. `mm space sync`: brings down every space they are on (their other computers' skills, and each
+   project's once they are invited), links the skills into Claude, shows what would go up and each
+   space's files waiting. Nothing goes up without `--yes`, and only once they agree.
+4. A project it says they aren't invited to yet: tell them who invites (it names them), and that
+   `mm space join <project id>`, the line on the project's page, sets it up later.
+
+In the report, list the spaces now on this computer and how many items each has.
+
+### 6c. Keys and other MCPs (optional, all of them)
 
 Every MCP here can be skipped, and the setup is complete without any of them. Check which this
 session already has (`claude mcp get <name>`, or the tools present), then offer the missing ones
@@ -201,8 +220,9 @@ Tell them, in a few lines:
 - where things are: the checkout, the workspace, the library, the config;
 - the final `mm doctor` (Ready, or what's left and who does it; a skipped MCP is never a blocker);
 - what they skipped and what it costs (an MCP, the watcher, a cleanup);
-- how to start: `cd <checkout> && claude`, then a skill such as `/make-lyrics-video`; later,
-  "update MediaMake" (update-mediamake-items, which runs `mm update`).
+- how to start: `cd <checkout> && claude`, then a skill such as `/make-lyrics-video`; "sync my
+  spaces" (use-mediamake-spaces) at the start of a session; later, "update MediaMake"
+  (update-mediamake-items, which runs `mm update`: the checkout, its skills and their spaces).
 
 If a step fails, say which step and the exact error, fix what you can, and retry that step only.
 
