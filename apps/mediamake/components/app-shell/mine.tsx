@@ -85,7 +85,7 @@ const code = 'rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground
 
 type LinkTargets = { id: string; name: string }[];
 
-/** One space as a card: who has it, then its items, then the items linked to it from members' spaces. */
+/** One space as a card: who has it, then its items, then the linked items (lib/space/links) its people also get. */
 function SpaceCard({
   title,
   who,
@@ -134,8 +134,7 @@ function SpaceCard({
       </div>
       <div className="px-3">{space?.items.length ? <SpaceItems space={space} /> : linked.length ? null : <p className="py-3 text-xs text-muted-foreground">{empty}</p>}</div>
       {linked.length > 0 && (
-        <div className="border-t px-3">
-          <p className="pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked from members&apos; spaces</p>
+        <div className={space?.items.length ? 'border-t px-3' : 'px-3'}>
           <LinkedItems items={linked} projects={targets} />
         </div>
       )}
@@ -164,7 +163,7 @@ function LinkedCard({ title, who, items, targets }: { title: string; who: string
 
 const STEPS = [
   { title: 'Make it', text: 'Ask Claude to make a skill for you. It is saved in your personal space, which Claude sets up by itself the first time.' },
-  { title: 'Share it, if you want', text: 'Say "link it to the <project> project" and everyone on that project gets it while it stays yours. Otherwise it is only yours.' },
+  { title: 'Share it, if you want', text: 'Say "link it to the <project> project" and everyone on that project gets it. It stays yours.' },
   { title: 'Keep it the same', text: 'On any computer, "sync my MediaMake spaces" brings in what changed elsewhere and sends what changed there.' },
 ];
 
@@ -172,7 +171,6 @@ const STEPS = [
 function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
   const projects = spaces?.projects ?? [];
   const withSpace = projects.filter(project => project.space);
-  const open = projects.filter(project => !project.space && project.role !== 'viewer');
   const linked = spaces?.linked ?? [];
   const own = linked.filter(item => item.role === 'owner');
   // an item shared by name shows once, on its own card; the others on each linked project's card
@@ -183,7 +181,7 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
   const count = (spaces?.mine?.items.length ?? 0) + withSpace.reduce((sum, project) => sum + project.space!.items.length, 0) + linked.length;
   const started = !!spaces?.mine || withSpace.length > 0 || linked.length > 0;
   return (
-    <Section id="space" title="Made in your spaces" count={count} about="Skills, MCPs and apps in your personal space and your project spaces. Personal ones are only yours, a project's go to everyone on it, and one of yours can be linked to several projects while it stays yours. All of them stay the same on every computer.">
+    <Section id="space" title="Made in your spaces" count={count} about="Your skills, MCPs and apps. Personal ones are only yours until you share them, and a project's go to everyone on it.">
       {!started && (
         <ol className="grid gap-2 sm:grid-cols-3">
           {STEPS.map((step, index) => (
@@ -210,8 +208,9 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
                 Nothing personal yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
               </>
             }
+            linked={own}
+            targets={targets}
           />
-          {own.length > 0 && <LinkedCard title="Yours, linked" who="They stay yours: only you and the editors you name can change them" items={own} targets={targets} />}
           {cards.map(project => (
             <SpaceCard
               key={project.projectId}
@@ -225,20 +224,11 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
               targets={targets}
             />
           ))}
-          {direct.length > 0 && <LinkedCard title="Shared with you" who="By members who named you" items={direct} targets={targets} />}
+          {direct.length > 0 && <LinkedCard title="Shared with you" who="By other members" items={direct} targets={targets} />}
         </div>
       )}
-      {open.length > 0 && started && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          You can also share into {open.map(project => project.name).join(', ')}: ask Claude to &quot;share &lt;skill&gt; with the &lt;project&gt; project&quot;, or run{' '}
-          <span className={code}>mm space share &lt;skill&gt; --project=&quot;&lt;project&gt;&quot;</span>.
-        </p>
-      )}
       {started && targets.length > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          To keep a skill yours and give it to the people of one or several projects: ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;, or run{' '}
-          <span className={code}>mm space link &lt;skill&gt; --project=&quot;&lt;project&gt;&quot;</span>. Once linked, Manage on its row adds or removes projects and people.
-        </p>
+        <p className="mt-3 text-xs text-muted-foreground">To share one of your skills and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its row changes who has it.</p>
       )}
       {started && (
         <p className="mt-3 text-xs text-muted-foreground">

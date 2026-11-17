@@ -104,7 +104,7 @@ Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`)
   one history, cloned to `linked/<name>` in the workspace. Everyone on a linked project and every named
   member gets it with `mm space sync` or `mm space join`; only its owner and the named editors can
   change it. `mm space unlink <item> --project=<project>` (or `--from=<email>`) takes it from that
-  project's people, or that person, only. In the app, Manage on the item's row in Mine does the same.
+  project's people, or that person, only. In the app, Share on the item's row in Mine does the same.
 - Adding someone to a project in the app invites them to the project's repo on GitHub when the owner
   connected GitHub there (once, in the access panel; MediaMake's GitHub App, set up as
   `apps/mediamake/docs/private-spaces.md` says). Otherwise `mm space invite <project id>` on the

@@ -99,6 +99,7 @@ describe('the changes an owner makes', () => {
   it('says where an item is linked in a few words', () => {
     assert.equal(linkedSummary({ projects: [] }), 'nobody yet');
     assert.equal(linkedSummary({ projects: [{ id: ZONE, name: 'Anime Music Zone' }, { id: KIDS, name: 'Kids TV' }] }), 'Anime Music Zone and Kids TV');
+    assert.equal(linkedSummary({ projects: [{ id: ZONE, name: 'Anime Music Zone' }, { id: KIDS, name: 'Kids TV' }], invites: [{ email: 'e@x.co', editor: true }] }), 'Anime Music Zone, Kids TV and 1 person');
     assert.equal(linkedSummary({ projects: [{ id: ZONE, name: 'A' }, { id: KIDS, name: 'B' }, { id: ID, name: 'C' }], people: [{ clientId: 'dan', name: 'Dan', editor: false }], invites: [{ email: 'e@x.co', editor: true }] }), '3 projects and 2 people');
   });
 });

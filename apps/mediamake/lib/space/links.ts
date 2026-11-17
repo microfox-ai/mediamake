@@ -228,10 +228,11 @@ export interface LinkedItemView {
   space: SpaceView | null;
 }
 
-/** "Anime Music Zone and Kids TV", "3 projects and 2 people": where an item is linked, in a few words. */
+/** "Anime Music Zone and Kids TV", "Anime Music Zone, Kids TV and 2 people", "3 projects and 2 people": where an item is linked, in a few words. */
 export function linkedSummary(view: Pick<LinkedItemView, 'projects' | 'people' | 'invites'>): string {
   const people = (view.people?.length ?? 0) + (view.invites?.length ?? 0);
-  const projects = view.projects.length <= 2 ? view.projects.map(project => project.name).join(' and ') : `${view.projects.length} projects`;
-  const named = people ? `${people} ${people === 1 ? 'person' : 'people'}` : '';
-  return [projects, named].filter(Boolean).join(' and ') || 'nobody yet';
+  const parts = view.projects.length <= 2 ? view.projects.map(project => project.name) : [`${view.projects.length} projects`];
+  if (people) parts.push(`${people} ${people === 1 ? 'person' : 'people'}`);
+  if (!parts.length) return 'nobody yet';
+  return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }

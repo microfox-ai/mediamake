@@ -344,22 +344,12 @@ export function ProjectDetail({
               </Empty>
             )}
             {linked.length > 0 && (
-              <div className={space?.items.length ? 'mt-3 border-t pt-3' : undefined}>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{personal ? 'Yours, linked to more people' : "Linked from members' spaces"}</p>
+              <div className={space?.items.length ? 'mt-3 border-t' : undefined}>
                 <LinkedItems items={linked} projects={linkTargets} unlinkFrom={!personal && project?.isOwned ? { id: projectId, name: project.displayName } : undefined} />
-                <p className="pt-2 text-xs text-muted-foreground">
-                  {personal
-                    ? 'These stay yours, one copy each. The people of every linked project, and the members you name, get them with'
-                    : 'These stay in their owners\' spaces, and only their owners and the editors they name can change them. Everyone on the project gets them with'}{' '}
-                  <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
-                </p>
               </div>
             )}
             {!personal && (
-              <p className="pt-2 text-xs text-muted-foreground">
-                To link one of your own skills here and keep it yours: ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot; (
-                <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space link &lt;skill&gt; --project=…</span>).
-              </p>
+              <p className="pt-2 text-xs text-muted-foreground">To add one of your own skills here and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot;.</p>
             )}
           </Group>
 
