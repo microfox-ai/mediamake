@@ -41,16 +41,19 @@ export function ArchivedPill({ className }: { className?: string }) {
   );
 }
 
-/** A titled card, as the release pages lay out their sections. */
+/** A titled card, as the release pages lay out their sections; its buttons go in `footer`, under what it shows. */
 export function Panel({
   title,
   description,
   children,
+  footer,
   className,
 }: {
   title: string;
   description?: React.ReactNode;
   children: React.ReactNode;
+  /** The section's buttons: a row under its content, to the right. */
+  footer?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -60,6 +63,7 @@ export function Panel({
         {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </header>
       <div className="px-5 py-4">{children}</div>
+      {footer && <footer className="flex flex-wrap items-center justify-end gap-2 border-t px-5 py-3">{footer}</footer>}
     </section>
   );
 }

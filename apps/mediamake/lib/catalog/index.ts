@@ -1,7 +1,8 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
 import { installPromptFor, updatePromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogReadinessDB, catalogVideosDB } from './store';
+import { withListingTags, type ItemListing } from './listing';
+import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from './store';
 import { withVideos } from './video';
 import {
   isHiddenFromBelow,
@@ -62,8 +63,8 @@ export function toEntry(entitlements: Entitlements, stored: CatalogItem): Catalo
  * items that work with others (a skill's MCPs) their `uses`, items with a
  * video (a skill's intro, a tutorial, a course) their `video`, and archived
  * ones `archivedAt` (the homepage leaves those out). Every item carries its
- * `tier`, its `readiness` (Beta, or Ready with `readyProof`) and, when it
- * has one, its `health`: lib/catalog/shown says where each shows.
+ * `tier`, its `readiness` (Beta, or Ready with `readyProof`), the tags an
+ * admin added to its listing and, when it has one, its `health`: lib/catalog/shown says where each shows.
  *
  * Merges the items defined in ./items (public-safe cards, third-party.json
  * and the skill registry) with the catalog database, where released and
@@ -83,20 +84,22 @@ export async function listCatalog(
   let videos: CatalogVideo[] = [];
   let health: HealthMark[] = [];
   let readiness: ReadinessMark[] = [];
+  let listings: ItemListing[] = [];
   try {
-    [stored, archived, videos, health, readiness] = await Promise.all([
+    [stored, archived, videos, health, readiness, listings] = await Promise.all([
       catalogItemsDB.list({ kind }),
       catalogArchiveDB.list(),
       catalogVideosDB.list(),
       catalogHealthDB.list(),
       catalogReadinessDB.list(),
+      catalogListingDB.list().catch((): ItemListing[] => []),
     ]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[]; runs: McpRuns[] }>();
-  for (const record of withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health), readiness)) {
+  for (const record of withListingTags(withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health), readiness), listings)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses, runs: mcpRunsOf(record) });
   }
 

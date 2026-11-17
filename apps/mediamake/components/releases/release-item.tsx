@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Archive, ArchiveRestore, ArrowLeft, Check, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, Check, Code2, Copy, ExternalLink, ShieldAlert, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HEALTH, HealthBadge } from '@/components/catalog/health';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { ITEM_HEALTH, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemHealth, type ItemTier } from '@/lib/catalog/types';
+import { ITEM_HEALTH, ITEM_TIERS, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemHealth, type ItemTier } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import { itemPagePath } from '@/lib/catalog/paths';
@@ -20,15 +20,18 @@ import { ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './part
 import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, reachOf, tierOf, type ItemDetail } from './model';
 import { ReadinessButton } from './proof-dialog';
 import { CoursePanel, VideoPanel } from './video-panel';
+import { ListingPanel } from './listing-panel';
 
 /**
  * One catalog item's release page (/app/releases/<kind>/<slug>): what it is,
  * who can open it, where it lives, what installing it does, what it needs and
- * what uses it, its video, and its history. Its actions are Archive /
- * Unarchive, marking it Ready with what was made with it (proof-dialog) and
- * editing its video (a skill's intro, a tutorial, a course's
- * lessons); moving it along stays on the board, in the access sheet, in
- * `npm run catalog` and in the MediaMake MCP's catalog tools.
+ * what uses it, its video, its store listing (tags and screenshots) and its
+ * history. The wide column is what the item shows (video, listing, install,
+ * history); the narrow one is what an admin does with it: its actions
+ * (Archive / Unarchive, marking it Ready with what was made with it, its
+ * health), its tier, its connections and where it lives. Each section's
+ * buttons sit under it. Gates and grants stay on the board and in the access
+ * sheet; everything is also in `npm run catalog` and mm-release's tools.
  */
 
 const KIND_LABEL: Record<CatalogKind, string> = { mcp: 'MCP', skill: 'Skill', app: 'App', tutorial: 'Tutorial', course: 'Course' };
@@ -166,7 +169,7 @@ export function ReleaseItem({ id }: { id: string }) {
             <Skeleton className="h-4 w-96 max-w-full" />
           </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Skeleton className="h-72 rounded-2xl" />
           <Skeleton className="h-72 rounded-2xl" />
         </div>
@@ -186,21 +189,23 @@ export function ReleaseItem({ id }: { id: string }) {
         <ArrowLeft className="size-4" /> Releases
       </Link>
 
-      <Header detail={detail} tier={tier} onArchived={reload} />
+      <Header detail={detail} tier={tier} />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
           {detail.item.kind === 'course' ? <CoursePanel detail={detail} onSaved={reload} /> : <VideoPanel detail={detail} onSaved={reload} />}
           {!isVideo && (
             <>
+              <ListingPanel detail={detail} onSaved={reload} />
               <InstallPanel detail={detail} />
-              <ConnectionsPanel detail={detail} />
             </>
           )}
           <HistoryPanel item={detail.item} />
         </div>
         <div className="flex min-w-0 flex-col gap-6">
-          <ReachPanel detail={detail} tier={tier} now={now} />
+          <ActionsPanel detail={detail} onDone={reload} />
+          <ReachPanel detail={detail} tier={tier} now={now} onChanged={reload} />
+          {!isVideo && <ConnectionsPanel detail={detail} />}
           <WherePanel detail={detail} />
         </div>
       </div>
@@ -208,110 +213,105 @@ export function ReleaseItem({ id }: { id: string }) {
   );
 }
 
-function Header({ detail, tier, onArchived }: { detail: ItemDetail; tier: ItemTier; onArchived: () => void }) {
-  const { item, installPrompt, code, archive, healthMark, readinessMark } = detail;
+/** What the item is, across the whole page: its buttons are in the narrow column (ActionsPanel), so its words have room. */
+function Header({ detail, tier }: { detail: ItemDetail; tier: ItemTier }) {
+  const { item, archive, healthMark, readinessMark } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
   const cover = item.cover ?? item.video?.thumbnail;
   return (
-    // the actions sit beside the title only when there is room for both
-    <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-      <div className="flex min-w-0 items-start gap-4">
-        <span className={cn('flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl', TIER_META[tier].soft)}>
-          {cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cover}
-              alt=""
-              onLoad={onYouTubeThumbnailLoad}
-              onError={e => (e.currentTarget.style.display = 'none')}
-              className="size-full object-cover"
-            />
-          ) : (
-            <Icon className="size-6 opacity-80" />
-          )}
-        </span>
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
-            <TierPill tier={tier} />
-            <ReadinessPill readiness={item.readiness} />
-            {archive && <ArchivedPill />}
-            <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
-            {version ? ` · v${version}` : ''}
-            {item.status === 'coming-soon' ? ` · ${STATUS_LABEL[item.status]}` : ''}
-          </p>
-          <About summary={item.summary} description={detail.description} />
-          {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
-          {readinessMark?.proof?.length ? (
-            <p className="text-xs text-muted-foreground">
-              Ready since {formatDate(readinessMark.at)}. Made with it:{' '}
-              {readinessMark.proof.map((proof, i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  {proof.url ? (
-                    <a href={proof.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                      {proof.title}
-                    </a>
-                  ) : (
-                    proof.title
-                  )}
-                </span>
-              ))}
-              .
-            </p>
-          ) : null}
-          {healthMark && (
-            <p className="text-xs text-muted-foreground">
-              {HEALTH[healthMark.health].label} since {formatDate(healthMark.at)}
-              {healthMark.note ? `: ${healthMark.note}` : ''}.
-            </p>
-          )}
-          {archive && (
-            <p className="text-xs text-muted-foreground">
-              Archived {formatDate(archive.at)}
-              {archive.note ? `: ${archive.note}` : ''}. Left off the homepage; it still installs by its link.
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-2 xl:shrink-0">
-        {installPrompt && <CopyPrompt prompt={installPrompt} />}
-        <ArchiveButton id={item.id} archived={!!archive} onDone={onArchived} />
-        <ReadinessButton detail={detail} onDone={onArchived} />
-        <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health ?? 'healthy'} onDone={onArchived} />
-        {VIDEO_KINDS.includes(item.kind) ? (
-          <Button variant="outline" size="sm" asChild>
-            <a href={watchPath(item.id)} target="_blank" rel="noreferrer">
-              {item.kind === 'course' ? 'Course page' : 'Its page'} <ExternalLink />
-            </a>
-          </Button>
+    <header className="flex min-w-0 items-start gap-4">
+      <span className={cn('flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl', TIER_META[tier].soft)}>
+        {cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cover}
+            alt=""
+            onLoad={onYouTubeThumbnailLoad}
+            onError={e => (e.currentTarget.style.display = 'none')}
+            className="size-full object-cover"
+          />
         ) : (
-          <Button variant="outline" size="sm" asChild>
-            <a href={itemPagePath(item.id)} target="_blank" rel="noreferrer">
-              Item page <ExternalLink />
-            </a>
-          </Button>
+          <Icon className="size-6 opacity-80" />
         )}
-        {item.href && !VIDEO_KINDS.includes(item.kind) && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={item.href} target="_blank" rel="noreferrer">
-              Open it <ExternalLink />
-            </a>
-          </Button>
+      </span>
+      <div className="min-w-0 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
+          <TierPill tier={tier} />
+          <ReadinessPill readiness={item.readiness} />
+          {archive && <ArchivedPill />}
+          <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
+          {version ? ` · v${version}` : ''}
+          {item.status === 'coming-soon' ? ` · ${STATUS_LABEL[item.status]}` : ''}
+        </p>
+        <About summary={item.summary} description={detail.description} />
+        {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+        {readinessMark?.proof?.length ? (
+          <p className="text-xs text-muted-foreground">
+            Ready since {formatDate(readinessMark.at)}. Made with it:{' '}
+            {readinessMark.proof.map((proof, i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                {proof.url ? (
+                  <a href={proof.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                    {proof.title}
+                  </a>
+                ) : (
+                  proof.title
+                )}
+              </span>
+            ))}
+            .
+          </p>
+        ) : null}
+        {healthMark && (
+          <p className="text-xs text-muted-foreground">
+            {HEALTH[healthMark.health].label} since {formatDate(healthMark.at)}
+            {healthMark.note ? `: ${healthMark.note}` : ''}.
+          </p>
         )}
-        {code && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={code} target="_blank" rel="noreferrer">
-              Code <ExternalLink />
-            </a>
-          </Button>
+        {archive && (
+          <p className="text-xs text-muted-foreground">
+            Archived {formatDate(archive.at)}
+            {archive.note ? `: ${archive.note}` : ''}. Left off the homepage; it still installs by its link.
+          </p>
         )}
       </div>
     </header>
+  );
+}
+
+/**
+ * What an admin does with the item, as a grid of buttons two across: copy
+ * its install prompt, open its page and its code, mark it Ready, archive it,
+ * set its health.
+ */
+function ActionsPanel({ detail, onDone }: { detail: ItemDetail; onDone: () => void }) {
+  const { item, installPrompt, code, archive, healthMark } = detail;
+  const video = VIDEO_KINDS.includes(item.kind);
+  return (
+    <section className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-4" aria-label="Actions">
+      {installPrompt && <CopyPrompt prompt={installPrompt} />}
+      <Button variant="outline" size="sm" asChild>
+        <a href={video ? watchPath(item.id) : itemPagePath(item.id)} target="_blank" rel="noreferrer">
+          <ExternalLink /> {item.kind === 'course' ? 'Course page' : 'Item page'}
+        </a>
+      </Button>
+      <ReadinessButton detail={detail} onDone={onDone} />
+      {code && (
+        <Button variant="outline" size="sm" asChild>
+          <a href={code} target="_blank" rel="noreferrer">
+            <Code2 /> Code
+          </a>
+        </Button>
+      )}
+      <ArchiveButton id={item.id} archived={!!archive} onDone={onDone} />
+      <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health ?? 'healthy'} onDone={onDone} />
+    </section>
   );
 }
 
@@ -359,8 +359,11 @@ function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: Item
   };
   return (
     <Select value={marked ?? 'default'} onValueChange={set} disabled={busy}>
-      <SelectTrigger size="sm" className="h-8 w-auto gap-1.5 text-xs" title="Whether it works right now, on its card and install page">
-        <SelectValue />
+      <SelectTrigger size="sm" className="h-8 w-full gap-1.5 text-xs" title="Whether it works right now, on its card and install page">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="text-muted-foreground">Health</span>
+          <SelectValue />
+        </span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="default">Default{!marked && shown ? ` (${HEALTH[shown].label})` : ''}</SelectItem>
@@ -408,7 +411,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
   return (
     <Button
       size="sm"
-      title={prompt}
+      title="Copy its install prompt"
       onClick={async () => {
         await navigator.clipboard.writeText(prompt);
         setCopied(true);
@@ -416,7 +419,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
       }}
     >
       {copied ? <Check /> : <Copy />}
-      {copied ? 'Copied' : 'Copy install prompt'}
+      {copied ? 'Copied' : 'Install prompt'}
     </Button>
   );
 }
@@ -645,7 +648,7 @@ function HistoryPanel({ item }: { item: CatalogItemRecord }) {
   );
 }
 
-function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier; now: number }) {
+function ReachPanel({ detail, tier, now, onChanged }: { detail: ItemDetail; tier: ItemTier; now: number; onChanged: () => void }) {
   const { item, members, grants, publicReleasesOpen } = detail;
   const always = isAlwaysPublic(item);
   const inCode = detail.definedIn === 'items.ts';
@@ -671,8 +674,33 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier;
       ? 'A page anyone can open, even while public releases are locked.'
       : TIER_META[tier].who;
   return (
-    <Panel title="Who can open it" description={description}>
-      <ul className="flex flex-col gap-2">
+    <Panel
+      title="Who can open it"
+      description={description}
+      footer={
+        !inCode &&
+        !always && (
+          <>
+            <span className="mr-auto text-xs text-muted-foreground">
+              {grants.length === 1 ? '1 grant reaches it' : `${grants.length} grants reach it`}
+            </span>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/app/releases?access=${encodeURIComponent(item.id)}`}>
+                <Users /> Manage access
+              </Link>
+            </Button>
+          </>
+        )
+      }
+    >
+      <TierSelect
+        id={item.id}
+        title={item.title}
+        tier={tier}
+        locked={always ? (item.madeBy ? 'Made by others: always Public' : 'In the public repo: always Public') : inCode ? 'Set in lib/catalog/items.ts' : undefined}
+        onDone={onChanged}
+      />
+      <ul className="mt-4 flex flex-col gap-2">
         {rows.map(row => (
           <li key={row.label} className={cn('flex items-center gap-2 text-sm', !row.on && 'text-muted-foreground line-through decoration-muted-foreground/40')}>
             <span className={cn('size-1.5 shrink-0 rounded-full', row.on ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
@@ -690,21 +718,55 @@ function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier;
           </p>
         </div>
       )}
-      {inCode ? (
-        <p className="mt-4 border-t pt-4 text-xs text-muted-foreground">Defined in lib/catalog/items.ts: change it by editing that file.</p>
-      ) : (
-        !always && (
-          <div className="mt-4 flex items-center justify-between gap-3 border-t pt-4">
-            <span className="text-xs text-muted-foreground">
-              {grants.length} grant{grants.length === 1 ? '' : 's'} reach it
-            </span>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/app/releases?access=${encodeURIComponent(item.id)}`}>Manage access</Link>
-            </Button>
-          </div>
-        )
-      )}
     </Panel>
+  );
+}
+
+/**
+ * The item's tier, the lowest membership that opens it, changed on the spot
+ * (`set_item_tier`). Releasing to Public asks first. A skill in the public
+ * repo, an item made by others and a card defined in code can't be moved:
+ * the select says why (`locked`).
+ */
+function TierSelect({ id, title, tier, locked, onDone }: { id: string; title: string; tier: ItemTier; locked?: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const set = async (value: string) => {
+    const next = value as ItemTier;
+    if (next === tier) return;
+    if (next === 'public' && !window.confirm(`Release ${title} to everyone now?`)) return;
+    setBusy(true);
+    try {
+      await adminCall({ type: 'set_item_tier', itemId: id, tier: next });
+      toast.success(next === 'public' ? 'Released to the public' : `Moved to ${next === 'admin' ? 'the vault' : TIER_META[next].label}`);
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="item-tier" className="text-sm font-medium">
+          Tier
+        </label>
+        <Select value={tier} onValueChange={set} disabled={busy || !!locked}>
+          <SelectTrigger id="item-tier" size="sm" className="h-8 w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {ITEM_TIERS.map(option => (
+              <SelectItem key={option} value={option}>
+                <span className={cn('size-1.5 rounded-full', TIER_META[option].dot)} />
+                {TIER_META[option].label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {locked && <p className="text-xs text-muted-foreground">{locked}</p>}
+    </div>
   );
 }
 
@@ -777,7 +839,8 @@ function WherePanel({ detail }: { detail: ItemDetail }) {
             {pageUrl.replace(/^https?:\/\//, '')}
           </a>,
         ],
-    ...(item.href && !VIDEO_KINDS.includes(item.kind)
+    // an app opens somewhere of its own; a skill's or MCP's link is its item page, already above
+    ...(item.href && !VIDEO_KINDS.includes(item.kind) && item.href !== itemPagePath(item.id)
       ? ([
           [
             'Opens at',

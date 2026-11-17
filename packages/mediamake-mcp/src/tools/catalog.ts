@@ -333,6 +333,36 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
   );
 
   server.registerTool(
+    'catalog_set_listing',
+    {
+      title: "Set an item's tags and screenshots (admins)",
+      description:
+        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page: tags (words people look for it by, added beside the ones it already has, such as a skill's category) and screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). Each one given replaces what was there: give the whole list, an empty list to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
+      inputSchema: {
+        item: ITEM_ID,
+        tags: z.array(z.string().min(1).max(30)).max(12).optional().describe('The tags an admin adds, e.g. ["anime", "lyric-video"]; stored in lowercase with dashes'),
+        media: z
+          .array(
+            z.object({
+              kind: z.enum(['image', 'video']),
+              url: z.string().describe('Its https link: a picture, a YouTube video, or an MP4 or WebM clip'),
+              title: z.string().max(120).optional().describe('What it shows, in a few words'),
+            }),
+          )
+          .max(12)
+          .optional()
+          .describe('The screenshots, in the order they show'),
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ item, tags, media }) => {
+      if (!tags && !media) throw new Error('Give tags, media or both');
+      const { listing } = await client.post<{ listing: unknown }>('/api/admin/catalog', { type: 'set_listing', itemId: item, ...(tags && { tags }), ...(media && { media }) });
+      return json({ item, listing, page: page(item) });
+    }),
+  );
+
+  server.registerTool(
     'catalog_set_readiness',
     {
       title: 'Mark items Ready or Beta (admins)',

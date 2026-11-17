@@ -16,6 +16,7 @@ import { currentMembership, type Membership } from '@/lib/memberships/membership
 import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, tierOpens, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
 import type { InstallPlan } from '@/lib/catalog/plan';
 import type { UsedBy } from '@/lib/catalog/summary';
+import type { ListingMedia } from '@/lib/catalog/listing';
 
 export { COMMUNITY_GROUP, PRIVATE_GROUP };
 
@@ -88,6 +89,8 @@ export interface ItemDetail {
   code?: string;
   /** A skill's whole description (its card's summary is the first sentence). */
   description?: string;
+  /** Its store listing: the tags an admin added (item.tags has its own too) and its screenshots. */
+  listing?: { tags: string[]; media: ListingMedia[] };
   /** Its video as stored: a skill's intro, a tutorial, a course and its lessons. */
   video: CatalogVideo | null;
   /** A course: every tutorial it can play. */

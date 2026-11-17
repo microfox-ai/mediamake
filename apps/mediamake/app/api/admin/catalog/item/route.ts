@@ -21,7 +21,7 @@ import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, ty
  * record, where it is defined, whether it is archived, its health mark, its Ready mark with
  * its proof, the grants that reach it, how many people hold each membership, what installing it does (the plan an admin would get,
  * everything shared, no package links), what needs or uses it, and its
- * video (with the tutorials a course can play, and the courses a tutorial is in),
+ * video (with the tutorials a course can play, and the courses a tutorial is in), its store listing (an admin's tags and its screenshots),
  * and for a skill, MCP or app its launch video prompt (see lib/catalog/launch-video).
  * Read-only: unlike GET /api/admin/catalog, it settles no gates.
  */
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required, e.g. ?id=mcp/browse-hack' }, { status: 400 });
 
-  const [{ byId, storedIds, archive, videos, health, readiness }, grants, groups, memberships] = await Promise.all([
+  const [{ byId, storedIds, archive, videos, health, readiness, listings }, grants, groups, memberships] = await Promise.all([
     catalogIndex(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
     // a skill's card carries the first sentence; its page shows the whole description
     description,
     video,
+    // its store listing: the tags an admin added (item.tags has its own too) and its screenshots
+    listing: { tags: listings.get(id)?.tags ?? [], media: listings.get(id)?.media ?? [] },
     openKnownIssues: knownIssues,
     // what an admin pastes into Claude to make its Cook with Claude episode
     ...(hasLaunchVideo(item.kind) && {

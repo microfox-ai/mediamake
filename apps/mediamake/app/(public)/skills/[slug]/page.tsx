@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeftIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ListingScreenshots, ListingTags } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
@@ -10,7 +11,7 @@ import { SkillActions } from '@/components/skills/skill-actions';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { itemPagePath } from '@/lib/catalog/paths';
-import { catalogArchiveDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
+import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import { slugOf } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
 import { skillMarkdownHtml } from '@/lib/skills/skill-md';
@@ -18,14 +19,14 @@ import { registry, skillMdUrl, skillNamed, skillRelations } from '@/lib/skills/r
 
 /**
  * /skills/<name>: one skill's own page, the link to share. Every skill in skills.json is public, so
- * the page is the same for everyone: what it does, what was made with it (a gallery that opens on its intro video), what it works with, how it
+ * the page is the same for everyone: what it does, what was made with it (a gallery that opens on its intro video), its tags and screenshots, what it works with, how it
  * relates to the other skills, its SKILL.md, and the install prompt. The list of skills is the
  * homepage's Skills tab (/?tab=skills).
  */
 
 type Props = { params: Promise<{ slug: string }> };
 
-// skills.json is bundled at build time; the video, the archive and Ready marks and SKILL.md's text are read again every few minutes
+// skills.json is bundled at build time; the video, the archive and Ready marks, the listing and SKILL.md's text are read again every few minutes
 export const revalidate = 300;
 
 export function generateStaticParams() {
@@ -54,10 +55,11 @@ export default async function SkillPage({ params }: Props) {
   }
 
   const id = `skill/${skill.name}`;
-  const [video, archived, readiness, markdown] = await Promise.all([
+  const [video, archived, readiness, listing, markdown] = await Promise.all([
     catalogVideosDB.get(id).catch(() => null),
     catalogArchiveDB.get(id).catch(() => null),
     catalogReadinessDB.get(id).catch(() => null),
+    catalogListingDB.get(id).catch(() => null),
     skillMarkdownHtml(skill),
   ]);
   const { variants, usedBy } = skillRelations(skill);
@@ -105,6 +107,7 @@ export default async function SkillPage({ params }: Props) {
             <div className="lg:hidden">
               <SkillActions installPrompt={installPromptFor(id)} title={skill.name} />
             </div>
+            <ListingTags tags={listing?.tags} />
             {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
             {skill.variantOf && (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -115,6 +118,8 @@ export default async function SkillPage({ params }: Props) {
           </div>
 
           <MadeWithThis itemId={id} mark={readiness} video={video} />
+
+          <ListingScreenshots itemId={id} media={listing?.media} />
 
           <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3 border-b pb-2">

@@ -10,11 +10,13 @@ import {
   catalogArchiveDB,
   catalogHealthDB,
   catalogItemsDB,
+  catalogListingDB,
   catalogReadinessDB,
   catalogVideosDB,
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
 import { catalogIndex } from '@/lib/catalog/admin-index';
+import { MAX_LISTING_MEDIA, MAX_LISTING_TAGS, parseTags, withListingTags, type ItemListing } from '@/lib/catalog/listing';
 import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
 import { usedByOf } from '@/lib/catalog/summary';
@@ -60,7 +62,7 @@ import {
  * the repo's skills from skills.json, the third-party items from
  * lib/catalog/third-party.json and the cards in lib/catalog/items.ts that
  * aren't stored as items (each with its `tier`'s fields, its `readiness`,
- * `archivedAt` when archived, its `video` and its `health`), live grants,
+ * `archivedAt` when archived, its `video`, its `health` and its listing's tags), live grants,
  * groups, pending access requests, the people who hold API keys,
  * every membership record (ended ones too: the audit log), the tier ladder,
  * and whether public releases are open site-wide.
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   await catalogItemsDB.settleGates().catch(error => console.error('[admin/catalog] Could not settle gates:', error));
-  const [items, grants, groups, requests, people, archived, videos, health, readiness, memberships] = await Promise.all([
+  const [items, grants, groups, requests, people, archived, videos, health, readiness, listings, memberships] = await Promise.all([
     catalogItemsDB.list(),
     accessGrantsDB.list(),
     accessGroupsDB.list(),
@@ -82,13 +84,14 @@ export async function GET(req: NextRequest) {
     catalogVideosDB.list(),
     catalogHealthDB.list(),
     catalogReadinessDB.list(),
+    catalogListingDB.list().catch((): ItemListing[] => []),
     membershipsDB.list({ includeEnded: true }).catch(error => {
       console.error('[admin/catalog] Could not list memberships:', error);
       return [];
     }),
   ]);
   const marked = <T extends { id: string; kind: CatalogKind }>(records: T[]) =>
-    withReadiness(withHealth(withVideos(withArchive(records, archived), videos), health), readiness);
+    withListingTags(withReadiness(withHealth(withVideos(withArchive(records, archived), videos), health), readiness), listings);
   return NextResponse.json({
     items: marked(items.map(withRegistryUses)),
     skills: marked(skillRecords(items)),
@@ -280,6 +283,24 @@ const httpsLink = z
  */
 const proofSchema = z.array(z.object({ title: z.string().trim().min(1).max(200), url: httpsLink, image: httpsLink, video: httpsLink })).max(20);
 
+/**
+ * A store listing's screenshots (see ListingMedia): pictures and videos of the
+ * item by https link. A video is a YouTube link, or an MP4 or WebM.
+ */
+const listingMediaSchema = z
+  .array(
+    z.object({
+      kind: z.enum(['image', 'video']),
+      url: z
+        .string()
+        .trim()
+        .max(1000)
+        .regex(/^https:\/\/\S+$/, 'must be an https link'),
+      title: z.string().trim().max(120).optional(),
+    }),
+  )
+  .max(MAX_LISTING_MEDIA, `at most ${MAX_LISTING_MEDIA} pictures and videos`);
+
 /** What a production's upload may be: a picture, or a clip browsers play. */
 const PROOF_UPLOAD_TYPES = /^(image\/(png|jpeg|webp|gif|avif)|video\/(mp4|webm))$/;
 
@@ -318,6 +339,10 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *                             (any item's video: a skill's intro, a tutorial; a course gives `lessons`,
  *                             tutorial ids in order, instead of a url; null removes it. A tutorial's or
  *                             course's card takes the video's title and description)
+ *  { type: 'set_listing',     itemId, tags?: string[], media?: [{ kind: 'image' | 'video', url, title? }] }
+ *                             (its store listing, any item: the tags an admin adds beside its own, and its
+ *                             screenshots, pictures and videos by https link, a YouTube link or an MP4 for a
+ *                             video. Each one given replaces what was there; left out, it stays)
  *  { type: 'create_video_item', kind: 'tutorial' | 'course', slug, video, visibility? }
  *                             (a new tutorial or course with its video; it starts in development)
  *  { type: 'create_thumbnail_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
@@ -518,6 +543,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ video });
     }
 
+    case 'set_listing': {
+      const itemId = typeof body.itemId === 'string' ? body.itemId : '';
+      const item = itemId ? (staticRecord(itemId) ?? (await catalogItemsDB.get(itemId))) : null;
+      if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
+      if (body.tags === undefined && body.media === undefined) return bad('Give tags, media or both');
+      const current = await catalogListingDB.get(item.id);
+      let tags = current?.tags ?? [];
+      if (body.tags !== undefined) {
+        if (!Array.isArray(body.tags)) return bad('tags must be a list of words');
+        // the item's own tags (a skill's category) are not stored again
+        tags = parseTags(body.tags).filter(tag => !item.tags?.includes(tag));
+        if (tags.length > MAX_LISTING_TAGS) return bad(`at most ${MAX_LISTING_TAGS} tags`);
+      }
+      let media = current?.media ?? [];
+      if (body.media !== undefined) {
+        const parsed = listingMediaSchema.safeParse(body.media);
+        if (!parsed.success) return bad(parsed.error.issues.map(i => `media.${i.path.join('.')}: ${i.message}`).join('; '));
+        media = parsed.data.map(entry => ({ kind: entry.kind, url: entry.url, ...(entry.title && { title: entry.title }) }));
+      }
+      const listing = await catalogListingDB.set(item.id, { tags, media }, adminId);
+      revalidatePath('/');
+      refreshSkillPages([item.id]);
+      return NextResponse.json({ listing: { tags: listing?.tags ?? [], media: listing?.media ?? [] } });
+    }
+
     case 'create_video_item': {
       const kind = body.kind as CatalogKind;
       if (!VIDEO_KINDS.includes(kind)) return bad(`kind must be one of ${VIDEO_KINDS.join(', ')}`);
@@ -568,8 +618,11 @@ export async function POST(req: NextRequest) {
 
     case 'remove_item': {
       await catalogItemsDB.remove(body.itemId);
-      // its video goes with it, unless the repo still defines the item (a skill keeps its intro)
-      if (!staticRecord(body.itemId)) await catalogVideosDB.remove(body.itemId);
+      // its video and listing go with it, unless the repo still defines the item (a skill keeps its intro)
+      if (!staticRecord(body.itemId)) {
+        await catalogVideosDB.remove(body.itemId);
+        await catalogListingDB.remove(body.itemId);
+      }
       return NextResponse.json({ success: true });
     }
 

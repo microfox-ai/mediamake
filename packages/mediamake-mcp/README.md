@@ -101,7 +101,7 @@ Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is se
 
 ### mm-release (admins)
 
-`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
+`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_listing`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
 
 ### mediamake (deprecated, admins)
 

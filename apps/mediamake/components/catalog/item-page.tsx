@@ -4,6 +4,7 @@ import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
 import { AccessActions } from '@/app/(public)/access/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
@@ -12,7 +13,7 @@ import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type 
 import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf } from '@/lib/catalog/releases';
-import { accessRequestsDB, catalogArchiveDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
+import { accessRequestsDB, catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import type { CatalogKind } from '@/lib/catalog/types';
 import { registry } from '@/lib/skills/registry';
 
@@ -34,7 +35,7 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
 
 /**
  * An MCP's or an app's own page, the link to share, like a skill's (/skills/<name>): what it is,
- * what was made with it (a gallery that opens on its intro video), how to install or open it, what it works with, the skills that use it and its
+ * what was made with it (a gallery that opens on its intro video), its screenshots, how to install or open it, what it works with, the skills that use it and its
  * release notes. Who can see it follows the catalog: a locked item goes to its request-access page,
  * and one hidden from the viewer is not found.
  */
@@ -47,12 +48,15 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
     redirect(`/access?item=${encodeURIComponent(item.id)}`);
   }
 
-  const [video, archived, readiness, pendingIds] = await Promise.all([
+  const [video, archived, readiness, listing, pendingIds] = await Promise.all([
     catalogVideosDB.get(item.id).catch(() => null),
     catalogArchiveDB.get(item.id).catch(() => null),
     catalogReadinessDB.get(item.id).catch(() => null),
+    catalogListingDB.get(item.id).catch(() => null),
     viewer.clientId ? accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => []) : Promise.resolve([] as string[]),
   ]);
+  // its own tags, then the ones an admin added to its listing
+  const tags = [...new Set([...(item.tags ?? []), ...(listing?.tags ?? [])])];
   const installable = isInstallable(record);
   const releases = releasesOf(record.versions, 20);
   const directoryUrl = directoryUrlOf(record.install?.source);
@@ -110,9 +114,9 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
                 </a>
               </p>
             )}
-            {item.tags && item.tags.length > 0 && (
+            {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
-                {item.tags.map(tag => (
+                {tags.map(tag => (
                   <span key={tag} className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                     {tag}
                   </span>
@@ -122,6 +126,8 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
           </div>
 
           <MadeWithThis itemId={item.id} mark={readiness} video={video} />
+
+          <ListingScreenshots itemId={item.id} media={listing?.media} />
 
           {uses.length > 0 && <UsesList uses={uses} />}
 
