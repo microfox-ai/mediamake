@@ -12,6 +12,8 @@
  *   mm space join <project>        set a project up on this computer in one go: signs in when needed, accepts
  *                                  the GitHub invitation, clones the project's space, links its skills, and
  *                                  shows the project's shared media (the project's page has this line to copy)
+ *   mm space invite <project>      after you add someone to a project in the app: invites everyone on it to
+ *                                  the project's repo on GitHub (and makes the repo when there is none)
  *   mm space ensure                make and connect your own space when this computer has none
  *   mm space connect <owner/repo>  connect a repo you already have as your own space (--create makes one)
  *   mm space pull | push           the two halves of sync (push is a dry run until --yes; -m "<what>")
@@ -434,6 +436,7 @@ function inviteMembers(repo, members) {
       .map(l => l.trim().toLowerCase())
       .filter(Boolean),
   );
+  have.add(repo.split('/')[0].toLowerCase()); // whoever the repo is under has it already
   const invited = [];
   const failed = [];
   const noGithub = [];
@@ -617,7 +620,7 @@ function findProject(remote, wanted) {
  * A project's space, connected here: the one MediaMake knows, else a new private repo
  * (<you>/mediamake-<project>) that MediaMake is told about. Then the project's members are invited.
  */
-async function ensureProjectSpace(entry, env) {
+async function ensureProjectSpace(entry, env, { loud = false } = {}) {
   const project = { id: entry.projectId, name: entry.name };
   const have = localSpaces(env).find(s => s.id === project.id);
   let space = have;
@@ -637,10 +640,11 @@ async function ensureProjectSpace(entry, env) {
     space = await connectProject(project, repo, env);
     console.log(`✔ ${entry.name}'s space: ${repo} → ${tilde(space.dir)}`);
   }
-  if (entry.role !== 'viewer' && entry.members && hasGh() && parseRepo(space.repo)?.github) announceInvites(entry, inviteMembers(space.repo, entry.members));
+  if (entry.role !== 'viewer' && entry.members && hasGh() && parseRepo(space.repo)?.github) announceInvites(entry, inviteMembers(space.repo, entry.members), loud);
   return space;
 }
-const announceInvites = (entry, { invited, failed, noGithub }) => {
+const announceInvites = (entry, { invited, failed, noGithub }, loud = false) => {
+  if (loud && !invited.length && !failed.length && !noGithub.length) console.log(`✔ everyone on ${entry.name} is already invited to its repo on GitHub.`);
   if (invited.length) console.log(`✔ invited to ${entry.name}'s repo on GitHub: ${invited.join(', ')}. Their next mm space sync connects it.`);
   if (failed.length) console.log(`⚠ could not invite ${failed.join(', ')}: only the repo's owner can invite.`);
   if (noGithub.length) console.log(`⚠ ${noGithub.join(', ')} ${noGithub.length === 1 ? 'has' : 'have'} no GitHub account linked to MediaMake, so ${noGithub.length === 1 ? "isn't" : "aren't"} invited yet: they link it under Account in the app.`);
@@ -866,6 +870,28 @@ async function push(_args, flags, env) {
 }
 
 /** pull, then push: one command for "make this computer and GitHub the same". */
+/**
+ * Invites everyone on a project to its repo on GitHub: the line the app shows its owner after they
+ * add someone. Makes the project's space when there is none, so the new member has something to join.
+ */
+async function invite(args, flags, env) {
+  const wanted = args.join(' ').trim() || flags.find(f => f.startsWith('--project='))?.slice('--project='.length);
+  if (!wanted) throw new Error('Which project? mm space invite <project id or name>.');
+  const remote = await remoteSpaces(env);
+  if (!remote) throw new Error(`This computer isn't signed in to MediaMake, or ${site(env)} can't be reached: mm login.`);
+  const entry = findProject(remote, wanted);
+  if (entry.role === 'viewer') throw new Error(`You are a viewer on ${entry.name}: its owner or an editor invites.`);
+  needGh(`Inviting to ${entry.name}'s repo`);
+  const isNew = !localSpaces(env).some(s => s.id === entry.projectId);
+  const space = await ensureProjectSpace(entry, env, { loud: true });
+  if (isNew) {
+    afterChange(space);
+    await sendReports([space], env);
+  }
+  console.log(`\nThe line for them to run on their computer:\n  mm space join ${entry.projectId}`);
+  return 0;
+}
+
 /**
  * Sets one project up on this computer: the line a new member copies from the project's page.
  * Signs in to MediaMake when needed, accepts the GitHub invitation, clones the project's space and
@@ -1131,7 +1157,7 @@ async function main(argv) {
   const dashM = argv.indexOf('-m');
   const args = argv.filter((a, i) => !a.startsWith('-') && !(dashM >= 0 && i === dashM + 1));
   const [cmd = 'status', ...rest] = args;
-  const commands = { status, sync, join, connect, ensure, pull, push, share, add, new: create, report, disconnect, forget };
+  const commands = { status, sync, join, invite, connect, ensure, pull, push, share, add, new: create, report, disconnect, forget };
   if (cmd === 'help' || flags.includes('--help') || flags.includes('-h')) return help(), 0;
   if (!commands[cmd]) {
     console.error(`mm space: no command "${cmd}".\n`);

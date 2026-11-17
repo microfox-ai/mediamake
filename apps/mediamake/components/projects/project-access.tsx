@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MEMBER_ROLES, ROLE_INFO, initials, isEmail, type MemberPerson, type MemberRole, type Person, type ProjectInvite } from '@/lib/projects/access';
 import type { ProjectRole } from '@/lib/editor/project-access';
 import { cn } from '@/lib/utils';
+import { CopyLine } from './copy-line';
 
 /** What GET /api/project/share answers (lib/projects/access-store's ProjectAccessView). */
 interface AccessView {
@@ -111,6 +112,8 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
   const [role, setRole] = React.useState<MemberRole>('editor');
   const [lookup, setLookup] = React.useState<Lookup | null>(null);
   const [open, setOpen] = React.useState(false);
+  /** Who was just added, so the owner gets the two lines that finish the job. */
+  const [added, setAdded] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setView(null);
@@ -140,13 +143,15 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
       if (next.left) {
         toast.success(done);
         onLeft?.();
-        return;
+        return true;
       }
       if (next.members) setView(next as AccessView);
       toast.success(next.invite ? `${done}${next.mailed ? ' We mailed them the link.' : ' Send them the link to sign up: no mail went out.'}` : done);
       onChanged?.();
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
+      return false;
     } finally {
       setBusy(null);
     }
@@ -156,7 +161,9 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
     setOpen(false);
     setText('');
     setLookup(null);
-    return change('add', 'email' in who && !lookup?.match ? `Invited ${name} as ${role}.` : `Added ${name} as ${role}.`, () => call('POST', '/api/project/share', { projectId, role, ...who }));
+    return change('add', 'email' in who && !lookup?.match ? `Invited ${name} as ${role}.` : `Added ${name} as ${role}.`, () => call('POST', '/api/project/share', { projectId, role, ...who })).then(ok => {
+      if (ok) setAdded(name);
+    });
   };
 
   if (error) return <p className={cn('rounded-lg border border-dashed p-4 text-sm text-muted-foreground', className)}>{error}</p>;
@@ -251,6 +258,26 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
             {busy === 'add' ? <Loader2Icon className="animate-spin" /> : <UserPlusIcon />} Add
           </Button>
         </form>
+      )}
+
+      {added && view.isOwner && (
+        <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2">
+            <p className="flex-1 text-sm font-medium text-foreground">Two lines give {added} the project&apos;s skills</p>
+            <button type="button" onClick={() => setAdded(null)} className="underline underline-offset-2">
+              Hide
+            </button>
+          </div>
+          <p className="mt-2">1. On your computer, to invite them to the project&apos;s private repo on GitHub:</p>
+          <div className="mt-1">
+            <CopyLine line={`mm space invite ${projectId}`} label="the invite line" />
+          </div>
+          <p className="mt-3">2. Send them this line, to set the project up on their computer:</p>
+          <div className="mt-1">
+            <CopyLine line={`mm space join ${projectId}`} label="their setup line" />
+          </div>
+          <p className="mt-2">They need a GitHub account linked to MediaMake (they sign in with GitHub, or link it under Account).</p>
+        </div>
       )}
 
       <ul className="divide-y rounded-lg border">

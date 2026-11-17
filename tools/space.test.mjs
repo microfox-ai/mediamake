@@ -462,8 +462,13 @@ test('join sets one project up from the line on its page, and says who invites w
   assert.match(early.out, /dan on GitHub isn't invited to ann\/mediamake-anime-music-zone yet\. Ann, who made the repo, invites new members/);
   assert.ok(!fs.existsSync(dan.projectDir(zone)));
 
-  // her next sync invites him, and the same line then works
-  assert.match((await ann.space(['sync'])).out, /invited to Anime Music Zone's repo on GitHub: Dan/);
+  // the line the app gives her after adding him invites him, and his line then works
+  const sent = await ann.space(['invite', PROJECT]);
+  assert.equal(sent.status, 0, sent.out);
+  assert.match(sent.out, /invited to Anime Music Zone's repo on GitHub: Dan/);
+  assert.match(sent.out, /mm space join aaaaaaaaaaaaaaaaaaaaaaaa/);
+  assert.doesNotMatch((await bob.space(['invite', PROJECT])).out, /could not invite/, 'nobody is left to invite, and the repo\'s own account is never invited');
+  assert.match((await cy.space(['invite', PROJECT])).out, /You are a viewer/);
   const done = await dan.space(['join', PROJECT, '--no-media']);
   assert.equal(done.status, 0, done.out);
   assert.match(done.out, /Anime Music Zone: you are an editor/);

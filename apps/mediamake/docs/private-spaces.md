@@ -36,6 +36,7 @@ that the app doesn't show.
 | `mm space add <skill>` | Move one of your workspace skills (a variant) into your space (dry run, `--yes`) |
 | `mm space share <item> --project=<project>` | Move an item into a project's space, so everyone on it gets it (dry run, `--yes`; `--copy` keeps yours too) |
 | `mm space join <project>` | Set one project up on this computer: sign in when needed, accept the GitHub invitation, clone its space, link its skills, show its shared media. The project's page has the line to copy |
+| `mm space invite <project>` | Invite everyone on a project to its repo on GitHub, and make the repo when there is none. The app shows this line to the owner right after they add someone |
 | `mm space ensure` | Make and connect your own space when this computer has none |
 | `mm space connect <owner/repo>` | Use a repo you already have as your own space. A public repo is refused |
 | `mm space pull`, `mm space push` | The two halves of `sync` (`push` is a dry run until `--yes`; `-m "<what>"` names the commit) |
