@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { accessLevel, getEntitlements, viewerTier } from '@/lib/access';
 import { isAdmin } from '@/lib/admin-utils';
 import { getCatalogRecord } from '@/lib/catalog/records';
-import { FEEDBACK_PER_DAY, parseFeedback } from '@/lib/feedback/feedback';
+import { runTriage } from '@/lib/feedback/actions';
+import { FEEDBACK_PER_DAY, ownView, parseFeedback } from '@/lib/feedback/feedback';
 import { feedbackDB } from '@/lib/feedback/store';
 
 /**
@@ -11,12 +12,18 @@ import { feedbackDB } from '@/lib/feedback/store';
  *
  * POST { text, itemId?, version?, source? }   send feedback, about one catalog item or about
  *                                              MediaMake as a whole. Every member may, Public
- *                                              ones too. What mm-use's send_feedback calls.
- * GET  [?item=skill/x][&status=new][&all=true] the caller's own feedback, newest first; admins
- *                                              read everyone's with all=true.
+ *                                              ones too. What the item pages and mm-use's
+ *                                              send_feedback call. Once it is saved Claude reads
+ *                                              it (lib/feedback/actions: triage, and a draft pull
+ *                                              request for a bug from a Plus member or above).
+ * GET  [?item=skill/x][&status=new][&all=true] the caller's own feedback, newest first, with its
+ *                                              answer and whether it shipped; admins read
+ *                                              everyone's, in full, with all=true.
  *
  * Feedback is seen by admins and its writer only.
  */
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const clientId = req.headers.get('x-client-id');
   if (!clientId) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
@@ -35,6 +42,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `That is ${FEEDBACK_PER_DAY} in a day: send the rest tomorrow` }, { status: 429 });
     }
     const { feedbackId, createdAt } = await feedbackDB.add(clientId, viewerTier(entitlements), parsed);
+    // after the answer is sent, so nobody waits on Claude; a failure leaves the feedback unread for an admin
+    after(() => runTriage(feedbackId).catch(error => console.error(`[feedback] Triage of ${feedbackId} failed:`, error)));
     return NextResponse.json({ feedbackId, createdAt });
   } catch (error) {
     console.error('[feedback] Could not save feedback:', error);
@@ -54,7 +63,7 @@ export async function GET(req: NextRequest) {
       itemId: params.get('item') ?? undefined,
       status: params.get('status') ?? undefined,
     });
-    return NextResponse.json({ feedback });
+    return NextResponse.json({ feedback: all ? feedback : feedback.map(ownView) });
   } catch (error) {
     console.error('[feedback] Could not read feedback:', error);
     return NextResponse.json({ error: 'Could not read the feedback' }, { status: 503 });

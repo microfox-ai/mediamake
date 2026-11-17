@@ -25,7 +25,7 @@ version is the SKILL.md's `version`, else a short hash of the SKILL.md.
   only, then hands the name and the time to `tools/usage.mjs`, which posts
   them from a detached process so the skill never waits. Once a day the same
   process sends the skill list. Only when the computer is signed in
-  (`MEDIAMAKE_API_KEY`, or the key `mm media cloud login` keeps in the macOS
+  (`MEDIAMAKE_API_KEY`, or the key `mm login` keeps in the macOS
   Keychain); signed out, nothing leaves.
 - **mm-use**, the members' MCP (`/mcp/use`), where no hook runs (the Claude
   apps on the web or a phone): `report_skill_run` and `report_local_skills`.
@@ -83,5 +83,6 @@ account reads and deletes only its own.
 about one item or about MediaMake as a whole (mm-use's `send_feedback`; every
 member may send, 30 a day at most). It is stored in `feedback` with the
 writer's membership at the time and read by admins and the writer only
-(`GET /api/feedback`, admins with `?all=true`). Triage, the admin page and
-automatic draft PRs build on these records later (plan step 2e).
+(`GET /api/feedback`, admins with `?all=true`). What happens next (Claude's
+triage, automatic draft pull requests, the admin Feedback page, known issues
+and the mail when a fix ships) is in [feedback.md](feedback.md).

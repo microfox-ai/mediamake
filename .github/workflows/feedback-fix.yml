@@ -1,0 +1,134 @@
+name: Feedback fix
+
+# An automatic draft pull request from one member feedback. MediaMake starts this run
+# (apps/mediamake/lib/feedback/auto-pr.ts): on its own for a bug or a major problem from a
+# Plus member or above, a few a day at most, or when an admin presses "Raise a draft PR" on
+# /app/feedback. Claude Code reads the feedback and changes the files; it can read, search
+# and edit, and cannot run commands. The result is always a draft: a maintainer reviews and
+# merges it. How it ended, and what it cost, goes back to MediaMake (/api/feedback-hook).
+#
+# Secrets: ANTHROPIC_API_KEY (the same key MediaMake triages with, under the same monthly
+# ceiling) and FEEDBACK_HOOK_SECRET (the same value as on the deployment).
+# Variables (optional): MEDIAMAKE_URL, FEEDBACK_FIX_MODEL.
+# The repository must allow Actions to create pull requests (Settings → Actions → General).
+# Docs: apps/mediamake/docs/feedback.md
+on:
+  workflow_dispatch:
+    inputs:
+      feedback_id:
+        description: The feedback's id (fb_…)
+        required: true
+        type: string
+      item:
+        description: The catalog item it is about, when it is about one
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: feedback-fix-${{ inputs.feedback_id }}
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MEDIAMAKE_URL: ${{ vars.MEDIAMAKE_URL || 'https://mediamake.microfox.app' }}
+      FEEDBACK_ID: ${{ inputs.feedback_id }}
+      FEEDBACK_HOOK_SECRET: ${{ secrets.FEEDBACK_HOOK_SECRET }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Check the id
+        run: |
+          if ! printf '%s' "$FEEDBACK_ID" | grep -Eq '^fb_[A-Za-z0-9_-]{6,40}$'; then
+            echo "Not a feedback id: $FEEDBACK_ID" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read the feedback from MediaMake
+        run: |
+          curl --fail-with-body -sS -H "Authorization: Bearer $FEEDBACK_HOOK_SECRET" \
+            "$MEDIAMAKE_URL/api/feedback-hook?id=$FEEDBACK_ID" -o "$RUNNER_TEMP/feedback.json"
+          node tools/feedback-fix.mjs prompt "$RUNNER_TEMP/feedback.json" > "$RUNNER_TEMP/prompt.txt"
+          echo "MAX_USD=$(node -e 'const f=require(process.argv[1]);console.log(Number(f.maxUSD)>0?Number(f.maxUSD):5)' "$RUNNER_TEMP/feedback.json")" >> "$GITHUB_ENV"
+
+      - name: Claude Code makes the fix
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODEL: ${{ vars.FEEDBACK_FIX_MODEL || 'claude-opus-5-5' }}
+          # nothing here but the key: the hook secret and the GitHub token stay out of this step.
+          # acceptEdits lets it edit files inside the checkout and nothing else: commands and the web
+          # are off, and a read outside the checkout would need an approval nobody is there to give.
+          FEEDBACK_HOOK_SECRET: ''
+        run: |
+          set +e
+          npx --yes @anthropic-ai/claude-code@latest -p "$(cat "$RUNNER_TEMP/prompt.txt")" \
+            --model "$MODEL" \
+            --permission-mode acceptEdits \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" \
+            --max-turns 80 \
+            --max-budget-usd "$MAX_USD" \
+            --output-format json > "$RUNNER_TEMP/result.json"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          # what the run cost, whether or not it finished
+          echo "cost=$(node -e 'try{console.log(Number(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).total_cost_usd)||0)}catch{console.log(0)}' "$RUNNER_TEMP/result.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Check what changed
+        id: check
+        env:
+          SECRETS_TO_GUARD: |
+            ${{ secrets.ANTHROPIC_API_KEY }}
+            ${{ secrets.FEEDBACK_HOOK_SECRET }}
+            ${{ secrets.ORG_PAT }}
+        run: node tools/feedback-fix.mjs check >> "$GITHUB_OUTPUT"
+
+      - name: Open the draft pull request
+        id: pr
+        if: steps.check.outputs.changed != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="feedback/$FEEDBACK_ID"
+          node tools/feedback-fix.mjs pr "$RUNNER_TEMP/feedback.json" "$RUNNER_TEMP/result.json" > "$RUNNER_TEMP/pr.txt"
+          head -n 1 "$RUNNER_TEMP/pr.txt" > "$RUNNER_TEMP/pr-title.txt"
+          tail -n +2 "$RUNNER_TEMP/pr.txt" > "$RUNNER_TEMP/pr-body.md"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A
+          git commit -q -F "$RUNNER_TEMP/pr-title.txt"
+          git push --force origin "$branch"
+          url=$(gh pr create --draft --base main --head "$branch" --title "$(cat "$RUNNER_TEMP/pr-title.txt")" --body-file "$RUNNER_TEMP/pr-body.md")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "number=${url##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Tell MediaMake how it went
+        if: always()
+        env:
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          COST: ${{ steps.claude.outputs.cost }}
+          CHANGED: ${{ steps.check.outputs.changed }}
+          CLAUDE_EXIT: ${{ steps.claude.outputs.exit }}
+        run: |
+          if [ -n "$PR_NUMBER" ]; then state=open; note=""; else
+            state=failed
+            if [ "$CHANGED" = "0" ]; then note="Claude Code changed nothing: it found no cause it could fix"
+            elif [ -n "$CLAUDE_EXIT" ] && [ "$CLAUDE_EXIT" != "0" ]; then note="Claude Code stopped early (exit $CLAUDE_EXIT): out of budget or turns"
+            else note="The run failed before a pull request was opened"; fi
+          fi
+          node tools/feedback-fix.mjs report "$state" "feedback_id=$FEEDBACK_ID" "repo=$GITHUB_REPOSITORY" \
+            "pr_number=$PR_NUMBER" "pr_url=$PR_URL" "run_url=$RUN_URL" "cost=$COST" "note=$note" > "$RUNNER_TEMP/report.json"
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $FEEDBACK_HOOK_SECRET" -H "Content-Type: application/json" \
+            --data @"$RUNNER_TEMP/report.json" "$MEDIAMAKE_URL/api/feedback-hook"

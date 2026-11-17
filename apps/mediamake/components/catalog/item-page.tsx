@@ -5,6 +5,7 @@ import { AccessActions } from '@/app/(public)/access/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MadeWithThis } from '@/components/catalog/made-with';
+import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
 import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type ItemUse } from '@/lib/catalog';
@@ -144,6 +145,8 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
               ))}
             </section>
           )}
+
+          <ItemFeedback itemId={item.id} title={item.title} version={item.version} />
         </div>
 
         <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">

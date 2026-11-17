@@ -33,7 +33,8 @@ export interface Mailed {
   why?: string;
 }
 
-async function deliver(mail: Mail): Promise<Mailed> {
+/** Sends one mail and says whether it went. Never throws. */
+export async function deliver(mail: Mail): Promise<Mailed> {
   try {
     const { sent } = await sendMail(mail);
     return sent ? { sent: true, to: mail.to } : { sent: false, to: mail.to, why: 'Mail is not set up here (RESEND_API_KEY), so it was printed to the server log' };

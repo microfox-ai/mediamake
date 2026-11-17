@@ -18,6 +18,8 @@ here". It drives the repo's own commands, never hand-made copies of them:
 | `mm migrate` / `--yes` | sets up the workspace (`~/MediaMake`) and moves the user's work out of the checkout; a dry run until `--yes` |
 | `mm update` / `--yes` | brings an existing checkout up to GitHub, then `npm ci`, migrate (dry run) and doctor |
 | `mm media init` | the media library's folders, `~/.mediamake/config.json` and the catalog |
+| `mm login` | signs the computer in to MediaMake once, through the browser: the user clicks Allow, nothing is pasted (`mm login status`, `mm logout`) |
+| `mm items` / `mm items install --yes` | who is signed in, their membership and the MCPs and apps it opens; installs them with that sign-in, no install prompt or code |
 | `mm doctor` / `--fix` | checks the machine and the checkout; `--fix` does the installs, builds and downloads it can (never git, never the user's files) |
 
 Work quietly and report at the end. Stop and ask only where a step says **Ask**. Never print a key,
@@ -111,30 +113,61 @@ In the checkout:
    don't make a second one.
 4. Optional, **Ask** first, one line each with what it gives:
    - the inbox watcher, `mm media init --watch` (files downloads into the library by itself; macOS);
-   - a team: `mm media cloud login`, then `mm media channel list` / `mm media channel link <channel> <projectId>`,
+   - a team: `mm login` (the browser sign-in of step 6a, if not signed in yet), then `mm media channel list` / `mm media channel link <channel> <projectId>`,
      then `mm media sync status --channel=<id>` (a dry run) and `pull … --yes` once they agree.
 
-## 6. Keys and MCPs (optional, all of them)
+## 6. What their MediaMake membership opens, then keys
 
-Every MCP here can be skipped: some are closed source, and the setup is complete without any of
-them. Check which this session already has (`claude mcp get <name>`, or the tools present), then
-offer the missing ones once, in one message, one line each with what skipping it costs, and install
-only the ones the user picks. A skip is final for this run: no second ask, and no `✗` or "not
-ready" for it at the end (doctor's ElevenLabs line stays a `!`, which is fine).
+### 6a. Their MediaMake items: installed with the sign-in
+
+Browse Hack, ProjectSync and every other MCP or app of MediaMake's come from the user's account.
+Never ask for the site address, an install prompt or an install code: `mm` knows the site
+(`mediamake.microfox.app` unless their config names another) and the sign-in says what they may
+have.
+
+1. `mm items --json`.
+   - `signedIn: true`: it lists the account, its membership (`tier`) and each item it opens as
+     `installed`, `behind` or `missing`. Go to 2.
+   - `signedIn: false`: **Ask** once whether they have a MediaMake account. Yes: run `mm login`
+     yourself (allow it 5 minutes: it waits for the browser) and tell them a browser tab is opening
+     where they sign in if asked and click **Allow**. Nothing is copied or pasted: never ask for an
+     API key. It makes one key on their account for this computer and keeps it in the Keychain.
+     Then `mm items --json` again. Only on a computer with no browser: `mm login --key` with a key
+     on stdin. No account, or they'd rather not: skip 6a; it is final for this run.
+2. Anything `missing` or `behind`: `mm items install --yes --json`, without asking. Their membership
+   is the yes. It downloads and checks each package, unpacks the MCPs into `~/.mediamake/mcp/`, adds
+   them to Claude Code for every project, unzips a Chrome extension into `~/Extensions/`, and saves
+   `installed.json` and the update token. A working copy that didn't come from MediaMake is kept.
+3. Do what it lists under `left`, in order:
+   - `needsPerson` (a new Chrome extension): **Ask** them to open `chrome://extensions`, turn on
+     **Developer mode**, click **Load unpacked** and pick the folder it names. Chrome has no command
+     for this; it is the only click an install needs.
+   - an item's own `INSTALL.md` (Browse Hack: sign in from its popup, then its check): follow it.
+   - anything else as https://github.com/microfox-ai/mediamake/blob/main/install.md says.
+4. `failed`: say what and why. Items a higher membership opens are listed by `mm items`; mention them
+   in one line, never as something to fix.
+
+In the report, say what the membership is and what was installed for it (with versions).
+
+### 6b. Keys and other MCPs (optional, all of them)
+
+Every MCP here can be skipped, and the setup is complete without any of them. Check which this
+session already has (`claude mcp get <name>`, or the tools present), then offer the missing ones
+once, in one message, one line each with what skipping it costs, and install only the ones the user
+picks. A skip is final for this run: no second ask, and no `✗` or "not ready" for it at the end
+(doctor's ElevenLabs line stays a `!`, which is fine).
 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/elevenlabs` | optional | the key `mm transcribe --yes` uses for timed lyrics, voice-overs and sound effects (open source) | no timed words for lyric videos, no voice or sound effects |
-| `mcp/browse-hack` | optional | downloads from YouTube, Pinterest, Instagram, Midjourney and Suno straight into the library's inbox | footage, references and Suno takes are fetched by hand |
-| `mcp/projectsync` | optional | brand kits, projects and shared assets of the user's MediaMake cloud projects | team sharing only through `mm media sync` |
 
 - ElevenLabs (local first): `claude mcp add --scope user elevenlabs -e ELEVENLABS_API_KEY=<key> -- uvx elevenlabs-mcp`.
   Walk them through the key: open https://elevenlabs.io/app/settings/api-keys, make one, paste it as
   their next message alone. Write it only into that command; never in a `.env` or a file in the repo.
   Someone who'd rather not paste a key gets the line with `<your key>` to run themselves.
-- Browse Hack, ProjectSync and anything else from the catalog: follow
-  https://github.com/microfox-ai/mediamake/blob/main/install.md ("Set up mcp/browse-hack from
-  MediaMake …"). Never register an MCP straight from a checkout of the extensions repo.
+- Anything else from the catalog that someone else makes (fal, Blender, Gemini): follow
+  https://github.com/microfox-ai/mediamake/blob/main/install.md ("Set up mcp/fal from MediaMake …").
+  Never register an MCP straight from a checkout of the extensions repo.
 - New MCPs show up in the next Claude Code session, not this one: say so.
 
 ## 7. Doctor

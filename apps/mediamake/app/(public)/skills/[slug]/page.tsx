@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ArrowLeftIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { MadeWithThis } from '@/components/catalog/made-with';
+import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { SkillActions } from '@/components/skills/skill-actions';
 import { getCatalogRecord } from '@/lib/catalog/records';
@@ -133,6 +134,8 @@ export default async function SkillPage({ params }: Props) {
               </p>
             )}
           </section>
+
+          <ItemFeedback itemId={id} title={skill.name} version={skill.version} />
         </div>
 
         <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">

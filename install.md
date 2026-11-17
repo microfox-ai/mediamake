@@ -6,6 +6,8 @@ Claude app with a computer it can use). A person pastes a prompt like:
 > Set up mcp/browse-hack from MediaMake (https://your-mediamake-site) with install code mmi_… by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
 and you install that item and everything it needs. Follow the steps in order.
+On a computer that is signed in to MediaMake, none of that is pasted: go to
+[Signed in on this computer](#signed-in-on-this-computer) first.
 To bring something installed earlier up to date ("update browse hack",
 "update <skill or MCP>", "check MediaMake for updates"), go to
 [Update an installed item](#update-an-installed-item) instead.
@@ -14,14 +16,53 @@ when you ask, say exactly what to click or type. Never print their API key or in
 back to them or write it anywhere except where a step says to. The same
 goes for the update token from step 5.
 
+## Signed in on this computer
+
+When the MediaMake repository is on the computer (`mm` runs, or `npm run mm --`
+in the checkout) and it is signed in, the sign-in installs everything: no
+install prompt, no install code, no site address.
+
+1. `mm items --json`. `signedIn: false` (exit code 2): go on to step 0, unless
+   they want to sign in: run `mm login` yourself and _Ask_ them to click
+   **Allow** in the browser tab it opens (signing in to the site there first
+   if it asks). Nothing is copied or pasted; the command waits up to 5
+   minutes, so give it that long. A computer with no browser: `mm login --key`
+   reads an API key on stdin.
+   Otherwise it gives the account, its membership (`tier`) and every MCP and
+   app the membership opens with its `state` here: `installed`, `behind` or
+   `missing`.
+2. `mm items install <item id> --yes --json` for the item they asked for, or
+   `mm items install --yes --json` for everything the membership opens that is
+   `missing` or `behind`. Having access is the yes: don't ask before installing
+   what their membership opens. It does steps 2 to 5 below by itself: the plan,
+   the downloads (checked against their SHA-256), an `.mcpb` unpacked into
+   `~/.mediamake/mcp/<slug>` and added to Claude Code for every project, a
+   Chrome extension unzipped into `~/Extensions/<name>`, `installed.json` and
+   the update token. A working copy that didn't come from MediaMake is kept.
+3. Do what it lists under `left`, in order. An entry with `needsPerson` is
+   theirs: _Ask_ them, with the exact words (loading a new Chrome extension:
+   `chrome://extensions`, **Developer mode**, **Load unpacked**, that folder).
+   The others are yours: an item's own `INSTALL.md` (its setup and its check),
+   an app, an item made by someone else (`mm items plan <id>` is its plan;
+   step 4's `type: "source"` says how).
+4. `failed` names what couldn't be installed and why. An item their membership
+   doesn't open: say which membership opens it (`mm items` lists those) and
+   stop; never ask for an install code to get around it.
+5. Finish as step 6 says. `worksWith` are the MCPs the items work with and
+   they don't have: offer them once, as [Choices](#choices-the-mcps-it-works-with) says.
+
+Never ask them for the site address or to copy an install prompt while
+`mm items` says they are signed in.
+
 ## 0. Read the request
 
 - **Item id**: the `<kind>/<name>` in the prompt (`skill/…`, `mcp/…`,
   `app/…`, `tutorial/…`). If there is none, _Ask_ which item they want; they
   can copy the prompt from the item's page on their MediaMake site.
 - **Site URL** (`$MEDIAMAKE_URL`): the URL in the prompt. If there is none,
-  use `MEDIAMAKE_URL` from the environment or `~/.mediamake/config.json`; if
-  still unknown, _Ask_ for the MediaMake site address they were given.
+  use `MEDIAMAKE_API_URL` or `MEDIAMAKE_URL` from the environment, else `url`
+  in `~/.mediamake/config.json`, else `https://mediamake.microfox.app`. Never
+  _Ask_ for it.
 - **Install code**: the `mmi_…` after "install code", if the prompt has
   one. The site adds it when they copy the prompt while signed in.
 - Note which Claude you are running in. It decides where skills and MCPs
@@ -56,15 +97,23 @@ Pick the credential for step 3 (`$AUTH`), in this order. Don't ask for an
 API key when an earlier option applies.
 
 1. **Install code** from the prompt: `$AUTH` = the code. Nothing to ask.
+   With no code in the prompt and `mm` on the computer, try
+   [Signed in on this computer](#signed-in-on-this-computer) before the
+   options below: `mm items install <item id> --yes` uses the sign-in in the
+   Keychain, which these steps can't read.
 2. `updateToken` in `~/.mediamake/config.json` (saved by step 5 of an
    earlier install): `$AUTH` = that token. It only works for items installed
    with it; if step 3 answers **401**, go on to option 3, then 4.
 3. `MEDIAMAKE_API_KEY` from the environment, or `apiKey` in
    `~/.mediamake/config.json`: `$AUTH` = that key.
 4. None of these: try step 3 with no `Authorization` header (items open to
-   everyone need none). Only if that answers **401**, _Ask_ them to open the
-   item's page on `$MEDIAMAKE_URL`, sign in, click **Copy** on the install
-   prompt again and paste it to you; use the install code in it. (People
+   everyone need none). Only if that answers **401**: where `mm` runs, _Ask_
+   them to sign the computer in once (run `mm login`; they click **Allow** in
+   the browser tab it opens), then
+   `mm items install <item id> --yes`. Where it doesn't (no MediaMake repo on
+   the computer), _Ask_ them to open the item's page on `$MEDIAMAKE_URL`,
+   sign in, click **Copy** on the install prompt again and paste it to you;
+   use the install code in it. (People
    who want to keep an API key for later can copy theirs from
    `$MEDIAMAKE_URL/app/api-keys` instead; save it to
    `~/.mediamake/config.json` as `{ "url": "<MEDIAMAKE_URL>", "apiKey": "<key>" }`
@@ -397,9 +446,13 @@ from MediaMake" or "check MediaMake for updates", or paste a prompt like
    is in this session, call it: it updates the MCP and the Chrome extension
    and reloads the extension in every Chrome profile by itself. Report what
    it says and stop.
-3. **Credential and site.** `$MEDIAMAKE_URL`: `url` in
-   `~/.mediamake/config.json`, else `MEDIAMAKE_URL` from the environment,
-   else _Ask_. `$AUTH`: an install code if they pasted a prompt with one,
+3. **Credential and site.** Signed in on this computer (`mm items` lists
+   each item as `installed`, `behind` or `missing`): `mm items install --yes`
+   updates everything that is behind, or `mm items install <id> --yes` one
+   item, and the rest of this section isn't needed. Otherwise
+   `$MEDIAMAKE_URL`: `url` in `~/.mediamake/config.json`, else
+   `MEDIAMAKE_API_URL` or `MEDIAMAKE_URL` from the environment, else
+   `https://mediamake.microfox.app`. `$AUTH`: an install code if they pasted a prompt with one,
    else `updateToken` in `~/.mediamake/config.json`, else `apiKey` there or
    `MEDIAMAKE_API_KEY`.
 4. **Compare.**
@@ -433,7 +486,8 @@ from MediaMake" or "check MediaMake for updates", or paste a prompt like
    latest release when it starts, a hosted one is always current), so only
    say so.
 6. **401, or the item is under `missing`:** the token lapsed or wasn't made
-   for this item. _Ask_ them to open the item's page on `$MEDIAMAKE_URL`
+   for this item. Signed in on this computer: `mm items install <id> --yes`
+   needs no token. Otherwise _Ask_ them to open the item's page on `$MEDIAMAKE_URL`
    while signed in, click **Copy install prompt** and paste it; use its
    install code from step 4 on (step 5 then adds the item to the token).
 7. **Report** the new versions, and that a new Claude Code session (or

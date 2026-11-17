@@ -1,0 +1,29 @@
+name: Feedback shipped
+
+# When a pull request merges, MediaMake is told its number. Feedback tied to that pull
+# request (an automatic draft from feedback-fix.yml, or one an admin tied to it on
+# /app/feedback) is marked shipped and its writers are mailed. A pull request that answers
+# no feedback changes nothing. No code is checked out here: it only makes one request.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions: {}
+
+jobs:
+  tell:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MEDIAMAKE_URL: ${{ vars.MEDIAMAKE_URL || 'https://mediamake.microfox.app' }}
+      FEEDBACK_HOOK_SECRET: ${{ secrets.FEEDBACK_HOOK_SECRET }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+    steps:
+      - name: Tell MediaMake
+        run: |
+          if [ -z "$FEEDBACK_HOOK_SECRET" ]; then echo "FEEDBACK_HOOK_SECRET is not set: nothing to tell"; exit 0; fi
+          curl --fail-with-body -sS -X POST -H "Authorization: Bearer $FEEDBACK_HOOK_SECRET" -H "Content-Type: application/json" \
+            --data "{\"event\":\"merged\",\"repo\":\"$GITHUB_REPOSITORY\",\"prNumber\":$PR_NUMBER,\"prUrl\":\"$PR_URL\"}" \
+            "$MEDIAMAKE_URL/api/feedback-hook"
