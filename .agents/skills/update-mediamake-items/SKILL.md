@@ -1,6 +1,6 @@
 ---
 name: update-mediamake-items
-description: Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes in between, without asking for an install code again. Use when the user says "update browse hack", "update <an MCP or skill from MediaMake>", "update everything from MediaMake", "check for updates", "what version of <item> do I have", "is <item> up to date", or pastes an "Update <item> from MediaMake" prompt.
+description: Bring MCPs, skills, apps and the Browse Hack Chrome extension installed from MediaMake up to date, showing the installed and live version numbers and the release notes in between, without asking for an install prompt again. Use when the user says "update browse hack", "update <an MCP or skill from MediaMake>", "update everything from MediaMake", "check for updates", "what version of <item> do I have", "is <item> up to date", or pastes an "Update <item> from MediaMake" prompt.
 metadata:
   category: update
 ---
@@ -23,7 +23,7 @@ needed, not even the update token:
   and isn't here yet; `mm items install <id> --yes` does one item. Then do what it lists under
   "Left to do" (an item's own `INSTALL.md`, or one click from the person for a new Chrome extension).
 
-Never ask them to copy an install prompt or an install code while `mm items` says they are signed in.
+Never ask them to copy an install prompt while `mm items` says they are signed in.
 
 ## Browse Hack
 
@@ -73,10 +73,10 @@ https://github.com/microfox-ai/mediamake/blob/main/install.md
 3. Tell the person, per item: installed version → live version, and the notes in between.
 4. Update what's behind from the install plan, as install.md's step 4 says for updates.
 5. A 401, or the item under `missing`, means the token doesn't cover it: `mm items install <id> --yes`
-   when the computer is signed in; only where `mm` isn't there, ask them to copy the item's install
-   prompt from its page on the MediaMake site and paste it.
+   when the computer is signed in; only where `mm` isn't there, use their sign-in another way, as
+   install.md's Update section says (mm-use's tools, or their API key).
 
-The item's page on the MediaMake site (`/access?item=<id>`) shows the same live version and
+The item's page on the MediaMake site (`/skills/<slug>`, `/mcps/<slug>` or `/apps/<slug>`) shows the same live version and
 release notes, so the person can check there too.
 
 `"autoUpdate": false` in `~/.mediamake/config.json` stops items from updating on their own;

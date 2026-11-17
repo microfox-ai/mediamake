@@ -80,6 +80,8 @@ export interface ItemDetail {
   /** Titles by id, for everything in the catalog. */
   names: Record<string, string>;
   installPrompt?: string;
+  /** The public site the item's page is on (its link: site + itemPagePath). */
+  site?: string;
   /** A skill's, MCP's or app's launch video prompt: runs make-cwc-tutorial for it on an admin's computer (lib/catalog/launch-video). */
   launchVideoPrompt?: string;
   /** The titles of its open known issues (lib/feedback/known-issues). */

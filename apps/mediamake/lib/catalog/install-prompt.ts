@@ -28,20 +28,21 @@ function isVercelAppUrl(url: string): boolean {
 /**
  * The one-line prompt that has Claude bring an installed item up to date
  * (install.md › Update an installed item, or the update-mediamake-items skill):
- * no install code, the install's update token covers it.
+ * the computer's sign-in, or the update token its install left, covers it.
  */
 export function updatePromptFor(itemId: string): string {
   const site = siteUrl();
   return `Update ${itemId} from MediaMake${site ? ` (${site})` : ''} by following ${INSTALL_GUIDE_URL}#update-an-installed-item`;
 }
 
-/** The one-line prompt that has Claude install an item and its dependencies. */
-export function installPromptFor(itemId: string, installCode?: string): string {
+/**
+ * The one-line prompt that has Claude install an item and its dependencies, for a computer
+ * without MediaMake: whoever pastes it signs in as themselves (install.md › Who is installing).
+ * A computer signed in to MediaMake needs none: `mm items install --yes`.
+ */
+export function installPromptFor(itemId: string): string {
   const site = siteUrl();
-  return (
-    `Set up ${itemId} from MediaMake${site ? ` (${site})` : ''}` +
-    `${installCode ? ` with install code ${installCode}` : ''} by following ${INSTALL_GUIDE_URL}`
-  );
+  return `Set up ${itemId} from MediaMake${site ? ` (${site})` : ''} by following ${INSTALL_GUIDE_URL}`;
 }
 
 /** The setup-mediamake skill: what the site's "Setup MediaMake" prompt has Claude follow. */

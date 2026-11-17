@@ -85,7 +85,7 @@ An entry is a card plus `madeBy` and `install.source`:
     is hosted (`url`, `headers`, a `connectorUrl` when the Claude apps
     sign in at another URL, and a `directoryUrl` when it is listed in
     Claude's connector directory, e.g. `https://claude.ai/directory/elevenlabs`:
-    its release and install pages link it and install.md adds it from there;
+    its release and item pages link it and install.md adds it from there;
     with none, no link is shown), `mcpb` is a bundle on a GitHub release. Give at
     least one; install.md picks what fits the person's Claude. Each `env` /
     `headers` entry says what the value is, where to get it (`getAt`), how
@@ -157,7 +157,7 @@ without one it is YouTube's, `https://img.youtube.com/vi/<id>/maxresdefault.jpg`
 
 - **A skill's intro** (or an MCP's or app's): paste its YouTube link under
   **Intro video** on its release page, e.g. `/app/releases/skill/pack-brand-kit`.
-  It plays on the item's page (`/access?item=skill/pack-brand-kit`), and its
+  It plays on the item's page (`/skills/pack-brand-kit`), and its
   thumbnail tops the item's card on the homepage. Like the archive, videos are
   kept apart from the items (`catalog_videos`, keyed by item id), so a skill
   from the repo gets one without being stored as an item.
@@ -201,7 +201,7 @@ there and is reviewed in rounds, so the site makes no video itself).
 - The item's release page has **Copy launch video prompt** at the top of its
   Intro video panel. The prompt carries what the catalog knows about the item:
   its id and version, what it is, who can open it, Beta or Ready, a skill's
-  first prompt, the install prompt to show (never one with an install code),
+  first prompt, the install prompt to show (for a computer without MediaMake),
   its code, what was made with it (the Ready mark's proof), what it works with
   and what uses it. It tells Claude to check each fact, to ask for what is
   missing, and to stop when no finished production was made with it.
@@ -424,7 +424,7 @@ change.
 
 Public items install the same way as private ones: open the card, copy the
 prompt. Installing always needs a MediaMake account, because the install plan
-and packages are fetched with the person's install code or API key.
+and packages are fetched under the person's sign-in (`mm login`, mm-use, or their API key).
 
 ## Who has access
 
@@ -530,7 +530,7 @@ skill or app folder, or beside an `.mcpb` (`<name>.CHANGELOG.md` or
 `## [1.2.0] - 2026-11-02` all work.
 
 The live version and the notes show on the item's card and its page
-(`/access?item=<id>`, newest first), in `GET /api/catalog/versions`, and in
+(`/skills/<slug>`, `/mcps/<slug>` or `/apps/<slug>`, newest first), in `GET /api/catalog/versions`, and in
 what installed items report when they update (Browse Hack's `get_status`
 and `update_browse_hack` tools).
 
@@ -540,12 +540,22 @@ from `mcp/CHANGELOG.md`; see its `.github/workflows/release-browse-hack-mcp.yml`
 
 ## One-prompt installs
 
-Anyone with access installs an item by pasting this into Claude. Its card on
-the homepage has a **Copy install prompt** button and links to
-`/access?item=<id>`, which shows the prompt too (`listCatalog` returns it as
-`installPrompt`):
+Every skill, MCP and app has its own page, the link to share and the one the
+Releases admin page links as **Item page**: `/skills/<slug>`, `/mcps/<slug>`,
+`/apps/<slug>` (`itemPagePath` in `lib/catalog/paths.ts`; e.g.
+https://mediamake.microfox.app/skills/create-thumbnail). Tutorials play on
+`/access?item=<id>` and courses on `/courses/<slug>` (`watchPath`). An old
+`/access?item=<id>` link to a skill, MCP or app the viewer can open redirects
+to its page; `/access` still serves locked items (asking for access) and
+skills with no page of their own.
 
-> Set up mcp/browse-hack from MediaMake (https://your-site) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
+Who installs what follows the membership (Public, Plus, Pro, Cohort): there
+are no per-release or per-install codes. Anyone with access on a computer
+without MediaMake installs an item by pasting this into Claude. Its card on the
+homepage has a **Copy install prompt** button and its page shows the prompt
+too (`listCatalog` returns it as `installPrompt`):
+
+> Set up mcp/browse-hack from MediaMake (https://mediamake.microfox.app) by following https://github.com/microfox-ai/mediamake/blob/main/install.md
 
 On a computer that has the MediaMake repo and is signed in (`mm login`: the
 site's OAuth sign-in in the browser, after which `mm` makes one API key for
@@ -555,8 +565,8 @@ prompt is pasted at all: `mm items` asks the site who the account is
 (`GET /api/catalog/versions`), and `mm items install --yes` installs every MCP
 and app the membership opens with the same API key (`tools/items.mjs`; the
 plan, the SHA-256 check, `claude mcp add`, `installed.json` and the update
-token are the same as below). The prompt and its install code are for
-everyone else.
+token are the same as below). The prompt is for everyone else: Claude
+installs under their own sign-in (mm-use's `install_item`, or their API key).
 
 [`install.md`](../../../install.md) walks Claude through GitHub (account,
 `git`, `gh auth login`), the person's MediaMake API key, and then the plan
@@ -645,15 +655,16 @@ Declare what an item needs in `catalog.json` under `install`:
 
 The end of an install (install.md step 5) leaves two files on the person's
 machine: `~/.mediamake/installed.json` (what was installed, which version,
-where) and an **update token** in `~/.mediamake/config.json` (`updateToken`,
-traded for the install code with `POST /api/catalog/update-token`). The token
+where) and, from `mm items install`, an **update token** in
+`~/.mediamake/config.json` (`updateToken`, from
+`POST /api/catalog/update-token` with the computer's API key). The token
 stands for the person and the items installed with it plus their
 dependencies, works only for `GET /api/catalog/versions` and
 `GET /api/catalog/install` on those items, is stored hashed in Redis
 (`lib/catalog/update-token.ts`), renews with use and lapses after a year
 unused. Access is still checked on every call, so revoking a grant stops
-updates as well. Installing another item with an install code adds it to the
-same token.
+updates as well. Installing another item with `mm items install` adds it to
+the same token.
 
 With it:
 
@@ -689,9 +700,10 @@ const skills = await listCatalog(viewer, 'skill');
 - `lib/catalog/plan.ts` builds install plans (`planInstall`, tested in
   `plan.test.ts`); `lib/catalog/install.ts` hands it the database, storage
   and the viewer's access.
-- `/access?item=<id>` shows an item you can open with its install prompt and
-  a download; `/access?code=<code>` redeems an invite (the way new people get
-  in while releases are locked).
+- `/skills/<slug>`, `/mcps/<slug>` and `/apps/<slug>` show an item you can
+  open with its install prompt and a download; `/access?item=<id>` keeps
+  tutorials, locked items and skills without a page; `/access?code=<code>`
+  redeems an invite into a membership.
 
 HTTP endpoints (`/api/catalog/*` skip the API-key middleware and resolve the
 session cookie or Bearer key themselves):
@@ -700,9 +712,9 @@ session cookie or Bearer key themselves):
 | --- | --- |
 | `GET /api/catalog?kind=skill` | Catalog as the caller sees it |
 | `GET /api/catalog/download?item=<id>[&version=][&redirect=1]` | 5-minute signed link, logged; 404 when locked |
-| `GET /api/catalog/install?item=<id>` (Bearer install code, update token or API key) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
-| `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token, install code or API key) | Live version of each item and its releases with notes, newest first; no links, not logged |
-| `POST /api/catalog/update-token { token? }` (Bearer install code) | Trades an install code for an update token (or adds the item to `token`) |
+| `GET /api/catalog/install?item=<id>` (Bearer update token or API key, or the session) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
+| `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token or API key, or the session) | Live version of each item and its releases with notes, newest first; no links, not logged |
+| `POST /api/catalog/update-token { items, token? }` (Bearer API key) | An update token for the installed items (or adds them to `token`); `mm items install` asks for it |
 | `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
 | `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `create_video_item`, `create_thumbnail_upload` |

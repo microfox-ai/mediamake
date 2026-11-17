@@ -62,7 +62,7 @@ const ABOUT = {
   notes: "your lessons for each skill, outside the repo (mm notes help)",
   update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
   login: 'signs this computer in to MediaMake through your browser, no key to paste (mm login status; mm logout)',
-  items: 'what your MediaMake account opens (MCPs, apps) and what is installed; mm items install --yes installs it all, no install code',
+  items: 'what your MediaMake account opens (MCPs, apps) and what is installed; mm items install --yes installs it all with the sign-in',
   usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };

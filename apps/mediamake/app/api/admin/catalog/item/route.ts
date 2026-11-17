@@ -86,6 +86,8 @@ export async function GET(req: NextRequest) {
     usedBy,
     names: Object.fromEntries([...byId.values()].map(record => [record.id, record.title])),
     installPrompt: isInstallable(item) ? installPromptFor(id) : undefined,
+    // the public site, for the item's page link (/skills/<slug>, /mcps/<slug>, /apps/<slug>)
+    site: siteUrl() ?? CANONICAL_SITE,
     code: codeUrlOf(item),
     // a skill's card carries the first sentence; its page shows the whole description
     description,

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AlertTriangleIcon, ArrowUpRightIcon, CheckIcon, CopyIcon, LockIcon, RefreshCwIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { AppItem } from '@/lib/app-shell/member';
 import { tierLabel } from '@/lib/memberships/tiers';
 
@@ -108,7 +107,7 @@ export function ItemActions({
           title={`Copy the install prompt, then paste it into Claude: ${item.installPrompt}`}
           onClick={async () => {
             try {
-              await copyInstallPrompt(item.id, item.installPrompt!);
+              await navigator.clipboard.writeText(item.installPrompt!);
             } catch {
               window.prompt('Copy this install prompt and paste it into Claude:', item.installPrompt);
               return;

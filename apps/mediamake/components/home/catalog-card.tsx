@@ -6,7 +6,6 @@ import { ArrowUpRight, Check, Copy, Lock, RefreshCw, Unlock } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { copyInstallPrompt } from '@/lib/catalog/copy-install-prompt';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { watchPath } from '@/lib/catalog/video';
@@ -35,7 +34,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
   // Locked cards lead to the request-access / redeem-invite page; a skill, an
   // MCP or an app to its own page (which plays its intro video and opens or
   // installs it); a tutorial or course to where it plays; and anything else
-  // installable to its install page.
+  // installable to /access, its only page.
   const accessHref = `/access?item=${encodeURIComponent(card.id)}`;
   const href = locked
     ? accessHref
@@ -97,7 +96,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
 
         {!locked && card.installPrompt && (
           <div className="flex flex-wrap gap-2">
-            <CopyInstallPrompt itemId={card.id} prompt={card.installPrompt} fallbackHref={accessHref} />
+            <CopyInstallPrompt prompt={card.installPrompt} fallbackHref={href ?? accessHref} />
             {card.updatePrompt && <CopyUpdatePrompt prompt={card.updatePrompt} />}
           </div>
         )}
@@ -125,7 +124,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
 
 /**
  * Copies the one-line prompt that has Claude bring an installed MCP up to date.
- * It needs no install code: the update token the install left covers it.
+ * It needs nothing pasted with it: the sign-in or the update token the install left covers it.
  */
 function CopyUpdatePrompt({ prompt }: { prompt: string }) {
   const [copied, setCopied] = useState(false);
@@ -136,7 +135,7 @@ function CopyUpdatePrompt({ prompt }: { prompt: string }) {
       className="w-fit"
       title={prompt}
       onClick={async (e) => {
-        // The card itself is a link to the install page.
+        // The card itself is a link to the item's page.
         e.preventDefault();
         e.stopPropagation();
         try {
@@ -157,7 +156,7 @@ function CopyUpdatePrompt({ prompt }: { prompt: string }) {
 }
 
 /** Copies the one-line Claude install prompt without leaving the homepage. */
-function CopyInstallPrompt({ itemId, prompt, fallbackHref }: { itemId: string; prompt: string; fallbackHref: string }) {
+function CopyInstallPrompt({ prompt, fallbackHref }: { prompt: string; fallbackHref: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -166,13 +165,13 @@ function CopyInstallPrompt({ itemId, prompt, fallbackHref }: { itemId: string; p
       className="w-fit"
       title={prompt}
       onClick={async (e) => {
-        // The card itself is a link to the install page.
+        // The card itself is a link to the item's page.
         e.preventDefault();
         e.stopPropagation();
         try {
-          await copyInstallPrompt(itemId, prompt);
+          await navigator.clipboard.writeText(prompt);
         } catch {
-          // No clipboard access: the install page shows the prompt to copy by hand.
+          // No clipboard access: the item's page shows the prompt to copy by hand.
           window.location.assign(fallbackHref);
           return;
         }

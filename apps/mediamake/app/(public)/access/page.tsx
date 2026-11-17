@@ -1,10 +1,13 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
 import { VIDEO_KINDS, directoryUrlOf, installPromptFor, isInstallable, mcpRunsOf, slugOf, toCard, toEntry, withHealth, type CatalogEntry, type CatalogItemRecord, type CatalogVideo, type HealthMark, type McpRuns, type UseShown } from '@/lib/catalog';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf, type Release } from '@/lib/catalog/releases';
 import { accessRequestsDB, catalogArchiveDB, catalogHealthDB, catalogVideosDB } from '@/lib/catalog/store';
 import { watchPath } from '@/lib/catalog/video';
+import { skillNamed } from '@/lib/skills/registry';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,9 +20,11 @@ import { AccessActions, RedeemInvite } from './access-actions';
 export const dynamic = 'force-dynamic';
 
 /**
- * /access?item=skill/lyric-video  — install or download one item you have access to,
- *                                   and watch its video (a skill's intro, a tutorial).
- * /access?code=XXXX               — redeem an invite someone shared with you.
+ * /access?item=mcp/browse-hack — an item the viewer can open goes to its own page
+ *                                (/skills/<slug>, /mcps/<slug>, /apps/<slug>); here stay
+ *                                tutorials, skills with no page of their own (third-party,
+ *                                released by hand) and locked items (asking for access).
+ * /access?code=XXXX            — redeem an invite someone shared with you.
  */
 export default async function AccessPage({
   searchParams,
@@ -59,6 +64,10 @@ export default async function AccessPage({
       const entry = toEntry(entitlements, toCard(record));
       // Locked items are hidden: answer as if they don't exist.
       if (entry.access !== 'locked') {
+        // old links: an MCP, an app or a repo skill has its own page
+        if (!code && (record.kind === 'mcp' || record.kind === 'app' || (record.kind === 'skill' && skillNamed(slugOf(record.id))))) {
+          redirect(itemPagePath(record.id));
+        }
         item = entry;
         video = found;
         releases = releasesOf(record.versions, 20);
@@ -74,7 +83,7 @@ export default async function AccessPage({
             const used = healthy(fetchedUse);
             const shown = { ...use, runs: mcpRunsOf(used), alternativeTo: used.alternativeTo, health: used.health };
             return accessLevel(entitlements, used) !== 'locked'
-              ? { ...shown, title: used.title, href: `/access?item=${encodeURIComponent(use.id)}` }
+              ? { ...shown, title: used.title, href: itemPagePath(use.id) }
               : shown;
           }),
         );
@@ -82,7 +91,7 @@ export default async function AccessPage({
           const first = await getCatalogRecord(record.alternativeTo);
           preferred =
             first && accessLevel(entitlements, first) !== 'locked'
-              ? { id: first.id, title: first.title, href: `/access?item=${encodeURIComponent(first.id)}` }
+              ? { id: first.id, title: first.title, href: itemPagePath(first.id) }
               : { id: record.alternativeTo };
         }
       }

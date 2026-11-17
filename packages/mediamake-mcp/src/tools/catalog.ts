@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, mimeFromName, rejectLocalArgs, safe, withoutLocalArgs, type ToolOptions } from '../util.js';
+import { itemPagePath, json, mimeFromName, rejectLocalArgs, safe, withoutLocalArgs, type ToolOptions } from '../util.js';
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
 const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: true } as const;
@@ -204,8 +204,12 @@ function stepLine(step: PlanStep): string {
 export function registerCatalogTools(server: McpServer, client: MediamakeClient, options: ToolOptions = { localFiles: true }) {
   /** The item's release page on the admin dashboard: give it to the user after any change. */
   const page = (id: string) => client.url(`/core/releases/${id}`);
-  /** Where the item's video plays: a course's own page, else the item's page. */
-  const plays = (id: string) => (id.startsWith('course/') ? client.url(`/${id.replace('course/', 'courses/')}`) : client.url('/access', { item: id }));
+  /** The item's own page for viewers, where its video plays: /skills/<slug>, /mcps/<slug>, /apps/<slug>, /courses/<slug>. */
+  const itemPage = (id: string) => {
+    const { path, query } = itemPagePath(id);
+    return client.url(path, query);
+  };
+  const plays = itemPage;
 
   /** Saves an item's whole video (POST set_video) and answers with what was stored. */
   const saveVideo = async (itemId: string, video: VideoBody) =>
@@ -314,7 +318,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: "Set items' health (admins)",
       description:
-        "Admins only. Say whether items work right now, for any kind (skills, MCPs, apps, tutorials), shown on their cards and install pages: healthy (works), inactive (works, but nobody uses or looks after it now), archived (kept for reference, no longer maintained) or failed (broken: people shouldn't install it until it is fixed). failed needs the reason in note: it is shown with the item. A failed item leaves the public site and Explore's default view, and stays on its own page with the reason. default clears an admin's mark, back to the repo's default (healthy when it has none). catalog_items shows each item's health (and filters by it). Give the user the release page links it answers with.",
+        "Admins only. Say whether items work right now, for any kind (skills, MCPs, apps, tutorials), shown on their cards and item pages: healthy (works), inactive (works, but nobody uses or looks after it now), archived (kept for reference, no longer maintained) or failed (broken: people shouldn't install it until it is fixed). failed needs the reason in note: it is shown with the item. A failed item leaves the public site and Explore's default view, and stays on its own page with the reason. default clears an admin's mark, back to the repo's default (healthy when it has none). catalog_items shows each item's health (and filters by it). Give the user the release page links it answers with.",
       inputSchema: {
         items: z.array(ITEM_ID).min(1).max(200),
         health: z.enum(['healthy', 'inactive', 'archived', 'failed', 'default']),
@@ -427,7 +431,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
         type: 'upsert_item',
         item: { kind, slug, title, summary, status: 'live', tags, madeBy, install: { source, ...(notes && { notes }) } },
       });
-      return json({ id, page: page(id), installPage: client.url('/access', { item: id }) });
+      return json({ id, page: page(id), itemPage: itemPage(id) });
     }),
   );
 

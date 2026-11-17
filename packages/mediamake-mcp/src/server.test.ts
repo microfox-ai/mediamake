@@ -281,7 +281,7 @@ describe('catalog admin tools', () => {
     expect(out).toEqual({
       id: 'mcp/suno',
       page: 'http://mm.test/core/releases/mcp/suno',
-      installPage: 'http://mm.test/access?item=mcp%2Fsuno',
+      itemPage: 'http://mm.test/mcps/suno',
     });
   });
 
@@ -397,7 +397,7 @@ describe('catalog admin tools', () => {
       item: 'skill/pack-brand-kit',
       video: { title: 'Brand kit in one prompt', description: 'Episode 1.', thumbnail: 'https://cdn.test/t.jpg', youtube: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ' },
       page: 'http://mm.test/core/releases/skill/pack-brand-kit',
-      plays: 'http://mm.test/access?item=skill%2Fpack-brand-kit',
+      plays: 'http://mm.test/skills/pack-brand-kit',
     });
   });
 
@@ -628,7 +628,7 @@ describe('mm-use', () => {
     stubApi((_m, path) => (path === '/api/catalog' ? { items: ITEMS } : { items: [{ id: 'skill/pack-brand-kit', version: '1.0.0' }] }));
     const open = (await call('get_item', { item: 'skill/pack-brand-kit' })).out;
     expect(open.open).toBe(true);
-    expect(open.page).toBe('http://mm.test/access?item=skill%2Fpack-brand-kit');
+    expect(open.page).toBe('http://mm.test/skills/pack-brand-kit');
     expect(open.releases).toEqual({ id: 'skill/pack-brand-kit', version: '1.0.0' });
     const locked = (await call('get_item', { item: 'mcp/browse-hack' })).out;
     expect(locked.open).toBe(false);
@@ -681,6 +681,6 @@ describe('mm-use', () => {
     expect(calls.find(c => c.url.pathname === '/api/feedback')!.url.searchParams.get('item')).toBe('skill/make-lyrics-video');
     const { out } = await call('known_issues', { item: 'skill/make-lyrics-video' });
     expect(out.issues).toHaveLength(1);
-    expect(out.page).toContain('/access?item=');
+    expect(out.page).toBe('http://mm.test/skills/make-lyrics-video');
   });
 });

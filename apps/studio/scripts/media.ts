@@ -200,7 +200,7 @@ const cloudCommand = async () => {
     saveKeychainKey(url, key);
     if (flag('url')) saveCloudUrl(url);
     console.log(`✔ Signed in to ${url} (${Array.isArray(projects) ? projects.length : 0} projects you can open). The key is in the Keychain as "MediaMake API key".`);
-    return console.log('  mm items shows what your membership opens; mm items install --yes installs it, with no install code.');
+    return console.log('  mm items shows what your membership opens; mm items install --yes installs it with that sign-in.');
   }
   if (op === 'logout') return console.log(deleteKeychainKey(url) ? `Signed out of ${url}: the key is gone from the Keychain.` : `No key for ${url} in the Keychain.`);
   if (op === 'status') {

@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { json, safe } from '../util.js';
+import { itemPagePath, json, safe } from '../util.js';
 
 /**
  * mm-use: what every MediaMake member does from Claude. Explore the catalog,
@@ -67,8 +67,11 @@ function line(entry: Entry) {
 }
 
 export function registerUseTools(server: McpServer, client: MediamakeClient) {
-  /** An item's page on the site: give it to the user with an answer about the item. */
-  const page = (id: string) => client.url('/access', { item: id });
+  /** An item's own page on the site (/skills/<slug>, /mcps/<slug>, /apps/<slug>): give it to the user with an answer about the item. */
+  const page = (id: string) => {
+    const { path, query } = itemPagePath(id);
+    return client.url(path, query);
+  };
 
   const catalog = async (kind?: string) => (await client.get<{ signedIn: boolean; items: Entry[] }>('/api/catalog', { kind, locked: 'show' })).items;
 

@@ -64,8 +64,8 @@ following https://github.com/microfox-ai/mediamake/blob/main/install.md").
 ## Intake (one round)
 
 - **The item** and its catalog id (`skill/<name>`), and its install prompt as the live site builds it
-  (`installPromptFor` in `apps/mediamake/lib/catalog/install-prompt.ts`; the copied one may carry an
-  install code: never show a real code). Check the URL it names is the public one
+  (`installPromptFor` in `apps/mediamake/lib/catalog/install-prompt.ts`; it carries no code). Check
+  the URL it names is the public one
   (`mediamake.microfox.app`, not a vercel preview).
 - **Its first prompt** (`/<name> …`) and what it asks back.
 - **Its real outputs** for the shelf, and **which are public**.

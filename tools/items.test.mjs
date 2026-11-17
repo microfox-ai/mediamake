@@ -240,7 +240,7 @@ test('mm items install without --yes only lists, and asks the site for no plan',
   assert.ok(!fs.existsSync(path.join(home, '.mediamake', 'installed.json')));
 });
 
-test('mm items install --yes installs everything the account opens, with no install code', async () => {
+test('mm items install --yes installs everything the account opens, with nothing pasted', async () => {
   const r = await items(['install', '--yes', '--json']);
   assert.equal(r.status, 0, r.stderr + r.stdout);
   const out = JSON.parse(r.stdout);

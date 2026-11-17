@@ -58,7 +58,7 @@ const apps: AppCard[] = [
   },
   {
     title: 'Access & invites',
-    summary: 'Redeem an invite code, or install an item shared with you.',
+    summary: 'Redeem an invite into a MediaMake membership.',
     href: '/access',
     icon: KeyRound,
     tags: ['catalog'],

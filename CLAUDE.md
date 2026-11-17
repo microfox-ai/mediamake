@@ -160,7 +160,8 @@ download from.
 Every catalog item (skill, MCP, app, tutorial) has a page for admins,
 `https://mediamake.microfox.app/app/releases/<kind>/<slug>` (e.g. `/app/releases/mcp/browse-hack`):
 what it is, who can open it, where it lives, what installing it does, and what needs or uses it.
-`/app/releases` lists every item.
+`/app/releases` lists every item. The item's public page, the link to share, is
+`https://mediamake.microfox.app/skills/<slug>` (`/mcps/<slug>`, `/apps/<slug>`).
 
 - After any release step, give the user the link of each item it touched: `npm run catalog --
   release | add | promote | schedule | vault | grant | archive` and mm-release's `catalog_*`
@@ -188,16 +189,16 @@ the account's membership opens by itself. `mm items` shows the account, its tier
 app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
 them all, `mm items install <id> --yes` one (`tools/items.mjs`).
 
-- Never ask the user for the site address, an install prompt or an install code when `mm items` says
-  they are signed in. The site is `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else
-  `https://mediamake.microfox.app`.
+- Never ask the user for the site address or an install prompt when `mm items` says they are
+  signed in. Access follows the membership: there are no release or install codes. The site is
+  `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else `https://mediamake.microfox.app`.
 - Having access is the yes: install what their membership opens without asking, then do what the
   command lists as left (a new Chrome extension needs their one click on "Load unpacked").
 - Not signed in: run `mm login` yourself (give it up to 5 minutes) and ask the user to click Allow in
   the tab it opens. Never ask them to make, copy or paste an API key; `mm login --key` (a key on
   stdin) is only for a computer with no browser. `mm login status` says who is signed in,
   `mm logout` signs out (`tools/login.mjs`).
-- The install prompt with its code (`install.md`) is for computers without the repo or a sign-in.
+- The install prompt (`install.md`, no code in it) is for computers without the repo or a sign-in.
 
 ## Feedback: read it on /app/feedback, never paste it in public
 

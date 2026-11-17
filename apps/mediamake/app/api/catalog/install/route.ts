@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEntitlements, resolveViewer, type Viewer } from '@/lib/access';
-import { clientIdForInstallCode, isInstallCode } from '@/lib/catalog/install-code';
 import { buildInstallPlan } from '@/lib/catalog/install';
 import { catalogItemsDB } from '@/lib/catalog/store';
 import { isUpdateToken, readUpdateToken } from '@/lib/catalog/update-token';
 
 /**
  * GET /api/catalog/install?item=mcp/browse-hack
- * Authorization: Bearer <install code from the prompt, update token, or MediaMake API key>
+ * Authorization: Bearer <update token or MediaMake API key> (or the session cookie)
  *
  * The ordered install plan for an item and everything it requires (repos to
  * clone, GitHub release files, other catalog items), with 30-minute package
@@ -21,23 +20,14 @@ export async function GET(req: NextRequest) {
 
   const bearer = req.headers.get('authorization')?.split(' ')[1];
   let viewer: Viewer;
-  if (isInstallCode(bearer)) {
-    const clientId = await clientIdForInstallCode(bearer, itemId);
-    if (!clientId) {
-      return NextResponse.json(
-        { error: 'This install code has expired or is for another item. Copy the install prompt again from MediaMake.' },
-        { status: 401 },
-      );
-    }
-    viewer = { clientId };
-  } else if (isUpdateToken(bearer)) {
+  if (isUpdateToken(bearer)) {
     const token = await readUpdateToken(bearer);
     if (!token?.items.includes(itemId)) {
       return NextResponse.json(
         {
           error: token
-            ? `This update token wasn't made for ${itemId}. Copy its install prompt from MediaMake; installing it adds the item to the token.`
-            : 'This update token has lapsed. Copy the install prompt again from MediaMake.',
+            ? `This update token wasn't made for ${itemId}. Sign this computer in (mm login) and run mm items install ${itemId} --yes, which adds it to the token.`
+            : 'This update token has lapsed. Sign this computer in (mm login) and run mm items install --yes, which saves a new one.',
         },
         { status: 401 },
       );
@@ -51,7 +41,7 @@ export async function GET(req: NextRequest) {
   if (!plan.ok && plan.status === 404 && !viewer.clientId) {
     // Might be shared with them: we just don't know who they are.
     return NextResponse.json(
-      { error: 'Copy the install prompt from the item page on MediaMake while signed in (it carries an install code), or send your MediaMake API key as "Authorization: Bearer <key>".' },
+      { error: 'Sign in to install it: on a computer with MediaMake, mm login then mm items install --yes; elsewhere, send your MediaMake API key as "Authorization: Bearer <key>".' },
       { status: 401 },
     );
   }
