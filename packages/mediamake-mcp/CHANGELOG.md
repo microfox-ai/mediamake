@@ -1,5 +1,19 @@
 # @microfox/mediamake-mcp
 
+## 0.7.0
+
+### Minor Changes
+
+- cd4ea57: mm-use submits to the store. `submit_item` sends a skill, MCP or app the member built, privately, for an admin to review, with the finished production that was made with it; `my_submissions` shows where each stands (waiting, changes asked, accepted with the membership it earned, live, declined) and `withdraw_submission` takes one back before a decision.
+
+### Patch Changes
+
+- a1e3ec2: Changes from PR #582: project-thread-7pokh9
+- c74868a: Changes from PR #584: project-thread-qfq3z8
+- 9ecb559: Item links now point at each item's own page (`/skills/<slug>`, `/mcps/<slug>`, `/apps/<slug>`) instead of `/access?item=<id>`: mm-use's `page`, and mm-release's `plays` and `catalog_add_third_party`'s `itemPage` (was `installPage`).
+
+  Invite codes are retired: `catalog_invite` is gone, `catalog_people` no longer lists invite links, and `catalog_set_tier` takes `admin`, `contribution` or `paid` as the source. A membership is applied for (a contribution, reviewed) or given by an admin.
+
 ## 0.6.0
 
 ### Minor Changes
