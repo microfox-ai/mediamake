@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 /**
- * space: what you made for yourself (skills, MCPs, apps) in private git repos, the same on every
- * computer, and shared with the people on a project when you say so.
+ * space: MediaMake Spaces on this computer. A space is your personal one or a project's. What was made
+ * for it (skills, MCPs, apps) is in a private git repo, the same on every computer and shared with the
+ * people on a project when you say so; its files (brand kit, productions, media) are in MediaMake's
+ * storage, moved by the media library (mm media sync) and the MediaMake Spaces MCP.
  *
  *   mm space                       every space on this computer: what changed here and on GitHub, every item
- *   mm space sync                  bring everything down, show what would go up; --yes sends it too
+ *   mm space sync                  bring everything down, show what would go up (--yes sends it too), then
+ *                                  show each space's files waiting to come down or go up (--no-files skips)
  *   mm space new <skill|mcp|app> <name> [--project=<project>]   start an item (makes your space when you have none)
  *   mm space add <skill>           move one of your workspace skills into your space (a dry run; --yes)
  *   mm space share <item> --project=<project>   move an item into a project's space, so everyone on the
@@ -934,19 +937,42 @@ async function join(args, flags, env) {
       );
     }
   }
-  if (!flags.includes('--no-media')) {
-    const mm = path.join(path.dirname(SELF), '..', 'apps', 'studio', 'bin', 'mm.mjs');
-    console.log(`\nShared media of ${entry.name} (to download it: mm media sync pull --project=${entry.projectId}):`);
-    const r = spawnSync(process.execPath, [mm, 'media', 'sync', 'status', `--project=${entry.projectId}`], { stdio: 'inherit', env });
-    if (r.status !== 0) console.log('⚠ The media check did not finish (mm doctor says what this computer is missing). The skills above are set up either way.');
-  }
+  if (filesWanted(flags, env)) showFiles(entry.name, entry.projectId, env);
   return failed;
 }
 
+/** Whether to show a space's files after its skills: --no-files (or --no-media, or MEDIAMAKE_SPACE_FILES=off) skips it. */
+const filesWanted = (flags, env) => !flags.includes('--no-files') && !flags.includes('--no-media') && env.MEDIAMAKE_SPACE_FILES !== 'off';
+
+/**
+ * A space's files (brand kit, productions, media: kept in MediaMake's storage, not in git): what would
+ * come down and go up, from the media library's own sync. It only shows: nothing is moved here.
+ */
+function showFiles(name, projectId, env) {
+  const mm = path.join(path.dirname(SELF), '..', 'apps', 'studio', 'bin', 'mm.mjs');
+  console.log(`\nFiles of ${name} (to move them: mm media sync pull --project=${projectId}, or push; each a dry run until --yes):`);
+  const r = spawnSync(process.execPath, [mm, 'media', 'sync', 'status', `--project=${projectId}`], { stdio: 'inherit', env });
+  if (r.status !== 0) console.log('⚠ The files check did not finish (mm doctor says what this computer is missing; files in a space need a Plus membership). The skills above are in step either way.');
+}
+
+/**
+ * One sync for every space on this computer: its skills, MCPs and apps through git (down, then what
+ * would go up), then its files, shown as the media library's sync sees them.
+ */
 async function sync(args, flags, env) {
   const pulled = await pull(args, flags, env);
   if (pulled) return pulled;
-  return push(args, flags, env);
+  const pushed = await push(args, flags, env);
+  if (pushed || !filesWanted(flags, env) || !signedIn(env)) return pushed;
+  const remote = await remoteSpaces(env);
+  if (!remote) return pushed;
+  const here = localSpaces(env);
+  const spaces = [
+    ...(remote.personalProjectId && here.some(s => !s.project) ? [{ name: 'your personal space', id: remote.personalProjectId }] : []),
+    ...here.filter(s => s.project).map(s => ({ name: s.project.name, id: s.id })),
+  ];
+  for (const space of spaces) showFiles(space.name, space.id, env);
+  return pushed;
 }
 
 async function status(_args, flags, env) {

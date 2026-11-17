@@ -31,7 +31,7 @@ export function registerProjectTools(server: McpServer, client: MediamakeClient)
     'list_projects',
     {
       title: 'List projects',
-      description: 'List your MediaMake projects (channels or brands), owned or shared with you, with your role on each: owner (everything), editor (read and upload, no deleting) or viewer (read only).',
+      description: 'List your MediaMake spaces: your personal space (personal: true, only yours) and your projects (channels or brands), owned or shared with you, with your role on each: owner (everything), editor (read and upload, no deleting) or viewer (read only).',
       inputSchema: { search: z.string().optional(), tag: z.string().optional(), page: z.number().int().min(1).default(1), limit: z.number().int().min(1).max(100).default(50) },
       annotations: READ,
     },
@@ -41,9 +41,10 @@ export function registerProjectTools(server: McpServer, client: MediamakeClient)
       const list = Array.isArray(data) ? data : data.projects;
       return json({
         ...(Array.isArray(data) ? { total: list.length } : { pagination: data.pagination }),
-        projects: list.map((p: { id: string; displayName: string; tags: string[]; isOwned?: boolean; sharedRole?: Role; updatedAt: string; brandKit?: unknown }) => ({
+        projects: list.map((p: { id: string; displayName: string; tags: string[]; isOwned?: boolean; sharedRole?: Role; updatedAt: string; brandKit?: unknown; personal?: boolean }) => ({
           id: p.id,
           name: p.displayName,
+          ...(p.personal ? { personal: true } : {}),
           tags: p.tags,
           role: roleOf(p),
           updatedAt: p.updatedAt,
@@ -77,7 +78,7 @@ export function registerProjectTools(server: McpServer, client: MediamakeClient)
     'create_project',
     {
       title: 'Create project',
-      description: 'Create a project (a channel or brand). You own it: you can share it from MediaMake.',
+      description: 'Create a project space (a channel or brand). You own it: you can share it from MediaMake. Your personal space needs no creating: it is in list_projects.',
       inputSchema: { displayName: z.string().min(1), tags: z.array(z.string()).optional() },
       annotations: WRITE,
     },
@@ -88,7 +89,7 @@ export function registerProjectTools(server: McpServer, client: MediamakeClient)
     'update_project',
     {
       title: 'Update project',
-      description: "Rename a project or change its tags. Owners and editors can.",
+      description: "Rename a project or change its tags. Owners and editors can. A personal space keeps its name.",
       inputSchema: { projectId: z.string(), displayName: z.string().min(1).optional(), tags: z.array(z.string()).optional() },
       annotations: { ...WRITE, idempotentHint: true },
     },

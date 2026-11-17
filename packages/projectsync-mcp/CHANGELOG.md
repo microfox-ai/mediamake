@@ -20,6 +20,10 @@
 
 - 5fb8f09: Changes from PR #506: shared-project-assets
 
+## 0.4.0
+
+ProjectSync is now MediaMake Spaces: one feature for a space's skills (its private GitHub repo, `mm space`) and its files (this MCP). Its id, `mcp/projectsync`, and every tool name stay, so nothing installed changes. `list_projects` also lists your personal space (marked `personal`): a space only you can open, which keeps brand kits, productions, releases and media like a project's and can be neither shared, renamed nor deleted.
+
 ## 0.3.0
 
 A project's shared assets: the library files a team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, title, tags), so everyone on the project can download them. `list_shared_assets` lists them with the project's sharing limit; `download_shared_assets` saves them into a folder, checked against their sha256, with a `.source.json` beside each that the media library's `media ingest` reads (save into the library's inbox to have them filed); `share_assets` uploads files from this computer with their kind, subject and tags (owners and editors, under the limit, 100 MB in all by default); `unshare_assets` stops sharing; `set_shared_limit` changes the limit (owner only). Any project can hold shared assets, a channel's or one made just to share files with a team; they are the same files `media share --project=<id>` and `media sync --project=<id>` move in the media CLI.

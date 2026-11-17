@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   } catch {
     // no cookie: the state check below fails
   }
-  const redirectTo = safeRedirect(saved.redirectTo, '/app/projects');
+  const redirectTo = safeRedirect(saved.redirectTo, '/app/spaces');
   const to = (message: string) => {
     const response = NextResponse.redirect(`${origin}${redirectTo}${redirectTo.includes('?') ? '&' : '?'}github=${encodeURIComponent(message)}`);
     response.cookies.delete(STATE_COOKIE);

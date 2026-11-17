@@ -7,6 +7,7 @@ import { projectSharedMail } from '@/lib/mail/templates';
 import { getDatabase } from '@/lib/mongodb';
 import { parseShare, type MemberRole, type ProjectInvite, type ProjectMember } from '@/lib/projects/access';
 import { accessView, accountFor, findProject, type ProjectDoc } from '@/lib/projects/access-store';
+import { PERSONAL_ONLY_YOURS } from '@/lib/projects/personal';
 import { githubAfterAdd, githubAfterChange } from '@/lib/space/github-store';
 
 /**
@@ -53,7 +54,7 @@ async function tell(to: string | undefined, project: ProjectDoc, by: string, rol
   try {
     const inviter = await getUserByClientId(by).catch(() => null);
     const site = siteUrl() ?? CANONICAL_SITE;
-    const url = hasAccount ? `${site}/app/projects/${project._id.toString()}` : `${site}/signup?redirectTo=${encodeURIComponent('/app/projects')}`;
+    const url = hasAccount ? `${site}/app/spaces/${project._id.toString()}` : `${site}/signup?redirectTo=${encodeURIComponent('/app/spaces')}`;
     const { sent } = await sendMail(projectSharedMail(to, { project: project.displayName, by: inviter?.name || inviter?.email || by, role, url, hasAccount }));
     return sent;
   } catch (error) {
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
   if (!found) return notFound();
   if (!found.isOwner) return ownerOnly();
   const { project } = found;
+  if (project.personal) return json({ error: PERSONAL_ONLY_YOURS }, 400);
 
   const account = await accountFor(db, target);
   if (!account) {

@@ -259,7 +259,7 @@ export function ProjectAccessPanel({ projectId, me, onChanged, onLeft, className
     ...(lookup?.invite ? [{ key: lookup.invite, invite: lookup.invite }] : []),
   ];
   const people = 1 + view.members.length;
-  const connectHref = `/api/space/github/start?redirectTo=${encodeURIComponent(`/app/projects/${projectId}`)}`;
+  const connectHref = `/api/space/github/start?redirectTo=${encodeURIComponent(`/app/spaces/${projectId}`)}`;
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>

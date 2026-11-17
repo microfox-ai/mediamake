@@ -170,8 +170,8 @@ export function projectSharedMail(to: string, input: { project: string; by: stri
     lines: [
       `${input.by} shared the project ${input.project} with you as ${input.role === 'editor' ? 'an editor' : 'a viewer'}: you can ${can}.`,
       input.hasAccount
-        ? 'It is on your Projects page now. Cloud projects open with a Plus membership or above.'
-        : `Make a MediaMake account with this address (${to}) and the project is on your Projects page. Cloud projects open with a Plus membership or above.`,
+        ? 'It is on your Spaces page now, with the one line that sets it up on your computer. Project spaces open with a Plus membership or above.'
+        : `Make a MediaMake account with this address (${to}) and the project is on your Spaces page. Project spaces open with a Plus membership or above.`,
     ],
     button: { label: input.hasAccount ? 'Open the project' : 'Join MediaMake', url: input.url },
     footer: `Sent because ${input.by} added this address to a MediaMake project. If that is a mistake, ignore this mail.`,

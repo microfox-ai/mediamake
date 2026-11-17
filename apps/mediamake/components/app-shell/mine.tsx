@@ -116,9 +116,9 @@ function SpaceCard({ title, who, Icon, href, space, empty }: { title: string; wh
 }
 
 const STEPS = [
-  { title: 'Make it', text: 'Ask Claude to make a skill for you. It is saved in your private space, which Claude sets up by itself the first time.' },
+  { title: 'Make it', text: 'Ask Claude to make a skill for you. It is saved in your personal space, which Claude sets up by itself the first time.' },
   { title: 'Share it, if you want', text: 'Say "share it with the <project> project" and everyone on that project gets it. Otherwise it stays only yours.' },
-  { title: 'Keep it the same', text: 'On any computer, "sync my MediaMake space" brings in what changed elsewhere and sends what changed there.' },
+  { title: 'Keep it the same', text: 'On any computer, "sync my MediaMake spaces" brings in what changed elsewhere and sends what changed there.' },
 ];
 
 /** What the member made: their private space, then one space per project they are on. */
@@ -129,7 +129,7 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
   const count = (spaces?.mine?.items.length ?? 0) + withSpace.reduce((sum, project) => sum + project.space!.items.length, 0);
   const started = !!spaces?.mine || withSpace.length > 0;
   return (
-    <Section id="space" title="Made by you and your projects" count={count} about="Skills, MCPs and apps you or your projects made. Private ones are only yours, a project's go to everyone on it, and all of them stay the same on every computer.">
+    <Section id="space" title="Made in your spaces" count={count} about="Skills, MCPs and apps in your personal space and your project spaces. Personal ones are only yours, a project's go to everyone on it, and all of them stay the same on every computer.">
       {!started && (
         <ol className="grid gap-2 sm:grid-cols-3">
           {STEPS.map((step, index) => (
@@ -146,13 +146,14 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
       {started && (
         <div className="flex flex-col gap-3">
           <SpaceCard
-            title="Private"
+            title="Personal"
             who="Only you"
+            href="/app/spaces"
             Icon={LockIcon}
             space={spaces?.mine ?? null}
             empty={
               <>
-                Nothing private yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
+                Nothing personal yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
               </>
             }
           />
@@ -162,7 +163,7 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
               title={project.name}
               who={project.people > 1 ? `Shared with the ${project.people} people on this project` : 'A project with only you on it so far'}
               Icon={UsersIcon}
-              href={`/app/projects/${project.projectId}`}
+              href={`/app/spaces/${project.projectId}`}
               space={project.space}
               empty="Nothing shared into this project yet."
             />

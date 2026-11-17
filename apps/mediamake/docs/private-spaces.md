@@ -1,17 +1,41 @@
-# Spaces: what you made, on every computer and for your projects
+# MediaMake Spaces
 
-A space is a private GitHub repo that holds skills, MCPs and apps someone
-made. There are two kinds:
+A space keeps everything for one body of work in one place, the same on every
+computer. Spaces and ProjectSync used to be two features; they are one now.
+There are two kinds, both private:
 
-- **Yours.** Only you. It is made by itself the first time a skill needs one.
-- **A project's.** Everyone on that MediaMake project. It is made the first
-  time someone shares an item into the project.
+- **Personal.** Only you. It is made by itself the first time it is needed.
+- **A project's.** Everyone on that MediaMake project: a channel, a film, a
+  series, a brand.
 
-`mm space` clones them into the workspace, links their skills into Claude and
-keeps every computer the same with one command, `mm space sync`. Mine in the
-app shows each space, its items and whether each is the same everywhere; a
-project's page shows the project's. (UI refactor plan, steps 2a and the
-sharing half of 2b.)
+Every space holds two things:
+
+| What | Where it is kept | What moves it |
+| --- | --- | --- |
+| Skills, MCPs and apps someone made | A private GitHub repo (yours: `<you>/mediamake-space`; a project's: `<maker>/mediamake-<project>`) | `mm space` (git) |
+| Files: brand kit, productions, releases, media, shared assets | MediaMake's storage (S3), counted against the owner's storage ([project-storage.md](project-storage.md)) | The MediaMake Spaces MCP (`mcp/projectsync`, which was ProjectSync) and `mm media sync` |
+
+`mm space` clones the repos into the workspace, links their skills into Claude
+and keeps every computer the same with one command, `mm space sync`, which
+then shows each space's files waiting to come down or go up. In the app,
+Spaces (`/app/spaces`; `/app/projects` redirects there) shows the personal
+space first and then each project space; a space's page shows its files, its
+skills and who can open it, with the one line that sets it up on a computer.
+(UI refactor plan, steps 2a and the sharing half of 2b.)
+
+Who gets what: skills, MCPs and apps in a personal space are for every member.
+Files in a space, and project spaces, open at Plus. The MediaMake Spaces MCP
+is a catalog item at Pro.
+
+## The personal space's files
+
+A project space's files belong to its project. A personal space's belong to a
+project of its own, marked `personal` (`lib/projects/personal.ts`), made the
+first time a Plus member opens Spaces (`GET /api/project/overview`). It works
+with every project route and tool by its id, shows as `personal` in the MCP's
+`list_projects`, counts against the member's storage like any project they
+own, and can be neither shared, renamed nor deleted. It is not a project
+space: `mm space share --project=` never lists it.
 
 ## The repo
 
@@ -31,7 +55,7 @@ that the app doesn't show.
 | | |
 | --- | --- |
 | `mm space` | Every space on this computer: what changed here and on GitHub, every item |
-| `mm space sync` | Bring everything down and show what would go up; `--yes` sends it too |
+| `mm space sync` | Bring everything down and show what would go up (`--yes` sends it too), then show each space's files waiting to come down or go up (`mm media sync status`; nothing is moved, `--no-files` skips it) |
 | `mm space new <skill\|mcp\|app> <name>` | Start an item in your space (`--project=<project>` starts it in a project's) |
 | `mm space add <skill>` | Move one of your workspace skills (a variant) into your space (dry run, `--yes`) |
 | `mm space share <item> --project=<project>` | Move an item into a project's space, so everyone on it gets it (dry run, `--yes`; `--copy` keeps yours too) |

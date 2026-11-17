@@ -81,12 +81,14 @@ log is shared and changes only in a pull request: when the user wants their note
 `mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
 touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
-## Spaces: the user's own skills, MCPs and apps, and their projects'
+## MediaMake Spaces: the user's personal space and their projects'
 
-What a member makes lives in private GitHub repos (`skills/`, `mcps/`, `apps/`), the same on every
-computer: their own space (`space/` in the workspace, only theirs) and one per project they are on
-(`spaces/<project>/`, everyone on that project): `mm space` (`mm space help`,
-`apps/mediamake/docs/private-spaces.md`).
+A space keeps everything for one body of work, the same on every computer: a personal one (`space/` in
+the workspace, only theirs) and one per project they are on (`spaces/<project>/`, everyone on that
+project). What was made for it (`skills/`, `mcps/`, `apps/`) lives in a private GitHub repo, moved by
+`mm space`; its files (brand kit, productions, releases, media) live in MediaMake's storage, moved by
+the MediaMake Spaces MCP (`mcp/projectsync`, which was ProjectSync) and `mm media sync`. In the app it is
+Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`).
 
 - Repos are made without asking: a new skill of the user's own goes in their space
   (`mm space new skill <name>`, or `mm space add <name>` for a variant in the workspace), never in this
@@ -104,7 +106,9 @@ computer: their own space (`space/` in the workspace, only theirs) and one per p
   in when needed, accepts the GitHub invitation, clones the project's space and links its skills. When
   it says they aren't invited yet, tell them who invites (it names them); don't work around it.
 - `mm space sync` at the start of a session that uses their skills brings in what other computers and
-  teammates sent. What would go out is a dry run: show it and run `--yes` once they agree.
+  teammates sent. What would go out is a dry run: show it and run `--yes` once they agree. It ends with
+  each space's files waiting to come down or go up; those move with `mm media sync` (below), never by
+  themselves.
 - Large media never goes in a space: the media library carries it, and the item names it under
   `media` in its `item.json`.
 - A space is private. Publishing an item from it follows the rule at the top like any other.
@@ -126,7 +130,7 @@ media library and reused by every production. Where it is on this machine is in
 - The user's own songs (finals, remasters, stems) stay in their channel folder in Downloads, indexed
   where they are; never move them into the library.
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
-- Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only ProjectSync use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
+- Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only the MediaMake Spaces MCP (it was ProjectSync) use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
 
 ## Transcription: the ElevenLabs MCP first
 

@@ -12,6 +12,8 @@ import { takeInvite, type MemberPerson, type Person, type ProjectCard, type Proj
 export interface ProjectDoc {
   _id: ObjectId;
   clientId?: string;
+  /** The owner's personal space (./personal): only theirs. */
+  personal?: boolean;
   displayName: string;
   tags?: string[];
   sharedWith?: ProjectMember[];
@@ -98,7 +100,7 @@ async function activityOf(db: Db, ids: string[]) {
   return stats;
 }
 
-/** Every project `clientId` owns or was given, as the Projects page's cards. */
+/** Every project `clientId` owns or was given, as the Spaces page's cards. */
 export async function projectCards(db: Db, clientId: string): Promise<ProjectCard[]> {
   await claimInvites(db, clientId);
   const docs = await projects(db).find({ $or: [{ clientId }, { 'sharedWith.clientId': clientId }] }).toArray();
@@ -126,6 +128,7 @@ export async function projectCards(db: Db, clientId: string): Promise<ProjectCar
     return {
       id,
       displayName: doc.displayName,
+      ...(doc.personal && owned && { personal: true }),
       tags: doc.tags ?? [],
       createdAt: iso(doc.createdAt),
       lastActivityAt: stats && stats.last > changed ? stats.last : changed,

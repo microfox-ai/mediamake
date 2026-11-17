@@ -4,7 +4,7 @@ import { safeRedirect, withRedirect } from '@/lib/auth/redirect';
 import { getUserByClientId } from '@/lib/auth/users';
 import { STATE_COOKIE, appAuthorizeUrl, githubConfigured, newState } from '@/lib/space/github';
 
-const BACK = '/app/projects';
+const BACK = '/app/spaces';
 
 /**
  * GET /api/space/github/start?redirectTo=…

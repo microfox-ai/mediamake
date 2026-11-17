@@ -16,7 +16,7 @@ export const metadata = { title: 'Subscription · MediaMake' };
 
 /** What each feature outside the catalog is, as this page names it. */
 const FEATURES: Record<TierFeature, { title: string; about: string; href?: string }> = {
-  cloudProjects: { title: 'Projects', about: 'Your projects, brand kits and song takes kept in the cloud', href: '/app/projects' },
+  cloudProjects: { title: 'Spaces with files', about: 'Project spaces to share with a team, and productions, brand kits and song takes kept in the cloud', href: '/app/spaces' },
   lambdaRender: { title: 'Cloud renders', about: 'Renders on MediaMake\'s own machines' },
 };
 

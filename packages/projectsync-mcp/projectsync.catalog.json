@@ -1,11 +1,12 @@
 {
   "kind": "mcp",
   "slug": "projectsync",
-  "title": "ProjectSync",
-  "summary": "Keep your MediaMake projects in the cloud from Claude: brand kits, productions, release kits and media, shared under each project's permissions. Needs your MediaMake API key.",
+  "title": "MediaMake Spaces",
+  "summary": "Keep your MediaMake spaces in the cloud from Claude: your personal space and each project space's brand kits, productions, release kits and media, shared under each project's permissions. Was ProjectSync. Needs your MediaMake API key.",
   "status": "beta",
   "tags": [
     "mcp",
+    "spaces",
     "sync",
     "projects"
   ],

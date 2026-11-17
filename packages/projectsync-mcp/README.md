@@ -1,14 +1,19 @@
-# ProjectSync
+# MediaMake Spaces (the MCP; it was ProjectSync)
+
+The files half of [MediaMake Spaces](../../apps/mediamake/docs/private-spaces.md). A space is your
+**personal** one (only yours) or a **project's** (shared with its team), and it keeps everything for
+one body of work: its skills, MCPs and apps in a private GitHub repo (`mm space`), and its files in
+MediaMake's storage (this MCP). Its id is still `mcp/projectsync` and its tools keep their names.
 
 A local MCP server (`.mcpb` for Claude Desktop, or stdio for Claude Code) that keeps your MediaMake
-projects in the cloud: their **brand kits**, **productions**, **release kits** and **media**, shared with
+spaces' files in the cloud: their **brand kits**, **productions**, **release kits** and **media**, shared with
 everyone on the project under the project's permissions. It runs on your computer, so it reads and
 writes your files, and it signs in to MediaMake with your **MediaMake API key**.
 
 | What | Is | Tools |
 | --- | --- | --- |
 | Brand kit | A channel's logo, intros, end screens, fonts, colours, guide | `get_brand_kit`, `upload_brand_kit`, `finish_brand_kit_upload`, `update_brand_kit` |
-| Project | A channel or brand; everything below belongs to one | `list_projects`, `get_project`, `create_project`, `update_project` |
+| Space | Your personal space (`personal` in `list_projects`: never shared, renamed or deleted), or a project: a channel or brand. Everything below belongs to one | `list_projects`, `get_project`, `create_project`, `update_project` |
 | Production | A video: its code files and outputs (renders, stills). Its inputs go up only when they come to **200 MB or less** in all | `list_productions`, `get_production`, `create_production`, `update_production`, `delete_production` |
 | Release | A complete release kit: a YouTube upload pack, a DistroKid release, … | `list_releases`, `get_release`, `create_release`, `update_release`, `delete_release` |
 | Media | Single files (pictures, songs, clips; usually inputs), stored as they are, **never analysed** | `list_media`, `search_media`, `get_media`, `upload_media`, `delete_media` |
@@ -24,7 +29,7 @@ or Claude Code.
 
 1. **Get your API key.** Open [MediaMake → API keys](https://mediamake.microfox.app/core/api-keys) and
    create a key (or copy one you have). It is a password: don't paste it into a chat or a repo.
-2. **Install ProjectSync**, one of these ways:
+2. **Install it**, one of these ways (with `mm login` done, `mm items install --yes` does it by itself):
    - **One prompt (easiest).** On its MediaMake card
      ([/access?item=mcp/projectsync](https://mediamake.microfox.app/access?item=mcp/projectsync)) click
      **Copy install prompt** and paste it into Claude Code or Claude Desktop. Claude downloads the
@@ -37,11 +42,11 @@ or Claude Code.
      ```bash
      claude mcp add --scope user projectsync -e MEDIAMAKE_API_KEY=<your key> -- node /path/to/mediamake/packages/projectsync-mcp/dist/index.js
      ```
-3. **Check it works.** Ask Claude: *"List my MediaMake projects with ProjectSync."* You should see
+3. **Check it works.** Ask Claude: *"List my MediaMake spaces."* You should see
    your projects and your role on each. A 401 means the key is wrong or disabled; a 403 about a Plus
    membership means your account can't use cloud projects yet (ask a MediaMake admin).
 
-To update, install the newer `.mcpb` the same way (or say "update ProjectSync" to Claude). To remove it,
+To update, install the newer `.mcpb` the same way (or say "update MediaMake Spaces" to Claude). To remove it,
 uninstall it in **Settings → Extensions** (Claude Desktop) or `claude mcp remove projectsync`, and
 disable the key on the API keys page if you no longer need it.
 

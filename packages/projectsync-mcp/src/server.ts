@@ -6,10 +6,10 @@ import { registerMediaTools } from './tools/media.js';
 import { registerProjectTools } from './tools/projects.js';
 import { registerSharedAssetTools } from './tools/shared.js';
 
-/** MediaMake's own site: where ProjectSync points unless the user runs their own. */
+/** MediaMake's own site: where the Spaces MCP points unless the user runs their own. */
 export const DEFAULT_API_URL = 'https://mediamake.microfox.app';
 
-const INSTRUCTIONS = `ProjectSync keeps the user's MediaMake projects in the cloud. A project is a channel or brand; productions, releases and media always belong to one project.
+const INSTRUCTIONS = `MediaMake Spaces (it was ProjectSync) keeps the files of the user's MediaMake spaces in the cloud. A space is the user's personal one (list_projects marks it personal: only theirs, never shared, renamed or deleted) or a project's (a channel or brand, shared with its team); productions, releases and media always belong to one space, named by its project id. A space's skills, MCPs and apps are not here: they are in its private GitHub repo, which \`mm space sync\` keeps the same on every computer.
 - Production: a video's code files and outputs (renders, stills), laid out as code/, output/ and input/. Its inputs go up only when they come to 200 MB or less in all. create_production with the code and output folders.
 - Release: a complete release kit (a YouTube upload pack, a DistroKid release folder). create_release with the folder.
 - Media: single files (pictures, songs, clips: usually inputs). upload_media. Nothing is analysed on the way in.
@@ -25,9 +25,9 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
   return configFromEnv({ ...env, MEDIAMAKE_API_URL: url && !url.startsWith('${') ? url : DEFAULT_API_URL });
 }
 
-/** Builds the ProjectSync MCP server: the MediaMake API with a MediaMake key, and files on this computer. */
+/** Builds the MediaMake Spaces MCP server (it was ProjectSync; its id stays `projectsync`): the MediaMake API with a MediaMake key, and files on this computer. */
 export function createServer(client = new MediamakeClient(apiConfig())) {
-  const server = new McpServer({ name: 'projectsync', title: 'ProjectSync', version: '0.3.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'projectsync', title: 'MediaMake Spaces', version: '0.4.0' }, { instructions: INSTRUCTIONS });
   registerBrandKitTools(server, client);
   registerProjectTools(server, client);
   registerProductionTools(server, client);

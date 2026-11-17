@@ -58,7 +58,7 @@ const ABOUT = {
   migrate: 'moves your projects, renders and brand kits into your workspace, ~/MediaMake (dry run; --yes to move)',
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
   engine: 'the engine by name (@mediamake/engine): its version, your pins, kept engines; codemod gives old imports its names',
-  space: 'your own and your projects\' skills, MCPs and apps, the same on every computer (sync, new, share)',
+  space: 'MediaMake Spaces: your personal space and your projects\', the same on every computer (sync, join, new, share)',
   notes: "your lessons for each skill, outside the repo (mm notes help)",
   update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
   login: 'signs this computer in to MediaMake through your browser, no key to paste (mm login status; mm logout)',

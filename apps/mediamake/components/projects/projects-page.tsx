@@ -33,7 +33,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BrandKitSheet } from '@/components/projects/BrandKitSheet';
 import { GenerationsSheet } from '@/components/projects/GenerationsSheet';
 import { AvatarStack, ProjectAccessSheet, RoleBadge } from '@/components/projects/project-access';
-import { ProjectSyncExplainer } from '@/components/projects/projectsync-explainer';
+import { PersonalSpace } from '@/components/projects/personal-space';
+import { SpacesExplainer } from '@/components/projects/spaces-explainer';
+import type { SpaceView } from '@/lib/space/space';
 import { StorageCapAdmin, StorageMeter, type MemberStorageState } from '@/components/projects/storage-meter';
 import { canWrite } from '@/lib/editor/project-access';
 import { PROJECT_SORTS, ago, browseProjects, sharedSummary, type ProjectCard, type ProjectScope, type ProjectSort } from '@/lib/projects/access';
@@ -43,8 +45,8 @@ import { cn } from '@/lib/utils';
 type View = 'grid' | 'list';
 const VIEW_KEY = 'mediamake.projects.view';
 
-// A project opens on its own page in the app: what it keeps in the cloud, and who has access.
-const pageOf = (id: string) => `/app/projects/${id}`;
+// A space opens on its own page in the app: what it keeps, and who has access.
+const pageOf = (id: string) => `/app/spaces/${id}`;
 
 interface Overview {
   clientId: string;
@@ -52,12 +54,21 @@ interface Overview {
 }
 
 /**
- * /app/projects for Plus members and above: every cloud project they own or
- * were given, to search, sort and look through as cards or a list, with who
- * each is shared with and the controls to change that; then how ProjectSync
- * fills them. The cards come from GET /api/project/overview.
+ * /app/spaces for Plus members and above: their personal space first, then
+ * the space of every project they own or were given, to search, sort and
+ * look through as cards or a list, with who each is shared with and the
+ * controls to change that; then how a space is filled from a computer. The
+ * cards come from GET /api/project/overview.
  */
-export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: boolean; /** Their membership opens the ProjectSync MCP. */ canSync?: boolean }) {
+export function ProjectsPage({
+  isAdmin = false,
+  canSync = false,
+  mySpace = null,
+}: {
+  isAdmin?: boolean;
+  /** Their membership opens the MediaMake Spaces MCP. */ canSync?: boolean;
+  /** The skills, MCPs and apps of their personal space, as their computers reported them. */ mySpace?: SpaceView | null;
+}) {
   const [data, setData] = React.useState<Overview | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [storage, setStorage] = React.useState<MemberStorageState | null>(null);
@@ -81,7 +92,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
     try {
       const res = await fetch('/api/project/overview');
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error ?? `Could not load your projects (${res.status})`);
+      if (!res.ok) throw new Error(json.error ?? `Could not load your spaces (${res.status})`);
       setData(json as Overview);
       setError(null);
     } catch (e) {
@@ -107,7 +118,8 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
     }
   };
 
-  const all = data?.projects ?? [];
+  const personal = data?.projects.find(card => card.personal) ?? null;
+  const all = (data?.projects ?? []).filter(card => !card.personal);
   const mine = all.filter(card => card.role === 'owner').length;
   const scopes: { id: ProjectScope; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: all.length },
@@ -121,24 +133,31 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
 
   return (
     <SidebarInset>
-      <SiteHeader title="Projects" />
+      <SiteHeader title="Spaces" />
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 lg:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">A project is one body of work: a channel, a film, a series, a brand. It keeps its productions, releases, brand kit and media in the cloud, for the people you choose.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Spaces</h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              A space keeps everything for one body of work in one place: its skills, MCPs and apps, and its productions, releases, brand kit and media. Your personal space is only yours. A project space is shared with the
+              people you choose.
+            </p>
           </div>
           <Button onClick={() => setNaming('new')}>
-            <PlusIcon /> New project
+            <PlusIcon /> New project space
           </Button>
         </div>
 
         <StorageMeter storage={storage} />
 
+        <PersonalSpace card={personal} space={mySpace} loading={!data && !error} />
+
+        <h2 className="-mb-2 text-sm font-semibold">Project spaces</h2>
+
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 basis-56">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by project, tag or person" aria-label="Search projects" className="pl-9" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by project, tag or person" aria-label="Search project spaces" className="pl-9" />
             {query && (
               <button type="button" className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Clear the search" onClick={() => setQuery('')}>
                 <XIcon className="size-3.5" />
@@ -187,7 +206,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
 
         {error ? (
           <div className="rounded-xl border border-dashed p-8 text-center">
-            <p className="text-sm font-medium">Your projects didn&apos;t load</p>
+            <p className="text-sm font-medium">Your spaces didn&apos;t load</p>
             <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={() => void load()}>
               Try again
@@ -199,8 +218,8 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
           <NoProjects onNew={() => setNaming('new')} />
         ) : visible.length === 0 ? (
           <div className="rounded-xl border border-dashed p-10 text-center">
-            <p className="text-sm font-medium">No project matches</p>
-            <p className="mt-1 text-sm text-muted-foreground">{query.trim() ? `Nothing here is called, tagged or shared with “${query.trim()}”.` : scope === 'shared' ? 'Nobody has shared a project with you yet.' : 'You own no project yet.'}</p>
+            <p className="text-sm font-medium">No project space matches</p>
+            <p className="mt-1 text-sm text-muted-foreground">{query.trim() ? `Nothing here is called, tagged or shared with “${query.trim()}”.` : scope === 'shared' ? 'Nobody has shared a project space with you yet.' : 'You own no project space yet.'}</p>
             {filtered && (
               <Button
                 variant="outline"
@@ -211,7 +230,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
                   setScope('all');
                 }}
               >
-                Show all projects
+                Show all project spaces
               </Button>
             )}
           </div>
@@ -231,7 +250,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
 
         {isAdmin && <StorageCapAdmin />}
 
-        <ProjectSyncExplainer canSync={canSync} className="mt-6" />
+        <SpacesExplainer canSync={canSync} className="mt-6" />
       </div>
 
       <ProjectAccessSheet project={sharing} me={data?.clientId} onClose={() => setSharing(null)} onChanged={() => void load()} />
@@ -243,7 +262,7 @@ export function ProjectsPage({ isAdmin = false, canSync = false }: { isAdmin?: b
         onSaved={async created => {
           setNaming(null);
           await load();
-          if (created) toast.success(`${created} is ready. Share it, or ask Claude to sync a production into it.`);
+          if (created) toast.success(`${created} is ready. Share it, or ask Claude to sync a skill or a production into it.`);
         }}
       />
     </SidebarInset>
@@ -473,11 +492,11 @@ function NoProjects({ onNew }: { onNew: () => void }) {
         <FolderPlusIcon className="size-5 text-muted-foreground" aria-hidden />
       </span>
       <div>
-        <p className="font-medium">No projects yet</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Make one for a channel, a film, a series or a brand, then add the people who work on it. Or ask Claude to create one and sync a production into it with ProjectSync.</p>
+        <p className="font-medium">No project spaces yet</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Make one for a channel, a film, a series or a brand, then add the people who work on it. They get its skills, brand kit, productions and media with one line.</p>
       </div>
       <Button onClick={onNew}>
-        <PlusIcon /> Create your first project
+        <PlusIcon /> Create your first project space
       </Button>
     </div>
   );
@@ -521,8 +540,8 @@ function NameDialog({ target, onClose, onSaved }: { target: ProjectCard | 'new' 
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>{isNew ? 'New project' : 'Rename project'}</DialogTitle>
-            <DialogDescription>{isNew ? 'One project per body of work (a channel, a film, a series, a brand) works best: its productions, releases, brand kit and media stay together.' : 'Everyone on the project sees the new name.'}</DialogDescription>
+            <DialogTitle>{isNew ? 'New project space' : 'Rename project space'}</DialogTitle>
+            <DialogDescription>{isNew ? 'One space per body of work (a channel, a film, a series, a brand) works best: its skills, productions, releases, brand kit and media stay together.' : 'Everyone on the project sees the new name.'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="project-name">Name</Label>
@@ -534,7 +553,7 @@ function NameDialog({ target, onClose, onSaved }: { target: ProjectCard | 'new' 
               Cancel
             </Button>
             <Button type="submit" disabled={busy || !name.trim()}>
-              {busy && <Loader2Icon className="animate-spin" />} {isNew ? 'Create project' : 'Save'}
+              {busy && <Loader2Icon className="animate-spin" />} {isNew ? 'Create space' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

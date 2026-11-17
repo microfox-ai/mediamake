@@ -29,7 +29,7 @@ const PROJECTSYNC = '/access?item=mcp/projectsync';
 const TOOL_AREAS: { area: string; does: string; tools: string[] }[] = [
   {
     area: 'Timelines',
-    does: "Read how videos are built and make new timelines (the project ids come from ProjectSync's list_projects).",
+    does: "Read how videos are built and make new timelines (the project ids come from MediaMake Spaces' list_projects).",
     tools: ['list_timelines', 'get_timeline', 'survey_timelines', 'create_timeline', 'update_timeline', 'list_legacy_timelines', 'get_legacy_timeline'],
   },
   { area: 'Presets', does: 'Browse presets and add them to a timeline.', tools: ['list_presets', 'get_preset', 'add_preset_to_timeline'] },
@@ -87,7 +87,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
         <p className="text-sm text-muted-foreground">
           Projects, brand kits, productions, releases and media are in{' '}
           <Link href={PROJECTSYNC} className="underline">
-            ProjectSync
+            MediaMake Spaces
           </Link>
           , a local MCP for everyone on a project.
         </p>
@@ -210,7 +210,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
             <b>It can&apos;t see your computer.</b> It runs on MediaMake&apos;s servers, so bring media in by a public https
             link. To upload files from your computer (brand kits, productions, release kits, media), use{' '}
             <Link href={PROJECTSYNC} className="underline">
-              ProjectSync
+              MediaMake Spaces
             </Link>
             .
           </li>
@@ -248,7 +248,7 @@ export function McpGuide({ mcpUrl, installPrompt, clientId, tier, canConnect, st
           <Trouble q="The Allow screen says the MCP is for admins, or Claude gets a 403.">
             Only MediaMake admins (and people an admin granted it to by name) can connect. For your own projects, use{' '}
             <Link href={PROJECTSYNC} className="underline">
-              ProjectSync
+              MediaMake Spaces
             </Link>
             .
           </Trouble>
@@ -325,7 +325,7 @@ function AccessNote({ clientId, tier, canConnect, stage }: Pick<McpGuideProps, '
           <span className="font-mono">{clientId}</span>). For your projects, brand kits, productions, releases and media,
           install{' '}
           <Link href={PROJECTSYNC} className="underline">
-            ProjectSync
+            MediaMake Spaces
           </Link>
           .
         </p>

@@ -1,3 +1,4 @@
+import { personalProjectId } from '@/lib/projects/personal';
 import type { Db } from 'mongodb';
 import type { ProjectRole } from '@/lib/editor/project-access';
 import type { User } from '@/lib/auth/users';
@@ -58,11 +59,11 @@ interface ProjectDocLite {
   sharedWith?: { clientId: string; role: 'editor' | 'viewer' }[];
 }
 
-/** The projects an account owns or was given. */
+/** The projects an account owns or was given. Its personal space's own project (lib/projects/personal) is not one of them. */
 export async function projectsOf(db: Db, clientId: string): Promise<MemberProject[]> {
   const docs = await db
     .collection<ProjectDocLite>('projects')
-    .find({ $or: [{ clientId }, { 'sharedWith.clientId': clientId }], deletedAt: { $exists: false } } as never, { projection: { clientId: 1, displayName: 1, sharedWith: 1 } })
+    .find({ $or: [{ clientId }, { 'sharedWith.clientId': clientId }], deletedAt: { $exists: false }, personal: { $ne: true } } as never, { projection: { clientId: 1, displayName: 1, sharedWith: 1 } })
     .toArray();
   return docs
     .map(doc => ({
@@ -88,6 +89,8 @@ async function peopleOf(db: Db, clientIds: string[]): Promise<Map<string, { name
 /** Everything an account's spaces show: its own, and one per project it is on. */
 export interface MySpaces {
   mine: SpaceView | null;
+  /** The project that keeps the personal space's files (brand kits, productions, media), once it exists. */
+  personalProjectId?: string;
   projects: (ProjectSpaceView & {
     /** For the people who may change the project: who to invite to the repo, by GitHub login. */
     members?: { name: string; githubLogin?: string; role: ProjectRole; you?: boolean }[];
@@ -146,7 +149,7 @@ export const spaceDB = {
   /** An account's own space and the space of every project it is on, as the page and `mm space` read them. */
   async mySpaces(clientId: string): Promise<MySpaces> {
     const db = await getDatabase();
-    const projects = await projectsOf(db, clientId);
+    const [projects, personal] = await Promise.all([projectsOf(db, clientId), personalProjectId(db, clientId).catch(() => null)]);
     const ids = [userSpaceId(clientId), ...projects.map(project => projectSpaceId(project.id))];
     const [spaces, items, people] = await Promise.all([
       db.collection<SpaceRecord>(COL.spaces).find({ id: { $in: ids } }, noId).toArray(),
@@ -160,6 +163,7 @@ export const spaceDB = {
     });
     return {
       mine: spaceView(state(ids[0]), clientId),
+      ...(personal && { personalProjectId: personal }),
       projects: projects.map(project => ({
         projectId: project.id,
         name: project.name,

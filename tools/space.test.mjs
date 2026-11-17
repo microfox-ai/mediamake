@@ -140,6 +140,8 @@ const computer = (name, login = '') => {
       MEDIAMAKE_WORKSPACE: workspace,
       MEDIAMAKE_API_URL: url,
       MEDIAMAKE_API_KEY: `key-${name}`,
+      // a space's files are the media library's to show (mm media sync), which these tests don't run
+      MEDIAMAKE_SPACE_FILES: 'off',
       GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: path.join(home, '.gitconfig'),
       PATH: `${bin}${path.delimiter}${process.env.PATH}`,
