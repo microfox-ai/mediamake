@@ -16,9 +16,9 @@
  * records. ./store keeps them; docs/private-spaces.md is the guide.
  *
  * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
- * reports names, versions, titles and one-line summaries (and the names of
- * the repo's central files), and git moves the
- * files with each member's own sign-in.
+ * reports names, versions, titles and one-line summaries, and for the Code tab the repo's file paths, its
+ * README.md and its last commits (short id, time, author's name, subject); git moves the files with each
+ * member's own sign-in.
  */
 
 export const SPACE_KINDS = ['skill', 'mcp', 'app'] as const;
@@ -58,31 +58,60 @@ export interface ReportedItem {
   media?: number;
 }
 
-/**
- * A file or folder at the top of a space's repo that isn't an item: what guides and runs every production
- * of the space (a CLAUDE.md, prefs.md, shared code in engine/). Its name only, never its contents.
- */
-export interface CentralFile {
-  name: string;
-  folder?: boolean;
-  /** A folder's file count. */
-  files?: number;
+/** One commit as a computer reports it: its short id, when, who (the git author's name) and its subject. */
+export interface CommitInfo {
+  sha: string;
+  at: string;
+  author: string;
+  subject: string;
 }
-export const MAX_CENTRAL_FILES = 100;
-/** A top-level name: no slash, no leading dot. */
-const CENTRAL_NAME = /^[A-Za-z0-9_][\w.@+ -]{0,99}$/;
+/** How many commits a report names: enough to say how far behind a computer is. */
+export const MAX_HISTORY = 30;
+export const MAX_SPACE_FILES = 2000;
+export const MAX_README = 32 * 1024;
 
-/** A report's central files, or undefined when it sent none (a computer from before they were reported). */
-export function parseCentral(value: unknown): CentralFile[] | undefined {
+/** What the Code tab shows of a space: every file's path in its repo, and its README.md. */
+export interface SpaceCode {
+  files: string[];
+  /** The repo has more files than a report names. */
+  truncated?: boolean;
+  readme?: string;
+}
+
+/** A path inside a repo: no leading slash, no `.` or `..` part, nothing that isn't printable. */
+const filePath = (value: unknown): string | null =>
+  typeof value === 'string' &&
+  value.length <= 300 &&
+  !value.startsWith('/') &&
+  !/[\u0000-\u001f\\]/.test(value) &&
+  value.split('/').every(part => part && part !== '.' && part !== '..')
+    ? value
+    : null;
+
+/** A report's Code part, or undefined when it sent none (a computer from before it was reported). */
+export function parseCode(value: unknown): SpaceCode | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const { files, truncated, readme } = value as Record<string, unknown>;
+  if (!Array.isArray(files)) return undefined;
+  const paths = [...new Set(files.slice(0, MAX_SPACE_FILES).map(filePath).filter((p): p is string => !!p))].sort();
+  return {
+    files: paths,
+    ...((truncated === true || files.length > MAX_SPACE_FILES) && { truncated: true }),
+    ...(typeof readme === 'string' && readme.trim() && { readme: readme.replace(/\u0000/g, '').slice(0, MAX_README) }),
+  };
+}
+
+/** A report's last commits, newest first. */
+export function parseHistory(value: unknown): CommitInfo[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  const byName = new Map<string, CentralFile>();
-  for (const entry of value.slice(0, MAX_CENTRAL_FILES)) {
-    const { name, folder, files } = (entry ?? {}) as Record<string, unknown>;
-    if (typeof name !== 'string' || !CENTRAL_NAME.test(name) || name.endsWith('.')) continue;
-    const count = typeof files === 'number' && Number.isInteger(files) && files >= 0 ? Math.min(files, 99999) : undefined;
-    byName.set(name, { name, ...(folder === true && { folder: true }), ...(folder === true && count !== undefined && { files: count }) });
+  const commits: CommitInfo[] = [];
+  for (const entry of value.slice(0, MAX_HISTORY)) {
+    const { sha, at, author, subject } = (entry ?? {}) as Record<string, unknown>;
+    const when = typeof at === 'string' ? Date.parse(at) : NaN;
+    if (typeof sha !== 'string' || !COMMIT.test(sha) || !Number.isFinite(when)) continue;
+    commits.push({ sha: sha.slice(0, 12), at: new Date(when).toISOString(), author: text(author, 80) ?? 'someone', subject: text(subject, 120) ?? '' });
   }
-  return [...byName.values()].sort((a, b) => Number(!!b.folder) - Number(!!a.folder) || a.name.localeCompare(b.name));
+  return commits;
 }
 
 /** What one computer says its clone of a space holds. */
@@ -99,9 +128,13 @@ export interface SpaceReport {
   commitAt?: string;
   /** Everything on that computer is on GitHub. */
   pushed: boolean;
+  /** Commits on that computer that GitHub doesn't have yet. */
+  ahead?: number;
+  /** Its last commits, newest first. */
+  history?: CommitInfo[];
   items: ReportedItem[];
-  /** The repo's central files (CentralFile), when the computer sent them. */
-  central?: CentralFile[];
+  /** What the Code tab shows, when the computer sent it (a space's, not a linked item's). */
+  code?: SpaceCode;
 }
 
 /** A computer that has a space. In a project's space they are several members' computers. */
@@ -115,6 +148,10 @@ export interface SpaceDevice {
   commit?: string;
   commitAt?: string;
   pushed: boolean;
+  /** Commits on it that GitHub doesn't have yet. */
+  ahead?: number;
+  /** Its last commits' short ids, newest first: how far behind it is. */
+  history?: string[];
   reportedAt: string;
 }
 
@@ -127,8 +164,8 @@ export interface SpaceRecord {
   connectedAt: string;
   updatedAt: string;
   devices: SpaceDevice[];
-  /** The repo's central files, as the computer furthest along has them. */
-  central?: CentralFile[];
+  /** The Code tab, as the computer furthest along has it, with its last commits. */
+  code?: SpaceCode & { commits: CommitInfo[]; device: string };
 }
 
 /** The repo a report means: the space's own when the report names it as it was called before. */
@@ -178,7 +215,7 @@ export const deviceLabel = (value: unknown): string => (typeof value === 'string
  * Only these are read. An item whose name isn't a folder name is left out.
  */
 export function parseSpaceReport(body: unknown): SpaceReport | { error: string } {
-  const { device, repo, project, item: linked, branch, commit, commitAt, pushed, items, central } = (body ?? {}) as Record<string, unknown>;
+  const { device, repo, project, item: linked, branch, commit, commitAt, pushed, ahead, history, items, code } = (body ?? {}) as Record<string, unknown>;
   const name = repoName(repo);
   if (!name) return { error: "Send { repo }: the space's repo as owner/name" };
   if (project !== undefined && !projectId(project)) return { error: 'project is a project id' };
@@ -214,8 +251,10 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
     ...(typeof commit === 'string' && COMMIT.test(commit) && { commit }),
     ...(Number.isFinite(when) && { commitAt: new Date(when).toISOString() }),
     pushed: pushed === true,
+    ...(typeof ahead === 'number' && Number.isInteger(ahead) && ahead >= 0 && { ahead: Math.min(ahead, 99999) }),
+    ...(parseHistory(history) && { history: parseHistory(history) }),
     items: [...byKey.values()],
-    ...(parseCentral(central) && { central: parseCentral(central) }),
+    ...(parseCode(code) && { code: parseCode(code) }),
   };
 }
 
@@ -263,6 +302,8 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
     ...(report.commit && { commit: report.commit }),
     ...(report.commitAt && { commitAt: report.commitAt }),
     pushed: report.pushed,
+    ...(report.ahead !== undefined && { ahead: report.ahead }),
+    ...(report.history && { history: report.history.map(c => c.sha) }),
     reportedAt: now,
   };
   const order = [device, ...others].sort(byProgress);
@@ -311,8 +352,9 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
     });
   }
 
-  // the central files follow the computer furthest along, like titles do
-  const central = report.central && (leads || !sameRepo || !state.space!.central) ? report.central : sameRepo ? state.space!.central : undefined;
+  // the Code tab follows the computer furthest along, like titles do
+  const code =
+    report.code && (leads || !sameRepo || !state.space!.code) ? { ...report.code, commits: report.history ?? [], device: key } : sameRepo ? state.space!.code : undefined;
   return {
     space: {
       id: spaceId,
@@ -321,7 +363,7 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
       connectedAt: sameRepo ? state.space!.connectedAt : now,
       updatedAt: now,
       devices: order,
-      ...(central && { central }),
+      ...(code && { code }),
     },
     items,
     removed,
@@ -379,8 +421,6 @@ export interface SpaceView {
   repoUrl?: string;
   devices: (DeviceView & { reportedAt: string; pushed: boolean; behind: boolean })[];
   items: SpaceItemView[];
-  /** The repo's central files (guidance, prefs, shared code): names only. */
-  central: CentralFile[];
 }
 
 /** `mac-3f9a` → `Mac 3f9a`. */
@@ -451,7 +491,94 @@ export function spaceView(state: SpaceState, me: string, names: Record<string, s
         behind: !!lead?.commit && !!device.commit && device.commit !== lead.commit,
       })),
     items,
-    central: space.central ?? [],
+  };
+}
+
+/* ---------- The Code tab ---------- */
+
+/** A computer in the Code tab's Devices: how far it is from the newest version. */
+export interface DeviceStanding extends DeviceView {
+  reportedAt: string;
+  /** When its commit was made. */
+  commitAt?: string;
+  /** Updates the newest computer has that this one doesn't; null when it is further behind than the reports reach. */
+  behind: number | null;
+  /** Its commits GitHub doesn't have yet. */
+  ahead: number;
+  /** Everything on it is on GitHub. False with ahead 0: edits not sent yet. */
+  pushed: boolean;
+}
+
+export interface CommitView extends CommitInfo {
+  /** Who made it, as the page names them: a computer with no git name commits as its label (`mac-3f9a`). */
+  by: string;
+  /** Only on the computer furthest along: not on GitHub yet. */
+  local?: boolean;
+}
+
+/** One space's Code tab: its files, its README, its last commits and where each computer stands. */
+export interface SpaceCodeView {
+  repo: string;
+  repoUrl?: string;
+  branch: string;
+  files: string[];
+  truncated: boolean;
+  readme?: string;
+  /** Newest first. */
+  commits: CommitView[];
+  /** The computer the files and commits come from: the one furthest along. */
+  from?: DeviceView;
+  /** Furthest along first. */
+  devices: DeviceStanding[];
+}
+
+const short = (sha?: string) => sha?.slice(0, 12);
+
+/** How many of `lead`'s commits `device` doesn't have: null when their reports don't reach a commit both have. */
+export function commitsBehind(device: Pick<SpaceDevice, 'commit' | 'history'>, lead: Pick<SpaceDevice, 'commit' | 'history'>): number | null {
+  if (device.commit && short(device.commit) === short(lead.commit)) return 0;
+  const theirs = lead.history?.length ? lead.history : lead.commit ? [short(lead.commit)!] : [];
+  const mine = device.history?.length ? device.history : device.commit ? [short(device.commit)!] : [];
+  const at = new Map(theirs.map((sha, index) => [sha, index]));
+  for (const sha of mine) if (at.has(sha)) return at.get(sha)!;
+  return null;
+}
+
+/**
+ * A space's Code tab: the files and README of the computer furthest along, its last commits, and how
+ * many updates each computer is behind that one or has not sent. `names` gives the members' names.
+ */
+export function spaceCodeView(space: SpaceRecord, me: string, names: Record<string, string> = {}): SpaceCodeView {
+  const order = [...space.devices].sort(byProgress);
+  const view = (device: SpaceDevice): DeviceView => ({
+    key: device.key,
+    name: deviceName(device.label, device.clientId === me ? undefined : (names[device.clientId] ?? 'A member')),
+    mine: device.clientId === me,
+  });
+  const from = order.find(device => device.key === space.code?.device) ?? order[0];
+  const lead = order[0];
+  const byLabel = new Map(space.devices.map(device => [device.label, device]));
+  const commits = (space.code?.commits ?? []).map((commit, index): CommitView => {
+    const device = byLabel.get(commit.author);
+    return { ...commit, by: device ? view(device).name : commit.author, ...(from && index < (from.ahead ?? 0) && { local: true }) };
+  });
+  return {
+    repo: space.repo,
+    ...(space.repo.split('/').length === 2 && { repoUrl: `https://github.com/${space.repo}` }),
+    branch: from?.branch ?? 'main',
+    files: space.code?.files ?? [],
+    truncated: space.code?.truncated === true,
+    ...(space.code?.readme && { readme: space.code.readme }),
+    commits,
+    ...(from && { from: view(from) }),
+    devices: order.map(device => ({
+      ...view(device),
+      reportedAt: device.reportedAt,
+      ...(device.commitAt && { commitAt: device.commitAt }),
+      behind: lead ? commitsBehind(device, lead) : 0,
+      ahead: device.ahead ?? 0,
+      pushed: device.pushed,
+    })),
   };
 }
 

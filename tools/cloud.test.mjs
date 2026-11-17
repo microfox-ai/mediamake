@@ -123,21 +123,37 @@ test('a skill that names code only on this computer is told to carry it', () => 
   assert.deepEqual(refs, ['apps/studio/src/doomcat/Cat.tsx', 'apps/studio/src/doomcat/', 'extensions/glow/Glow.tsx']);
 });
 
-test('a space reports its central files: top-level names beside the items, nothing ignored', async () => {
-  const { centralFiles } = await import('./space.mjs');
+test('a space reports its files and README, and its README lists what is at its top', async () => {
+  const { contentsBlock, spaceCode, withContents } = await import('./space.mjs');
   const dir = path.join(tmp, 'central');
   clone(dir, 'me/mediamake-space', {
-    'skills/a/SKILL.md': 'x',
-    'README.md': 'x',
-    'CLAUDE.md': 'x',
-    'prefs.md': 'x',
+    'skills/a/SKILL.md': '---\nname: a\ndescription: Makes the a videos.\n---\n',
+    'README.md': '# my space\n\nWhat this space is for.\n\n## More\n\nMine.\n',
+    'CLAUDE.md': '# Rules\n\nEvery production keeps the snake_case names and the dark grade. More after.\n',
+    'prefs.md': '- a list first\n',
     'engine/Cat.tsx': 'x',
     'engine/lib/util.ts': 'x',
+    'engine/README.md': '# engine\n\nShared Remotion parts.\n',
     '.gitignore': 'secret.txt\n',
     'secret.txt': 'x',
   });
-  assert.deepEqual(
-    centralFiles(dir).sort((a, b) => a.name.localeCompare(b.name)),
-    [{ name: 'CLAUDE.md' }, { name: 'engine', folder: true, files: 2 }, { name: 'prefs.md' }],
+  const code = spaceCode(dir);
+  assert.deepEqual(code.files, ['.gitignore', 'CLAUDE.md', 'README.md', 'engine/Cat.tsx', 'engine/README.md', 'engine/lib/util.ts', 'prefs.md', 'skills/a/SKILL.md']);
+  assert.match(code.readme, /^# my space/);
+
+  const block = contentsBlock(dir);
+  assert.equal(
+    block.split('\n').filter(line => line.startsWith('- ')).join('\n'),
+    [
+      '- [`engine/`](engine): Shared Remotion parts (3 files)',
+      '- [`CLAUDE.md`](CLAUDE.md): Every production keeps the snake_case names and the dark grade.',
+      '- [`prefs.md`](prefs.md): the taste every production of this space follows',
+      '- [`a`](skills/a): A. Makes the a videos.',
+    ].join('\n'),
   );
+  // put after the opening paragraph, then replaced in place: the rest of the README stays as written
+  const once = withContents(code.readme, block);
+  assert.match(once, /^# my space\n\nWhat this space is for\.\n\n<!-- mm:contents[\s\S]*<!-- \/mm:contents -->\n\n## More\n\nMine\.\n$/);
+  assert.equal(withContents(once, block), once);
+  assert.equal(withContents(once, block.replace('Shared', 'Common')).replace('Common', 'Shared'), once);
 });

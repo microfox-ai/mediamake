@@ -1,19 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { FileTextIcon, FolderIcon, Loader2Icon } from 'lucide-react';
+import { FileTextIcon, Loader2Icon } from 'lucide-react';
 import { BrandKitSheet } from '@/components/projects/BrandKitSheet';
 import type { BrandAsset, BrandKit } from '@/lib/brand-kit';
-import type { CentralFile, SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
 
 /**
- * Two tabs of a space's page (project-detail.tsx):
- * - Brand: everything in the space's brand kit, a card per file, with its colours and fonts. The
- *   owner and editors open the brand kit dialog to change it.
- * - Code (the part above the items): the space's central files, what sits at the top of its repo
- *   beside the skills and guides or runs every production (a CLAUDE.md, prefs.md, shared code). Their
- *   names only: MediaMake never holds a repo's contents, so each card opens the file on GitHub.
+ * The Brand tab of a space's page (project-detail.tsx): everything in the space's brand kit, a card per
+ * file, with its colours and fonts. The owner and editors open the brand kit dialog to change it.
  */
 
 const button =
@@ -196,85 +191,5 @@ export function BrandTab({
       )}
       {sheet}
     </div>
-  );
-}
-
-/** A central file's page on GitHub, when the repo is there. */
-const githubUrl = (space: SpaceView, file: CentralFile) =>
-  space.repoUrl
-    ? `${space.repoUrl}/${file.folder ? 'tree' : 'blob'}/HEAD/${encodeURIComponent(file.name)}`
-    : undefined;
-
-/** The space's central files: a card each. */
-export function CentralFiles({
-  space,
-  personal,
-}: {
-  space: SpaceView | null;
-  personal: boolean;
-}) {
-  const files = space?.central ?? [];
-  return (
-    <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-sm font-semibold">
-          {personal ? 'Your central files' : 'Central files'}
-        </h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          What guides and runs every production of this space, at the top of its
-          repo beside the skills: a CLAUDE.md or guide, prefs.md, shared code in
-          engine/. Pictures, clips and other static files go in Media.
-        </p>
-      </div>
-      {files.length ? (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {files.map(file => {
-            const url = space && githubUrl(space, file);
-            const Icon = file.folder ? FolderIcon : FileTextIcon;
-            const body = (
-              <>
-                <Icon
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-                <span className="min-w-0 truncate text-sm font-medium">
-                  {file.name}
-                  {file.folder ? '/' : ''}
-                </span>
-                {file.folder && file.files !== undefined && (
-                  <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {file.files} file{file.files === 1 ? '' : 's'}
-                  </span>
-                )}
-              </>
-            );
-            return (
-              <li key={file.name}>
-                {url ? (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-xl border bg-card p-3 shadow-xs hover:bg-muted/40"
-                  >
-                    {body}
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-xl border bg-card p-3 shadow-xs">
-                    {body}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <Empty>
-          None yet. Ask Claude to put the guidance, prefs and shared code that
-          every production of this space follows at the top of the space, then
-          sync it (mm space sync --yes).
-        </Empty>
-      )}
-    </section>
   );
 }

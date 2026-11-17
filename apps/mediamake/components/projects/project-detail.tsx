@@ -13,12 +13,13 @@ import {
   RoleBadge,
 } from '@/components/projects/project-access';
 import { CopyLine } from './copy-line';
-import { BrandTab, CentralFiles } from './space-tabs';
+import { BrandTab } from './space-tabs';
+import { CodeTab } from './space-code';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
 import type { LinkedItemView } from '@/lib/space/links';
-import type { SpaceView } from '@/lib/space/space';
+import type { SpaceCodeView, SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
 
 interface Bundle {
@@ -111,10 +112,11 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
 }
 
 /**
- * One space in the app, one tab each: its code (the central files at the
- * top of its repo, and the skills, MCPs and apps made for it), its brand kit, what it keeps on MediaMake (its productions, its releases and its
- * media), who can open it, which its owner changes here, and the line that
- * sets it up on a computer. A personal space is
+ * One space in the app, one tab each: its code (its repo as GitHub shows
+ * it: files, README, commits, who has it and where each computer stands),
+ * its skills, MCPs and apps, its brand kit, what it keeps on MediaMake (its
+ * productions, its releases and its media), who can open it, which its owner
+ * changes here, and the line that sets it up on a computer. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
  * `mm media sync`.
@@ -126,7 +128,13 @@ export function ProjectDetail({
   space = null,
   linked = [],
   linkTargets = [],
+  code = null,
+  readmeHtml,
+  about,
 }: {
+  /** The Code tab (lib/space/space spaceCodeView), with its README as HTML and its opening paragraph. */ code?: SpaceCodeView | null;
+  readmeHtml?: string;
+  about?: string;
   /** The items linked to this project from members' spaces; on the personal space, the member's own linked items. */ linked?: LinkedItemView[];
   /** The projects the viewer owns or edits: where they may link their own items. */ linkTargets?: { id: string; name: string }[];
   /** What was made for this project (its space), as its people's computers reported it. */ space?: SpaceView | null;
@@ -172,7 +180,7 @@ export function ProjectDetail({
 
   if (error) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 lg:px-6">
         {back}
         <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
           {error}
@@ -189,7 +197,7 @@ export function ProjectDetail({
     : undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 lg:px-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 lg:px-6">
       {back}
       <div className="flex flex-wrap items-center gap-3">
         {project?.brandKit?.logo && (
@@ -246,7 +254,8 @@ export function ProjectDetail({
       <Tabs defaultValue="code" className="gap-4">
         <div className="-mx-4 overflow-x-auto px-4">
           <TabsList>
-            <Tab value="code" label="Code" count={(space?.items.length ?? 0) + linked.length + (space?.central.length ?? 0)} />
+            <Tab value="code" label="Code" />
+            <Tab value="skills" label="Skills" count={(space?.items.length ?? 0) + linked.length} />
             <Tab value="brand" label="Brand" count={project?.brandKit?.assetCount} />
             <Tab value="productions" label="Productions" count={productions?.total} />
             <Tab value="releases" label="Releases" count={releases?.total} />
@@ -256,10 +265,14 @@ export function ProjectDetail({
           </TabsList>
         </div>
 
-        <TabsContent value="code" className="flex flex-col gap-6">
-          <CentralFiles space={space} personal={personal} />
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold">Skills, MCPs and apps</h2>
+        <TabsContent value="code">
+          <CodeTab code={code} readmeHtml={readmeHtml} about={about} space={space} projectId={projectId} personal={personal} projectName={project?.displayName} />
+        </TabsContent>
+
+        <TabsContent value="skills" className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            The skills, MCPs and apps {personal ? 'of your space, on every computer of yours' : `of this space: everyone on ${project?.displayName ?? 'the project'} gets them with mm space sync`}. Their code is in the Code tab.
+          </p>
           <ItemCards
             space={space}
             audience={personal ? 'Only you' : `Everyone on ${project?.displayName ?? 'the project'}`}
@@ -273,11 +286,10 @@ export function ProjectDetail({
             }
           />
           {!personal && (
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               To add one of your own skills here and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot;.
             </p>
           )}
-          </section>
         </TabsContent>
 
         <TabsContent value="brand">

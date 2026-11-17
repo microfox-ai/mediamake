@@ -6,9 +6,11 @@ import { getDatabase } from '../mongodb';
 import {
   projectSpaceId,
   spaceItemKey,
+  spaceCodeView,
   spaceView,
   userSpaceId,
   type ProjectSpaceView,
+  type SpaceCodeView,
   type SpaceChange,
   type SpaceItemRecord,
   type SpaceRecord,
@@ -20,7 +22,9 @@ import type { LinkedItemView } from './links';
 /**
  * Spaces in MongoDB (see ./space for what they are):
  * - `spaces`: one document per space, `{ id, repo, connectedAt, updatedAt,
- *   devices: [{ key, clientId, label, branch, commit, commitAt, pushed, reportedAt }] }`.
+ *   devices: [{ key, clientId, label, branch, commit, commitAt, pushed, ahead, history, reportedAt }],
+ *   code: { files, truncated, readme, commits, device } }`. Lists leave out code and history: only the
+ *   space's own page reads them.
  *   `id` is `user:<clientId>` or `project:<projectId>`.
  * - `space_items`: one document per item, `{ space, kind, name, title,
  *   summary, version, media, devices: [{ device, version, changed }],
@@ -175,13 +179,25 @@ export const spaceDB = {
     return (await db.collection(COL.spaces).deleteMany({ id: { $in: ids } })).deletedCount;
   },
 
+  /**
+   * A space's Code tab (./space spaceCodeView), for `clientId`. Only for a space the caller already
+   * checked they may open (mySpaces lists exactly those). Null when there is none.
+   */
+  async code(spaceId: string, clientId: string): Promise<SpaceCodeView | null> {
+    const db = await getDatabase();
+    const space = await db.collection<SpaceRecord>(COL.spaces).findOne({ id: spaceId }, noId);
+    if (!space) return null;
+    const people = await peopleOf(db, space.devices.map(device => device.clientId));
+    return spaceCodeView(space as SpaceRecord, clientId, Object.fromEntries([...people].map(([id, person]) => [id, person.name])));
+  },
+
   /** An account's own space and the space of every project it is on, as the page and `mm space` read them. */
   async mySpaces(clientId: string): Promise<MySpaces> {
     const db = await getDatabase();
     const [projects, personal] = await Promise.all([projectsOf(db, clientId), personalProjectId(db, clientId).catch(() => null)]);
     const ids = [userSpaceId(clientId), ...projects.map(project => projectSpaceId(project.id))];
     const [spaces, items, people] = await Promise.all([
-      db.collection<SpaceRecord>(COL.spaces).find({ id: { $in: ids } }, noId).toArray(),
+      db.collection<SpaceRecord>(COL.spaces).find({ id: { $in: ids } }, { projection: { _id: 0, code: 0, 'devices.history': 0 } }).toArray(),
       db.collection<SpaceItemRecord>(COL.items).find({ space: { $in: ids } }, noId).toArray(),
       peopleOf(db, projects.flatMap(project => project.people.map(person => person.clientId))),
     ]);
