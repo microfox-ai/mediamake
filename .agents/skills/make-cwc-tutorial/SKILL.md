@@ -289,7 +289,8 @@ description carries chapters and links instead. Ep. 1's packs are
 - **Title:** offer three that pair with the thumbnail's words; the user may write their own (ep. 1:
   "Make a complete brand kit with Claude"). The Short: the same title + ` #Shorts`.
 - **Description** (`ytmeta.py check <pack> --free`): two intro lines (what it makes, copy → paste →
-  name it), `Get the skill: https://mediamake.microfox.app` and the skill's source folder on GitHub,
+  name it), `Get the skill: https://mediamake.microfox.app/skills/<name>` (the item's own page, e.g.
+  `…/skills/create-thumbnail`; the site's home page alone is wrong) and the skill's source folder on GitHub,
   then **chapters**, the series line ("one open-source skill, app or MCP an episode. Copy. Paste.
   Cook."), at most five hashtags. Ask first whether to add chapters; ep. 1's user wanted them.
   - Chapters start at 0:00, need at least three, and each must last 10 s or more. Put them on scene
