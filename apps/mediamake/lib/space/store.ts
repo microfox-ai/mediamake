@@ -42,6 +42,8 @@ export function ensureSpaceIndexes() {
 }
 
 const noId = { projection: { _id: 0 } } as const;
+/** GitHub's names don't tell upper from lower case. */
+const SAME_NAME = { locale: 'en', strength: 2 } as const;
 
 /** A project the account is on, as spaces need it. */
 export interface MemberProject {
@@ -144,6 +146,30 @@ export const spaceDB = {
     await db.collection<SpaceRecord>(COL.spaces).replaceOne({ id }, space, { upsert: true });
     await db.collection(COL.items).deleteMany({ space: id });
     return space;
+  },
+
+  /**
+   * GitHub said a repo has a new name or owner (./github-webhook): every space on it follows, keeping
+   * its computers and items, and remembers the old name for computers still on it. How many changed.
+   */
+  async renameRepo(from: string, to: string): Promise<number> {
+    const db = await getDatabase();
+    const result = await db
+      .collection<SpaceRecord>(COL.spaces)
+      .updateMany({ repo: from }, { $set: { repo: to, updatedAt: new Date().toISOString() }, $addToSet: { formerRepos: from }, } as never, { collation: SAME_NAME });
+    // a name it had before and has again is no former name
+    if (result.modifiedCount) await db.collection<SpaceRecord>(COL.spaces).updateMany({ repo: to }, { $pull: { formerRepos: to } } as never);
+    return result.modifiedCount;
+  },
+
+  /** GitHub said a repo was deleted: every space on it is forgotten with its items, so the next share starts a new one. How many. */
+  async forgetRepo(repo: string): Promise<number> {
+    const db = await getDatabase();
+    const spaces = await db.collection<SpaceRecord>(COL.spaces).find({ repo }, { projection: { _id: 0, id: 1 }, collation: SAME_NAME }).toArray();
+    const ids = spaces.map(space => space.id);
+    if (!ids.length) return 0;
+    await db.collection(COL.items).deleteMany({ space: { $in: ids } });
+    return (await db.collection(COL.spaces).deleteMany({ id: { $in: ids } })).deletedCount;
   },
 
   /** An account's own space and the space of every project it is on, as the page and `mm space` read them. */

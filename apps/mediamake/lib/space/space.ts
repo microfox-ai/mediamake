@@ -87,10 +87,16 @@ export interface SpaceRecord {
   /** `user:<clientId>` or `project:<projectId>`. */
   id: string;
   repo: string;
+  /** Names the repo had before it was renamed or moved on GitHub: a computer still on one reports the same repo. */
+  formerRepos?: string[];
   connectedAt: string;
   updatedAt: string;
   devices: SpaceDevice[];
 }
+
+/** The repo a report means: the space's own when the report names it as it was called before. */
+export const repoNow = (space: Pick<SpaceRecord, 'repo' | 'formerRepos'> | null | undefined, reported: string): string =>
+  space && [space.repo, ...(space.formerRepos ?? [])].some(name => name.toLowerCase() === reported.toLowerCase()) ? space.repo : reported;
 
 /** An item as one computer has it. */
 export interface ItemOnDevice {
@@ -265,7 +271,7 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
   }
 
   return {
-    space: { id: spaceId, repo: report.repo, connectedAt: sameRepo ? state.space!.connectedAt : now, updatedAt: now, devices: order },
+    space: { id: spaceId, repo: report.repo, ...(sameRepo && state.space!.formerRepos?.length && { formerRepos: state.space!.formerRepos }), connectedAt: sameRepo ? state.space!.connectedAt : now, updatedAt: now, devices: order },
     items,
     removed,
   };
