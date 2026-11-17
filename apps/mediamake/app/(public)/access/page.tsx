@@ -15,7 +15,7 @@ import { MadeByLine, UsesList } from '@/components/catalog/uses';
 import { HealthBadge, HEALTH } from '@/components/catalog/health';
 import { OldBadge, RunsBadges } from '@/components/catalog/runs';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
-import { AccessActions, RedeemInvite } from './access-actions';
+import { AccessActions } from './access-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,16 +24,18 @@ export const dynamic = 'force-dynamic';
  *                                (/skills/<slug>, /mcps/<slug>, /apps/<slug>); here stay
  *                                tutorials, skills with no page of their own (third-party,
  *                                released by hand) and locked items (asking for access).
- * /access?code=XXXX            — redeem an invite someone shared with you.
+ * /access with no item (an old invite link, /access?code=…) goes to Subscription:
+ * a membership is applied for there (a contribution, reviewed), or given by an admin.
  */
 export default async function AccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ item?: string; code?: string }>;
+  searchParams: Promise<{ item?: string }>;
 }) {
-  const { item: itemId, code } = await searchParams;
+  const { item: itemId } = await searchParams;
+  if (!itemId) redirect('/app/subscription');
   const viewer = await getViewer();
-  const here = `/access?${new URLSearchParams({ ...(itemId ? { item: itemId } : {}), ...(code ? { code } : {}) })}`;
+  const here = `/access?${new URLSearchParams({ item: itemId })}`;
   const loginHref = `/login?redirectTo=${encodeURIComponent(here)}`;
 
   let item: CatalogEntry | null = null;
@@ -65,7 +67,7 @@ export default async function AccessPage({
       // Locked items are hidden: answer as if they don't exist.
       if (entry.access !== 'locked') {
         // old links: an MCP, an app or a repo skill has its own page
-        if (!code && (record.kind === 'mcp' || record.kind === 'app' || (record.kind === 'skill' && skillNamed(slugOf(record.id))))) {
+        if ((record.kind === 'mcp' || record.kind === 'app' || (record.kind === 'skill' && skillNamed(slugOf(record.id))))) {
           redirect(itemPagePath(record.id));
         }
         item = entry;
@@ -223,15 +225,6 @@ export default async function AccessPage({
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Have an invite code?</CardTitle>
-            <CardDescription>Redeem it to unlock what was shared with you.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RedeemInvite initialCode={code ?? ''} signedIn={!!viewer.clientId} loginHref={loginHref} />
-          </CardContent>
-        </Card>
       </div>
     </main>
   );

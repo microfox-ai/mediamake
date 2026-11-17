@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CatalogEntry } from '@/lib/catalog/types';
 import { itemPagePath } from '@/lib/catalog/paths';
+import { tierLabel } from '@/lib/memberships/tiers';
 import { watchPath } from '@/lib/catalog/video';
 import { MadeByLine, UsesLine } from '@/components/catalog/uses';
 import { HealthBadge } from '@/components/catalog/health';
@@ -31,7 +32,7 @@ const statusLabel: Record<CatalogEntry['status'], string> = {
 
 export function CatalogCard({ card }: { card: CatalogEntry }) {
   const locked = card.access === 'locked';
-  // Locked cards lead to the request-access / redeem-invite page; a skill, an
+  // Locked cards lead to the request-access page; a skill, an
   // MCP or an app to its own page (which plays its intro video and opens or
   // installs it); a tutorial or course to where it plays; and anything else
   // installable to /access, its only page.
@@ -75,7 +76,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
           {card.access !== 'open' && (
             <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
               {locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
-              {locked ? 'Invite only' : 'You have access'}
+              {locked ? (card.tier && card.tier !== 'public' ? `${tierLabel(card.tier)} members` : 'Members only') : 'You have access'}
             </span>
           )}
         </div>

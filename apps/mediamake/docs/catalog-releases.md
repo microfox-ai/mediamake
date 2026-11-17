@@ -28,12 +28,12 @@ installs from where it lives, not from a package of ours. See
 | --- | --- | --- |
 | Skills | `.agents/skills/` (committed; `.claude/skills/` links to them) | Yes, always |
 | MCPs and skills made by others | `lib/catalog/third-party.json` (committed), or MongoDB `catalog_items` for ones added with `npm run catalog -- add` | Yes, always |
-| Cards for our apps and our hosted MCPs | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: mm-use installs its hosted connector (`/mcp/use`) for every member, mm-release (`/mcp/release`, it runs the catalog) and the old, deprecated MediaMake MCP (`/mcp`) theirs for admins only (their cards are in the vault); grants and invites can name a card too | As each card says |
+| Cards for our apps and our hosted MCPs | `lib/catalog/items.ts` (committed). A card can carry an `install` spec: mm-use installs its hosted connector (`/mcp/use`) for every member, mm-release (`/mcp/release`, it runs the catalog) and the old, deprecated MediaMake MCP (`/mcp`) theirs for admins only (their cards are in the vault); grants can name a card too | As each card says |
 | Your unreleased MCPs and apps | `private/` at the repo root (gitignored, CI-guarded) or any local folder | No |
 | Packaged releases (`.tar.gz`) | `catalog-private/<kind>/<slug>/<version>.tar.gz` in `CATALOG_BUCKET` (falls back to `SPACES_BUCKET`), stored without a public ACL | No |
 | Card data (title, summary, stage, versions) | MongoDB `catalog_items` | Only what a viewer may see |
 | Videos: a skill's intro, tutorials, courses' lessons | MongoDB `catalog_videos` (YouTube links only) | As shared as the item they belong to |
-| Grants, groups, invites, requests, download log | MongoDB `access_grants`, `access_groups`, `access_invites`, `access_requests`, `catalog_downloads` | No |
+| Grants, groups, requests, download log | MongoDB `access_grants`, `access_groups`, `access_requests`, `catalog_downloads` | No |
 
 Item ids look like `mcp/browse-hack` or `skill/lyric-video`.
 
@@ -238,8 +238,7 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
 | `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts with the cohort. |
-| `catalog_invite` | An invite link that opens gated items for the people it is sent to, or (with `tier`) gives them a Plus, Pro or Cohort membership. |
-| `catalog_people` | Who holds each membership, how they got it and how long it lasts, plus everyone else with a key, tier invite links and pending requests. |
+| `catalog_people` | Who holds each membership, how they got it and how long it lasts, plus everyone else with a key and pending requests. |
 | `catalog_set_tier` | Give people a Plus, Pro or Cohort membership (or take it away), by client id or the name on their key, with its source, reference, length or permanence. |
 | `catalog_membership` | Make one membership permanent, renew it for a new contribution, or end it. |
 | `catalog_versions` | Live versions and release notes (anyone, for updates). |
@@ -280,7 +279,7 @@ How each person got their tier is a record in the `memberships` collection
 | Field | Meaning |
 | --- | --- |
 | `tier` | plus, pro or cohort. Public is having no live record; Admin is the account's flag. |
-| `source` | `admin` (an admin gave it), `contribution` (an accepted item or merged PR, named in `ref`), `invite` (the code in `ref`), `migration` (carried over from the earlier tiers), `paid` and `signup` (for later) |
+| `source` | `admin` (an admin gave it), `contribution` (an accepted item or merged PR, named in `ref`), `invite` (old records only: invites are retired), `migration` (carried over from the earlier tiers), `paid` and `signup` (for later) |
 | `expiresAt`, `permanent` | A contribution lasts **3 months** and renews by contributing again (a new record). An admin can make any membership permanent: it then lasts until an admin removes it. Other sources last until removed unless given a length. |
 | `grantedBy`, `revokedAt`, `revokedBy`, `revokedNote` | Records are never deleted, so the collection is also the log of who changed whose tier, when and why. |
 
@@ -289,16 +288,20 @@ Admins set it on **Manage Memberships** (`/app/memberships`), with
 `npm run catalog -- member`, or with `catalog_set_tier`. Payments, later, only
 add records with `source: 'paid'`: no access code changes.
 
+There are no invite codes or invite links. A membership is applied for: a
+person contributes a skill, MCP or app they made and used for real work (or
+asks on their Subscription page), an admin reviews it, and accepting it gives
+the membership. Old `access_invites` records stay in the database, unread.
+
 #### Manage Memberships and Subscription
 
-`/app/memberships` (admins; the People tab of Releases moved here) has four tabs:
+`/app/memberships` (admins; the People tab of Releases moved here) has three tabs:
 
 | Tab | What it does |
 | --- | --- |
 | People | Everyone with an account, a key or a membership: their tier, how they got it, when it ends (amber when within 14 days). **Change** needs a reason, which is kept on the record and goes in the mail. **Make permanent** removes an expiry. **Link** links an old account (a key only) by a one-time link or an email, as on API Keys. |
 | Requests | People who asked for the next membership on their Subscription page (a request for `tier/<tier>`), or for one locked item. Approving a membership gives it; approving an item grants that item. |
-| Invites | Mail one person an invite into a tier (a link that works once, for 30 days), or make a link for up to 10 people. |
-| Audit log | Who changed whose membership, when and why. Nothing is stored for it: it is read from the membership, invite and request records, which are never deleted (`lib/memberships/audit.ts`). |
+| Audit log | Who changed whose membership, when and why. Nothing is stored for it: it is read from the membership and request records, which are never deleted (`lib/memberships/audit.ts`). |
 
 The page reads and writes `/api/admin/memberships`. The changes themselves are
 in `lib/memberships/admin.ts`, shared with `/api/admin/catalog`, so a change
@@ -319,8 +322,7 @@ sign-in mails:
 | Mail | When |
 | --- | --- |
 | Welcome | Once, when an account is made (by a confirmed email, Google or GitHub). |
-| Membership changed | An admin gives, raises, lowers, ends or makes permanent a membership, approves a request for one, or the person opens an invite into a tier. Not sent to admins, or when the account has no email. |
-| Invite | An admin mails an invite from Manage Memberships. |
+| Membership changed | An admin gives, raises, lowers, ends or makes permanent a membership, or approves a request for one. Not sent to admins, or when the account has no email. |
 
 Mail never fails a change: without `RESEND_API_KEY`, or when Resend refuses,
 the change holds and the answer says why no mail went.
@@ -432,16 +434,15 @@ Every way someone gets access is a record, never a code change:
 
 | Record | Created by | Collection |
 | --- | --- | --- |
-| Grant to a person or group (with expiry, note, and the invite it came from) | `grant`, `approve`, redeeming an invite | `access_grants` |
-| Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, Manage Memberships, an invite with a tier | `memberships` |
+| Grant to a person or group (with expiry and note) | `grant`, `approve` | `access_grants` |
+| Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, Manage Memberships, an approved request | `memberships` |
 | Readiness marks with their proof | `ready`, `beta` | `catalog_readiness` |
 | Group membership (your own groups; the earlier `private` and `network` until migrated) | `group add` | `access_groups` |
-| Invite links and how often they were used | `invite` | `access_invites` |
 | Requests from the "Request access" button | the person | `access_requests` |
 | Each package download | `/api/catalog/download` | `catalog_downloads` |
 
 `npm run catalog -- list` prints every item with its live grants (who, until
-when, via which invite) and every group with its members. `revoke` marks a
+when) and every group with its members. `revoke` marks a
 grant revoked rather than deleting it, so the history stays.
 
 ## Setup (once)
@@ -469,7 +470,6 @@ npm run catalog -- release ../../private/mcps/browse-hack.mcpb --tier cohort --v
 
 # Share with a few people
 npm run catalog -- grant mcp/browse-hack --to <clientId> --days 30
-npm run catalog -- invite mcp/browse-hack --uses 5 --days 30   # prints a /access?code=… link
 
 # Memberships
 npm run catalog -- member <clientId> cohort --note "editing the channel"      # an admin grant, until removed
@@ -478,7 +478,6 @@ npm run catalog -- member add <clientId> plus --source contribution --ref <PR>  
 npm run catalog -- member permanent <membershipId>                            # no expiry any more
 npm run catalog -- member <clientId> public                                   # take it away
 npm run catalog -- members                                                    # who holds what, and how
-npm run catalog -- invite --tier pro --uses 20                                # or let them join by invite
 
 # Move an item along
 npm run catalog -- tier mcp/browse-hack pro                      # the lowest membership that opens it
@@ -702,8 +701,8 @@ const skills = await listCatalog(viewer, 'skill');
   and the viewer's access.
 - `/skills/<slug>`, `/mcps/<slug>` and `/apps/<slug>` show an item you can
   open with its install prompt and a download; `/access?item=<id>` keeps
-  tutorials, locked items and skills without a page; `/access?code=<code>`
-  redeems an invite into a membership.
+  tutorials, locked items and skills without a page; `/access` with no item
+  (an old invite link) goes to `/app/subscription`.
 
 HTTP endpoints (`/api/catalog/*` skip the API-key middleware and resolve the
 session cookie or Bearer key themselves):
@@ -715,9 +714,8 @@ session cookie or Bearer key themselves):
 | `GET /api/catalog/install?item=<id>` (Bearer update token or API key, or the session) | Ordered install plan with dependencies; 404 when locked, 409 when a dependency is |
 | `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token or API key, or the session) | Live version of each item and its releases with notes, newest first; no links, not logged |
 | `POST /api/catalog/update-token { items, token? }` (Bearer API key) | An update token for the installed items (or adds them to `token`); `mm items install` asks for it |
-| `POST /api/catalog/redeem { code }` | Redeem an invite |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
-| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, invites, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `create_video_item`, `create_thumbnail_upload` |
+| `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `create_video_item`, `create_thumbnail_upload` |
 | `GET /api/admin/catalog/items[?kind=][&tier=][&archived=][&q=]` | Admin: every item in a line (`ItemSummary`), read-only |
 | `GET /api/admin/catalog/item?id=<id>` | Admin: one item as its release page shows it, read-only |
 

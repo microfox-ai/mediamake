@@ -1,4 +1,4 @@
-import type { AccessInvite, AccessRequest } from '@/lib/catalog/types';
+import type { AccessRequest } from '@/lib/catalog/types';
 import type { AuditEvent } from '@/lib/memberships/audit';
 import type { Membership } from '@/lib/memberships/membership';
 import type { PersonRow } from '@/lib/memberships/people';
@@ -9,8 +9,6 @@ export interface MembershipsData {
   people: PersonRow[];
   /** Pending: for a tier (`tier/pro`, from Subscription) or for one item. */
   requests: AccessRequest[];
-  /** Live invites into a membership, each with its link. */
-  invites: (AccessInvite & { url: string })[];
   audit: AuditEvent[];
   /** Item titles by id, for requests that ask for an item. */
   titles: Record<string, string>;
@@ -50,7 +48,7 @@ const SOURCE_WORDS: Record<Membership['source'], string> = {
   signup: 'Signed up',
   admin: 'Given by an admin',
   contribution: 'Earned by contributing',
-  invite: 'Joined with an invite',
+  invite: 'Joined with an invite (before invites were retired)',
   migration: 'Carried over from the earlier tiers',
   paid: 'Paid',
 };

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, Copy, Infinity as InfinityIcon, Link2, Mail, RefreshCw, Search, X } from 'lucide-react';
+import { Check, Infinity as InfinityIcon, Link2, RefreshCw, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,19 +10,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { auditText, type AuditEvent } from '@/lib/memberships/audit';
 import { countByTier, daysLeft, endsSoon, type PersonRow } from '@/lib/memberships/people';
 import { requestedTier } from '@/lib/memberships/requests';
-import { GRANTABLE_TIERS, MEMBER_TIERS, tierInfo, tierLabel, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
+import { MEMBER_TIERS, tierInfo, tierLabel, type MemberTier } from '@/lib/memberships/tiers';
 import { cn } from '@/lib/utils';
 import { ChangeDialog } from './change-dialog';
 import { LinkDialog } from './link-dialog';
 import { formatDay, formatMoment, howGot, isLink, mailedLine, membershipsCall, type Mailed, type MembershipsData } from './model';
 import { Empty, MemberTierPill, Section } from './parts';
 
-const TABS = ['people', 'requests', 'invites', 'log'] as const;
+const TABS = ['people', 'requests', 'log'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
  * /app/memberships: everyone with their tier, how they got it and when it
- * ends; changing one, with a reason; invites; linking old accounts; requests
+ * ends; changing one, with a reason; linking old accounts; requests
  * waiting for a decision; and the audit log.
  */
 export function ManageMemberships() {
@@ -101,7 +101,6 @@ export function ManageMemberships() {
                 <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{data.requests.length}</span>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="invites">Invites</TabsTrigger>
             <TabsTrigger value="log">Audit log</TabsTrigger>
           </TabsList>
           <Button variant="ghost" size="icon" className="size-9" onClick={load} aria-label="Refresh">
@@ -113,7 +112,6 @@ export function ManageMemberships() {
           {data ? <People data={data} onChange={setChanging} onLink={setLinking} run={run} /> : <Skeleton className="h-96 rounded-2xl" />}
         </TabsContent>
         <TabsContent value="requests">{data && <Requests data={data} nameOf={nameOf} run={run} />}</TabsContent>
-        <TabsContent value="invites">{data && <Invites data={data} nameOf={nameOf} run={run} reload={load} />}</TabsContent>
         <TabsContent value="log">{data && <AuditLog events={data.audit} titles={data.titles} nameOf={nameOf} />}</TabsContent>
       </Tabs>
 
@@ -340,121 +338,6 @@ function Requests({ data, nameOf, run }: { data: MembershipsData; nameOf: (clien
         <Empty>Nobody is waiting.</Empty>
       )}
     </Section>
-  );
-}
-
-async function copyText(value: string, done: string) {
-  try {
-    await navigator.clipboard.writeText(value);
-    toast.success(done);
-  } catch {
-    toast.message(value);
-  }
-}
-
-function Invites({ data, nameOf, run, reload }: { data: MembershipsData; nameOf: (clientId?: string) => string; run: Run; reload: () => Promise<void> }) {
-  const [tier, setTier] = useState<GrantableTier>('plus');
-  const [email, setEmail] = useState('');
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const invite = async (byMail: boolean) => {
-    setBusy(true);
-    try {
-      const made = await membershipsCall<{ url: string; mailed?: Mailed; existing?: string }>({
-        type: 'invite',
-        tier,
-        email: byMail ? email.trim() : undefined,
-        note: note.trim() || undefined,
-      });
-      if (byMail && made.mailed?.sent) {
-        toast.success(`Invite mailed to ${made.mailed.to}`, { description: made.existing ? `They already have an account (${nameOf(made.existing)}). Opening the link gives it the membership.` : undefined });
-      } else {
-        await copyText(made.url, byMail ? `No mail sent: ${made.mailed?.why}. The link is copied instead.` : 'Invite link copied');
-      }
-      setEmail('');
-      setNote('');
-      await reload();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <Section title="Invite someone" about="Into a membership, whether or not they have an account yet. They open the link, sign in or sign up, and are in.">
-        <form
-          className="flex flex-col gap-4 p-5"
-          onSubmit={e => {
-            e.preventDefault();
-            void invite(true);
-          }}
-        >
-          <div className="flex w-fit rounded-lg border p-0.5">
-            {GRANTABLE_TIERS.map(value => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={tier === value}
-                onClick={() => setTier(value)}
-                className={cn('rounded-md px-3 py-1.5 text-sm text-muted-foreground transition', tier === value && 'bg-muted font-medium text-foreground')}
-              >
-                {tierLabel(value)}
-              </button>
-            ))}
-          </div>
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Their email" aria-label="Their email" />
-          <Input value={note} onChange={e => setNote(e.target.value)} placeholder="A line for them, and for the audit log (optional)" maxLength={500} aria-label="Note" />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" size="sm" disabled={busy || !email.trim()}>
-              <Mail className="size-3.5" />
-              Mail the invite
-            </Button>
-            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => invite(false)}>
-              <Link2 className="size-3.5" />
-              Make a link instead
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A mailed invite works once, for 30 days. A link without an email works for 10 people, for 30 days. Either gives the membership until an admin removes
-            it.
-          </p>
-        </form>
-      </Section>
-
-      <Section title="Live invites" about="Links that still work.">
-        {data.invites.length ? (
-          <ul className="divide-y">
-            {data.invites.map(i => (
-              <li key={i.code} className="flex items-center justify-between gap-3 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-sm">
-                    {i.tier && <MemberTierPill tier={i.tier} />}
-                    <span className="truncate">{i.email ?? 'A link to share'}</span>
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {i.uses}/{i.maxUses} used{i.expiresAt ? ` · until ${formatDay(i.expiresAt)}` : ''}
-                    {i.createdBy ? ` · by ${nameOf(i.createdBy)}` : ''}
-                    {i.note ? ` · ${i.note}` : ''}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button size="icon" variant="ghost" className="size-8" aria-label="Copy invite link" onClick={() => copyText(i.url, 'Invite link copied')}>
-                    <Copy className="size-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => run('Invite turned off', { type: 'disable_invite', code: i.code })}>
-                    Turn off
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty>No live invites.</Empty>
-        )}
-      </Section>
-    </div>
   );
 }
 

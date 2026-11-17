@@ -15,12 +15,10 @@ import { usePost } from './use-post';
 export function LoginForm({
   providers,
   redirectTo,
-  showSignup,
   initialError,
 }: {
   providers: Providers;
   redirectTo?: string;
-  showSignup: boolean;
   initialError?: string;
 }) {
   const searchParams = useSearchParams();
@@ -61,16 +59,12 @@ export function LoginForm({
       title="Sign in"
       description="Welcome back to MediaMake."
       footer={
-        <>
-          {showSignup && (
-            <p>
-              New here?{' '}
-              <Link href={withRedirect('/signup', redirectTo)} className="font-medium text-foreground underline underline-offset-4">
-                Create an account
-              </Link>
-            </p>
-          )}
-        </>
+        <p>
+          New here?{' '}
+          <Link href={withRedirect('/signup', redirectTo)} className="font-medium text-foreground underline underline-offset-4">
+            Create an account
+          </Link>
+        </p>
       }
     >
       <ProviderButtons providers={providers} redirectTo={redirectTo} />

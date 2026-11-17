@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { inviteMail, membershipChangedMail, welcomeMail } from './templates';
+import { membershipChangedMail, welcomeMail } from './templates';
 
 const url = 'https://mediamake.microfox.app/app/subscription';
 
@@ -35,13 +35,5 @@ describe('membership mails', () => {
   it('says a membership was made permanent', () => {
     const mail = membershipChangedMail('ana@example.com', { from: 'Pro', to: 'Pro', lasts: 'with no end date', url });
     assert.match(mail.text, /Your Pro membership now lasts with no end date\./);
-  });
-
-  it('invites with a link that works once, and escapes what an admin typed', () => {
-    const mail = inviteMail('new@example.com', { tier: 'Plus', url: 'https://mediamake.microfox.app/access?code=abc', note: 'Loved your <AMV>', days: 30 });
-    assert.equal(mail.subject, 'Your invite to MediaMake (Plus)');
-    assert.match(mail.text, /Accept the invite: https:\/\/mediamake\.microfox\.app\/access\?code=abc/);
-    assert.match(mail.text, /works once, for 30 days/);
-    assert.match(mail.html, /Loved your &lt;AMV&gt;/);
   });
 });

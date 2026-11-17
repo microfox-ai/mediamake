@@ -129,9 +129,9 @@ curl -fsS -H "Authorization: Bearer $AUTH" \
   request the plan again.
 - **401**: no credential, a wrong key, or an update token that doesn't
   cover this item. Go back to step 2, option 4.
-- **404**: the item doesn't exist or isn't shared with this account. Tell
-  them that, and that whoever shared it can give access (an invite link opens
-  `$MEDIAMAKE_URL/access?code=…`). Stop.
+- **404**: the item doesn't exist or their membership doesn't open it. Tell
+  them that, and that their Subscription page (`$MEDIAMAKE_URL/app/subscription`)
+  says how to get the membership that opens it (contribute, or ask an admin). Stop.
 - **409**: something the item needs isn't shared with them; the `error`
   says what to ask for. Tell them and stop.
 

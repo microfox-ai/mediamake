@@ -43,9 +43,7 @@ API Keys page. The last way to sign in on `/login` cannot be removed.
 
 ## Sign-up is open
 
-Anyone can make an account, by mail or with Google or GitHub. `MEDIAMAKE_SIGNUP=invite` closes it: a new account
-then needs a live invite (invite links lead to `/access?code=…`, and sign-in carries that address along as
-`redirectTo`). Existing accounts can always sign in. An account alone opens nothing: what a person can see is
+Anyone can make an account, by mail or with Google or GitHub; there are no invite codes. An account alone opens nothing: what a person can see is
 decided by the catalog's stages, grants and memberships.
 
 ## Environment
@@ -54,9 +52,8 @@ decided by the catalog's stages, grants and memberships.
 |---|---|
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Continue with Google. Redirect URI: `<site>/api/auth/google/callback` |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Continue with GitHub. Callback URL: `<site>/api/auth/github/callback` |
-| `RESEND_API_KEY` | Verification and reset mail, and the welcome, membership and invite mails (see catalog-releases.md, Mail). Without it, production answers 503 to sign-up and reset, membership changes are saved without a mail, and `next dev` prints the mail to the server log. |
+| `RESEND_API_KEY` | Verification and reset mail, and the welcome and membership mails (see catalog-releases.md, Mail). Without it, production answers 503 to sign-up and reset, membership changes are saved without a mail, and `next dev` prints the mail to the server log. |
 | `MAIL_FROM` | Optional. Default `MediaMake <mediamake@reply-bots.com>`; the domain must be verified in Resend. |
-| `MEDIAMAKE_SIGNUP` | Optional. `invite` to let only invited people make an account. |
 | `MEDIAMAKE_PUBLIC_URL` | Optional. The site's public origin, used in mailed links and callbacks. |
 
 A provider whose variables are missing shows no button. Tests: `npx tsx --test lib/auth/accounts.test.ts`.

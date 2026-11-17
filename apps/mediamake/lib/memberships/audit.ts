@@ -5,8 +5,8 @@ import type { GrantableTier } from './tiers';
 /**
  * The audit log of memberships: who changed whose tier, when and why. Nothing
  * is stored for it. Every record it reads already keeps who and when: a
- * membership (given, made permanent, ended), an invite (made, used, turned
- * off) and a request (asked, approved, rejected), and none of them is ever
+ * membership (given, made permanent, ended) and a request (asked, approved,
+ * rejected), and none of them is ever
  * deleted, so the log also covers everything from before this page existed.
  *
  * Pure: safe for the browser.
@@ -17,9 +17,6 @@ export type AuditKind =
   | 'permanent'
   | 'ended'
   | 'expired'
-  | 'invite_made'
-  | 'invite_used'
-  | 'invite_off'
   | 'requested'
   | 'request_approved'
   | 'request_rejected';
@@ -29,13 +26,13 @@ export interface AuditEvent {
   id: string;
   at: string;
   kind: AuditKind;
-  /** Whose membership it is about. None for an invite nobody has used. */
+  /** Whose membership it is about. */
   clientId?: string;
   /** Who did it: an admin's client id. None when it happened by itself (an expiry) or nobody was recorded. */
   by?: string;
   tier?: GrantableTier;
   source?: MembershipSource;
-  /** What earned or carried it: a PR link, an item, an invite code, the item asked for. */
+  /** What earned or carried it: a PR link, an item, the item asked for (an invite code on old records). */
   ref?: string;
   /** Why, in the words of whoever did it. */
   reason?: string;
@@ -43,19 +40,7 @@ export interface AuditEvent {
   expiresAt?: string;
 }
 
-/** The parts of an invite and a request the log reads (lib/catalog/types has the whole records). */
-export interface AuditInvite {
-  code: string;
-  tier?: GrantableTier;
-  itemIds?: string[];
-  email?: string;
-  createdBy?: string;
-  createdAt: string;
-  disabledAt?: string;
-  note?: string;
-  redeemedBy?: { clientId: string; at: string }[];
-}
-
+/** The parts of a request the log reads (lib/catalog/types has the whole record). */
 export interface AuditRequest {
   requestId: string;
   itemId: string;
@@ -69,11 +54,10 @@ export interface AuditRequest {
 
 export interface AuditInput {
   memberships: Membership[];
-  invites?: AuditInvite[];
   requests?: AuditRequest[];
 }
 
-/** Everything that happened, newest first. Invites that only open items (no tier) are left out: they are on Releases. */
+/** Everything that happened, newest first. */
 export function auditLog(input: AuditInput, now: number = Date.now()): AuditEvent[] {
   const events: AuditEvent[] = [];
 
@@ -89,16 +73,6 @@ export function auditLog(input: AuditInput, now: number = Date.now()): AuditEven
     } else if (m.expiresAt && Date.parse(m.expiresAt) <= now) {
       events.push({ id: `${m.membershipId}:expired`, at: m.expiresAt, kind: 'expired', ...about });
     }
-  }
-
-  for (const invite of input.invites ?? []) {
-    if (!invite.tier) continue;
-    const about = { tier: invite.tier, ref: invite.email ?? invite.code };
-    events.push({ id: `${invite.code}:made`, at: invite.createdAt, kind: 'invite_made', ...about, by: invite.createdBy, reason: invite.note });
-    for (const use of invite.redeemedBy ?? []) {
-      events.push({ id: `${invite.code}:used:${use.clientId}`, at: use.at, kind: 'invite_used', ...about, clientId: use.clientId });
-    }
-    if (invite.disabledAt) events.push({ id: `${invite.code}:off`, at: invite.disabledAt, kind: 'invite_off', ...about });
   }
 
   for (const request of input.requests ?? []) {
@@ -146,12 +120,6 @@ export function auditText(event: AuditEvent, itemTitle?: string): string {
       return `${tier} ended`;
     case 'expired':
       return `${tier} ran out`;
-    case 'invite_made':
-      return `Invite to ${tier} ${event.ref?.includes('@') ? `mailed to ${event.ref}` : 'made'}`;
-    case 'invite_used':
-      return `Opened an invite to ${tier}`;
-    case 'invite_off':
-      return `Invite to ${tier} turned off`;
     case 'requested':
       return `Asked for ${asked}`;
     case 'request_approved':

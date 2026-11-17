@@ -8,7 +8,7 @@
  * this (public) repository.
  */
 
-import { MEMBER_TIERS, isHiddenTier, type GrantableTier, type MemberTier } from '../memberships/tiers';
+import { MEMBER_TIERS, isHiddenTier, type MemberTier } from '../memberships/tiers';
 
 export type { GrantableTier, MemberTier } from '../memberships/tiers';
 
@@ -84,7 +84,7 @@ export const DEFAULT_GATE_DAYS = 30;
  *  - cohort: the cohort and admins. Invisible to everyone below.
  *  - admin: the vault. Never published: admins only, plus grants that name the item.
  * An item with `publicAt` is gated: it turns Public by itself at that time.
- * Grants to one person for one item, invites and expiry work beside the tier.
+ * Grants to one person for one item, and their expiry, work beside the tier.
  */
 export type ItemTier = MemberTier;
 export const ITEM_TIERS: ItemTier[] = MEMBER_TIERS;
@@ -593,7 +593,7 @@ export interface AccessGrant {
   revokedAt?: string;
   revokedBy?: string;
   note?: string;
-  /** Set when the grant came from redeeming an invite. */
+  /** Set on old grants that came from redeeming an invite (invites are retired). */
   inviteCode?: string;
 }
 
@@ -604,31 +604,6 @@ export interface AccessGroup {
   members: string[];
   createdAt: string;
   updatedAt: string;
-}
-
-/**
- * A shareable code. Redeeming it (signed in) grants the listed items, or
- * adds the redeemer to a group, until `maxUses` is reached or it expires.
- */
-export interface AccessInvite {
-  code: string;
-  itemIds: (string | '*')[];
-  /** Redeemers join this group instead of / as well as getting item grants. */
-  groupId?: string;
-  /** Redeemers get this membership (source `invite`), lasting `grantDays` when set. */
-  tier?: GrantableTier;
-  /** The address the invite was mailed to, when it was mailed (Manage Memberships). */
-  email?: string;
-  maxUses: number;
-  uses: number;
-  redeemedBy: { clientId: string; at: string }[];
-  /** How long the resulting grants last, in days. Unset = no expiry. */
-  grantDays?: number;
-  createdBy?: string;
-  createdAt: string;
-  expiresAt?: string;
-  disabledAt?: string;
-  note?: string;
 }
 
 export type AccessRequestStatus = 'pending' | 'approved' | 'rejected';

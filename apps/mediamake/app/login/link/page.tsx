@@ -16,7 +16,6 @@ export default async function LinkAccountPage() {
     <LinkForm
       provider={PROVIDER_NAMES[pending.provider]}
       label={pending.label}
-      maySignUp={pending.maySignUp}
       redirectTo={pending.redirectTo}
     />
   );

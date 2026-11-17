@@ -16,12 +16,6 @@ export function safeRedirect(value: string | null | undefined, fallback: string 
   return value;
 }
 
-/** The invite code in a `redirectTo` that points at /access?code=…, which is where invite links lead. */
-export function inviteCodeFrom(redirectTo: string | null | undefined): string | undefined {
-  if (!redirectTo || !redirectTo.startsWith('/access?')) return undefined;
-  return new URLSearchParams(redirectTo.slice('/access?'.length)).get('code')?.trim() || undefined;
-}
-
 /** A login-family address that carries `redirectTo` along. */
 export function withRedirect(path: string, redirectTo: string | null | undefined): string {
   const target = safeRedirect(redirectTo, '');

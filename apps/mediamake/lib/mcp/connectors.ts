@@ -24,7 +24,7 @@ export const MCP_CONNECTORS = {
     fallback: { id: 'mcp/mm-release', visibility: 'private', tier: 'admin', neverPublish: true },
     locked:
       'mm-release is for MediaMake admins: it runs the catalog and releases. To explore and install skills, MCPs and apps, add mm-use (mcp/mm-use), the connector every member has.',
-    does: 'run the catalog as you: read every item and who can open it, change releases, memberships and invites',
+    does: 'run the catalog as you: read every item and who can open it, change releases and memberships',
   },
   use: {
     item: 'mcp/mm-use',

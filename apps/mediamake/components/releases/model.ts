@@ -4,7 +4,6 @@ import {
   itemTier,
   type AccessGrant,
   type AccessGroup,
-  type AccessInvite,
   type AccessRequest,
   type ArchiveMark,
   type CatalogItemRecord,
@@ -37,7 +36,6 @@ export interface AdminCatalog {
   cards: CatalogItemRecord[];
   grants: AccessGrant[];
   groups: AccessGroup[];
-  invites: AccessInvite[];
   requests: AccessRequest[];
   people: Person[];
   /** Every membership record, ended ones too (see lib/memberships). */

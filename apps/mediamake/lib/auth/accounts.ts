@@ -15,7 +15,7 @@ import {
   type Identity,
   type ProviderId,
 } from './providers';
-import { ACCOUNT_PAGE, inviteCodeFrom, safeRedirect } from './redirect';
+import { ACCOUNT_PAGE, safeRedirect } from './redirect';
 import { deleteWebSessions, listWebSessions, validateApiKey } from './session';
 import { allowAttempt, peekToken, putToken, takeToken } from './tokens';
 import {
@@ -97,16 +97,7 @@ function apiKeys() {
   return new CrudHash<ApiKeyInfo>(redis, 'apiKeys');
 }
 
-// ── Who may sign up ──────────────────────────────────────────────────────────
-
-/**
- * Anyone can sign up, unless MEDIAMAKE_SIGNUP=invite. Then a new account
- * needs a live invite code, which invite links carry in their
- * /access?code=… address.
- */
-export const signupOpen = () => process.env.MEDIAMAKE_SIGNUP !== 'invite';
-
-export const SIGNUP_CLOSED = 'Sign-up is invite only for now. Open your invite link to make an account.';
+// ── New accounts: anyone may sign up ─────────────────────────────────────────
 
 /** Swapped in tests, which have no database. */
 export const authDeps = {
@@ -119,26 +110,7 @@ export const authDeps = {
       console.error('[auth] Could not send the welcome mail:', error);
     }
   },
-
-  async inviteIsLive(code: string): Promise<boolean> {
-    try {
-      const { accessInvitesDB } = await import('@/lib/catalog/store');
-      const invite = (await accessInvitesDB.list()).find(i => i.code === code);
-      if (!invite || invite.disabledAt) return false;
-      if (invite.expiresAt && invite.expiresAt <= now()) return false;
-      return invite.uses < invite.maxUses;
-    } catch (error) {
-      console.error('[auth] Could not check the invite:', error);
-      return false;
-    }
-  },
 };
-
-export async function maySignUp(redirectTo: string | null | undefined): Promise<boolean> {
-  if (signupOpen()) return true;
-  const code = inviteCodeFrom(redirectTo);
-  return code ? authDeps.inviteIsLive(code) : false;
-}
 
 // ── New accounts ─────────────────────────────────────────────────────────────
 
@@ -229,7 +201,6 @@ export async function startSignup(input: {
   const name = parseName(input.name);
   const problem = passwordProblem(input.password);
   if (problem) throw new AuthError(problem);
-  if (!(await maySignUp(input.redirectTo))) throw new AuthError(SIGNUP_CLOSED, 403);
   if (!(await allowAttempt(`signup:${email}`, 3, 60 * 60)) || !(await allowAttempt(`signup-ip:${input.ip}`, 20, 60 * 60))) {
     throw new AuthError(TOO_MANY, 429);
   }
@@ -493,7 +464,6 @@ export async function describePending(pending: string | undefined | null) {
     provider: identity.provider,
     label: identity.email ?? identity.login ?? identity.name ?? PROVIDER_NAMES[identity.provider],
     redirectTo: saved.redirectTo,
-    maySignUp: await maySignUp(saved.redirectTo),
   };
 }
 
@@ -525,7 +495,6 @@ export async function linkPendingWithKey(input: {
 export async function createFromPending(pending: string | undefined | null): Promise<{ clientId: string; redirectTo?: string }> {
   const saved = await peekToken<PendingIdentity>('identity', pending);
   if (!saved) throw new AuthError(PENDING_GONE, 410);
-  if (!(await maySignUp(saved.redirectTo))) throw new AuthError(SIGNUP_CLOSED, 403);
   if (!(await takeToken('identity', pending))) throw new AuthError(PENDING_GONE, 410);
   const user = await createAccount({ identity: saved.identity });
   return { clientId: user.clientId, redirectTo: saved.redirectTo };
