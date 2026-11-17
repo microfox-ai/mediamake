@@ -60,7 +60,9 @@
  *
  * What MediaMake is told (when this computer is signed in and usage reports are on: mm usage): each
  * repo's name, this computer's random label, the commit, and each item's kind, name, version, title
- * and one-line summary. Never a file. mm space report --dry shows it exactly. Which repo is a
+ * and one-line summary; for the app's Code tab, the last 30 commits (short id, time, author's name,
+ * subject), the paths of the repo's files and its README.md. Never another file's contents.
+ * mm space report --dry shows it exactly. Which repo is a
  * project's space is told whenever you share into it, so its members can find it.
  */
 import { spawnSync } from 'node:child_process';
@@ -248,6 +250,76 @@ export function pushProblems(dir, files) {
     }
   }
   return { large, secrets };
+}
+
+/* ---------- a skill's own code ---------- */
+
+/** This checkout (the framework), for telling apart code on GitHub from code only on this computer. */
+const TOP = path.resolve(path.dirname(SELF), '..');
+const CODE_EXT = '(?:tsx?|jsx?|mjs|cjs|py|json|css|glsl|frag|vert)';
+/** A framework file a skill names: apps/<app>/…, packages/<pkg>/…, tools/…, or the studio's own folders. */
+const REPO_FILE = new RegExp(`(?<![\\w./@-])((?:apps/[\\w-]+|packages/[\\w-]+|tools)/[\\w.@/-]+?\\.${CODE_EXT}|(?:src|scripts|catalog|logoGraphics|thumbnails|analysis)/[\\w.@/-]+?\\.${CODE_EXT})(?![\\w])`, 'g');
+/** A studio code folder a skill names: (apps/studio/)src/<name>, scripts/<name> */
+const REPO_DIR = /(?<![\w./@-])((?:apps\/studio\/)?(?:src|scripts)\/[\w-]+)\/?(?![\w./-])/g;
+const WS_CODE = /(?<![\w./@-])(extensions\/[\w.@/-]+)/g;
+
+const onGithub = (top, rel) => {
+  for (const ref of ['origin/main', 'HEAD']) {
+    const r = git(top, ['cat-file', '-e', `${ref}:${rel}`]);
+    if (r.ok) return true;
+    if (git(top, ['rev-parse', '--verify', '-q', ref]).ok) return false;
+  }
+  return false;
+};
+
+/**
+ * Code a skill needs that a space doesn't carry: files and folders of the framework it names that are only
+ * on this computer (not on GitHub's main), and your workspace's extensions/. A space carries the skill's
+ * whole folder, so the fix is to move that code into the skill (skills/<name>/…) and import it as
+ * @mediamake/skills/<name>/… . Returns [{ file, line, ref, why }]; placeholders and files that exist
+ * nowhere are left alone.
+ */
+export function codeOutside(skillDir, { top = TOP, workspace = workspaceRoot() } = {}) {
+  const found = new Map();
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist') continue;
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      else if (e.isFile() && TEXT_FILE.test(e.name) && fs.statSync(abs).size <= 2 * 1024 * 1024) scan(abs);
+    }
+  };
+  const note = (abs, i, ref, why) => {
+    if (!found.has(ref)) found.set(ref, { file: path.relative(skillDir, abs), line: i + 1, ref, why });
+  };
+  const scan = abs => {
+    fs.readFileSync(abs, 'utf8').split('\n').forEach((line, i) => {
+      for (const m of line.matchAll(REPO_FILE)) {
+        const rel = /^(apps|packages|tools)\//.test(m[1]) ? m[1] : `apps/studio/${m[1]}`;
+        if (fs.existsSync(path.join(top, rel)) && !onGithub(top, rel)) note(abs, i, rel, 'only on this computer (not on GitHub)');
+      }
+      for (const m of line.matchAll(REPO_DIR)) {
+        const rel = m[1].startsWith('apps/') ? m[1] : `apps/studio/${m[1]}`;
+        const at = path.join(top, rel);
+        if (fs.statSync(at, { throwIfNoEntry: false })?.isDirectory() && !onGithub(top, rel)) note(abs, i, `${rel}/`, 'only on this computer (not on GitHub)');
+      }
+      for (const m of line.matchAll(WS_CODE)) {
+        const rel = m[1].replace(/[.,;:)]+$/, '');
+        if (fs.existsSync(path.join(workspace, rel))) note(abs, i, rel, "in your workspace's extensions/, which no space carries");
+      }
+    });
+  };
+  if (fs.existsSync(skillDir)) walk(skillDir);
+  return [...found.values()];
+}
+
+/** Says what code a skill needs that won't travel with it, and how to bring it along. */
+export function showCodeOutside(name, list) {
+  if (!list.length) return;
+  console.log(`⚠ ${name} uses code that won't travel with it (other computers and cloud sessions won't have it):`);
+  for (const c of list) console.log(`    ${c.ref}  ${c.why} (${c.file}:${c.line})`);
+  console.log(`  Move it into the skill (skills/${name}/, e.g. skills/${name}/engine/), import it as @mediamake/skills/${name}/… ,`);
+  console.log('  and point the SKILL.md at the new place. A framework change everyone needs goes in a pull request instead.');
 }
 
 /* ---------- items ---------- */
@@ -503,7 +575,10 @@ function acceptInvites(repos) {
 
 /* ---------- what MediaMake is told ---------- */
 
-/** The report: the repo's name, this computer's label, the commit, and each item's name, version, title and summary. */
+/**
+ * The report: the repo's name, this computer's label, the commit and its last commits, each item's name,
+ * version, title and summary, and for a space (not a linked item) what the app's Code tab shows.
+ */
 export function spaceReport(space, env = process.env) {
   const state = gitState(space.dir);
   return {
@@ -514,6 +589,7 @@ export function spaceReport(space, env = process.env) {
     branch: state.branch,
     ...(state.commit && { commit: state.commit, commitAt: state.commitAt }),
     pushed: state.upstream && state.ahead === 0 && !state.dirty,
+    ...(state.hasHead && { ahead: state.ahead, history: commitsOf(space.dir) }),
     items: spaceItems(space.dir).map(item => ({
       kind: item.kind,
       name: item.name,
@@ -523,7 +599,184 @@ export function spaceReport(space, env = process.env) {
       ...(item.changed && { changed: true }),
       ...(item.media.length && { media: item.media.length }),
     })),
+    ...(!space.item && { code: spaceCode(space.dir) }),
   };
+}
+
+/** How many commits a report names: enough to say how far behind a computer is. */
+export const HISTORY = 30;
+/** How many file paths a report names at most. */
+export const MAX_REPORT_FILES = 2000;
+const README_MAX = 32 * 1024;
+
+/** The last commits here, newest first: { sha (12), at, author, subject }. */
+export function commitsOf(dir, count = HISTORY) {
+  const r = git(dir, ['log', `-${count}`, '--format=%H%x1f%cI%x1f%an%x1f%s']);
+  if (!r.ok) return [];
+  return r.out
+    .split('\n')
+    .filter(Boolean)
+    .map(line => {
+      const [sha, at, author, subject] = line.split('\x1f');
+      return { sha: sha.slice(0, 12), at, author: author.slice(0, 80), subject: subject.slice(0, 120) };
+    });
+}
+
+/** Every file of the space as git has it (committed or new; ignored files aren't the space's), sorted. */
+export function spaceFiles(dir) {
+  const r = git(dir, ['ls-files', '-co', '--exclude-standard', '-z']);
+  if (!r.ok) return [];
+  return [...new Set(r.out.split('\0').filter(Boolean))].filter(file => fs.existsSync(path.join(dir, file))).sort();
+}
+
+/** The space's README.md (any case), or null. */
+function readmeFile(dir) {
+  try {
+    const name = fs.readdirSync(dir).find(n => /^readme\.md$/i.test(n));
+    return name ? path.join(dir, name) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the app's Code tab shows of a space, like GitHub's front page of it: every file's path (never its
+ * contents) and the README.md, which says what the code is.
+ */
+export function spaceCode(dir) {
+  const files = spaceFiles(dir);
+  const readme = readmeFile(dir);
+  const text = readme ? fs.readFileSync(readme, 'utf8') : '';
+  return {
+    files: files.slice(0, MAX_REPORT_FILES),
+    ...(files.length > MAX_REPORT_FILES && { truncated: true }),
+    ...(text.trim() && { readme: text.slice(0, README_MAX) }),
+  };
+}
+
+/* ---------- the README's list of what's here ---------- */
+
+export const CONTENTS_START = '<!-- mm:contents: mm space push keeps this list up to date. Write about the space above or below it. -->';
+export const CONTENTS_END = '<!-- /mm:contents -->';
+const CONTENTS_BLOCK = /<!-- mm:contents[^>]*-->[\s\S]*?<!-- \/mm:contents -->\n?/;
+
+/** Words a person would say for what is at the top of a space, when its own file doesn't say. */
+const KNOWN = {
+  'CLAUDE.md': 'what Claude follows in every session of this space',
+  'AGENTS.md': 'what Claude follows in every session of this space',
+  'prefs.md': 'the taste every production of this space follows',
+  '.gitignore': null,
+};
+
+/** The first thing a Markdown file says about itself: its first paragraph, else its first heading. */
+export function firstWords(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, 'utf8').slice(0, 64 * 1024);
+  } catch {
+    return undefined;
+  }
+  const lines = text.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n/, '').replace(CONTENTS_BLOCK, '').split('\n');
+  let heading;
+  const paragraph = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (paragraph.length && !line) break;
+    if (!line || line.startsWith('<!--') || line.startsWith('```')) continue;
+    if (/^#{1,6}\s/.test(line)) {
+      if (paragraph.length) break;
+      heading ??= line.replace(/^#+\s*/, '');
+      continue;
+    }
+    if (/^([-*+]|\d+\.)\s|^[|>]/.test(line) && !paragraph.length) {
+      if (heading) break;
+      continue;
+    }
+    paragraph.push(line);
+  }
+  const plain = s =>
+    s
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/[*`]/g, '')
+      .replace(/(^|[\s(])_+(?=\S)|(?<=\S)_+(?=[\s.,;:!?)]|$)/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const said = plain(paragraph.join(' ')) || plain(heading ?? '');
+  if (!said) return undefined;
+  const sentence = said.match(/^.{20,160}?[.!?](\s|$)/)?.[0].trim();
+  return sentence ?? (said.length > 160 ? `${said.slice(0, 157).trimEnd()}…` : said);
+}
+
+const md = s => s.replace(/([\\`*[\]<>])/g, '\\$1');
+const mdLink = (label, target) => `[\`${label}\`](${target.split('/').map(encodeURIComponent).join('/')})`;
+
+/**
+ * The README's "What's here": every file and folder at the top of the space with what it is (a Markdown
+ * file's first words, a folder's own README.md, a package.json's description, or its file count), then
+ * each skill, MCP and app with its summary. Built from the files, so it is never out of date.
+ */
+export function contentsBlock(dir, files = spaceFiles(dir)) {
+  const top = new Map();
+  for (const file of files) {
+    const [first, ...rest] = file.split('/');
+    if (Object.values(KINDS).includes(first) || /^readme\.md$/i.test(first) || first.startsWith('.')) continue;
+    const entry = top.get(first) ?? { name: first, folder: rest.length > 0, files: 0 };
+    entry.files += rest.length > 0 ? 1 : 0;
+    top.set(first, entry);
+  }
+  const lines = [CONTENTS_START, "## What's here", ''];
+  const entries = [...top.values()].sort((a, b) => Number(b.folder) - Number(a.folder) || a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const at = path.join(dir, entry.name);
+    let about;
+    if (entry.folder) {
+      const own = readmeFile(at);
+      const pkg = readJson(path.join(at, 'package.json'));
+      about = (own && firstWords(own)) ?? (typeof pkg.description === 'string' && pkg.description.trim() ? pkg.description.trim() : undefined);
+      about = `${about ? `${about.replace(/\.$/, '')} ` : ''}(${plural(entry.files, 'file')})`;
+    } else if (entry.name in KNOWN && KNOWN[entry.name] === null) continue;
+    else if (entry.name === 'package.json') about = readJson(at).description;
+    else if (/\.md$/i.test(entry.name)) about = firstWords(at) ?? KNOWN[entry.name];
+    else about = KNOWN[entry.name];
+    lines.push(`- ${mdLink(entry.folder ? `${entry.name}/` : entry.name, entry.name)}${about ? `: ${md(String(about))}` : ''}`);
+  }
+  if (!entries.length) lines.push('Nothing at the top yet. Guidance every production follows (a CLAUDE.md, prefs.md) and shared code go here, beside the folders below.');
+  const items = spaceItems(dir);
+  for (const [kind, folder] of Object.entries(KINDS)) {
+    const list = items.filter(item => item.kind === kind);
+    if (!list.length) continue;
+    lines.push('', `### ${KIND_TITLE[kind]}`, '');
+    for (const item of list) {
+      const about = item.summary && item.summary !== item.title ? `${item.title}. ${item.summary}` : item.title;
+      lines.push(`- ${mdLink(item.name, `${folder}/${item.name}`)}: ${md(about)}`);
+    }
+  }
+  if (!items.length) lines.push('', 'No skills, MCPs or apps yet: they go in `skills/<name>/`, `mcps/<name>/` and `apps/<name>/`.');
+  lines.push('', CONTENTS_END);
+  return `${lines.join('\n')}\n`;
+}
+
+/** A README with its "What's here" brought up to date: the list replaced, or put after the opening paragraph. */
+export function withContents(readme, block) {
+  if (CONTENTS_BLOCK.test(readme)) return readme.replace(CONTENTS_BLOCK, block);
+  const lines = readme.replace(/\r\n/g, '\n').split('\n');
+  let at = lines.findIndex(line => /^#\s/.test(line));
+  if (at < 0) return `${block}\n${readme}`;
+  at++;
+  while (at < lines.length && !lines[at].trim()) at++;
+  if (at < lines.length && !/^#{1,6}\s|^([-*+]|\d+\.)\s/.test(lines[at])) while (at < lines.length && lines[at].trim()) at++;
+  const before = lines.slice(0, at).join('\n').replace(/\n+$/, '');
+  const after = lines.slice(at).join('\n').replace(/^\n+/, '');
+  return `${before}\n\n${block}${after ? `\n${after}` : ''}`;
+}
+
+/** The README as it should be, or null when it already is. A space with none gets one. */
+export function readmeUpdate(space) {
+  if (space.item) return null;
+  const file = readmeFile(space.dir) ?? path.join(space.dir, 'README.md');
+  const now = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : README(space.repo, space.project);
+  const next = withContents(now, contentsBlock(space.dir));
+  return next === now && fs.existsSync(file) ? null : { file, text: next };
 }
 
 /** Sends the reports when this computer is signed in and reports are on. Never fails the command it follows. */
@@ -555,14 +808,17 @@ const say = (loud, message) => {
 
 const README = (repo, project) => `# ${repo.split('/').pop()}
 
-${project ? `The MediaMake space of the project ${project.name}: the skills, MCPs and apps made for it, the same for everyone on it.` : 'My MediaMake space: my own skills, MCPs and apps, the same on every computer.'}
+${project ? `The MediaMake space of the project ${project.name}: the skills, MCPs and apps made for it, and what guides every production of it, the same for everyone on it.` : 'My MediaMake space: my own skills, MCPs and apps, the same on every computer.'}
 
-- \`skills/<name>/SKILL.md\`: a skill, with anything it needs beside it
+## How this space works
+
+- \`skills/<name>/SKILL.md\`: a skill, with everything it needs beside it (its own code in \`skills/<name>/engine/\`, imported as \`@mediamake/skills/<name>/…\`)
 - \`mcps/<name>/\`, \`apps/<name>/\`: an MCP or an app, with an \`item.json\` (\`title\`, \`summary\`, \`version\`, \`media\`)
+- At the top, beside them: what guides and runs every production (a \`CLAUDE.md\`, \`prefs.md\`, shared code). A folder here gets a README.md whose first line says what it is.
 
-\`mm space sync\` brings what others pushed and shows what would go up; \`mm space sync --yes\` sends it.
-Large media stays out of git: it goes through the media library, and an item names what it needs
-under \`media\` in its \`item.json\`.
+\`mm space sync\` brings what others pushed and shows what would go up; \`mm space sync --yes\` sends it, and brings
+the list above up to date. Large media stays out of git: it goes through the media library, and an item names
+what it needs under \`media\` in its \`item.json\`.
 `;
 const GITIGNORE = `.DS_Store
 node_modules/
@@ -600,8 +856,8 @@ async function cloneSpace(target, dir, env, { ssh = false, project, item = false
       fs.mkdirSync(path.join(dir, folder), { recursive: true });
       fs.writeFileSync(path.join(dir, folder, '.gitkeep'), '');
     }
-    fs.writeFileSync(path.join(dir, 'README.md'), README(target.repo, project));
     fs.writeFileSync(path.join(dir, '.gitignore'), GITIGNORE);
+    fs.writeFileSync(path.join(dir, 'README.md'), withContents(README(target.repo, project), contentsBlock(dir)));
     must(dir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
     must(dir, ['add', '-A']);
     must(dir, [...identity(dir, env), 'commit', '-q', '-m', 'Start the space: skills, mcps, apps']);
@@ -957,7 +1213,12 @@ function pushPlan(space, flags) {
   }
   const { large, secrets } = pushProblems(space.dir, files);
   const blocked = large.length > 0 || (secrets.length > 0 && !flags.includes('--force'));
-  return { state, files, byItem, large, secrets, blocked };
+  // a skill going up should carry its code: name what it uses that only this computer has
+  const code = [...byItem.keys()]
+    .filter(k => k.startsWith(`${KINDS.skill}/`))
+    .map(k => ({ name: k.split('/')[1], list: codeOutside(path.join(space.dir, k)) }))
+    .filter(c => c.list.length);
+  return { state, files, byItem, large, secrets, blocked, code, readme: !!readmeUpdate(space) };
 }
 
 function showPlan(space, plan, flags, yes) {
@@ -968,6 +1229,7 @@ function showPlan(space, plan, flags, yes) {
     console.log(`  ${item}  ${parts.join(', ')}`);
     if (flags.includes('--files')) for (const f of list) console.log(`      ${f.change.padEnd(7)} ${f.path}`);
   }
+  if (plan.readme) console.log("  README.md  its list of what's here is brought up to date");
   if (plan.state.behind) console.log(`  GitHub has ${plural(plan.state.behind, 'change')} this computer doesn't: they are pulled first.`);
   for (const p of plan.large) console.log(`✖ ${p}`);
   for (const p of plan.secrets) console.log(`${flags.includes('--force') ? '⚠' : '✖'} ${p}`);
@@ -976,6 +1238,7 @@ function showPlan(space, plan, flags, yes) {
     console.log('  remove it from the space (or add it to .gitignore), and share it with mm media share / mm media sync.');
   }
   if (plan.secrets.length && !flags.includes('--force')) console.log('  Take the key out (name an env var instead), or add --force if it is not a key.');
+  for (const c of plan.code ?? []) showCodeOutside(c.name, c.list);
 }
 
 /** Sends one space: everything this computer has that GitHub doesn't, as one commit. */
@@ -986,6 +1249,13 @@ function pushOne(space, plan, env, message) {
   commitLocal(dir, env, what);
   const state = gitState(dir);
   if (state.upstream && state.behind) rebase(dir, env, state.branch);
+  // the README's list of what's here, written once GitHub's changes are in: two computers never conflict over it
+  const readme = readmeUpdate(space);
+  if (readme) {
+    fs.writeFileSync(readme.file, readme.text);
+    must(dir, ['add', '--', path.relative(dir, readme.file)]);
+    if (!state.upstream) must(dir, [...identity(dir, env), 'commit', '-q', '-m', what]);
+  }
   if (state.upstream) {
     must(dir, ['reset', '-q', '--soft', `origin/${state.branch}`]);
     if (git(dir, ['diff', '--cached', '--quiet']).ok) return console.log(`✔ ${space.label}: GitHub already has it`);
@@ -1442,6 +1712,7 @@ async function add(args, flags, env) {
   if (!ITEM_NAME.test(name) || !st) throw new Error(`No skill "${name}" in ${tilde(ownSkillsDir())}.`);
   if (st.isSymbolicLink()) throw new Error(localSpaces(env).some(s => inside(real(path.join(s.dir, 'skills')), real(from))) ? `${name} is already in a space.` : `${tilde(from)} is a link, not a skill folder.`);
   if (!fs.existsSync(path.join(from, 'SKILL.md'))) throw new Error(`${tilde(from)} has no SKILL.md.`);
+  showCodeOutside(name, codeOutside(from));
   if (!flags.includes('--yes')) {
     console.log(`Would move ${tilde(from)} into your space and leave a link in its place, so Claude keeps loading it.`);
     if (!localSpaces(env).some(s => s.id === 'mine')) console.log('Your space would be made first: a private repo on your GitHub, mediamake-space.');

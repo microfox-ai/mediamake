@@ -49,11 +49,46 @@ skills/<name>/SKILL.md      a skill, with anything it needs beside it (code, sma
 mcps/<name>/                an MCP: its code, a README that says how to run it, an item.json
 apps/<name>/                an app, the same way
 <kind>/<name>/item.json     optional: { "title", "summary", "version", "media": ["<library id>"] }
+CLAUDE.md, prefs.md, engine/ …   the space's central files: what guides and runs every production
+README.md                   what the space is, and "What's here": a list `mm space push` keeps up to date
 ```
+
+**On the space's page** the tabs are Code, Skills (the skills, MCPs and apps, a card each), Brand
+(the brand kit: colours, fonts and a card per file; owners and editors change it in a dialog),
+Productions, Releases, Media, People and Set up. **Code** is the repo as GitHub shows it: the branch and
+the latest commit over the file list (folders open in place, a file opens on GitHub), the README under
+it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
+and Devices (each computer that has the space, and how many updates it is behind the newest one or has
+not sent). It comes from the computer furthest along: a computer reports the repo's file paths, its
+README and its last commits, never another file's contents.
+
+**Central files** are whatever sits at the top of the repo beside `skills/`, `mcps/` and `apps/`: the
+guidance, prefs and shared code that every production of the space follows. Static files (pictures,
+clips, fonts) are not code: they go in Media.
+
+**The README says what is in the code.** Its opening paragraph (the About box) says what the space is
+for, in the space's own words. Under it, between `<!-- mm:contents -->` markers, "What's here" lists each
+file and folder at the top with what it is (a Markdown file's first sentence, a folder's own
+README.md, a package.json's description), then each skill, MCP and app with its summary. `mm space push`
+rewrites that list after it has brought in GitHub's changes, so two computers never conflict over it;
+everything outside the markers is written by people (and Claude), never rewritten. A folder of shared
+code gets a README.md whose first sentence says what it is.
+
+**Two people on the same space.** `mm space sync --yes` first keeps this computer's edits as a commit
+here, brings in GitHub's, and puts this computer's on top (a rebase). Changes to different files, or to
+different parts of one file, combine by themselves. When two computers changed the same lines, sync
+stops, changes nothing, names the files and asks Claude to merge them; nothing is lost, since this
+computer's edits are committed on it. Devices shows who has edits not sent yet.
 
 An item's version is `version` in its `item.json`, else the SKILL.md's
 (`version` or `metadata.version`) or the `package.json`'s, else a short hash
 that the app doesn't show.
+
+A skill is its whole folder: its SKILL.md and everything it needs to run, its code
+(`skills/<name>/engine/…`, which a project imports as `@mediamake/skills/<name>/…`), scripts and small
+assets. `mm space add` and `mm space sync` name any code a skill uses that only this computer has, so it
+moves into the skill before it goes up. A cloud session gets a space by having its repo added to the
+environment (`mm cloud`, `apps/studio/README.md` › Cloud sessions).
 
 ## On a computer
 
@@ -308,14 +343,18 @@ usage reports are on (`mm usage`):
 
 ```
 PUT /api/space
-{ device, repo, project?, branch, commit, commitAt, pushed,
-  items: [{ kind, name, version, title, summary, changed, media }] }
+{ device, repo, project?, branch, commit, commitAt, pushed, ahead,
+  history: [{ sha, at, author, subject }],          the last 30 commits
+  items: [{ kind, name, version, title, summary, changed, media }],
+  code: { files: ["<path in the repo>"], truncated?, readme } }   a space's, not a linked item's
 ```
 
 `device` is the computer's random label (`mac-3f9a`), `repo` its name
 (`owner/name`), `project` the project's id for a project's space, `summary`
-one line of at most 200 characters, `media` a count. Never a file, a path or a
-token; the server drops anything else (`lib/space/space.ts`). `mm usage off`
+one line of at most 200 characters, `media` a count, `ahead` the commits not on
+GitHub yet. `code` is what the Code tab shows: the repo's file paths (at most
+2,000) and its README.md (at most 32 KB). Never another file, a path on the
+computer or a token; the server drops anything else (`lib/space/space.ts`). `mm usage off`
 stops it, `mm space report --dry` shows it exactly, `mm space forget` deletes
 it.
 

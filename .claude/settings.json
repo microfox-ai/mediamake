@@ -9,6 +9,11 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/tools/git-health.mjs\" --hook",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/cloud.mjs\" --hook",
+            "timeout": 30
           }
         ]
       }

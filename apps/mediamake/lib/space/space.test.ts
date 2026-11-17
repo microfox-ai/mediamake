@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyReport, deviceName, dropDevice, parseSpaceReport, projectOf, projectSpaceId, spaceView, userSpaceId, type SpaceReport, type SpaceState } from './space';
+import { applyReport, commitsBehind, deviceName, dropDevice, parseSpaceReport, projectOf, projectSpaceId, spaceCodeView, spaceView, userSpaceId, type SpaceReport, type SpaceState } from './space';
 
 const MINE = userSpaceId('me');
 const PROJECT = 'aaaaaaaaaaaaaaaaaaaaaaaa';
@@ -167,5 +167,59 @@ describe('deviceName', () => {
     assert.equal(deviceName('mac-3f9a'), 'Mac 3f9a');
     assert.equal(deviceName('linux-00ff', 'Asha'), "Asha's Linux PC 00ff");
     assert.equal(deviceName('computer'), 'computer');
+  });
+});
+
+describe('the Code tab', () => {
+  const sha = (n: number) => n.toString(16).padStart(12, 'a');
+  /** Commits n..1, newest first, the way git log lists them. */
+  const log = (n: number, author = 'Ann') => Array.from({ length: n }, (_, i) => ({ sha: sha(n - i), at: `2026-11-${String(10 + ((n - i) % 15)).padStart(2, '0')}T10:00:00Z`, author, subject: `Change ${n - i}` }));
+
+  it('keeps paths inside the repo, the README and the last commits; nothing else', () => {
+    const parsed = parseSpaceReport({
+      device: 'mac-1',
+      repo: 'me/mediamake-space',
+      pushed: true,
+      ahead: 2,
+      items: [],
+      history: [...log(2), { sha: 'not a sha', at: '2026-11-17T10:00:00Z' }, { sha: 'abcdef1', at: 'never' }],
+      code: { files: ['prefs.md', 'engine/Cat.tsx', '../etc/passwd', '/abs', 'a/./b', 'a\\b', 'prefs.md', 'skills/a/SKILL.md'], readme: '# Hi', secret: 'x' },
+    });
+    assert.ok(!('error' in parsed));
+    const r = parsed as SpaceReport;
+    assert.deepEqual(r.code, { files: ['engine/Cat.tsx', 'prefs.md', 'skills/a/SKILL.md'], readme: '# Hi' });
+    assert.deepEqual(r.history!.map(c => c.subject), ['Change 2', 'Change 1']);
+    assert.equal(r.ahead, 2);
+  });
+
+  it('follows the computer furthest along, and says how far behind each computer is', () => {
+    let state = after(empty, report('mac-1', { commit: sha(5), commitAt: '2026-11-17T10:00:00Z', history: log(5), code: { files: ['prefs.md'] } }), '2026-11-17T10:00:00Z');
+    // a computer behind doesn't replace the files; it is 3 updates behind
+    state = after(state, report('pc-1', { commit: sha(2), commitAt: '2026-11-12T10:00:00Z', history: log(2), code: { files: [] } }), '2026-11-17T11:00:00Z');
+    let code = spaceCodeView(state.space!, 'me');
+    assert.deepEqual(code.files, ['prefs.md']);
+    assert.deepEqual(code.devices.map(d => [d.name, d.behind, d.ahead]), [['Mac 1', 0, 0], ['pc-1', 3, 0]]);
+    assert.deepEqual(code.commits.map(c => c.subject).slice(0, 2), ['Change 5', 'Change 4']);
+
+    // one ahead takes over, with its commits not on GitHub yet marked
+    const ahead = [{ sha: sha(7), at: '2026-11-18T10:00:00Z', author: 'pc-1', subject: 'Mine' }, { sha: sha(6), at: '2026-11-18T09:00:00Z', author: 'Ann', subject: 'Theirs' }, ...log(5)];
+    state = after(state, report('pc-1', { commit: sha(7), commitAt: '2026-11-18T10:00:00Z', pushed: false, ahead: 1, history: ahead, code: { files: ['CLAUDE.md'], readme: '# x' } }), '2026-11-18T10:00:00Z');
+    code = spaceCodeView(state.space!, 'me');
+    assert.deepEqual(code.files, ['CLAUDE.md']);
+    assert.equal(code.readme, '# x');
+    assert.equal(code.from?.key, 'me/pc-1');
+    assert.deepEqual(code.commits.slice(0, 2).map(c => [c.subject, c.by, c.local ?? false]), [['Mine', 'pc-1', true], ['Theirs', 'Ann', false]]);
+    assert.deepEqual(code.devices.map(d => [d.key, d.behind, d.ahead, d.pushed]), [['me/pc-1', 0, 1, false], ['me/mac-1', 2, 0, true]]);
+
+    // one that sends nothing keeps them; one with no commit in common is further behind than the reports reach
+    state = after(state, report('pc-1', { commit: sha(7), commitAt: '2026-11-18T10:00:00Z', history: ahead }), '2026-11-18T11:00:00Z');
+    assert.deepEqual(spaceCodeView(state.space!, 'me').files, ['CLAUDE.md']);
+    assert.equal(commitsBehind({ commit: 'ffffffffffff', history: ['ffffffffffff'] }, { commit: sha(7), history: [sha(7)] }), null);
+    assert.equal(commitsBehind({ commit: sha(7) }, { commit: sha(7) }), 0);
+  });
+
+  it('is left out of the lists: only the space has it', () => {
+    const state = after(empty, report('mac-1', { history: log(1), code: { files: ['a.md'] } }), '2026-11-17T10:00:00Z');
+    assert.ok(!('code' in spaceView(state, 'me')!));
   });
 });

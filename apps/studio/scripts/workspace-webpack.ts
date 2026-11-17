@@ -17,13 +17,14 @@
  *   aliased there, as if the workspace were laid over the studio. TypeScript gets the same view from
  *   `rootDirs` (a workspace tsconfig, written by mm migrate). This bridge is for projects that still
  *   import the engine by path: `mm engine codemod` (or mm migrate) gives them its names.
- * - The engine's names (@mediamake/engine/…, engine.ts) always mean this studio's folders (engineWebpack).
+ * - The engine's names (@mediamake/engine/…, engine.ts) always mean this studio's folders, and
+ *   @mediamake/skills/<skill>/… the workspace's skills/ (a skill's own code, from a space) (engineWebpack).
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import webpack from 'webpack';
-import { engineAliases, readEngine } from './engine.ts';
+import { SKILLS, engineAliases, readEngine, skillsDir } from './engine.ts';
 import { WORKSPACE_FOLDERS, workspaceDirs, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 /** The require.context folders, as the studio names them, and the workspace folder each one reads. */
@@ -101,9 +102,14 @@ type Resolve = { modules?: unknown[]; alias?: unknown };
  * the studio being bundled. `table`: another studio's names, for a studio from before they existed.
  */
 export const engineWebpack = <C extends AnyConfig>(config: C, studio: string, table = readEngine(studio)): C => {
-  const names = engineAliases(studio, table);
-  if (!Object.keys(names).length) return config;
+  // a skill's own code (@mediamake/skills/<skill>/…) lives in a space, outside the checkout: it finds
+  // its packages (react, remotion…) in the studio's and the repo's node_modules
+  const engine = engineAliases(studio, table);
+  if (!Object.keys(engine).length) return config;
+  const names = { ...engine, [SKILLS]: skillsDir(studio) };
   const resolve = (config.resolve ?? {}) as Resolve;
+  const modules = resolve.modules ?? ['node_modules'];
+  const more = [path.join(studio, 'node_modules'), path.join(studio, '..', '..', 'node_modules')].filter(m => !modules.includes(m));
   if (Array.isArray(resolve.alias)) throw new Error('engineWebpack: resolve.alias as an array is not supported');
   // webpack's filesystem cache keeps what imports resolved to: new names start a new cache
   const cache = config.cache as { type?: string; version?: string } | undefined;
@@ -111,7 +117,7 @@ export const engineWebpack = <C extends AnyConfig>(config: C, studio: string, ta
   return {
     ...config,
     ...(cache && typeof cache === 'object' && cache.type === 'filesystem' ? { cache: { ...cache, version: [cache.version, tag].filter(Boolean).join('-') } } : {}),
-    resolve: { ...resolve, alias: { ...(resolve.alias as Record<string, unknown> | undefined), ...names } },
+    resolve: { ...resolve, modules: [...modules, ...more], alias: { ...(resolve.alias as Record<string, unknown> | undefined), ...names } },
   } as C;
 };
 

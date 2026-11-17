@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ENGINE = '@mediamake/engine';
+const SKILLS = '@mediamake/skills';
 
 /**
  * studio: this studio; overlay: { root, studio } of a workspace outside it, or null; own: the
@@ -53,7 +54,24 @@ const studioTarget = abs => {
   return path.join(studio, ...rel);
 };
 
+/** engine.ts skillFile: @mediamake/skills/<skill>/<file> in the workspace's skills/ */
+const skillFile = spec => {
+  const rest = spec.slice(SKILLS.length + 1).split('/').filter(Boolean);
+  if (!at.skills || !rest.length || rest.includes('..')) return null;
+  const base = path.join(at.skills, ...rest);
+  return at.suffixes.map(s => base + s).find(isFile) ?? null;
+};
+
 export async function resolve(specifier, context, next) {
+  if (at && specifier.startsWith(`${SKILLS}/`)) {
+    const file = skillFile(specifier);
+    if (!file) {
+      const e = new Error(`Cannot find ${specifier} in your skills (${at.skills})`);
+      e.code = 'ERR_MODULE_NOT_FOUND';
+      throw e;
+    }
+    return next(pathToFileURL(file).href, context);
+  }
   if (at && (specifier === ENGINE || specifier.startsWith(`${ENGINE}/`))) {
     const file = engineFile(specifier);
     if (!file) {
@@ -66,9 +84,13 @@ export async function resolve(specifier, context, next) {
   try {
     return await next(specifier, context);
   } catch (e) {
-    if (!at?.overlay || e?.code !== 'ERR_MODULE_NOT_FOUND' || !context.parentURL?.startsWith('file:')) throw e;
+    if (!at || e?.code !== 'ERR_MODULE_NOT_FOUND' || !context.parentURL?.startsWith('file:')) throw e;
     const parent = fileURLToPath(context.parentURL);
-    if (!inside(at.overlay.root, parent)) throw e;
+    const bare = !specifier.startsWith('.') && !specifier.startsWith('/') && !/^[a-z]+:/i.test(specifier);
+    // a skill's own code lives in a space (outside the checkout): its packages are the studio's
+    if (bare && (!at.overlay || !inside(at.overlay.root, parent)) && !inside(at.studio, parent))
+      return next(specifier, { ...context, parentURL: pathToFileURL(path.join(at.studio, 'package.json')).href });
+    if (!at.overlay || !inside(at.overlay.root, parent)) throw e;
     if (specifier.startsWith('.')) {
       // the engine, imported relatively as if the workspace were apps/studio
       const to = studioTarget(path.resolve(path.dirname(parent), specifier));

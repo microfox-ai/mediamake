@@ -207,7 +207,43 @@ The full list is at https://www.remotion.dev/docs/cli/render. Every render is lo
 - **Studio loads what you open.** `mm preview <slug>` opens Studio with one project; with no slug,
   each project's code and fonts load when its composition is opened.
 
+### Cloud sessions
+
+A project that needs nothing from your computer (pure code, or files it fetches itself) is built and
+rendered in a Claude Code cloud session (claude.ai/code, a project thread, a routine), in the session's
+own machine. Never on Lambda.
+
+```bash
+mm cloud                    # set the session up (safe to run again; the session-start hook does the quick part)
+mm cloud status             # what is set up, changing nothing
+mm render <slug> --preview  # renders here, as on a computer
+mm cloud deliver <slug>     # the renders and the project's code → the project's shared files (or --to=<folder>)
+```
+
+`mm cloud` (`tools/cloud.mjs`) sets the workspace (`~/MediaMake`), installs what is missing (`npm ci`,
+`@microfox/remotion`), links `mm`, and points renders at the machine's Chrome Headless Shell through a
+wrapper that sends it through the session's proxy (`browser` in `~/.mediamake/config.json`; `mm` passes
+it as `MM_BROWSER`). Your skills come from your space: add `<you>/mediamake-space` (and a project's
+`<owner>/mediamake-<project>`, a linked item's `<owner>/mediamake-<kind>-<name>`) to the cloud
+environment's repositories, so the session clones them beside this checkout; `mm cloud` links them into
+the workspace and Claude. Skills linked during a session load in the next one; read their SKILL.md until
+then. A session's machine is thrown away afterwards: `mm cloud deliver` copies the renders and the
+project's code (no analysis or media over 2 MB) to where you can get them, and changes to a skill go back
+with `mm space sync --yes`. Not yet in a cloud session: Browse Hack, Midjourney, anything signed in on
+your computer, media only in your library there.
+
+**A skill's own code.** A skill carries its code in its own folder (`skills/<name>/engine/…`, scripts
+beside it), so its space takes it everywhere. A project imports it by name, the same on every computer
+and in the cloud: `import { Cat } from '@mediamake/skills/<name>/engine/Cat'` (the workspace's
+`skills/<name>`, which links into the space). Its packages (react, remotion, `@mediamake/engine`) are the
+studio's. `mm space add` and `mm space sync` name any code a skill uses that only this computer has (a
+folder under `apps/studio/src` that isn't on GitHub, the workspace's `extensions/`): move it into the
+skill.
+
 ### On Lambda
+
+> Not used: the user doesn't want Lambda renders (2026-11-17). Render here or in a cloud session
+> (Cloud sessions, below); this is kept only for someone who asks for Lambda by name.
 
 `--lambda` renders the same thing on Remotion Lambda through mediamake, into the same files, and
 prints what it cost. The render itself goes through mediamake's API (`/api/remotion/render` and

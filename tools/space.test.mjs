@@ -313,6 +313,7 @@ test('push is a dry run until --yes, then the other computer gets the skill link
   assert.match(dry.out, /Would push to me\/my-space \(your space\)/);
   assert.match(dry.out, /skills\/make-my-intro {2}1 new/);
   assert.match(dry.out, /A dry run/);
+  assert.match(dry.out, /README\.md {2}its list of what's here is brought up to date/);
   assert.ok(!remoteFiles().includes('skills/make-my-intro/SKILL.md'));
 
   const sent = await mac.space(['push', '--yes', '-m', 'My intro skill']);
@@ -327,7 +328,17 @@ test('push is a dry run until --yes, then the other computer gets the skill link
     ],
   );
   assert.equal(lastReport().body.items[1].media, 1);
-  // nothing but names, versions, titles and summaries: no paths, no file contents
+  // the README says what is in the space, its list written by the push
+  const readme = spawnSync('git', ['show', 'main:README.md'], { cwd: remote, encoding: 'utf8' }).stdout;
+  assert.match(readme, /## What's here[\s\S]*### Skills\n\n- \[`make-my-intro`\]\(skills\/make-my-intro\): Make my intro[\s\S]*### MCPs\n\n- \[`my-tools`\]\(mcps\/my-tools\): My tools\. Small helpers/);
+  assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: mac.dir, encoding: 'utf8' }).stdout, '');
+  // what the Code tab shows: the repo's paths, its README and its last commits; never a path on this computer
+  const { code, history, ahead } = lastReport().body;
+  assert.ok(code.files.includes('skills/make-my-intro/SKILL.md') && code.files.includes('mcps/my-tools/index.mjs'));
+  assert.match(code.readme, /What's here/);
+  assert.equal(history[0].subject, 'My intro skill');
+  assert.match(history[0].sha, /^[0-9a-f]{12}$/);
+  assert.equal(ahead, 0);
   assert.ok(!JSON.stringify(lastReport().body).includes(mac.home));
 
   const joined = await pc.space(['connect', remote]);

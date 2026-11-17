@@ -81,9 +81,11 @@ account reads and deletes only its own.
 
 A member with a space (`mm space`, `docs/private-spaces.md`) also reports what
 each space holds on each computer: the repo's name, the computer's label, the
-commit, and each item's kind, name, version, title and one-line summary, plus
-the project's id for a project's space (`PUT /api/space`, stored in `spaces`
-and `space_items`). Never a file or a token. The same switch stops it
+commit, each item's kind, name, version, title and one-line summary, and for
+the space's Code tab the paths of the repo's files, its README.md and its last
+30 commits (short id, time, the git author's name, subject), plus the project's
+id for a project's space (`PUT /api/space`, stored in `spaces` and
+`space_items`). Never another file's contents, a path on the computer or a token. The same switch stops it
 (`mm usage off`), `mm space report --dry` shows it, and `mm space forget`
 deletes it. Which repo is a project's space is told when someone makes it,
 whatever the switch says: the project's members need it to find the space.

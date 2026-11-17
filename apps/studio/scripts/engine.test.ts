@@ -24,6 +24,7 @@ import {
   tsPaths,
 } from './engine.ts';
 import { engineWebpack } from './workspace-webpack.ts';
+import { workspaceDir } from './workspace.ts';
 
 const STUDIO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const table = readEngine(STUDIO)!;
@@ -104,6 +105,9 @@ test('the bundles: aliases into this studio, and a cache that starts over when t
   assert.equal(out.resolve.alias.react, '/r');
   assert.equal(out.resolve.alias[`${ENGINE}/remix`], path.join(STUDIO, 'src/remix'));
   assert.match(out.cache.version, /^v1-engine-[0-9a-f]{8}$/);
+  // a skill's own code by name, and the studio's packages for it (it lives in a space, outside the checkout)
+  assert.equal((out.resolve.alias as Record<string, string>)['@mediamake/skills'], workspaceDir('skills', STUDIO));
+  assert.ok((out.resolve as unknown as { modules: string[] }).modules.includes(path.join(STUDIO, 'node_modules')));
   // another studio's names (golden.ts, for a commit from before engine.json) point at that studio's folders
   const other = engineWebpack(config, '/old/apps/studio', table) as typeof out;
   assert.equal(other.resolve.alias[`${ENGINE}/remix`], path.join('/old/apps/studio', 'src/remix'));
