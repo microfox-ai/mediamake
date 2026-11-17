@@ -55,6 +55,12 @@ An item's version is `version` in its `item.json`, else the SKILL.md's
 (`version` or `metadata.version`) or the `package.json`'s, else a short hash
 that the app doesn't show.
 
+A skill is its whole folder: its SKILL.md and everything it needs to run, its code
+(`skills/<name>/engine/…`, which a project imports as `@mediamake/skills/<name>/…`), scripts and small
+assets. `mm space add` and `mm space sync` name any code a skill uses that only this computer has, so it
+moves into the skill before it goes up. A cloud session gets a space by having its repo added to the
+environment (`mm cloud`, `apps/studio/README.md` › Cloud sessions).
+
 ## On a computer
 
 | | |

@@ -23,6 +23,8 @@ The limits and the weighing live in `lib/render-routing/limits.ts`, a file with 
 
 ## studio projects
 
+Not used: studio projects render on the computer or in a cloud session's own machine (`mm cloud`), never on Lambda, and nothing suggests it (the user's call, 2026-11-17). What follows is kept for someone who asks for Lambda by name.
+
 A lyrics project (`apps/studio/projects/<slug>`) renders on Lambda from one command, `mm render <slug> --lambda [--window=a-b]` (`apps/studio/scripts/lambda.ts`, documented in that app's README). It uses the same bucket, regions and function presets as the app (`config.mjs`), with its own site per project, `lyrics-<slug>`, whose public folder carries the project's inputs; the manifest goes in as inputProps.
 
 The render goes through `POST /api/remotion/render` with `siteName: "lyrics-<slug>[-<region>]"` (only sites of that shape are accepted; `frameRange: [from, to]`, `scale` and `crf` are the video options it takes, and a custom configuration may set `concurrencyPerLambda`; `/api/remotion/progress` polls the function the render ran on, `functionNameUsed`) and `GET /api/remotion/progress` until it is done, so it is a mediamake render like any other: Lambda access is checked, the render is in the user's history (`siteName` stored on it, tags `studio` and the slug), the cost lands in the platform's cost usage and the quota is counted. The script's `--direct` goes straight to AWS with the keys on the machine instead, outside those records.

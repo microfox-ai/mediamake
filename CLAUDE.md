@@ -42,6 +42,23 @@ Review renders are 10-second previews (`mm render <slug> --preview`, around what
 has the rest). The whole video is rendered only when the user asks to review all of it, and the master
 once, after they sign off.
 
+**No Lambda.** The user doesn't want Remotion Lambda renders (2026-11-17: "pretty bad, I don't ever want
+to use it"). Every render runs on this computer, or inside a cloud session's own machine (`mm cloud`,
+below). Never suggest `--lambda`, `mm lambda` or the render-cloud skill, never offer Lambda as an option,
+and never pick it to save time; the code stays only for a user who names Lambda themselves.
+
+## Cloud sessions: build and render without the Mac
+
+A project that needs nothing from the user's computer (pure code, or files it fetches itself) is built and
+rendered in a Claude Code cloud session from start to end. Run `mm cloud` first (`npm run mm -- cloud`
+before `mm` is linked): it checks the setup, sets the workspace, connects the user's space repos that the
+environment cloned and links their skills, and points renders at the machine's browser. It says what is
+missing (a space repo not added to the environment, a key). Renders run in the session's machine
+(`mm render <slug> --preview`, then the master). The files land in the workspace's `out/<slug>/`; give
+them to the user with `mm cloud deliver <slug>` (into the project's shared files when there are some). A
+project that needs Browse Hack, Midjourney or media only on the Mac is not for a cloud session yet.
+`apps/studio/README.md` › Cloud sessions has the details.
+
 ## Git: main stays a clean copy of GitHub
 
 What git ignores is the user's work (`apps/studio/projects/`, `out/`, `brands/`, `thumbnails/jobs/`,

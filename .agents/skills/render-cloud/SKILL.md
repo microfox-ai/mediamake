@@ -1,11 +1,15 @@
 ---
 name: render-cloud
-description: Render a studio project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud only as far as the limits need (never more than 500 MB; unused files out, a long clip cut to the stretch that plays, the song encoded or a clip re-encoded only when the pack is over 200 MB or the clip is bigger than the export), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use when the user says "render it on Lambda / in the cloud", "cloud render", "render this on AWS", "how much would it cost to render on Lambda", "/render-cloud <slug>", or a full-size render is too slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). New user feedback goes in your notes (mm notes add), never in this file.
+description: Only when the user names Lambda themselves; never suggest or offer it (the user doesn't want Lambda renders, 2026-11-17). Render a studio project (a lyric video, a waveform video, a remix, a short) on Remotion Lambda through MediaMake instead of this machine, from one command, with the cost reported — pack the project's media for the cloud only as far as the limits need (never more than 500 MB; unused files out, a long clip cut to the stretch that plays, the song encoded or a clip re-encoded only when the pack is over 200 MB or the clip is bigger than the export), pick the right Lambda function preset for the render, test a short window, then render the whole video only when the user says yes to the estimate. Needs a MediaMake API key with cloud rendering access, not the MediaMake MCP. Use only when the user says "render it on Lambda", "how much would it cost to render on Lambda" or "/render-cloud <slug>". Not for "render it in the cloud" (that is a cloud session: mm cloud) and never because a render is slow here. Not for the render itself when the user wants it on this Mac (render-project without --lambda). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: other
 ---
 
 # render-cloud
+
+> **Not used: never suggest it.** The user doesn't want Lambda renders (2026-11-17: "pretty bad, I
+> don't ever want to use it"). Renders run on this computer or in a cloud session's own machine
+> (`mm cloud`, CLAUDE.md). Follow this skill only when the user asks for Lambda by name.
 
 A lyrics project renders on Remotion Lambda through MediaMake from one command:
 

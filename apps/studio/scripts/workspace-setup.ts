@@ -15,6 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { SKILLS, readEngine, tsPaths } from './engine.ts';
 
 export const MARK = 'Written by mm (apps/studio/scripts/workspace-setup.ts)';
 
@@ -27,12 +28,19 @@ const lstat = (p: string) => {
 };
 
 /** The workspace's tsconfig.json for this studio. */
-export const workspaceTsconfig = (studio: string) =>
+export const workspaceTsconfig = (studio: string, table = readEngine(studio)) =>
   JSON.stringify(
     {
-      $comment: `${MARK} for the studio in ${studio}. Your projects type-check with its settings and its engine (@mediamake/engine), and imports of it by path (../../../src/kit) mean its src/kit (rootDirs). mm type-check runs it. Delete this line to keep your own edits.`,
+      $comment: `${MARK} for the studio in ${studio}. Your projects type-check with its settings and its engine (@mediamake/engine), a skill's own code is @mediamake/skills/<skill>/…, and imports of it by path (../../../src/kit) mean its src/kit (rootDirs). mm type-check runs it. Delete this line to keep your own edits.`,
       extends: path.join(studio, 'tsconfig.json'),
-      compilerOptions: { rootDirs: ['.', studio] },
+      // paths replace the studio's: the engine's names again (from the studio), and a skill's own code
+      compilerOptions: {
+        rootDirs: ['.', studio],
+        paths: {
+          ...Object.fromEntries(Object.entries(table ? tsPaths(table) : {}).map(([k, v]) => [k, v.map(p => path.join(studio, p))])),
+          [`${SKILLS}/*`]: ['./skills/*'],
+        },
+      },
       include: ['projects', 'brands/*/graphics', 'thumbnails/jobs', 'extensions'],
       exclude: ['node_modules', 'out'],
     },

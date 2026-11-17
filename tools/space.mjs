@@ -250,6 +250,76 @@ export function pushProblems(dir, files) {
   return { large, secrets };
 }
 
+/* ---------- a skill's own code ---------- */
+
+/** This checkout (the framework), for telling apart code on GitHub from code only on this computer. */
+const TOP = path.resolve(path.dirname(SELF), '..');
+const CODE_EXT = '(?:tsx?|jsx?|mjs|cjs|py|json|css|glsl|frag|vert)';
+/** A framework file a skill names: apps/<app>/…, packages/<pkg>/…, tools/…, or the studio's own folders. */
+const REPO_FILE = new RegExp(`(?<![\\w./@-])((?:apps/[\\w-]+|packages/[\\w-]+|tools)/[\\w.@/-]+?\\.${CODE_EXT}|(?:src|scripts|catalog|logoGraphics|thumbnails|analysis)/[\\w.@/-]+?\\.${CODE_EXT})(?![\\w])`, 'g');
+/** A studio code folder a skill names: (apps/studio/)src/<name>, scripts/<name> */
+const REPO_DIR = /(?<![\w./@-])((?:apps\/studio\/)?(?:src|scripts)\/[\w-]+)\/?(?![\w./-])/g;
+const WS_CODE = /(?<![\w./@-])(extensions\/[\w.@/-]+)/g;
+
+const onGithub = (top, rel) => {
+  for (const ref of ['origin/main', 'HEAD']) {
+    const r = git(top, ['cat-file', '-e', `${ref}:${rel}`]);
+    if (r.ok) return true;
+    if (git(top, ['rev-parse', '--verify', '-q', ref]).ok) return false;
+  }
+  return false;
+};
+
+/**
+ * Code a skill needs that a space doesn't carry: files and folders of the framework it names that are only
+ * on this computer (not on GitHub's main), and your workspace's extensions/. A space carries the skill's
+ * whole folder, so the fix is to move that code into the skill (skills/<name>/…) and import it as
+ * @mediamake/skills/<name>/… . Returns [{ file, line, ref, why }]; placeholders and files that exist
+ * nowhere are left alone.
+ */
+export function codeOutside(skillDir, { top = TOP, workspace = workspaceRoot() } = {}) {
+  const found = new Map();
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'dist') continue;
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) walk(abs);
+      else if (e.isFile() && TEXT_FILE.test(e.name) && fs.statSync(abs).size <= 2 * 1024 * 1024) scan(abs);
+    }
+  };
+  const note = (abs, i, ref, why) => {
+    if (!found.has(ref)) found.set(ref, { file: path.relative(skillDir, abs), line: i + 1, ref, why });
+  };
+  const scan = abs => {
+    fs.readFileSync(abs, 'utf8').split('\n').forEach((line, i) => {
+      for (const m of line.matchAll(REPO_FILE)) {
+        const rel = /^(apps|packages|tools)\//.test(m[1]) ? m[1] : `apps/studio/${m[1]}`;
+        if (fs.existsSync(path.join(top, rel)) && !onGithub(top, rel)) note(abs, i, rel, 'only on this computer (not on GitHub)');
+      }
+      for (const m of line.matchAll(REPO_DIR)) {
+        const rel = m[1].startsWith('apps/') ? m[1] : `apps/studio/${m[1]}`;
+        const at = path.join(top, rel);
+        if (fs.statSync(at, { throwIfNoEntry: false })?.isDirectory() && !onGithub(top, rel)) note(abs, i, `${rel}/`, 'only on this computer (not on GitHub)');
+      }
+      for (const m of line.matchAll(WS_CODE)) {
+        const rel = m[1].replace(/[.,;:)]+$/, '');
+        if (fs.existsSync(path.join(workspace, rel))) note(abs, i, rel, "in your workspace's extensions/, which no space carries");
+      }
+    });
+  };
+  if (fs.existsSync(skillDir)) walk(skillDir);
+  return [...found.values()];
+}
+
+/** Says what code a skill needs that won't travel with it, and how to bring it along. */
+export function showCodeOutside(name, list) {
+  if (!list.length) return;
+  console.log(`⚠ ${name} uses code that won't travel with it (other computers and cloud sessions won't have it):`);
+  for (const c of list) console.log(`    ${c.ref}  ${c.why} (${c.file}:${c.line})`);
+  console.log(`  Move it into the skill (skills/${name}/, e.g. skills/${name}/engine/), import it as @mediamake/skills/${name}/… ,`);
+  console.log('  and point the SKILL.md at the new place. A framework change everyone needs goes in a pull request instead.');
+}
+
 /* ---------- items ---------- */
 
 /** One item as its folder describes it. */
@@ -957,7 +1027,12 @@ function pushPlan(space, flags) {
   }
   const { large, secrets } = pushProblems(space.dir, files);
   const blocked = large.length > 0 || (secrets.length > 0 && !flags.includes('--force'));
-  return { state, files, byItem, large, secrets, blocked };
+  // a skill going up should carry its code: name what it uses that only this computer has
+  const code = [...byItem.keys()]
+    .filter(k => k.startsWith(`${KINDS.skill}/`))
+    .map(k => ({ name: k.split('/')[1], list: codeOutside(path.join(space.dir, k)) }))
+    .filter(c => c.list.length);
+  return { state, files, byItem, large, secrets, blocked, code };
 }
 
 function showPlan(space, plan, flags, yes) {
@@ -976,6 +1051,7 @@ function showPlan(space, plan, flags, yes) {
     console.log('  remove it from the space (or add it to .gitignore), and share it with mm media share / mm media sync.');
   }
   if (plan.secrets.length && !flags.includes('--force')) console.log('  Take the key out (name an env var instead), or add --force if it is not a key.');
+  for (const c of plan.code ?? []) showCodeOutside(c.name, c.list);
 }
 
 /** Sends one space: everything this computer has that GitHub doesn't, as one commit. */
@@ -1442,6 +1518,7 @@ async function add(args, flags, env) {
   if (!ITEM_NAME.test(name) || !st) throw new Error(`No skill "${name}" in ${tilde(ownSkillsDir())}.`);
   if (st.isSymbolicLink()) throw new Error(localSpaces(env).some(s => inside(real(path.join(s.dir, 'skills')), real(from))) ? `${name} is already in a space.` : `${tilde(from)} is a link, not a skill folder.`);
   if (!fs.existsSync(path.join(from, 'SKILL.md'))) throw new Error(`${tilde(from)} has no SKILL.md.`);
+  showCodeOutside(name, codeOutside(from));
   if (!flags.includes('--yes')) {
     console.log(`Would move ${tilde(from)} into your space and leave a link in its place, so Claude keeps loading it.`);
     if (!localSpaces(env).some(s => s.id === 'mine')) console.log('Your space would be made first: a private repo on your GitHub, mediamake-space.');

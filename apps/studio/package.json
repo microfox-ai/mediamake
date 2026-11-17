@@ -46,6 +46,7 @@
     "doctor": "node ../../tools/doctor.mjs",
     "usage": "node ../../tools/usage.mjs",
     "space": "node ../../tools/space.mjs",
+    "cloud": "node ../../tools/cloud.mjs",
     "items": "node ../../tools/items.mjs",
     "submit": "node ../../tools/submit.mjs",
     "login": "node ../../tools/login.mjs",

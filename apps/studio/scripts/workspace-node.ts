@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import { register } from 'node:module';
 import path from 'node:path';
 import type { Plugin } from 'esbuild';
-import { ENGINE, SUFFIXES, engineFile, readEngine } from './engine.ts';
+import { ENGINE, SKILLS, SUFFIXES, engineFile, readEngine, skillFile, skillsDir } from './engine.ts';
 import { ROOT } from './paths.ts';
 import { WORKSPACE_FOLDERS, workspaceSetting } from './workspace.ts';
 
@@ -65,10 +65,9 @@ export const registerWorkspaceResolve = (studio = ROOT) => {
   if (registered) return;
   const table = readEngine(studio);
   const overlay = workspaceOverlay(studio);
-  if (!table && !overlay) return;
   registered = true;
   register(new URL('./workspace-node-hooks.mjs', import.meta.url), {
-    data: { studio: real(studio), overlay, own: Object.values(WORKSPACE_FOLDERS), engine: table, suffixes: SUFFIXES },
+    data: { studio: real(studio), overlay, own: Object.values(WORKSPACE_FOLDERS), engine: table, suffixes: SUFFIXES, skills: skillsDir(studio) },
   });
 };
 
@@ -85,6 +84,10 @@ export const workspaceEsbuild = (studio = ROOT): Plugin => ({
         return file ? { path: file } : { errors: [{ text: `${args.path}: no such file in the engine (${path.join(studio, 'engine.json')})` }] };
       });
     }
+    build.onResolve({ filter: new RegExp(`^${SKILLS}/`) }, args => {
+      const file = skillFile(args.path, studio);
+      return file ? { path: file } : { errors: [{ text: `${args.path}: no such file in your skills (${skillsDir(studio)})` }] };
+    });
     const overlay = workspaceOverlay(studio);
     if (!overlay) return;
     const again = { pluginData: SKIP } as const;

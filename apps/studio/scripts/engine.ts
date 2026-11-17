@@ -33,6 +33,21 @@ import path from 'node:path';
 import { WORKSPACE_FOLDERS, workspaceDir, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 export const ENGINE = '@mediamake/engine';
+/**
+ * Code a skill carries in its own folder, by name: `@mediamake/skills/<skill>/<file>` is
+ * <workspace>/skills/<skill>/<file> (the link to the skill in your space, your variant, or a linked item),
+ * so a project imports a skill's components the same way on every computer and in a cloud session.
+ */
+export const SKILLS = '@mediamake/skills';
+/** The folder `@mediamake/skills` names: the workspace's skills/ (links into the spaces). */
+export const skillsDir = (studio: string) => workspaceDir('skills', studio);
+/** The file `@mediamake/skills/<skill>/<file>` names, or null (not that name, or no such file). */
+export const skillFile = (spec: string, studio: string) => {
+  if (!spec.startsWith(`${SKILLS}/`)) return null;
+  const rest = spec.slice(SKILLS.length + 1).split('/').filter(Boolean);
+  if (!rest.length || rest.some(p => p === '..')) return null;
+  return probe(path.join(skillsDir(studio), ...rest));
+};
 
 export type EngineTable = {
   name: string;

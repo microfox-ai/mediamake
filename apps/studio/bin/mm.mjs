@@ -65,6 +65,7 @@ const ABOUT = {
   items: 'what your MediaMake account opens (MCPs, apps) and what is installed; mm items install --yes installs it all with the sign-in',
   submit: 'sends a skill, MCP or app you built to the MediaMake store for review (a dry run; --yes --made="<production>"); mm submit status',
   usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
+  cloud: 'sets up a Claude Code cloud session to build and render there (workspace, browser, your spaces); mm cloud deliver <slug> hands the files over',
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
 
@@ -157,9 +158,16 @@ const main = () => {
     process.exit(1);
   }
   remindMigrate(cmd);
+  // the render browser a cloud session set up (mm cloud: `browser` in ~/.mediamake/config.json), for every script
+  if (!process.env.MM_BROWSER) {
+    try {
+      const browser = JSON.parse(fs.readFileSync(process.env.MEDIAMAKE_CONFIG ?? path.join(os.homedir(), '.mediamake', 'config.json'), 'utf8'))?.browser;
+      if (typeof browser === 'string' && fs.existsSync(browser)) process.env.MM_BROWSER = browser;
+    } catch {}
+  }
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
-  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login'].includes(script)) ensurePresets(APP, { soft: true });
+  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)
