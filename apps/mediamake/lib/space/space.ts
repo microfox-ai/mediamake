@@ -20,6 +20,8 @@
  * files with each member's own sign-in.
  */
 
+import type { BrandMarks } from '@/lib/brand-kit';
+
 export const SPACE_KINDS = ['skill', 'mcp', 'app'] as const;
 export type SpaceKind = (typeof SPACE_KINDS)[number];
 
@@ -413,6 +415,8 @@ export function spaceView(state: SpaceState, me: string, names: Record<string, s
 export interface ProjectSpaceView {
   projectId: string;
   name: string;
+  /** Its logo, favicon and banner, from its brand kit (lib/brand-kit › brandMarks). None until it has a kit. */
+  brand?: BrandMarks;
   role: 'owner' | 'editor' | 'viewer';
   /** How many people are on the project, the owner included. */
   people: number;

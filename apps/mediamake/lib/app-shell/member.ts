@@ -330,6 +330,27 @@ export function homeColumns(items: AppItem[], activity: MemberActivity, skills: 
 
 /* ---------- Mine ---------- */
 
+/** When the member last used something, and how much, in the days usage looks back. */
+export interface Used {
+  at: string;
+  count: number;
+  /** Skills and MCPs count runs (an MCP's are its skills'); apps count opens from the app. */
+  type: 'runs' | 'opens';
+}
+
+/**
+ * The last use of everything the member used, by item id (`skill/<name>`,
+ * `mcp/<name>`, `app/<name>`). A skill of their own, not in the catalog, is
+ * there under `skill/<name>` too.
+ */
+export function lastUsed(activity: Partial<Pick<MemberActivity, 'usage' | 'opens'>>, skills: RegistrySkill[] = []): Map<string, Used> {
+  const used = new Map<string, Used>();
+  for (const run of activity.usage ?? []) used.set(`skill/${run.skill}`, { at: run.lastAt, count: run.runs, type: 'runs' });
+  for (const use of mcpUsage(activity.usage ?? [], skills)) used.set(use.mcp, { at: use.lastAt, count: use.runs, type: 'runs' });
+  for (const open of activity.opens ?? []) used.set(open.app, { at: open.lastAt, count: open.opens, type: 'opens' });
+  return used;
+}
+
 export interface MineItem {
   item: AppItem;
   installedAt?: string;
@@ -337,6 +358,8 @@ export interface MineItem {
   /** The computers that have it (skills only), with the version each reported. */
   on: { device: string; version?: string }[];
   updateAvailable?: boolean;
+  /** None when it wasn't used in the days usage looks back. */
+  used?: Used;
 }
 
 export interface LocalOnly {
@@ -347,7 +370,7 @@ export interface LocalOnly {
 }
 
 export interface Mine {
-  /** Catalog items the member installed, or has on a computer. Failed ones first: they need a look. */
+  /** Catalog items the member installed, or has on a computer: the last used first, then the last installed. */
   installed: MineItem[];
   /** Their own variants of catalog skills, on their computers. */
   variants: LocalOnly[];
@@ -356,10 +379,11 @@ export interface Mine {
   devices: { device: string; skills: number; reportedAt: string }[];
 }
 
-export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs' | 'devices'>): Mine {
+export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs' | 'devices'> & Partial<Pick<MemberActivity, 'usage' | 'opens'>>, skills: RegistrySkill[] = []): Mine {
   const byId = new Map(items.map(item => [item.id, item]));
   const installOf = new Map(activity.installs.map(install => [install.itemId, install]));
   const localNames = [...new Set(activity.devices.flatMap(device => device.skills.map(skill => skill.name)))].sort();
+  const usedOf = lastUsed(activity, skills);
 
   const ids = new Set<string>([...installOf.keys(), ...localNames.map(name => `skill/${name}`)]);
   const installed: MineItem[] = [];
@@ -367,6 +391,7 @@ export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs'
     const item = byId.get(id);
     if (!item) continue;
     const install = installOf.get(id);
+    const used = usedOf.get(id);
     const on = item.kind === 'skill' ? onComputers(slugOf(id), activity.devices) : [];
     installed.push({
       item,
@@ -374,15 +399,10 @@ export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs'
       ...(install?.version && { installedVersion: install.version }),
       on,
       ...(isBehind(item, install, activity.devices) && { updateAvailable: true }),
+      ...(used && { used }),
     });
   }
-  installed.sort(
-    (a, b) =>
-      Number(b.item.failed) - Number(a.item.failed) ||
-      MEMBER_KINDS.indexOf(a.item.kind) - MEMBER_KINDS.indexOf(b.item.kind) ||
-      (b.installedAt ?? '').localeCompare(a.installedAt ?? '') ||
-      a.item.title.localeCompare(b.item.title),
-  );
+  installed.sort((a, b) => (b.used?.at ?? '').localeCompare(a.used?.at ?? '') || (b.installedAt ?? '').localeCompare(a.installedAt ?? '') || a.item.title.localeCompare(b.item.title));
 
   const isCatalogSkill = (name: string) => byId.has(`skill/${name}`);
   const variants: LocalOnly[] = [];

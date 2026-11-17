@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyBrandKitPatch, BrandKitError, planKitUpload, primaryLogo, summarizeBrandKit, type BrandKit } from './index';
+import { applyBrandKitPatch, brandMarks, BrandKitError, planKitUpload, primaryLogo, summarizeBrandKit, type BrandKit } from './index';
 
 const url = (path: string) => `https://cdn.test/kit/${path}`;
 const asset = (path: string) => ({ path, url: url(path) });
@@ -68,5 +68,24 @@ describe('planKitUpload', () => {
     const plan = await planKitUpload([file('brand.json', JSON.stringify({ logo: 'graphics/fist.png' })), file('graphics/fist.png'), file('logo/a.svg')]);
     assert.equal(plan.patch.logo, undefined);
     assert.ok(plan.skipped.some(s => s.path === 'graphics/fist.png' && /brand\.json's logo/.test(s.reason)));
+  });
+});
+
+describe("a space's logo, favicon and banner", () => {
+  it('are read from the kit as it was uploaded', () => {
+    const full = applyBrandKitPatch(kit(), {
+      assets: [asset('favicon/favicon.ico'), asset('favicon/icon-192.png'), asset('favicon/favicon.svg'), asset('youtube/banner.png'), asset('youtube/backup/banner-old.png'), asset('youtube/watermark.png')],
+    });
+    assert.deepEqual(brandMarks(full), { logo: url('logo/omkara-logo.svg'), favicon: url('favicon/favicon.svg'), banner: url('youtube/banner.png') });
+    assert.equal(summarizeBrandKit(full)?.favicon, url('favicon/favicon.svg'));
+    assert.equal(summarizeBrandKit(full)?.banner, url('youtube/banner.png'));
+  });
+
+  it('leave out what the kit does not have, and follow a new upload', () => {
+    assert.deepEqual(brandMarks(kit()), { logo: url('logo/omkara-logo.svg') });
+    assert.equal(brandMarks(null), undefined);
+    assert.equal(brandMarks(applyBrandKitPatch(null, { assets: [asset('intros/intro-1.mp4')] })), undefined);
+    const later = applyBrandKitPatch(kit(), { assets: [asset('favicon/icon-192.png')] });
+    assert.equal(brandMarks(later)?.favicon, url('favicon/icon-192.png'));
   });
 });
