@@ -1,5 +1,15 @@
 # @microfox/mediamake-mcp
 
+## 0.8.0
+
+### Minor Changes
+
+- fc4e556: mm-release sets an item's store listing. `catalog_set_listing` gives a skill, MCP or app its tags and its screenshots (pictures and videos by https link, a YouTube link or an MP4 for a video), shown on the item's own page.
+
+### Patch Changes
+
+- 79dc6c1: Changes from PR #589: project-thread-eizux4
+
 ## 0.7.0
 
 ### Minor Changes
