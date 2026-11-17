@@ -9,6 +9,9 @@
  *   mm space add <skill>           move one of your workspace skills into your space (a dry run; --yes)
  *   mm space share <item> --project=<project>   move an item into a project's space, so everyone on the
  *                                  project gets it (a dry run; --yes). --copy keeps yours too
+ *   mm space join <project>        set a project up on this computer in one go: signs in when needed, accepts
+ *                                  the GitHub invitation, clones the project's space, links its skills, and
+ *                                  shows the project's shared media (the project's page has this line to copy)
  *   mm space ensure                make and connect your own space when this computer has none
  *   mm space connect <owner/repo>  connect a repo you already have as your own space (--create makes one)
  *   mm space pull | push           the two halves of sync (push is a dry run until --yes; -m "<what>")
@@ -863,6 +866,56 @@ async function push(_args, flags, env) {
 }
 
 /** pull, then push: one command for "make this computer and GitHub the same". */
+/**
+ * Sets one project up on this computer: the line a new member copies from the project's page.
+ * Signs in to MediaMake when needed, accepts the GitHub invitation, clones the project's space and
+ * links its skills, then shows the project's shared media (mm media sync status; nothing is downloaded).
+ */
+async function join(args, flags, env) {
+  const wanted = args.join(' ').trim() || flags.find(f => f.startsWith('--project='))?.slice('--project='.length);
+  if (!wanted) throw new Error('Which project? mm space join <project id or name> (the project\'s page in the app has the line to copy).');
+  if (!signedIn(env)) {
+    console.log('This computer isn\'t signed in to MediaMake yet: signing in through your browser (click Allow in the tab that opens).');
+    const r = spawnSync(process.execPath, [path.join(path.dirname(SELF), 'login.mjs')], { stdio: 'inherit', env });
+    if (r.status !== 0 || !signedIn(env)) throw new Error('Not signed in. Run mm login, then this line again.');
+  }
+  const remote = await remoteSpaces(env);
+  if (!remote) throw new Error(`MediaMake (${site(env)}) can't be reached, or doesn't accept this sign-in: mm login status.`);
+  const entry = findProject(remote, wanted);
+  console.log(`${entry.name}: you are ${entry.role === 'owner' ? 'its owner' : entry.role === 'editor' ? 'an editor' : 'a viewer'}.`);
+  let failed = 0;
+  if (!entry.space?.repo) {
+    console.log(`○ Nobody has shared a skill, MCP or app into ${entry.name} yet, so there is nothing to clone. Run this line again once someone has (or mm space sync).`);
+  } else if (localSpaces(env).some(s => s.id === entry.projectId)) {
+    const space = localSpaces(env).find(s => s.id === entry.projectId);
+    pullOne(space, env);
+    await sendReports([space], env);
+  } else {
+    const login = needGh(`Getting ${entry.name}'s space`);
+    try {
+      const space = await ensureProjectSpace(entry, env);
+      afterChange(space);
+      await sendReports([space], env);
+    } catch (error) {
+      failed = 1;
+      const invited = gh(['api', 'user/repository_invitations', '--paginate', '-q', '.[].repository.full_name']).out.toLowerCase().split('\n').includes(entry.space.repo.toLowerCase());
+      console.error(
+        invited
+          ? `✖ ${error instanceof Error ? error.message.split('\n')[0] : error}`
+          : `✖ ${login} on GitHub isn't invited to ${entry.space.repo} yet. ${entry.owner ? `${entry.owner}, who made the repo,` : 'Whoever made the repo'} invites new members the next time they run mm space sync. ` +
+              `Check that the GitHub account linked to your MediaMake account (Account in the app) is ${login}, then run this line again.`,
+      );
+    }
+  }
+  if (!flags.includes('--no-media')) {
+    const mm = path.join(path.dirname(SELF), '..', 'apps', 'studio', 'bin', 'mm.mjs');
+    console.log(`\nShared media of ${entry.name} (to download it: mm media sync pull --project=${entry.projectId}):`);
+    const r = spawnSync(process.execPath, [mm, 'media', 'sync', 'status', `--project=${entry.projectId}`], { stdio: 'inherit', env });
+    if (r.status !== 0) console.log('⚠ The media check did not finish (mm doctor says what this computer is missing). The skills above are set up either way.');
+  }
+  return failed;
+}
+
 async function sync(args, flags, env) {
   const pulled = await pull(args, flags, env);
   if (pulled) return pulled;
@@ -1078,7 +1131,7 @@ async function main(argv) {
   const dashM = argv.indexOf('-m');
   const args = argv.filter((a, i) => !a.startsWith('-') && !(dashM >= 0 && i === dashM + 1));
   const [cmd = 'status', ...rest] = args;
-  const commands = { status, sync, connect, ensure, pull, push, share, add, new: create, report, disconnect, forget };
+  const commands = { status, sync, join, connect, ensure, pull, push, share, add, new: create, report, disconnect, forget };
   if (cmd === 'help' || flags.includes('--help') || flags.includes('-h')) return help(), 0;
   if (!commands[cmd]) {
     console.error(`mm space: no command "${cmd}".\n`);

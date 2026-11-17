@@ -9,6 +9,8 @@ import {
   ImageIcon,
   Loader2Icon,
   PackageIcon,
+  CheckIcon,
+  CopyIcon,
   SparklesIcon,
   UsersIcon,
 } from 'lucide-react';
@@ -71,6 +73,43 @@ async function getJson<T>(url: string): Promise<T> {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? `Could not load (${res.status})`);
   return json as T;
+}
+
+/** The one line that sets this project up on a member's computer, with a button to copy it. */
+function SetUp({ projectId }: { projectId: string }) {
+  const line = `mm space join ${projectId}`;
+  const [copied, setCopied] = React.useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(line);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // no clipboard here: the line is selectable
+    }
+  };
+  return (
+    <section className="rounded-xl border bg-muted/30 p-4">
+      <h2 className="text-sm font-semibold">Set this project up on your computer</h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Paste this line in a terminal, or give it to Claude. It signs you in, gets the project&apos;s skills, MCPs and apps, links them into Claude and shows its shared media.
+      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-md border bg-background px-3 py-2 font-mono text-xs">{line}</code>
+        <button type="button" onClick={copy} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border bg-background px-3 py-2 text-xs font-medium hover:bg-muted" aria-live="polite">
+          {copied ? <CheckIcon className="size-3.5" aria-hidden /> : <CopyIcon className="size-3.5" aria-hidden />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Needs MediaMake on the computer (
+        <a href="https://github.com/microfox-ai/mediamake/blob/main/install.md" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+          how to install
+        </a>
+        ) and the GitHub CLI signed in. Run it again any time to catch up.
+      </p>
+    </section>
+  );
 }
 
 /**
@@ -196,6 +235,7 @@ export function ProjectDetail({
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="flex min-w-0 flex-col gap-4">
+          <SetUp projectId={projectId} />
           <Bundles
             title="Productions"
             Icon={ClapperboardIcon}

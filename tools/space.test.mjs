@@ -87,6 +87,7 @@ const spacesFor = auth => {
         name: 'Anime Music Zone',
         role: who.role,
         people: people.length,
+        owner: 'Ann',
         space: projectRepos[PROJECT] ? { repo: projectRepos[PROJECT], devices: [], items: [] } : null,
         ...(who.role !== 'viewer' && { members: people.map(({ name, githubLogin, role }) => ({ name, ...(githubLogin && { githubLogin }), role, ...(name === who.name && { you: true }) })) }),
       },
@@ -451,6 +452,24 @@ test('a member\'s sync accepts the invitation, clones the project\'s space and l
 
   const status = await bob.space([]);
   assert.match(status.out, /Project Anime Music Zone: ann\/mediamake-anime-music-zone .*shared with everyone on the project/);
+});
+
+test('join sets one project up from the line on its page, and says who invites when there is no invitation', async () => {
+  const dan = computer('dan', 'dan');
+  people.push({ key: 'key-dan', name: 'Dan', githubLogin: 'dan', role: 'editor' });
+  const early = await dan.space(['join', PROJECT, '--no-media']);
+  assert.equal(early.status, 1, early.out);
+  assert.match(early.out, /dan on GitHub isn't invited to ann\/mediamake-anime-music-zone yet\. Ann, who made the repo, invites new members/);
+  assert.ok(!fs.existsSync(dan.projectDir(zone)));
+
+  // her next sync invites him, and the same line then works
+  assert.match((await ann.space(['sync'])).out, /invited to Anime Music Zone's repo on GitHub: Dan/);
+  const done = await dan.space(['join', PROJECT, '--no-media']);
+  assert.equal(done.status, 0, done.out);
+  assert.match(done.out, /Anime Music Zone: you are an editor/);
+  assert.equal(fs.realpathSync(dan.claudeSkill('make-zone-intro')), fs.realpathSync(path.join(dan.projectDir(zone), 'skills', 'make-zone-intro')));
+  assert.equal((await dan.space(['join', 'Anime Music Zone', '--no-media'])).status, 0, 'running it again only pulls');
+  people.pop();
 });
 
 test('someone not invited yet is told, and nothing else stops', async () => {

@@ -165,6 +165,7 @@ export const spaceDB = {
         name: project.name,
         role: project.role,
         people: project.people.length,
+        ...(people.get(project.people[0]?.clientId)?.name && project.people[0].role === 'owner' && { owner: people.get(project.people[0].clientId)!.name }),
         space: spaceView(state(projectSpaceId(project.id)), clientId, names),
         ...(project.role !== 'viewer' && {
           members: project.people.map(person => ({

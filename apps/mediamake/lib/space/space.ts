@@ -402,6 +402,8 @@ export interface ProjectSpaceView {
   role: 'owner' | 'editor' | 'viewer';
   /** How many people are on the project, the owner included. */
   people: number;
+  /** The owner's name: who to ask when the project's repo hasn't invited you. */
+  owner?: string;
   /** Null until someone shared the first item into the project. */
   space: SpaceView | null;
 }

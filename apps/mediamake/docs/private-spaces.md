@@ -35,6 +35,7 @@ that the app doesn't show.
 | `mm space new <skill\|mcp\|app> <name>` | Start an item in your space (`--project=<project>` starts it in a project's) |
 | `mm space add <skill>` | Move one of your workspace skills (a variant) into your space (dry run, `--yes`) |
 | `mm space share <item> --project=<project>` | Move an item into a project's space, so everyone on it gets it (dry run, `--yes`; `--copy` keeps yours too) |
+| `mm space join <project>` | Set one project up on this computer: sign in when needed, accept the GitHub invitation, clone its space, link its skills, show its shared media. The project's page has the line to copy |
 | `mm space ensure` | Make and connect your own space when this computer has none |
 | `mm space connect <owner/repo>` | Use a repo you already have as your own space. A public repo is refused |
 | `mm space pull`, `mm space push` | The two halves of `sync` (`push` is a dry run until `--yes`; `-m "<what>"` names the commit) |
@@ -59,7 +60,10 @@ once per computer):
   only pull. It says who could not be invited (no GitHub account linked yet);
   the next share or sync by someone who may change the project invites them.
 - A member's next `mm space sync` accepts the invitation and clones the
-  project's space. Nothing to paste, no address to know.
+  project's space. A new member copies one line from the project's page,
+  `mm space join <project id>`, which also signs the computer in when it
+  isn't. If the repo hasn't invited them yet, it says who invites and what to
+  check, and the same line works once they are invited.
 
 Only the owner and editors of a project can make its space or share into it.
 

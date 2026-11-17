@@ -95,6 +95,9 @@ computer: their own space (`space/` in the workspace, only theirs) and one per p
 - "Share it with the <project> project" is `mm space share <item> --project=<project>` (a dry run, then
   `--yes` once they agree): it makes the project's space when there is none and invites the project's
   members. Tell the user who could not be invited (no GitHub account linked in MediaMake).
+- A member new to a project runs the line on the project's page, `mm space join <project id>`: it signs
+  in when needed, accepts the GitHub invitation, clones the project's space and links its skills. When
+  it says they aren't invited yet, tell them who invites (it names them); don't work around it.
 - `mm space sync` at the start of a session that uses their skills brings in what other computers and
   teammates sent. What would go out is a dry run: show it and run `--yes` once they agree.
 - Large media never goes in a space: the media library carries it, and the item names it under
