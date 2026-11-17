@@ -28,7 +28,7 @@ Using MediaMake (exploring and installing items, usage, feedback) is mm-use's, t
 const USE_INSTRUCTIONS = `mm-use is MediaMake for every member: the skills, MCPs and apps for making content, from Claude.
 explore lists what there is (with the membership that opens each item, and Beta or Ready), get_item shows one, item_versions says what is live, and install_item gives an item's install plan: this server is hosted and installs nothing itself, so carry the plan out on the user's computer as https://github.com/microfox-ai/mediamake/blob/main/install.md says.
 Usage is a skill's name and the time it ran, never its arguments, files or folders: report_skill_run where no MediaMake hook runs, my_usage to read it back, report_local_skills for the names and versions of the skills on their computer. A user who turned usage reports off (mm usage off) gets none sent.
-send_feedback sends the user's own words to the MediaMake team, only when they ask.
+send_feedback sends the user's own words to the MediaMake team, only when they say yes. When a MediaMake item went wrong in this conversation, read known_issues for it, then offer once to send what happened. my_feedback shows what they sent before and the team's answers.
 Memberships are a ladder (Public, Plus, Pro): each opens everything below it. Plus and Pro come from contributing or from an admin, never from paying.`;
 
 const LEGACY_INSTRUCTIONS = `Deprecated: this is the old MediaMake MCP, kept for MediaMake admins who still use MediaMake Core's video pipeline. The catalog and releases moved to mm-release, and everything a member does (explore, install, usage, feedback) is in mm-use. Nothing new is added here.

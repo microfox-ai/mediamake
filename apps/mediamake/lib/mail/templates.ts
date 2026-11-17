@@ -177,3 +177,37 @@ export function projectSharedMail(to: string, input: { project: string; by: stri
     footer: `Sent because ${input.by} added this address to a MediaMake project. If that is a mistake, ignore this mail.`,
   });
 }
+
+/** Sent to a feedback's writer when the fix for it is out. */
+export function feedbackShippedMail(to: string, input: { item?: string; said: string; version?: string; note?: string; url: string }): Mail {
+  const about = input.item ? ` about ${input.item}` : '';
+  const lines = [`You sent us feedback${about}: "${quote(input.said)}"`, `It is fixed${input.version ? ` in version ${input.version}` : ''}. Thank you for telling us: it made ${input.item ?? 'MediaMake'} better for everyone who uses it.`];
+  if (input.note) lines.push(input.note);
+  if (input.item) lines.push(`To get the fix, say "update ${input.item}" to Claude.`);
+  return layout({
+    to,
+    subject: input.item ? `Your feedback on ${input.item} shipped` : 'Your feedback shipped',
+    heading: 'Your feedback shipped',
+    lines,
+    button: { label: input.item ? `Open ${input.item}` : 'Open MediaMake', url: input.url },
+    footer: 'You get this mail because you sent feedback from your MediaMake account. Reply to it if something is still wrong.',
+  });
+}
+
+/** Sent to a feedback's writer when an admin answers it. */
+export function feedbackAnsweredMail(to: string, input: { item?: string; said: string; answer: string; url: string }): Mail {
+  return layout({
+    to,
+    subject: input.item ? `An answer to your feedback on ${input.item}` : 'An answer to your feedback',
+    heading: 'An answer to your feedback',
+    lines: [`You wrote${input.item ? ` about ${input.item}` : ''}: "${quote(input.said)}"`, input.answer],
+    button: { label: input.item ? `Open ${input.item}` : 'Open MediaMake', url: input.url },
+    footer: 'You get this mail because you sent feedback from your MediaMake account. Reply to it to carry on the conversation.',
+  });
+}
+
+/** The start of what someone wrote, on one line. */
+function quote(text: string, max = 200): string {
+  const line = text.trim().replace(/\s+/g, ' ');
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+}
