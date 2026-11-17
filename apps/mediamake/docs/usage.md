@@ -83,5 +83,6 @@ account reads and deletes only its own.
 about one item or about MediaMake as a whole (mm-use's `send_feedback`; every
 member may send, 30 a day at most). It is stored in `feedback` with the
 writer's membership at the time and read by admins and the writer only
-(`GET /api/feedback`, admins with `?all=true`). Triage, the admin page and
-automatic draft PRs build on these records later (plan step 2e).
+(`GET /api/feedback`, admins with `?all=true`). What happens next (Claude's
+triage, automatic draft pull requests, the admin Feedback page, known issues
+and the mail when a fix ships) is in [feedback.md](feedback.md).

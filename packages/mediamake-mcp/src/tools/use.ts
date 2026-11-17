@@ -8,7 +8,9 @@ import { json, safe } from '../util.js';
  * get an item's install plan, say which skills ran (a name and a time, never
  * more), say which skills are on the computer (names and versions) and send
  * feedback. The server is hosted and reads no files: what is on the computer
- * comes from Claude, or from the repo's hook and `mm usage`.
+ * comes from Claude, or from the repo's hook and `mm usage`. Feedback is read
+ * back too: what the account sent and what came of it, and each item's known
+ * issues.
  */
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -216,11 +218,23 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
   );
 
   server.registerTool(
+    'known_issues',
+    {
+      title: 'Known issues of an item',
+      description:
+        "What is known to be wrong with one item right now, and what was fixed in the last 30 days: the list MediaMake's admins keep. Read it when an item misbehaves, before sending feedback: a known issue often has a workaround, and one marked fixed means updating the item is the answer.",
+      inputSchema: { item: ITEM_ID },
+      annotations: READ,
+    },
+    safe(async ({ item }) => json({ ...(await client.get<{ issues: unknown[] }>('/api/feedback/known-issues', { item })), page: page(item) })),
+  );
+
+  server.registerTool(
     'send_feedback',
     {
       title: 'Send feedback',
       description:
-        "Send the user's feedback to the MediaMake team: a bug, a problem, an idea or praise, about one item or about MediaMake as a whole. Send their own words, and only when they asked to send it: read the text back to them first. Leave out file paths, keys and anything private. Admins read it; the user is not answered here.",
+        "Send the user's feedback to the MediaMake team: a bug, a problem, an idea or praise, about one item or about MediaMake as a whole. When a run of a MediaMake skill, MCP or app went wrong or the user had to work around it, offer once at the end to send it, with the version they used. Send their own words, and only when they said yes: read the text back to them first. Leave out file paths, keys and anything private. The team reads every one; the user is mailed when a fix ships, and my_feedback shows any answer.",
       inputSchema: {
         text: z.string().min(3).max(4000).describe("The feedback, in the user's words"),
         item: ITEM_ID.optional().describe('The item it is about, when it is about one'),
@@ -232,5 +246,17 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
       const saved = await client.post<{ feedbackId: string }>('/api/feedback', { text, itemId: item, version, source: 'mm-use' });
       return json({ ...saved, sent: true, ...(item && { page: page(item) }) });
     }),
+  );
+
+  server.registerTool(
+    'my_feedback',
+    {
+      title: 'My feedback',
+      description:
+        "The feedback this account sent, newest first, with what came of each: received, answered (with the team's answer), a fix being made, fixed (with the version) or closed. Optionally about one item.",
+      inputSchema: { item: ITEM_ID.optional().describe('Only feedback about this item') },
+      annotations: READ,
+    },
+    safe(async ({ item }) => json(await client.get('/api/feedback', { item }))),
   );
 }

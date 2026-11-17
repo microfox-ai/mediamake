@@ -23,6 +23,7 @@ export type AppNavIcon =
   | 'mcp'
   | 'billing'
   | 'memberships'
+  | 'feedback'
   | 'keys'
   | 'devices'
   | 'subscription';
@@ -59,6 +60,7 @@ export const APP_NAV: AppNavSection[] = [
       { title: 'MediaMake MCP', href: '/app/mediamake-mcp', icon: 'mcp' },
       { title: 'Billing', href: '/app/billing', icon: 'billing' },
       { title: 'Manage Memberships', href: '/app/memberships', icon: 'memberships' },
+      { title: 'Feedback', href: '/app/feedback', icon: 'feedback' },
     ],
   },
   {
