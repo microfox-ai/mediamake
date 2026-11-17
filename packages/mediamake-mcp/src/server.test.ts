@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback'].sort(),
     );
   });
 
@@ -671,5 +671,16 @@ describe('mm-use', () => {
     const sent = calls.find(c => c.url.pathname === '/api/feedback')!;
     expect(sent.body).toEqual({ text: 'The render step crashes', itemId: 'skill/make-lyrics-video', version: '2.0.0', source: 'mm-use' });
     expect(out.feedbackId).toBe('fb_1');
+  });
+
+  it('reads back what the account sent, and an item\'s known issues', async () => {
+    const calls = stubApi((method, path) =>
+      path === '/api/feedback/known-issues' ? { item: 'skill/make-lyrics-video', issues: [{ issueId: 'ki_1', title: 'Render stops at 99%', status: 'open' }] } : { feedback: [{ feedbackId: 'fb_1', status: 'shipped' }] },
+    );
+    expect((await call('my_feedback', { item: 'skill/make-lyrics-video' })).out).toEqual({ feedback: [{ feedbackId: 'fb_1', status: 'shipped' }] });
+    expect(calls.find(c => c.url.pathname === '/api/feedback')!.url.searchParams.get('item')).toBe('skill/make-lyrics-video');
+    const { out } = await call('known_issues', { item: 'skill/make-lyrics-video' });
+    expect(out.issues).toHaveLength(1);
+    expect(out.page).toContain('/access?item=');
   });
 });

@@ -94,7 +94,7 @@ The bundle is the deprecated server (the old video tools). Double-click `mediama
 | Explore | `explore` (every item with the membership that opens it, whether this account can open it, Beta or Ready), `get_item`, `item_versions` |
 | Install | `install_item` (the item's install plan for this account; Claude carries it out) |
 | Usage | `report_skill_run` (a skill's name and the time, nothing else), `my_usage`, `report_local_skills` (names and versions) |
-| Feedback | `send_feedback` (the user's words, about one item or MediaMake as a whole) |
+| Feedback | `send_feedback` (the user's words, about one item or MediaMake as a whole), `my_feedback` (what they sent and what came of it), `known_issues` (an item's known issues, the list admins keep) |
 
 Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is sent, where it is kept, and how to turn it off (`mm usage off`).
 

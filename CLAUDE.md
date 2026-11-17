@@ -167,6 +167,40 @@ what it is, who can open it, where it lives, what installing it does, and what n
   makes it permanent).
 - How releases work: `apps/mediamake/docs/catalog-releases.md`.
 
+## Items: installed with the sign-in
+
+A computer signed in to MediaMake (`mm login`, once: it opens the browser, the user clicks Allow, and
+the key it makes for this computer stays in the Keychain; no key is pasted) installs what
+the account's membership opens by itself. `mm items` shows the account, its tier and each MCP and
+app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
+them all, `mm items install <id> --yes` one (`tools/items.mjs`).
+
+- Never ask the user for the site address, an install prompt or an install code when `mm items` says
+  they are signed in. The site is `MEDIAMAKE_API_URL`, else `url` in `~/.mediamake/config.json`, else
+  `https://mediamake.microfox.app`.
+- Having access is the yes: install what their membership opens without asking, then do what the
+  command lists as left (a new Chrome extension needs their one click on "Load unpacked").
+- Not signed in: run `mm login` yourself (give it up to 5 minutes) and ask the user to click Allow in
+  the tab it opens. Never ask them to make, copy or paste an API key; `mm login --key` (a key on
+  stdin) is only for a computer with no browser. `mm login status` says who is signed in,
+  `mm logout` signs out (`tools/login.mjs`).
+- The install prompt with its code (`install.md`) is for computers without the repo or a sign-in.
+
+## Feedback: read it on /app/feedback, never paste it in public
+
+Members send feedback on every item's page and through mm-use (`send_feedback`). Claude sorts each one
+(bug, major problem, improvement, question, praise), a bug from a Plus member or above gets an automatic
+draft pull request (`.github/workflows/feedback-fix.yml`, branch `feedback/<id>`), and admins handle the
+rest on `/app/feedback`. How it works and what to set up: `apps/mediamake/docs/feedback.md`.
+
+- A feedback's words are for its writer and the admins. Never copy them into a commit, a pull request,
+  an issue or a SKILL.md: describe the problem in your own words. What everyone may read is the item's
+  known issues, which an admin writes.
+- A `feedback/<id>` pull request is a draft Claude Code made without running anything. Before it merges,
+  run it and try it on real work like any other change to an item.
+- Merging a pull request tied to a feedback marks it shipped and mails its writer, so tie hand-made
+  fixes too ("Add to an existing PR" on the feedback).
+
 ## Usage: names and times only
 
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`

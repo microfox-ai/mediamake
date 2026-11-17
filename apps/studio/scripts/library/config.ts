@@ -102,10 +102,19 @@ export const linkChannel = (channel: string, projectId: string | null) => {
   return loadConfig();
 };
 
-/** The MediaMake site this machine talks to: MEDIAMAKE_API_URL, else `url` in the config. */
+/** MediaMake's own site: what every tool uses until the config or the environment names another (tools/usage.mjs has the same). */
+export const DEFAULT_SITE = 'https://mediamake.microfox.app';
+
+/** The MediaMake site this machine talks to: MEDIAMAKE_API_URL, else `url` in the config, else MediaMake's own. Never asked for. */
 export const cloudUrl = () => {
   const url = process.env.MEDIAMAKE_API_URL?.trim() || readAll().url;
-  return typeof url === 'string' && url.trim() ? url.trim().replace(/\/+$/, '') : null;
+  return typeof url === 'string' && url.trim() ? url.trim().replace(/\/+$/, '') : DEFAULT_SITE;
+};
+
+/** The key `mm login` keeps in the config where there is no Keychain (Windows, Linux). */
+export const savedApiKey = () => {
+  const key = readAll().apiKey;
+  return typeof key === 'string' && key.trim() ? key.trim() : undefined;
 };
 
 export const saveCloudUrl = (url: string) => writeAll({ ...readAll(), url: url.trim().replace(/\/+$/, '') });
