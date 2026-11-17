@@ -47,7 +47,7 @@ async function project(files: Record<string, string>) {
 }
 
 describe('createServer', () => {
-  it('offers exactly the ProjectSync tools, deletes marked destructive', async () => {
+  it('offers exactly the Spaces tools, deletes marked destructive', async () => {
     const { tools } = await (await connect()).listTools();
     expect(tools.map(t => t.name).sort()).toEqual([...TOOLS].sort());
     for (const t of tools) expect(t.annotations?.destructiveHint ?? false).toBe(t.name.startsWith('delete_'));

@@ -33,10 +33,12 @@ const nextConfig: NextConfig = {
       ...MOVED_FROM_CORE.flatMap((page) =>
         [`/core/${page}`, `/${page}`].map((from) => ({
           source: `${from}/:path*`,
-          destination: `/app/${page}/:path*`,
+          // Projects became Spaces
+          destination: `/app/${page === 'projects' ? 'spaces' : page}/:path*`,
           permanent: false,
         })),
       ),
+      { source: '/app/projects/:path*', destination: '/app/spaces/:path*', permanent: false },
       ...CORE_PAGES.map((page) => ({
         source: `/${page}/:path*`,
         destination: `/core/${page}/:path*`,

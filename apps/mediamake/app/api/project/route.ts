@@ -4,10 +4,13 @@ import { getDatabase } from '@/lib/mongodb';
 import { summarizeBrandKit, type BrandKit } from '@/lib/brand-kit';
 import { canWrite, getProjectRole } from '@/lib/editor/project-access';
 import { claimInvites } from '@/lib/projects/access-store';
+import { PERSONAL_ONLY_YOURS } from '@/lib/projects/personal';
 
 interface ProjectDocument {
   _id?: ObjectId;
   clientId?: string;
+  /** The owner's personal space (lib/projects/personal). */
+  personal?: boolean;
   displayName: string;
   tags?: string[];
   sharedWith?: Array<{ clientId: string; role: 'editor' | 'viewer'; grantId?: string; addedAt: string }>;
@@ -25,6 +28,7 @@ function projectToResponse(doc: ProjectDocument, requestingClientId?: string) {
   return {
     id: doc._id?.toString(),
     displayName: doc.displayName,
+    ...(doc.personal && { personal: true }),
     tags: doc.tags || [],
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
@@ -235,6 +239,10 @@ export async function PUT(request: NextRequest) {
           return NextResponse.json({ error: 'You can only read this project: the owner or an editor can change it' }, { status: 403 });
         }
       }
+      const current = await collection.findOne({ _id: objectId }, { projection: { personal: 1, displayName: 1 } });
+      if (current?.personal && current.displayName !== displayName.trim()) {
+        return NextResponse.json({ error: PERSONAL_ONLY_YOURS }, { status: 400 });
+      }
       const updateData: any = {
         displayName: displayName.trim(),
         updatedAt: new Date(),
@@ -299,6 +307,9 @@ export async function DELETE(request: NextRequest) {
 
     try {
       const objectId = new ObjectId(id);
+      if ((await collection.findOne({ _id: objectId }, { projection: { personal: 1 } }))?.personal) {
+        return NextResponse.json({ error: PERSONAL_ONLY_YOURS }, { status: 400 });
+      }
       const query: any = { projectId: id };
       if (clientId) {
         query.clientId = clientId;

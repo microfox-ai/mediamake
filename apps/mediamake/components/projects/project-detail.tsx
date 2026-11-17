@@ -8,6 +8,7 @@ import {
   ClapperboardIcon,
   ImageIcon,
   Loader2Icon,
+  LockIcon,
   PackageIcon,
   SparklesIcon,
   UsersIcon,
@@ -16,8 +17,12 @@ import {
   ProjectAccessPanel,
   RoleBadge,
 } from '@/components/projects/project-access';
+import { CopyLine } from './copy-line';
+import { SpaceItems } from '@/components/app-shell/space-items';
 import type { ProjectRole } from '@/lib/editor/project-access';
+import type { SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
+import { cn } from '@/lib/utils';
 
 interface Bundle {
   id: string;
@@ -49,6 +54,8 @@ interface Project {
   id: string;
   displayName: string;
   tags?: string[];
+  /** The member's personal space: only theirs. */
+  personal?: boolean;
   isOwned?: boolean;
   sharedRole?: ProjectRole;
   sharedWith?: unknown[];
@@ -71,17 +78,56 @@ async function getJson<T>(url: string): Promise<T> {
   return json as T;
 }
 
+/** The one line that sets this project up on a member's computer, with a button to copy it. */
+function SetUp({ projectId, personal = false }: { projectId: string; personal?: boolean }) {
+  if (personal) {
+    return (
+      <section className="rounded-xl border bg-muted/30 p-4">
+        <h2 className="text-sm font-semibold">Get your personal space on a computer</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Paste this line in a terminal, or give it to Claude. It brings in your skills, MCPs and apps, links them into Claude and shows what would go out and which files are waiting.
+        </p>
+        <div className="mt-3">
+          <CopyLine line="mm space sync" label="the sync line" />
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="rounded-xl border bg-muted/30 p-4">
+      <h2 className="text-sm font-semibold">Set this space up on your computer</h2>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Paste this line in a terminal, or give it to Claude. It signs you in, gets the project&apos;s skills, MCPs and apps, links them into Claude and shows its shared media.
+      </p>
+      <div className="mt-3">
+        <CopyLine line={`mm space join ${projectId}`} label="the setup line" />
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Needs MediaMake on the computer (
+        <a href="https://github.com/microfox-ai/mediamake/blob/main/install.md" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+          how to install
+        </a>
+        ) and the GitHub CLI signed in. Run it again any time to catch up.
+      </p>
+    </section>
+  );
+}
+
 /**
- * One cloud project in the app: what it keeps on MediaMake through ProjectSync
- * (its productions, its releases and its media), and beside them who can open
- * it, which its owner changes here. The files are reading only: they are
- * added and changed from Claude with the ProjectSync MCP, or `mm media sync`.
+ * One space in the app: what it keeps on MediaMake (its productions, its
+ * releases and its media), the skills, MCPs and apps made for it, and beside
+ * them who can open it, which its owner changes here. A personal space is
+ * only its owner's, so it has no access panel. The files are reading only:
+ * they are added and changed from Claude with the MediaMake Spaces MCP, or
+ * `mm media sync`.
  */
 export function ProjectDetail({
   projectId,
   me,
   oldEditor,
+  space = null,
 }: {
+  /** What was made for this project (its space), as its people's computers reported it. */ space?: SpaceView | null;
   projectId: string;
   /** The signed-in account. */ me?: string;
   /** Admins still reach the deprecated timeline editor. */ oldEditor?: boolean;
@@ -115,10 +161,10 @@ export function ProjectDetail({
 
   const back = (
     <Link
-      href="/app/projects"
+      href="/app/spaces"
       className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
     >
-      <ArrowLeftIcon className="size-3.5" /> All projects
+      <ArrowLeftIcon className="size-3.5" /> All spaces
     </Link>
   );
 
@@ -133,6 +179,7 @@ export function ProjectDetail({
     );
   }
 
+  const personal = project?.personal === true;
   const role: ProjectRole | undefined = project
     ? project.isOwned === false
       ? (project.sharedRole ?? 'viewer')
@@ -154,11 +201,22 @@ export function ProjectDetail({
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <span className="truncate">
-              {project?.displayName ?? (
+              {project ? (
+                personal ? (
+                  'Your personal space'
+                ) : (
+                  project.displayName
+                )
+              ) : (
                 <span className="text-muted-foreground">Loading…</span>
               )}
             </span>
-            {role && <RoleBadge role={role} className="shrink-0" />}
+            {role && !personal && <RoleBadge role={role} className="shrink-0" />}
+            {personal && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <LockIcon className="size-3" aria-hidden /> Only you
+              </span>
+            )}
           </h1>
           {project && (
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -180,23 +238,26 @@ export function ProjectDetail({
               Timelines in the old editor
             </Link>
           )}
-          <a
-            href="#access"
-            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted lg:hidden"
-          >
-            <UsersIcon className="size-4" aria-hidden />{' '}
-            {role === 'owner' ? 'Share' : 'Access'}
-          </a>
+          {!personal && (
+            <a
+              href="#access"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted lg:hidden"
+            >
+              <UsersIcon className="size-4" aria-hidden />{' '}
+              {role === 'owner' ? 'Share' : 'Access'}
+            </a>
+          )}
         </div>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className={cn('grid items-start gap-4', !personal && 'lg:grid-cols-[minmax(0,1fr)_24rem]')}>
         <div className="flex min-w-0 flex-col gap-4">
+          <SetUp projectId={projectId} personal={personal} />
           <Bundles
             title="Productions"
             Icon={ClapperboardIcon}
             listing={productions}
-            empty="No productions yet. A production is a video's code and renders, kept so any computer on the project can pick it up."
+            empty="No productions yet. A production is a video's code and renders, kept so any computer on the space can pick it up."
           />
           <Bundles
             title="Releases"
@@ -242,7 +303,7 @@ export function ProjectDetail({
               </ul>
             ) : (
               <Empty>
-                No media yet. Shared pictures, songs and clips of the project
+                No media yet. Shared pictures, songs and clips of the space
                 show here.
               </Empty>
             )}
@@ -253,16 +314,34 @@ export function ProjectDetail({
             )}
           </Group>
 
-          <Group title="Skills" Icon={SparklesIcon}>
-            <Empty>
-              <span className="mr-1.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">Coming</span>
-              Private skills made for this project will be linked here, so everyone on it has them. MCPs and apps follow.
-            </Empty>
+          <Group title="Skills, MCPs and apps" Icon={SparklesIcon}>
+            {space?.items.length ? (
+              <>
+                <SpaceItems space={space} />
+                <p className="pt-2 text-xs text-muted-foreground">
+                  {personal ? 'Every computer of yours gets these with' : 'Everyone on the project gets these with'}{' '}
+                  <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
+                </p>
+              </>
+            ) : (
+              <Empty>
+                {personal ? (
+                  <>
+                    Nothing yet. Ask Claude to make a skill for you, or run <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space new skill &lt;name&gt;</span>.
+                  </>
+                ) : (
+                  <>
+                Nothing made for this project yet. Ask Claude to &quot;share &lt;skill&gt; with the {project?.displayName ?? 'project'} project&quot; and everyone on it gets it (
+                <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space share &lt;skill&gt; --project=…</span>).
+                  </>
+                )}
+              </Empty>
+            )}
           </Group>
 
           <p className="text-xs text-muted-foreground">
             Productions, releases and media are added from Claude: ask it to
-            share or sync them (the ProjectSync MCP, or{' '}
+            share or sync them (the MediaMake Spaces MCP, or{' '}
             <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
               mm media sync
             </span>
@@ -270,6 +349,7 @@ export function ProjectDetail({
           </p>
         </div>
 
+        {!personal && (
         <aside
           id="access"
           className="scroll-mt-20 rounded-xl border bg-card p-4 lg:sticky lg:top-20"
@@ -281,10 +361,11 @@ export function ProjectDetail({
           <ProjectAccessPanel
             projectId={projectId}
             me={me}
-            onLeft={() => router.push('/app/projects')}
+            onLeft={() => router.push('/app/spaces')}
             className="mt-3"
           />
         </aside>
+        )}
       </div>
     </div>
   );

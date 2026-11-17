@@ -155,7 +155,7 @@ export function deviceLabel(env = process.env) {
   return device;
 }
 
-async function call(method, url, key, body) {
+export async function call(method, url, key, body) {
   const res = await fetch(url, {
     method,
     headers: { Accept: 'application/json', Authorization: `Bearer ${key}`, ...(body !== undefined && { 'Content-Type': 'application/json' }) },

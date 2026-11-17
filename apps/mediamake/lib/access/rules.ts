@@ -86,10 +86,10 @@ export function viewerTier(entitlements: Entitlements): ViewerTier {
 }
 
 /**
- * Whether a tier may keep projects in the cloud (the Projects page, brand
+ * Whether a tier may keep projects in the cloud (project spaces and a space's files, brand
  * kits, channel sync, song takes): Plus and above. Public accounts keep
- * their work on their own computer. The ProjectSync MCP, which syncs cloud
- * projects from a computer, is a catalog item of its own, at Pro.
+ * their work on their own computer. The MediaMake Spaces MCP (mcp/projectsync), which syncs cloud
+ * projects from a computer, is a catalog item of its own, at Plus too.
  */
 export function canUseCloudProjects(tier: ViewerTier): boolean {
   return tierHasFeature(tier, 'cloudProjects');

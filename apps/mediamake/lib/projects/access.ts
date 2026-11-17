@@ -1,7 +1,7 @@
 import type { ProjectRole } from '@/lib/editor/project-access';
 
 /**
- * Who can open a cloud project, as the Projects page shows and changes it.
+ * Who can open a cloud project, as the Spaces page shows and changes it.
  * The roles are lib/editor/project-access's: the owner, and the editors and
  * viewers the owner shared it with. Someone invited by an email that has no
  * account yet waits as an invite, and becomes a member the first time they
@@ -51,10 +51,12 @@ export interface MemberPerson extends Person {
   canOpen?: boolean;
 }
 
-/** One project on the Projects page. */
+/** One space on the Spaces page: a project's, or the caller's personal one. */
 export interface ProjectCard {
   id: string;
   displayName: string;
+  /** The caller's personal space: only theirs, never shared. */
+  personal?: boolean;
   tags: string[];
   createdAt: string;
   /** The newest of: the project changed, a production or release changed, media was added. */

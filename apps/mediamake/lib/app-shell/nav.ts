@@ -49,7 +49,7 @@ export const APP_NAV: AppNavSection[] = [
     items: [
       { title: 'Explore', href: '/app/explore', icon: 'explore' },
       { title: 'Mine', href: '/app/mine', icon: 'mine' },
-      { title: 'Projects', href: '/app/projects', icon: 'projects', needs: 'plus' },
+      { title: 'Spaces', href: '/app/spaces', icon: 'projects' },
     ],
   },
   {

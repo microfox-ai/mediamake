@@ -1,6 +1,6 @@
 # Cloud project storage: a cap per membership
 
-Cloud projects (the Projects page, `/app/projects`) open at Plus. Storage is
+Cloud projects (the Spaces page, `/app/spaces`: project spaces and the files of a personal space) open at Plus. Storage is
 the one thing here that costs money per person, so each membership has a cap,
 and an admin can raise one person's.
 
@@ -38,7 +38,7 @@ check beside it, the check is off in development.
 
 ## Raising one person's cap
 
-An admin raises it from the foot of `/app/projects` (client id, the new cap
+An admin raises it from the foot of `/app/spaces` (client id, the new cap
 in GB, why), or with the API:
 
 | Route | |

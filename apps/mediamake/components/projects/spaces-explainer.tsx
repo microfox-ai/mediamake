@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 /**
- * How ProjectSync works and why it matters, at the bottom of the Projects
- * page: your computer, the cloud project, and the teammates and devices that
- * share it, drawn inline (strokes take the text colour, so both themes work;
- * the one accent is the sync itself). The facts are the ProjectSync MCP's
- * (packages/projectsync-mcp/README.md): change them there first.
+ * How MediaMake Spaces work and why they matter, at the bottom of the Spaces
+ * page: your computer, the space, and the teammates and devices that share
+ * it, drawn inline (strokes take the text colour, so both themes work; the
+ * one accent is the sync itself). The facts are the Spaces MCP's
+ * (packages/projectsync-mcp/README.md) and `mm space`'s
+ * (docs/private-spaces.md): change them there first.
  */
 
 const ACCENT = 'var(--chart-1)';
@@ -23,7 +24,7 @@ function Art({ label, viewBox, className, children }: { label: string; viewBox: 
   );
 }
 
-/** A laptop with the workspace folder open, and Claude holding the ProjectSync plug. */
+/** A laptop with the workspace folder open, and Claude holding the Spaces plug. */
 function ComputerArt() {
   return (
     <Art label="A laptop with a MediaMake folder of projects" viewBox="0 0 200 140" className="h-32 w-auto">
@@ -34,7 +35,7 @@ function ComputerArt() {
       {/* the workspace folder */}
       <path d="M48 40h18l5 6h29v32a3 3 0 0 1-3 3H51a3 3 0 0 1-3-3z" {...line} />
       <path d="M56 58h36M56 66h26M56 74h31" {...soft} />
-      {/* Claude with the ProjectSync plug */}
+      {/* Claude with the Spaces plug */}
       <rect x="112" y="34" width="42" height="50" rx="6" {...line} strokeDasharray="3 4" />
       <path d="M133 46v10M128.700 48.500l8.600 5M128.700 53.500l8.600-5" {...line} />
       <circle cx="133" cy="72" r="5" fill={ACCENT} />
@@ -43,10 +44,10 @@ function ComputerArt() {
   );
 }
 
-/** A cloud holding the project: four shelves for what it keeps. */
+/** A cloud holding the space: four shelves for what it keeps. */
 function CloudArt() {
   return (
-    <Art label="A cloud holding a project's productions, releases, brand kit and media" viewBox="0 0 200 140" className="h-32 w-auto">
+    <Art label="A cloud holding a space's productions, releases, brand kit and media" viewBox="0 0 200 140" className="h-32 w-auto">
       <path d="M52 112a30 30 0 0 1-4-59.700A42 42 0 0 1 129 38a34 34 0 0 1 21 74z" {...tint} />
       <path d="M52 112a30 30 0 0 1-4-59.700A42 42 0 0 1 129 38a34 34 0 0 1 21 74z" {...line} />
       <rect x="62" y="56" width="34" height="20" rx="4" {...line} />
@@ -114,6 +115,16 @@ function Stop({ art, title, tag, children }: { art: React.ReactNode; title: stri
 
 const SYNCS: { title: string; about: string; art: React.ReactNode }[] = [
   {
+    title: 'Skills, MCPs and apps',
+    about: 'What you or the team made for Claude. Kept in a private GitHub repo that MediaMake sets up, with their whole history.',
+    art: (
+      <>
+        <path d="M30 8l5 13 13 5-13 5-5 13-5-13-13-5 13-5z" {...line} />
+        <path d="M46 38l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill={ACCENT} />
+      </>
+    ),
+  },
+  {
     title: 'Productions',
     about: "A video's code and its renders. Each upload is a new version, and the earlier ones are kept.",
     art: (
@@ -169,40 +180,40 @@ const WHY: { title: string; about: string }[] = [
   { title: 'Nothing lives on one laptop', about: 'A dead disk or a new computer costs you nothing: ask Claude to pull the project and carry on where you stopped.' },
   { title: 'A team works from the same files', about: 'Editors add and change, viewers read. Everyone gets the same brand kit, the same footage and the latest cut, without sending folders around.' },
   { title: 'Every version is kept', about: 'Version 7 never overwrites version 6. Only the files that changed go up, and what you delete goes to the trash, not away.' },
-  { title: 'It stays private', about: 'Files are stored privately and opened through links that last an hour, only by the people you gave the project to.' },
+  { title: 'It stays private', about: 'Files are stored privately and opened through links that last an hour, and skills sit in private repos, only for the people you gave the space to.' },
 ];
 
-export function ProjectSyncExplainer({ canSync, className }: { /** Their membership opens the ProjectSync MCP (Pro and above). */ canSync?: boolean; className?: string }) {
+export function SpacesExplainer({ canSync, className }: { /** Their membership opens the Spaces MCP (Plus and above). */ canSync?: boolean; className?: string }) {
   return (
-    <section className={cn('flex flex-col gap-8 border-t pt-10', className)} aria-labelledby="projectsync-how">
+    <section className={cn('flex flex-col gap-8 border-t pt-10', className)} aria-labelledby="spaces-how">
       <div className="max-w-2xl">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">ProjectSync</p>
-        <h2 id="projectsync-how" className="mt-1 text-xl font-semibold tracking-tight">
-          How your projects get here, and why it matters
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">MediaMake Spaces</p>
+        <h2 id="spaces-how" className="mt-1 text-xl font-semibold tracking-tight">
+          How your work gets into a space, and why it matters
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          You make videos on your own computer. ProjectSync is how that work reaches the cloud project and comes back down on another computer or for a teammate. You ask Claude, it shows what would go up, and
-          then it moves the files.
+          You make videos on your own computer. A space is how that work, and the skills that made it, reach your other computers and your team. You ask Claude to sync, it shows what would go up, and then it moves
+          the files.
         </p>
       </div>
 
       <div className="flex flex-col items-stretch gap-3 md:flex-row">
-        <Stop art={<ComputerArt />} title="Your computer" tag="Claude with the ProjectSync MCP">
-          Your workspace folder: projects, renders, brand kits. You say “sync this production” and Claude does the rest.
+        <Stop art={<ComputerArt />} title="Your computer" tag="Claude, with mm space">
+          Your workspace folder: skills, projects, renders, brand kits. You say “sync my spaces” and Claude does the rest.
         </Stop>
         <Link2 up="Up: only what changed" down="Down: any version" />
-        <Stop art={<CloudArt />} title="The cloud project" tag="This page">
-          One project per body of work: a channel, a film, a series. It keeps the productions, releases, brand kit and media, and the list of who can open them.
+        <Stop art={<CloudArt />} title="The space" tag="This page">
+          Your personal space, and one per body of work: a channel, a film, a series. It keeps the skills, productions, releases, brand kit and media, and the list of who can open them.
         </Stop>
         <Link2 up="Shared by role" down="Their changes come back" />
         <Stop art={<PeopleArt />} title="Teammates and your other devices" tag="Owner, editor, viewer">
-          Anyone you add opens the same project from their own Claude, and so does your second computer.
+          Anyone you add gets the same space on their computer with one line, and so does your second computer.
         </Stop>
       </div>
 
       <div>
         <h3 className="text-sm font-semibold">What syncs</h3>
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {SYNCS.map(item => (
             <li key={item.title} className="flex gap-3 rounded-xl border p-4 lg:flex-col">
               <Art label="" viewBox="0 0 60 60" className="size-12 shrink-0">
@@ -217,7 +228,7 @@ export function ProjectSyncExplainer({ canSync, className }: { /** Their members
         </ul>
         <p className="mt-3 text-xs text-muted-foreground">
           Whether something goes up as a production, a release or media is your choice each time. A production&apos;s inputs go up only when they come to 200 MB or less; bigger footage stays in your media
-          library.
+          library. Skills never carry large media: the space names it and the media library brings it.
         </p>
       </div>
 
@@ -239,18 +250,20 @@ export function ProjectSyncExplainer({ canSync, className }: { /** Their members
       <div className="grid gap-3 rounded-xl border bg-muted/30 p-4 sm:grid-cols-2">
         <div>
           <p className="flex items-center gap-2 text-sm font-medium">
-            This page <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Plus and above</span>
+            Files in a space <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Plus and above</span>
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cloud projects and everything here: browse them, decide who has access, keep the brand kit, open and download what is stored.</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Project spaces and the files of every space: browse them, decide who has access, keep the brand kit, open and download what is stored. Skills, MCPs and apps in your personal space are for every member.
+          </p>
         </div>
         <div>
           <p className="flex items-center gap-2 text-sm font-medium">
-            The ProjectSync MCP <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Pro and above</span>
+            The MediaMake Spaces MCP <span className="rounded-full border bg-background px-2 py-0.5 text-[11px]">Plus and above</span>
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             The part that runs on your computer, so Claude can upload and pull productions, releases and media for you.{' '}
             <Link href="/mcps/projectsync" className="font-medium text-foreground underline underline-offset-4">
-              {canSync ? 'Install ProjectSync' : 'See ProjectSync'}
+              {canSync ? 'Install the Spaces MCP' : 'See the Spaces MCP'}
             </Link>
             {!canSync && (
               <>

@@ -94,6 +94,40 @@ test('a clean main behind GitHub updates without --yes', () => {
   assert.equal(git(user, 'rev-parse', 'HEAD'), git(seed, 'rev-parse', 'HEAD'));
 });
 
+test('on main it brings the spaces down when this computer has any, and --no-spaces skips it', () => {
+  const { user, seed } = setup(0);
+  // the checkout's own mm space, standing in: it says what it was asked
+  write(
+    path.join(seed, 'tools', 'space.mjs'),
+    "console.log('space ' + process.argv.slice(2).join(' '));\n",
+  );
+  git(seed, 'add', '-A');
+  git(seed, 'commit', '--quiet', '-m', 'space');
+  git(seed, 'push', '--quiet', 'origin', 'main');
+  const config = path.join(tmp, 'with-space.json');
+  write(config, JSON.stringify({ space: { repo: 'ann/mediamake-space' } }));
+  const run = (env, ...args) =>
+    spawnSync(
+      process.execPath,
+      [
+        path.join(HERE, 'update.mjs'),
+        `--dir=${user}`,
+        '--no-ci',
+        '--no-doctor',
+        ...args,
+      ],
+      { encoding: 'utf8', env: { ...ENV, ...env } },
+    );
+  const none = run({});
+  assert.equal(none.status, 0, none.stderr);
+  assert.doesNotMatch(none.stdout, /mm space pull/, 'no space on this computer');
+  const skipped = run({ MEDIAMAKE_CONFIG: config }, '--no-spaces');
+  assert.doesNotMatch(skipped.stdout, /mm space pull/);
+  const r = run({ MEDIAMAKE_CONFIG: config });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /→ mm space pull \(your MediaMake Spaces\)\n {2}space pull/);
+});
+
 test('edits on main stop at a dry run without --yes, and nothing changes', () => {
   const { user } = setup(1);
   const head = git(user, 'rev-parse', 'HEAD');

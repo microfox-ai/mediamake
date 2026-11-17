@@ -7,6 +7,8 @@ import { projectSharedMail } from '@/lib/mail/templates';
 import { getDatabase } from '@/lib/mongodb';
 import { parseShare, type MemberRole, type ProjectInvite, type ProjectMember } from '@/lib/projects/access';
 import { accessView, accountFor, findProject, type ProjectDoc } from '@/lib/projects/access-store';
+import { PERSONAL_ONLY_YOURS } from '@/lib/projects/personal';
+import { githubAfterAdd, githubAfterChange } from '@/lib/space/github-store';
 
 /**
  * Who can open a project (lib/projects/access). Behind the middleware, so
@@ -16,6 +18,8 @@ import { accessView, accountFor, findProject, type ProjectDoc } from '@/lib/proj
  *                             emails, pending invites and who can't open it yet.
  * POST   { projectId, role, email | clientId }   the owner adds someone. An email with no account
  *                             becomes an invite, taken up the first time that address signs in.
+ *                             With the owner's GitHub connected (/api/space/github), the member is also
+ *                             invited to the project's private repo; `github` in the answer says how it went.
  * PATCH  { projectId, role, email | clientId }   the owner changes a member's or an invite's role.
  * DELETE { projectId, email | clientId }         the owner removes a member or an invite; a member
  *                             can remove themselves (leave).
@@ -50,7 +54,7 @@ async function tell(to: string | undefined, project: ProjectDoc, by: string, rol
   try {
     const inviter = await getUserByClientId(by).catch(() => null);
     const site = siteUrl() ?? CANONICAL_SITE;
-    const url = hasAccount ? `${site}/app/projects/${project._id.toString()}` : `${site}/signup?redirectTo=${encodeURIComponent('/app/projects')}`;
+    const url = hasAccount ? `${site}/app/spaces/${project._id.toString()}` : `${site}/signup?redirectTo=${encodeURIComponent('/app/spaces')}`;
     const { sent } = await sendMail(projectSharedMail(to, { project: project.displayName, by: inviter?.name || inviter?.email || by, role, url, hasAccount }));
     return sent;
   } catch (error) {
@@ -83,6 +87,7 @@ export async function POST(req: NextRequest) {
   if (!found) return notFound();
   if (!found.isOwner) return ownerOnly();
   const { project } = found;
+  if (project.personal) return json({ error: PERSONAL_ONLY_YOURS }, 400);
 
   const account = await accountFor(db, target);
   if (!account) {
@@ -100,8 +105,12 @@ export async function POST(req: NextRequest) {
   const member: ProjectMember = { clientId: account.clientId, role, addedAt: new Date().toISOString(), addedBy: clientId };
   await col(db).updateOne({ _id: project._id }, { $push: { sharedWith: member }, $set: { updatedAt: new Date() } });
   const email = account.email ?? (await getUserByClientId(account.clientId).catch(() => null))?.email;
-  const mailed = await tell(email, project, clientId, role, true);
-  return viewAfter(db, target.projectId, clientId, { member, mailed }, 201);
+  const [mailed, github] = await Promise.all([
+    tell(email, project, clientId, role, true),
+    // the project's private repo (its space): made when there is none, and the new member invited to it
+    githubAfterAdd({ id: project._id.toString(), name: project.displayName }, clientId, { clientId: account.clientId, role }),
+  ]);
+  return viewAfter(db, target.projectId, clientId, { member, mailed, github }, 201);
 }
 
 export async function PATCH(req: NextRequest) {
@@ -121,6 +130,7 @@ export async function PATCH(req: NextRequest) {
   const field = target.email ? 'invites.$.role' : 'sharedWith.$.role';
   const result = await col(db).updateOne(filter, { $set: { [field]: target.role, updatedAt: new Date() } });
   if (!result.matchedCount) return json({ error: 'They are not on this project' }, 404);
+  if (target.clientId && target.role) await githubAfterChange(target.projectId, clientId, target.clientId, target.role);
   return viewAfter(db, target.projectId, clientId);
 }
 
@@ -142,6 +152,8 @@ export async function DELETE(req: NextRequest) {
       ? { $pull: { invites: { email: target.email } }, $set: { updatedAt: new Date() } }
       : { $pull: { sharedWith: { clientId: target.clientId } }, $set: { updatedAt: new Date() } },
   );
+  // off the project's repo too, with the owner's GitHub connection when there is one
+  if (target.clientId && found.project.clientId) await githubAfterChange(target.projectId, found.project.clientId, target.clientId, null);
   if (leaving) return json({ success: true, left: true });
   return viewAfter(db, target.projectId, clientId, { success: true });
 }

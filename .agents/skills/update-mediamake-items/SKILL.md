@@ -46,8 +46,10 @@ A checkout of `microfox-ai/mediamake` (usually `~/mediamake`), and every skill t
 with `mm update` run in the checkout (`npm run mm -- update` until `mm` is linked). It has no version
 on MediaMake: its version is GitHub's main (`git log -1 --format='%h %cs'` in the checkout).
 
-- On a clean main it does it all: pulls, runs `npm ci` when the dependencies changed, shows what
-  `mm migrate` would move into the workspace, and runs `mm doctor`. Report the commits it brought in
+- On a clean main it does it all: pulls (which brings every skill's latest instructions, since they
+  are files of the checkout), runs `npm ci` when the dependencies changed, shows what `mm migrate`
+  would move into the workspace, brings their MediaMake Spaces down (`mm space pull`: what their
+  other computers and teammates sent, never anything up), and runs `mm doctor`. Report the commits it brought in
   and anything doctor flags.
 - Edits or commits on main stop it, and it lists them without changing anything. Show the person
   that list and run `mm update --yes` only once they agree: it keeps them on a `local/<date>` branch

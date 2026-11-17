@@ -61,7 +61,7 @@ file git tracks is the framework, shared by everyone who pulls. The guard rails 
   or `branch -D`, and never `git clean -x` or `-X`, which deletes the user's projects and renders (the guard
   stops it).
 - Update with `mm update`: on a clean main it pulls (`--ff-only`), runs `npm ci` when the dependencies
-  changed, then `mm migrate` (a dry run) and `mm doctor`. Edits or commits on main it lists and leaves;
+  changed, then `mm migrate` (a dry run), `mm space pull` when the computer has spaces, and `mm doctor`. Edits or commits on main it lists and leaves;
   `mm update --yes`, with the user's OK, keeps them on a `local/<date>` branch and then updates main.
   `mm doctor` checks the machine (Node 22.6+, uv, ffmpeg, dependencies, builds, the render browser,
   git, workspace, keys); `--fix` repairs what it can. On main, install only with `npm ci`:
@@ -81,6 +81,39 @@ log is shared and changes only in a pull request: when the user wants their note
 `mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
 touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
+## MediaMake Spaces: the user's personal space and their projects'
+
+A space keeps everything for one body of work, the same on every computer: a personal one (`space/` in
+the workspace, only theirs) and one per project they are on (`spaces/<project>/`, everyone on that
+project). What was made for it (`skills/`, `mcps/`, `apps/`) lives in a private GitHub repo, moved by
+`mm space`; its files (brand kit, productions, releases, media) live in MediaMake's storage, moved by
+the MediaMake Spaces MCP (`mcp/projectsync`, which was ProjectSync) and `mm media sync`. In the app it is
+Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`). The
+`use-mediamake-spaces` skill says what to run for each thing a user asks.
+
+- Repos are made without asking: a new skill of the user's own goes in their space
+  (`mm space new skill <name>`, or `mm space add <name>` for a variant in the workspace), never in this
+  repo, and the space is created by itself when there is none. Only a missing GitHub sign-in
+  (`gh auth login`) is the user's step.
+- "Share it with the <project> project" is `mm space share <item> --project=<project>` (a dry run, then
+  `--yes` once they agree): it makes the project's space when there is none and invites the project's
+  members. Tell the user who could not be invited (no GitHub account linked in MediaMake).
+- Adding someone to a project in the app invites them to the project's repo on GitHub when the owner
+  connected GitHub there (once, in the access panel; MediaMake's GitHub App, set up as
+  `apps/mediamake/docs/private-spaces.md` says). Otherwise `mm space invite <project id>` on the
+  owner's computer sends it (the app shows the line with a copy button). That connection's token is
+  sealed in `github_grants`: never print, log or copy it, and use it only through `lib/space/github.ts`.
+- A member new to a project runs the line on the project's page, `mm space join <project id>`: it signs
+  in when needed, accepts the GitHub invitation, clones the project's space and links its skills. When
+  it says they aren't invited yet, tell them who invites (it names them); don't work around it.
+- `mm space sync` at the start of a session that uses their skills brings in what other computers and
+  teammates sent. What would go out is a dry run: show it and run `--yes` once they agree. It ends with
+  each space's files waiting to come down or go up; those move with `mm media sync` (below), never by
+  themselves.
+- Large media never goes in a space: the media library carries it, and the item names it under
+  `media` in its `item.json`.
+- A space is private. Publishing an item from it follows the rule at the top like any other.
+
 ## Media files: the shared library
 
 Footage, pins, generated art, songs, stems, sound effects, overlays and fonts are kept once in the
@@ -98,7 +131,7 @@ media library and reused by every production. Where it is on this machine is in
 - The user's own songs (finals, remasters, stems) stay in their channel folder in Downloads, indexed
   where they are; never move them into the library.
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
-- Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only ProjectSync use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
+- Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only the MediaMake Spaces MCP (it was ProjectSync) use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
 
 ## Transcription: the ElevenLabs MCP first
 
@@ -186,6 +219,8 @@ rest on `/app/feedback`. How it works and what to set up: `apps/mediamake/docs/f
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`
 hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
 versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
-sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. When
+sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
+space also reports its items' names, versions, titles and one-line summaries (`mm space
+report --dry` shows it, the same switch stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

@@ -265,7 +265,7 @@ from a terminal.
 An item stores `tier`; the older `visibility` and `neverPublish` fields are
 kept in step with it (`visibilityOfTier`), and a record from before the ladder
 is read through them (`itemTier`: in development is Cohort, community is Pro).
-Cloud projects (the Projects page, brand kits, channel sync, song takes) open
+Cloud projects (the Spaces page, brand kits, channel sync, song takes) open
 at Plus and Lambda renders stay with the cohort (`FEATURE_TIERS`); the
 ProjectSync MCP and Browse Hack are Pro items.
 

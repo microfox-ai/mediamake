@@ -40,7 +40,7 @@ export const MCP_CONNECTORS = {
     name: 'mediamake',
     fallback: { id: 'mcp/mediamake', visibility: 'private', tier: 'admin', neverPublish: true },
     locked:
-      'The old MediaMake MCP is deprecated and for MediaMake admins only. Use mm-use (mcp/mm-use) to explore and install skills, MCPs and apps; for your projects, brand kits, productions and media, install ProjectSync (mcp/projectsync).',
+      'The old MediaMake MCP is deprecated and for MediaMake admins only. Use mm-use (mcp/mm-use) to explore and install skills, MCPs and apps; for your projects, brand kits, productions and media, install MediaMake Spaces (mcp/projectsync, which was ProjectSync).',
     does: 'read and create timelines, transcribe, run workers and agents, and start renders as you (workers and renders can cost credits)',
   },
 } as const satisfies Record<string, { item: string; path: string; name: string; fallback: GatedItem; locked: string; does: string }>;

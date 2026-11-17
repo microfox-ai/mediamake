@@ -8,6 +8,7 @@
  *   --no-ci              skip npm ci and the rebuilds (npm ci runs only when package-lock.json or a
  *                        package.json changed, or node_modules is missing)
  *   --no-doctor          skip mm doctor at the end
+ *   --no-spaces          skip bringing your MediaMake Spaces up to date
  *   --dir=<path>         another checkout
  *
  * On main:
@@ -21,7 +22,11 @@
  *  4. npm ci, when the dependencies changed (it never rewrites package-lock.json; npm install would).
  *  5. mm migrate: with a workspace set, what a new version moves into it (moved with --yes); with none
  *     yet, how to move your work out of the checkout.
- *  6. mm doctor, which first rebuilds @microfox/remotion and the studio's presets when the pull made
+ *  6. MediaMake Spaces, when this computer has any: mm space pull brings in what your other computers
+ *     and teammates sent (skills, MCPs, apps) and links new skills into Claude. Nothing is sent up. The
+ *     skills that came with the checkout, use-mediamake-spaces among them, are files of the checkout, so
+ *     the pull in step 3 already brought their latest instructions.
+ *  7. mm doctor, which first rebuilds @microfox/remotion and the studio's presets when the pull made
  *     them stale.
  * On another branch your branch is left as it is: local main fast-forwards to GitHub's, and the report
  * says how to bring it in (`git merge origin/main`). npm ci and migrate wait until you are on main.
@@ -170,7 +175,7 @@ export const describe = p => {
         `  2. bring ${p.main} up to GitHub${p.behind ? ` (${plural(p.behind, 'commit')})` : ''}`,
       );
       lines.push(
-        '  3. npm ci if the dependencies changed, mm migrate if your workspace needs it, then mm doctor',
+        '  3. npm ci if the dependencies changed, mm migrate if your workspace needs it, your MediaMake Spaces brought down, then mm doctor',
       );
       lines.push(
         `Your projects, renders and brand kits (files git ignores) aren't touched. Nothing on ${p.save} is lost: push it as a PR (--push), or drop it once you have looked.`,
@@ -222,7 +227,37 @@ const migrate = (top, yes) => {
   return { output, nothing: /Nothing to do\.$/.test(output) };
 };
 
-/** Does it. Returns { saved?, pushed?, compare?, pulled, ci, needsYes? }. */
+/** Whether this computer has a space connected (`space` or `projectSpaces` in ~/.mediamake/config.json). */
+export const hasSpaces = (env = process.env) => {
+  try {
+    const file =
+      env.MEDIAMAKE_CONFIG ||
+      path.join(env.HOME || env.USERPROFILE || '', '.mediamake', 'config.json');
+    const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return !!config.space || Object.keys(config.projectSpaces ?? {}).length > 0;
+  } catch {
+    return false;
+  }
+};
+
+/** mm space pull: what other computers and teammates sent comes down and is linked. Never fails the update. */
+const pullSpaces = (top, log) => {
+  log('→ mm space pull (your MediaMake Spaces)');
+  const r = spawnSync(
+    process.execPath,
+    [path.join(top, 'tools', 'space.mjs'), 'pull'],
+    { cwd: top, encoding: 'utf8' },
+  );
+  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`.trim();
+  if (out) log(out.replace(/^/gm, '  '));
+  if (r.status !== 0)
+    log(
+      '! Your spaces were not brought up to date: `mm space sync` says why. The rest of the update is done.',
+    );
+  return r.status === 0;
+};
+
+/** Does it. Returns { saved?, pushed?, compare?, pulled, ci, spaces?, needsYes? }. */
 export async function runUpdate(
   p,
   {
@@ -231,6 +266,7 @@ export async function runUpdate(
     ci = true,
     migrateStep = true,
     doctor = true,
+    spaces = true,
     log = console.log,
   } = {},
 ) {
@@ -352,6 +388,9 @@ export async function runUpdate(
     }
   }
 
+  if (spaces && p.kind !== 'branch' && hasSpaces())
+    done.spaces = pullSpaces(top, log);
+
   if (doctor) {
     log('');
     const { doctor: run } = await import('./doctor.mjs');
@@ -396,7 +435,11 @@ if (
     fs.realpathSync(fileURLToPath(import.meta.url))
 ) {
   const args = process.argv.slice(2);
-  checkArgs(args, ['--yes', '--push', '--no-ci', '--no-doctor'], 'mm update');
+  checkArgs(
+    args,
+    ['--yes', '--push', '--no-ci', '--no-doctor', '--no-spaces'],
+    'mm update',
+  );
   const has = f => args.includes(f);
   const dir =
     args.find(a => a.startsWith('--dir='))?.slice('--dir='.length) ??
@@ -415,6 +458,7 @@ if (
       push: has('--push'),
       ci: !has('--no-ci'),
       doctor: !has('--no-doctor'),
+      spaces: !has('--no-spaces'),
     });
     process.exit(0);
   })().catch(e => {
