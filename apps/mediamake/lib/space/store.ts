@@ -1,4 +1,4 @@
-import { personalProjectId } from '@/lib/projects/personal';
+import { brandMarks, type BrandKit, type BrandMarks } from '@/lib/brand-kit';
 import type { Db } from 'mongodb';
 import type { ProjectRole } from '@/lib/editor/project-access';
 import type { User } from '@/lib/auth/users';
@@ -53,25 +53,32 @@ export interface MemberProject {
   role: ProjectRole;
   /** Everyone on it, the owner first. */
   people: { clientId: string; role: ProjectRole }[];
+  /** Its logo, favicon and banner, from its brand kit. */
+  brand?: BrandMarks;
 }
+
+/** What a project's logo, favicon and banner are read from: never the whole kit. */
+const BRAND = { 'brandKit.assets': 1, 'brandKit.logo': 1 } as const;
 
 interface ProjectDocLite {
   _id: string | { toString(): string };
   clientId?: string;
   displayName?: string;
   sharedWith?: { clientId: string; role: 'editor' | 'viewer' }[];
+  brandKit?: Pick<BrandKit, 'assets' | 'logo'>;
 }
 
 /** The projects an account owns or was given. Its personal space's own project (lib/projects/personal) is not one of them. */
 export async function projectsOf(db: Db, clientId: string): Promise<MemberProject[]> {
   const docs = await db
     .collection<ProjectDocLite>('projects')
-    .find({ $or: [{ clientId }, { 'sharedWith.clientId': clientId }], deletedAt: { $exists: false }, personal: { $ne: true } } as never, { projection: { clientId: 1, displayName: 1, sharedWith: 1 } })
+    .find({ $or: [{ clientId }, { 'sharedWith.clientId': clientId }], deletedAt: { $exists: false }, personal: { $ne: true } } as never, { projection: { clientId: 1, displayName: 1, sharedWith: 1, ...BRAND } })
     .toArray();
   return docs
     .map(doc => ({
       id: String(doc._id),
       name: doc.displayName ?? 'Project',
+      ...(brandMarks(doc.brandKit) && { brand: brandMarks(doc.brandKit) }),
       role: (doc.clientId === clientId ? 'owner' : ((doc.sharedWith ?? []).find(member => member.clientId === clientId)?.role ?? 'viewer')) as ProjectRole,
       people: [
         ...(doc.clientId ? [{ clientId: doc.clientId, role: 'owner' as ProjectRole }] : []),
@@ -94,6 +101,8 @@ export interface MySpaces {
   mine: SpaceView | null;
   /** The project that keeps the personal space's files (brand kits, productions, media), once it exists. */
   personalProjectId?: string;
+  /** The personal space's logo, favicon and banner, from that project's brand kit. */
+  personalBrand?: BrandMarks;
   projects: (ProjectSpaceView & {
     /** For the people who may change the project: who to invite to the repo, by GitHub login. */
     members?: { name: string; githubLogin?: string; role: ProjectRole; you?: boolean }[];
@@ -178,7 +187,14 @@ export const spaceDB = {
   /** An account's own space and the space of every project it is on, as the page and `mm space` read them. */
   async mySpaces(clientId: string): Promise<MySpaces> {
     const db = await getDatabase();
-    const [projects, personal] = await Promise.all([projectsOf(db, clientId), personalProjectId(db, clientId).catch(() => null)]);
+    const [projects, personal] = await Promise.all([
+      projectsOf(db, clientId),
+      db
+        .collection<ProjectDocLite>('projects')
+        .findOne({ clientId, personal: true } as never, { projection: { _id: 1, ...BRAND } })
+        .catch(() => null),
+    ]);
+    const personalBrand = brandMarks(personal?.brandKit);
     const ids = [userSpaceId(clientId), ...projects.map(project => projectSpaceId(project.id))];
     const [spaces, items, people] = await Promise.all([
       db.collection<SpaceRecord>(COL.spaces).find({ id: { $in: ids } }, noId).toArray(),
@@ -192,10 +208,12 @@ export const spaceDB = {
     });
     return {
       mine: spaceView(state(ids[0]), clientId),
-      ...(personal && { personalProjectId: personal }),
+      ...(personal && { personalProjectId: String(personal._id) }),
+      ...(personalBrand && { personalBrand }),
       projects: projects.map(project => ({
         projectId: project.id,
         name: project.name,
+        ...(project.brand && { brand: project.brand }),
         role: project.role,
         people: project.people.length,
         ...(people.get(project.people[0]?.clientId)?.name && project.people[0].role === 'owner' && { owner: people.get(project.people[0].clientId)!.name }),

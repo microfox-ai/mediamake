@@ -78,6 +78,8 @@ export interface BrandKit {
 export interface BrandKitSummary {
   name?: string;
   logo?: string;
+  favicon?: string;
+  banner?: string;
   colors: string[];
   assetCount: number;
   updatedAt: string;
@@ -327,11 +329,47 @@ export function primaryLogo(kit: Pick<BrandKit, 'assets' | 'logo'>): string | un
   return images.sort((a, b) => rank(a) - rank(b))[0]?.url;
 }
 
+/** The pictures a space or project is shown with, read from its brand kit. */
+export interface BrandMarks {
+  /** The main logo (primaryLogo). */
+  logo?: string;
+  /** The small square mark, for tabs and lists. */
+  favicon?: string;
+  /** The wide channel banner. */
+  banner?: string;
+}
+
+/**
+ * A kit's logo, favicon and banner. They are read from the kit each time,
+ * so uploading or changing a brand kit is all it takes to map them; a kit
+ * without one of them leaves it out. Undefined when it has none of the three.
+ */
+export function brandMarks(kit: Pick<BrandKit, 'assets' | 'logo'> | undefined | null): BrandMarks | undefined {
+  if (!kit?.assets?.length) return undefined;
+  const images = kit.assets.filter(a => isImage(a.path) && !SPARE_FOLDER.test(a.path));
+  const best = (list: BrandAsset[], rank: (a: BrandAsset) => number) => [...list].sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path))[0]?.url;
+  // a favicon a browser can show at any size first: svg, then the larger pngs, the .ico last
+  const favicon = best(
+    images.filter(a => a.kind === 'favicon'),
+    a => (a.path.endsWith('.svg') ? 0 : /192|180|apple-touch/.test(a.path) ? 1 : /512/.test(a.path) ? 2 : a.path.endsWith('.ico') ? 4 : 3),
+  );
+  const banner = best(
+    images.filter(a => /banner/i.test(a.path)),
+    a => (a.kind === 'channel' ? 0 : 1),
+  );
+  const logo = primaryLogo(kit);
+  if (!logo && !favicon && !banner) return undefined;
+  return { ...(logo && { logo }), ...(favicon && { favicon }), ...(banner && { banner }) };
+}
+
 export function summarizeBrandKit(kit: BrandKit | undefined | null): BrandKitSummary | undefined {
   if (!kit) return undefined;
+  const marks = brandMarks(kit);
   return {
     name: kit.name,
     logo: primaryLogo(kit),
+    ...(marks?.favicon && { favicon: marks.favicon }),
+    ...(marks?.banner && { banner: marks.banner }),
     colors: kit.colors.slice(0, 6).map(c => c.hex),
     assetCount: kit.assets.length,
     updatedAt: kit.updatedAt,

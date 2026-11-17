@@ -178,6 +178,7 @@ export function ItemCards({
   projects = [],
   unlinkFrom,
   empty,
+  columns = 2,
 }: {
   /** The space's own items. */
   space?: SpaceView | null;
@@ -191,6 +192,8 @@ export function ItemCards({
   unlinkFrom?: { id: string; name: string };
   /** Shown when there is nothing. */
   empty?: React.ReactNode;
+  /** Cards to a row on a wide screen. */
+  columns?: 2 | 3;
 }) {
   const router = useRouter();
   const [rows, setRows] = React.useState(linked);
@@ -208,7 +211,7 @@ export function ItemCards({
   if (!space?.items.length && !rows.length) return empty ? <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">{empty}</p> : null;
   return (
     <>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <ul className={columns === 3 ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'grid grid-cols-1 gap-3 sm:grid-cols-2'}>
         {(space?.items ?? []).map(item => (
           <Card key={item.key} kind={item.kind} version={item.version} title={item.title} summary={item.summary} status={<SyncPill item={item} computers={space!.devices.length} />} foot={audience} details={detailsKey.space(space!.id, item.key)}>
             <NextStep item={item} />

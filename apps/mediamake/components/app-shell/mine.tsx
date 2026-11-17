@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AlertTriangleIcon, ArrowRightIcon } from 'lucide-react';
 import { detailsKey, usedLine, type ItemDetails } from '@/lib/app-shell/details';
 import { KIND_LABEL, type LocalOnly, type MemberKind, type Mine, type MineItem } from '@/lib/app-shell/member';
+import type { BrandMarks } from '@/lib/brand-kit';
 import { deviceName } from '@/lib/space/space';
 import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -89,6 +90,17 @@ function LocalRows({ rows, variant = false }: { rows: LocalOnly[]; variant?: boo
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A project's small mark on its tab: its favicon, else its logo, else its first letter. */
+function ProjectMark({ name, brand }: { name: string; brand?: BrandMarks }) {
+  const src = brand?.favicon ?? brand?.logo;
+  return (
+    <span className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-background text-[11px] font-semibold uppercase text-muted-foreground" aria-hidden>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {src ? <img src={src} alt="" className="size-full object-contain" /> : name.trim().charAt(0)}
+    </span>
   );
 }
 
@@ -209,10 +221,11 @@ export function MineView({
           <TabsContent value="projects">
             {projects.length ? (
               <Tabs defaultValue={projects[0].projectId} className="gap-4">
-                <div className="-mx-4 overflow-x-auto px-4">
-                  <TabsList className="h-auto gap-1.5 bg-transparent p-0">
+                <div className="-mx-4 overflow-x-auto px-4 pb-1">
+                  <TabsList className="h-auto w-max justify-start gap-1.5 bg-transparent p-0">
                     {projects.map(project => (
-                      <TabsTrigger key={project.projectId} value={project.projectId} className="h-8 flex-none rounded-full border-border px-3 data-[state=active]:border-foreground/40 data-[state=active]:bg-muted data-[state=active]:shadow-none">
+                      <TabsTrigger key={project.projectId} value={project.projectId} className="h-9 flex-none gap-2 rounded-full border-border py-1 pl-1.5 pr-3 data-[state=active]:border-foreground/40 data-[state=active]:bg-muted data-[state=active]:shadow-none">
+                        <ProjectMark name={project.name} brand={project.brand} />
                         {project.name}
                         <span className="text-xs font-normal tabular-nums text-muted-foreground">{inProject(project)}</span>
                       </TabsTrigger>
@@ -221,13 +234,17 @@ export function MineView({
                 </div>
                 {projects.map(project => (
                   <TabsContent key={project.projectId} value={project.projectId}>
+                    {project.brand?.banner && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={project.brand.banner} alt="" className="mb-3 h-24 w-full rounded-xl border object-cover" />
+                    )}
                     <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span>{project.people > 1 ? `${project.people} people have these` : 'Only you so far'}</span>
                       <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
                         Open space <ArrowRightIcon className="size-3" aria-hidden />
                       </Link>
                     </div>
-                    <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} empty="Nothing made for this project yet." />
+                    <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} columns={3} empty="Nothing made for this project yet." />
                   </TabsContent>
                 ))}
               </Tabs>
