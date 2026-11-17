@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission'].sort(),
     );
   });
 
@@ -657,6 +657,18 @@ describe('mm-use', () => {
     const sent = calls.find(c => c.url.pathname === '/api/feedback')!;
     expect(sent.body).toEqual({ text: 'The render step crashes', itemId: 'skill/make-lyrics-video', version: '2.0.0', source: 'mm-use' });
     expect(out.feedbackId).toBe('fb_1');
+  });
+
+  it('submits an item privately with its production, reads submissions back and withdraws one', async () => {
+    const calls = stubApi(method => (method === 'GET' ? { submissions: [{ submissionId: 'sub_Ab12Cd34Ef56', status: 'pending' }] } : { submission: { submissionId: 'sub_Ab12Cd34Ef56', status: method === 'DELETE' ? 'withdrawn' : 'pending' } }));
+    const files = [{ path: 'SKILL.md', content: '---\nname: my-skill\ndescription: Does a thing\n---\n' }];
+    const { out } = await call('submit_item', { kind: 'skill', name: 'my-skill', made: { title: 'My first video', url: 'https://youtu.be/abc' }, files });
+    expect([calls[0].method, calls[0].url.pathname]).toEqual(['POST', '/api/submissions']);
+    expect(calls[0].body).toEqual({ kind: 'skill', name: 'my-skill', made: { title: 'My first video', url: 'https://youtu.be/abc' }, files: [{ ...files[0], encoding: 'utf8' }], source: 'mm-use' });
+    expect(out).toMatchObject({ sent: true, public: false, submission: { status: 'pending' } });
+    expect((await call('my_submissions', {})).out.submissions).toHaveLength(1);
+    await call('withdraw_submission', { submission: 'sub_Ab12Cd34Ef56' });
+    expect([calls[2].method, calls[2].url.pathname, calls[2].url.searchParams.get('id')]).toEqual(['DELETE', '/api/submissions', 'sub_Ab12Cd34Ef56']);
   });
 
   it('reads back what the account sent, and an item\'s known issues', async () => {

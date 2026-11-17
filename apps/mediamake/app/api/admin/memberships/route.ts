@@ -6,10 +6,12 @@ import { catalogIndex } from '@/lib/catalog/admin-index';
 import { accessGroupsDB, accessRequestsDB } from '@/lib/catalog/store';
 import { NETWORK_GROUP, PRIVATE_GROUP } from '@/lib/catalog/types';
 import { mailConfigured } from '@/lib/mail/send';
-import { adminsAmong, changeTier, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
+import { adminsAmong, changeTier, grantContribution, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
 import { auditLog } from '@/lib/memberships/audit';
 import { buildPeople } from '@/lib/memberships/people';
 import { membershipsDB } from '@/lib/memberships/store';
+import { pullKey, suggestGrants, SUGGESTED_TIER } from '@/lib/memberships/suggestions';
+import { recentMergedPulls, suggestionsDB } from '@/lib/memberships/suggestions-store';
 import { GRANTABLE_TIERS } from '@/lib/memberships/tiers';
 import { publicOrigin } from '@/lib/mcp/oauth';
 
@@ -24,6 +26,13 @@ import { publicOrigin } from '@/lib/mcp/oauth';
  *         puts a person at one tier. A reason is required here: it is what the audit log shows.
  *       { type: 'make_permanent', membershipId, notify? }
  *       { type: 'resolve_request', requestId, approve, note?, days?, notify? }
+ *       { type: 'confirm_suggestion', clientId, pull, notify? }
+ *         gives Plus for 3 months for a merged pull request (`pull` is owner/name#12, from `suggestions`).
+ *       { type: 'dismiss_suggestion', pulls }
+ *         stops suggesting those pull requests.
+ *
+ * `suggestions` in the GET: merged pull requests on the public repositories by people whose account
+ * has that GitHub account linked, which no membership counts yet (lib/memberships/suggestions).
  *
  * The changes themselves are lib/memberships/admin, shared with
  * /api/admin/catalog (Releases, mm-release, `npm run catalog`). Linking an
@@ -53,7 +62,7 @@ async function safely<T>(what: string, load: Promise<T>, fallback: T): Promise<T
 export async function GET(req: NextRequest) {
   if (!(await admin(req))) return forbidden();
 
-  const [accounts, keyHolders, memberships, groups, requests, titles] = await Promise.all([
+  const [accounts, keyHolders, memberships, groups, requests, titles, merged, dismissed] = await Promise.all([
     safely('accounts', listAccounts(), []),
     listKeyHolders(),
     safely('memberships', membershipsDB.list({ includeEnded: true }), []),
@@ -64,6 +73,8 @@ export async function GET(req: NextRequest) {
       catalogIndex().then(index => Object.fromEntries([...index.byId].map(([id, item]) => [id, item.title]))),
       {} as Record<string, string>,
     ),
+    safely('merged pull requests', recentMergedPulls({ fresh: req.nextUrl.searchParams.get('fresh') === 'true' }), { pulls: [], problems: ['Merged pull requests could not be read'] }),
+    safely('dismissed suggestions', suggestionsDB.dismissed(), []),
   ]);
   const members = (groupId: string) => groups.find(group => group.groupId === groupId)?.members ?? [];
   const everyone = [...new Set([...accounts.map(a => a.clientId), ...keyHolders.map(k => k.clientId), ...memberships.map(m => m.clientId)])];
@@ -79,6 +90,8 @@ export async function GET(req: NextRequest) {
     people,
     requests: requests.filter(request => request.status === 'pending'),
     audit: auditLog({ memberships, requests }),
+    suggestions: suggestGrants({ pulls: merged.pulls, people, dismissed }),
+    suggestionProblems: merged.problems,
     titles,
     mail: mailConfigured(),
   });
@@ -109,6 +122,8 @@ const actions = z.discriminatedUnion('type', [
     days: days.optional(),
     notify: z.boolean().optional(),
   }),
+  z.object({ type: z.literal('confirm_suggestion'), clientId: text(200).min(1), pull: text(200).regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#\d+$/, 'pull must be owner/name#12'), notify: z.boolean().optional() }),
+  z.object({ type: z.literal('dismiss_suggestion'), pulls: z.array(text(200).regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#\d+$/)).min(1).max(50) }),
 ]);
 
 export async function POST(req: NextRequest) {
@@ -146,6 +161,23 @@ export async function POST(req: NextRequest) {
       case 'resolve_request': {
         const resolved = await resolveRequest({ ...body, note: body.note || undefined, by: adminId, origin });
         return resolved ? NextResponse.json(resolved) : NextResponse.json({ error: 'No pending request with that id' }, { status: 404 });
+      }
+
+      case 'confirm_suggestion': {
+        // only a pull request GitHub says that person merged: the page's list is not trusted
+        const [{ pulls }, account] = await Promise.all([recentMergedPulls(), listAccounts().then(accounts => accounts.find(entry => entry.clientId === body.clientId))]);
+        const pull = pulls.find(entry => pullKey(entry) === body.pull);
+        if (!pull || !account?.githubLogin || pull.login.toLowerCase() !== account.githubLogin.toLowerCase()) {
+          return NextResponse.json({ error: 'That pull request is not a merged one by this person' }, { status: 404 });
+        }
+        const granted = await grantContribution({ clientId: body.clientId, tier: SUGGESTED_TIER, ref: pull.url, note: `Merged ${pullKey(pull)}: ${pull.title}`.slice(0, 500), by: adminId, origin, notify: body.notify });
+        if (!granted.membership) return bad(granted.why ?? 'Nothing to give');
+        return NextResponse.json(granted);
+      }
+
+      case 'dismiss_suggestion': {
+        await suggestionsDB.dismiss(body.pulls, adminId);
+        return NextResponse.json({ success: true });
       }
     }
   } catch (error) {

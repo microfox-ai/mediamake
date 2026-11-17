@@ -1,0 +1,272 @@
+#!/usr/bin/env node
+/**
+ * submit: send something you built to the MediaMake store, privately, for an admin to review.
+ *
+ *   mm submit <name>                        the checks only (a dry run): where the item is, what would be
+ *                                           sent, and what must be fixed first
+ *   mm submit <name> --yes --made="<production>" [--made-url=<link>] [--note="<for the reviewers>"]
+ *                                           sends it. The production is the finished work made with it
+ *   mm submit status                        your submissions and where each stands
+ *   mm submit withdraw <id>                 takes one back before it is decided
+ *   --kind=skill|mcp|app                    when two of your items share a name
+ *   --json                                  the same as JSON, for Claude
+ *
+ * <name> is a skill, MCP or app of your own: in your space or a project's (mm space), or a skill in
+ * your workspace (a variant from fork-skill). The rule is "We publish nothing we don't use.", so
+ * --yes refuses without --made, and a test render or a demo is not a production.
+ *
+ * What is sent, to your MediaMake account over its sign-in (mm login): the item's files (text as it
+ * is, anything else as bytes), its name, title, one-line summary and version, the production and your
+ * note. Never .git, node_modules, .env files or anything over 1 MB: builds and media stay out (media
+ * goes through the media library, named under "media" in item.json). Nothing is public yet: an admin
+ * reads it, picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, asks for
+ * changes or declines, and you are mailed. Accepted, it enters as Beta and earns you a membership for
+ * 3 months, renewed by contributing again.
+ *
+ * The same item sent again before a decision replaces what you sent.
+ */
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { frontmatter, lineProblems, ownSkillsDir, RULE } from './skills.mjs';
+import { KINDS, localSpaces } from './space.mjs';
+import { apiKey, call, site } from './usage.mjs';
+
+const SELF = fileURLToPath(import.meta.url);
+export const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** The server's limits (apps/mediamake/lib/submissions/submission.ts): keep the two alike. */
+export const MAX_FILES = 400;
+export const MAX_BYTES = 3 * 1024 * 1024;
+export const MAX_FILE_BYTES = 1024 * 1024;
+const LEFT_OUT = /(^|\/)(\.git|node_modules|\.DS_Store|\.env[^/]*|__pycache__|\.venv)(\/|$)/;
+const TEXT = /\.(md|mdx|mjs|cjs|js|jsx|ts|tsx|py|json|txt|sh|ya?ml|toml|css|html|svg|csv)$/i;
+const NOT_A_PRODUCTION = /^(test|a test|testing|demo|a demo|none|n\/?a|tbd|todo|nothing|\?+|-+)$/i;
+
+const tilde = p => (p === os.homedir() || p.startsWith(os.homedir() + path.sep) ? `~${p.slice(os.homedir().length)}` : p);
+const readJson = file => {
+  try {
+    const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return value && typeof value === 'object' ? value : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Every place an item of the user's own can be: each space on this computer, then the workspace's skills. */
+export function candidates(name, { spaces = localSpaces(), skillsDir = ownSkillsDir() } = {}) {
+  const found = [];
+  const seen = new Set();
+  const add = (kind, dir, where) => {
+    let real;
+    try {
+      real = fs.realpathSync(dir);
+    } catch {
+      return;
+    }
+    if (seen.has(real) || !fs.statSync(real).isDirectory()) return;
+    if (kind === 'skill' && !fs.existsSync(path.join(real, 'SKILL.md'))) return;
+    seen.add(real);
+    found.push({ kind, name, dir: real, where });
+  };
+  for (const space of spaces) {
+    for (const [kind, folder] of Object.entries(KINDS)) add(kind, path.join(space.dir, folder, name), space.project ? `the ${space.project.name} project's space` : 'your space');
+  }
+  add('skill', path.join(skillsDir, name), 'your workspace');
+  return found;
+}
+
+/** The item's files, relative to its folder: what would be sent, and what is left out and why. */
+export function collect(dir) {
+  const files = [];
+  const skipped = [];
+  const walk = (at, rel) => {
+    for (const entry of fs.readdirSync(at, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+      const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+      const abs = path.join(at, entry.name);
+      if (LEFT_OUT.test(relPath)) continue;
+      if (entry.isSymbolicLink()) {
+        skipped.push(`${relPath} is a link: links are not sent`);
+        continue;
+      }
+      if (entry.isDirectory()) {
+        walk(abs, relPath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const bytes = fs.statSync(abs).size;
+      if (bytes > MAX_FILE_BYTES) {
+        skipped.push(`${relPath} is ${(bytes / 1048576).toFixed(1)} MB, over 1 MB: builds and media stay out (media goes in the media library, named under "media" in item.json)`);
+        continue;
+      }
+      const data = fs.readFileSync(abs);
+      // text travels as text so it can be read and checked; anything with a NUL byte is binary
+      const text = TEXT.test(relPath) && !data.includes(0);
+      files.push({ path: relPath, bytes, ...(text ? { content: data.toString('utf8'), encoding: 'utf8' } : { content: data.toString('base64'), encoding: 'base64' }) });
+    }
+  };
+  walk(dir, '');
+  return { files, skipped };
+}
+
+/** What stops a submission (problems) and what deserves a look (notes): the same lines the server checks. */
+export function check(item, files) {
+  const problems = [];
+  const notes = [];
+  const total = files.reduce((sum, file) => sum + file.bytes, 0);
+  if (files.length === 0) problems.push('the folder has nothing to send');
+  if (files.length > MAX_FILES) problems.push(`${files.length} files: an item holds at most ${MAX_FILES}`);
+  if (total > MAX_BYTES) problems.push(`${(total / 1048576).toFixed(1)} MB in all: a submission holds at most ${MAX_BYTES / 1048576} MB`);
+  if (item.kind === 'skill') {
+    const front = frontmatter(path.join(item.dir, 'SKILL.md'));
+    if (front.name !== item.name) problems.push(`SKILL.md says name: ${front.name ?? '(none)'}, the folder is ${item.name}`);
+    if (!front.description) problems.push('SKILL.md has no description in its front matter');
+  }
+  for (const file of files) {
+    if (file.encoding !== 'utf8') continue;
+    file.content.split('\n').forEach((line, i) => {
+      const at = `${file.path}:${i + 1}`;
+      for (const p of lineProblems(line)) problems.push(`${at} ${p}`);
+      if (/[\w.+-]+@[\w-]+\.[\w.]+/.test(line) && !/noreply@|example\.(com|org)/.test(line)) notes.push(`${at} has an email address`);
+    });
+  }
+  return { problems, notes: [...new Set(notes)], total };
+}
+
+/** The item's title, summary and version as its files state them. */
+export function describe(item) {
+  const meta = readJson(path.join(item.dir, 'item.json'));
+  const front = item.kind === 'skill' ? frontmatter(path.join(item.dir, 'SKILL.md')) : {};
+  const text = value => (typeof value === 'string' && value.trim() ? value.trim() : undefined);
+  return {
+    title: text(meta.title),
+    summary: text(meta.summary) ?? text(front.description)?.slice(0, 500),
+    version: text(meta.version) ?? text(front.metadata?.version) ?? text(front.version),
+  };
+}
+
+/** What a production must be before anything is sent. */
+export function madeProblem(made) {
+  if (!made || made.trim().length < 3 || NOT_A_PRODUCTION.test(made.trim())) {
+    return `${RULE} Name the finished production made with it: --made="<its title>" (and --made-url=<link> when it is online). A test render or a demo is not one.`;
+  }
+  return null;
+}
+
+/** The body POST /api/submissions takes. */
+export function payload(item, files, { made, madeUrl, note }) {
+  const about = describe(item);
+  return {
+    kind: item.kind,
+    name: item.name,
+    ...(about.title && { title: about.title }),
+    ...(about.summary && { summary: about.summary }),
+    ...(about.version && { version: about.version }),
+    made: { title: made.trim(), ...(madeUrl && { url: madeUrl.trim() }) },
+    ...(note?.trim() && { note: note.trim() }),
+    source: 'mm-submit',
+    files: files.map(({ path: p, content, encoding }) => ({ path: p, content, encoding })),
+  };
+}
+
+const flagsOf = argv => {
+  const flags = {};
+  const rest = [];
+  for (const arg of argv) {
+    const m = arg.match(/^--([a-z-]+)(?:=(.*))?$/s);
+    if (m) flags[m[1]] = m[2] ?? true;
+    else rest.push(arg);
+  }
+  return { flags, rest };
+};
+
+const fail = message => {
+  console.error(`✖ ${message}`);
+  process.exit(1);
+};
+
+function signedIn() {
+  const url = site();
+  const key = apiKey(url);
+  if (!key) fail(`This computer is not signed in to MediaMake. Run mm login (it opens the browser; click Allow), then try again.`);
+  return { url, key: key.key };
+}
+
+const line = s => `  ${s.itemId}@${s.version}  ${s.submissionId}  ${s.standing}${s.pullRequest ? `  ${s.pullRequest}` : ''}`;
+
+async function status(json) {
+  const { url, key } = signedIn();
+  const { submissions = [] } = (await call('GET', `${url}/api/submissions`, key)) ?? {};
+  if (json) return console.log(JSON.stringify({ submissions }, null, 2));
+  if (submissions.length === 0) return console.log('You have sent nothing to the store yet. mm submit <name> checks one of your items.');
+  console.log('Your submissions, newest first:\n');
+  for (const s of submissions) console.log(line(s));
+}
+
+async function withdraw(id, json) {
+  if (!id) fail('withdraw needs the submission id (mm submit status lists them)');
+  const { url, key } = signedIn();
+  const { submission } = await call('DELETE', `${url}/api/submissions?id=${encodeURIComponent(id)}`, key);
+  if (json) return console.log(JSON.stringify({ submission }, null, 2));
+  console.log(`Withdrawn: ${submission.itemId}. It stays yours and works as before.`);
+}
+
+async function submit(name, flags) {
+  const json = !!flags.json;
+  if (!name || !NAME.test(name)) fail('Name the item: mm submit <name> (lowercase letters, digits and dashes). mm space lists what is in your spaces.');
+  let found = candidates(name);
+  if (flags.kind) found = found.filter(item => item.kind === flags.kind);
+  if (found.length === 0) fail(`No ${flags.kind ?? 'skill, MCP or app'} named ${name} in your spaces or your workspace's skills. mm space lists what you have; a skill that is already in the repo is public already.`);
+  if (found.length > 1) fail(`${name} is in more than one place: ${found.map(item => `${item.kind} in ${item.where}`).join(', ')}. Say which with --kind=skill|mcp|app, or submit from the space that should own it.`);
+  const item = found[0];
+  const { files, skipped } = collect(item.dir);
+  const { problems, notes, total } = check(item, files);
+  const about = describe(item);
+  const send = flags.yes === true;
+  const made = typeof flags.made === 'string' ? flags.made : '';
+  const madeUrl = typeof flags['made-url'] === 'string' ? flags['made-url'] : '';
+  if (send && madeProblem(made)) problems.push(madeProblem(made));
+  if (madeUrl && !/^https:\/\//.test(madeUrl)) problems.push('--made-url must be an https link');
+
+  const report = { item: { kind: item.kind, name, where: item.where, ...about }, files: files.map(file => ({ path: file.path, bytes: file.bytes })), bytes: total, skipped, problems, notes };
+  if (!send || problems.length > 0) {
+    if (json) console.log(JSON.stringify({ ...report, sent: false }, null, 2));
+    else {
+      console.log(`${item.kind} ${name}, in ${item.where} (${tilde(item.dir)})`);
+      console.log(`  ${about.title ?? name}${about.version ? `, version ${about.version}` : ''}: ${about.summary ?? '(no summary: add one to its item.json or SKILL.md)'}`);
+      console.log(`  ${files.length} files, ${(total / 1024).toFixed(1)} KB would be sent`);
+      for (const s of skipped) console.log(`  – left out: ${s}`);
+      for (const n of notes) console.log(`  ⚠ ${n}`);
+      for (const p of problems) console.log(`  ✖ ${p}`);
+      if (problems.length > 0) console.log('\nFix what ✖ marks, then check again. Nothing was sent.');
+      else console.log(`\nNothing was sent. ${RULE}\nTo send it for review: mm submit ${name} --yes --made="<the finished production made with it>" [--made-url=<link>]`);
+    }
+    process.exit(problems.length > 0 ? 1 : 0);
+  }
+
+  const { url, key } = signedIn();
+  const { submission } = await call('POST', `${url}/api/submissions`, key, payload(item, files, { made, madeUrl, note: typeof flags.note === 'string' ? flags.note : '' }));
+  if (json) return console.log(JSON.stringify({ ...report, sent: true, submission }, null, 2));
+  console.log(`Sent ${submission.itemId}@${submission.version} for review (${submission.submissionId}). Nothing is public yet.`);
+  if (submission.problems?.length) {
+    console.log('The checks on the server stop on these. Fix them and send it again:');
+    for (const p of submission.problems) console.log(`  ✖ ${p}`);
+  }
+  console.log(`An admin reads it and picks the membership that opens it. You are mailed when they decide; mm submit status shows where it stands.`);
+}
+
+async function main(argv) {
+  const { flags, rest } = flagsOf(argv);
+  const [first, second] = rest;
+  if (!first || first === 'help' || flags.help) {
+    const text = fs.readFileSync(SELF, 'utf8');
+    return console.log(text.slice(text.indexOf('/**') + 3, text.indexOf('*/')).replace(/^ \* ?/gm, '').trim());
+  }
+  if (first === 'status') return status(!!flags.json);
+  if (first === 'withdraw') return withdraw(second, !!flags.json);
+  return submit(first, flags);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === SELF) {
+  main(process.argv.slice(2)).catch(error => fail(error.message));
+}

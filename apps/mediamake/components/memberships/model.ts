@@ -2,6 +2,7 @@ import type { AccessRequest } from '@/lib/catalog/types';
 import type { AuditEvent } from '@/lib/memberships/audit';
 import type { Membership } from '@/lib/memberships/membership';
 import type { PersonRow } from '@/lib/memberships/people';
+import type { Suggestion } from '@/lib/memberships/suggestions';
 import { tierLabel } from '@/lib/memberships/tiers';
 
 /** GET /api/admin/memberships */
@@ -12,6 +13,10 @@ export interface MembershipsData {
   audit: AuditEvent[];
   /** Item titles by id, for requests that ask for an item. */
   titles: Record<string, string>;
+  /** Merged pull requests by people with a linked GitHub account that no membership counts yet. */
+  suggestions: Suggestion[];
+  /** Repositories whose pull requests could not be read. */
+  suggestionProblems: string[];
   /** Whether mail can be sent (RESEND_API_KEY). */
   mail: boolean;
 }

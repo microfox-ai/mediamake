@@ -16,8 +16,9 @@ import { ChangeDialog } from './change-dialog';
 import { LinkDialog } from './link-dialog';
 import { formatDay, formatMoment, howGot, isLink, mailedLine, membershipsCall, type Mailed, type MembershipsData } from './model';
 import { Empty, MemberTierPill, Section } from './parts';
+import { Suggested } from './suggested';
 
-const TABS = ['people', 'requests', 'log'] as const;
+const TABS = ['people', 'requests', 'suggested', 'log'] as const;
 type Tab = (typeof TABS)[number];
 
 /**
@@ -101,6 +102,12 @@ export function ManageMemberships() {
                 <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{data.requests.length}</span>
               ) : null}
             </TabsTrigger>
+            <TabsTrigger value="suggested">
+              Suggested
+              {data?.suggestions?.length ? (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">{data.suggestions.length}</span>
+              ) : null}
+            </TabsTrigger>
             <TabsTrigger value="log">Audit log</TabsTrigger>
           </TabsList>
           <Button variant="ghost" size="icon" className="size-9" onClick={load} aria-label="Refresh">
@@ -112,6 +119,7 @@ export function ManageMemberships() {
           {data ? <People data={data} onChange={setChanging} onLink={setLinking} run={run} /> : <Skeleton className="h-96 rounded-2xl" />}
         </TabsContent>
         <TabsContent value="requests">{data && <Requests data={data} nameOf={nameOf} run={run} />}</TabsContent>
+        <TabsContent value="suggested">{data && <Suggested data={data} run={run} />}</TabsContent>
         <TabsContent value="log">{data && <AuditLog events={data.audit} titles={data.titles} nameOf={nameOf} />}</TabsContent>
       </Tabs>
 

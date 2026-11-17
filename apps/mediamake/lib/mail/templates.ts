@@ -196,3 +196,47 @@ function quote(text: string, max = 200): string {
   const line = text.trim().replace(/\s+/g, ' ');
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
 }
+
+/** What an admin decided about a store submission, for its sender. */
+export interface SubmissionDecision {
+  /** The item's title. */
+  item: string;
+  outcome: 'accepted' | 'changes' | 'declined';
+  /** Accepted: the membership that opens it, e.g. "Pro". */
+  tier?: string;
+  /** Accepted: where it stands, e.g. "It is live in Explore, in Beta." */
+  where?: string;
+  /** Accepted: the membership it earned and how long it lasts, e.g. "Pro, until 17 Feb 2027 (contributing again renews it)". */
+  membership?: string;
+  /** The admin's words: what to change, why it was declined, or a note. */
+  note?: string;
+  url: string;
+}
+
+/** Sent to a submission's sender when an admin accepts it, asks for changes or declines it. */
+export function submissionDecidedMail(to: string, decision: SubmissionDecision): Mail {
+  const { item, outcome } = decision;
+  const lines: string[] = [];
+  if (outcome === 'accepted') {
+    lines.push(`${item} is accepted into the MediaMake store${decision.tier ? ` as a ${decision.tier} item` : ''}. ${decision.where ?? 'It enters as Beta.'}`);
+    if (decision.membership) lines.push(`Contributing it earned you a membership: ${decision.membership}.`);
+    if (decision.note) lines.push(decision.note);
+    lines.push('It is marked Ready once an admin has seen it proven in use. Thank you for making MediaMake better for everyone who uses it.');
+  } else if (outcome === 'changes') {
+    lines.push(`An admin looked at ${item} and asks for changes before it is listed.`);
+    if (decision.note) lines.push(decision.note);
+    lines.push('Make them, then say "make this public" to Claude again: the new version replaces the one you sent.');
+  } else {
+    lines.push(`${item} was not accepted into the MediaMake store this time.`);
+    if (decision.note) lines.push(decision.note);
+    lines.push('It stays yours, in your space, and works as before. You can submit it again when that changes.');
+  }
+  return layout({
+    to,
+    subject: outcome === 'accepted' ? `${item} is in the MediaMake store` : outcome === 'changes' ? `Changes asked for ${item}` : `About your submission of ${item}`,
+    heading: outcome === 'accepted' ? 'Your submission is accepted' : outcome === 'changes' ? 'Changes are asked for' : 'Your submission was declined',
+    lines,
+    button: { label: outcome === 'accepted' ? 'See your membership' : 'Open MediaMake', url: decision.url },
+    footer: 'You get this mail because you submitted this item from your MediaMake account. Reply to it with any question.',
+  });
+}

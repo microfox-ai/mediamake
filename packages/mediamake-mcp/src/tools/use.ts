@@ -10,7 +10,8 @@ import { itemPagePath, json, safe } from '../util.js';
  * feedback. The server is hosted and reads no files: what is on the computer
  * comes from Claude, or from the repo's hook and `mm usage`. Feedback is read
  * back too: what the account sent and what came of it, and each item's known
- * issues.
+ * issues. A member also sends what they built to the store from here, for an
+ * admin to review (submit_item, my_submissions, withdraw_submission).
  */
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -261,5 +262,68 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
       annotations: READ,
     },
     safe(async ({ item }) => json(await client.get('/api/feedback', { item }))),
+  );
+
+  server.registerTool(
+    'submit_item',
+    {
+      title: 'Submit to the store',
+      description:
+        "Send a skill, MCP or app the user built to the MediaMake store, privately, for an admin to review: its files, and the finished production that was made with it. Use it when the user asks to make something they built public, publish it or list it in the store. The rule is \"We publish nothing we don't use.\": ask the user which finished production was made with it (its title, and its link when it is online); never make one up, and a test render or a demo is not one. With none, don't submit. Read every file first and show the user anything private (a key, a token, a path on their computer, an email, a client's name): the server checks again and lists what it stops on under problems, to fix and send again. On a computer with the MediaMake repo, `mm submit <name>` does the same from the files on disk, so prefer it there. Nothing is public until an admin approves; the admin picks the membership that opens it (public, plus, pro or cohort), it enters as Beta, and accepting it earns the user a membership for 3 months. Sending the same item again before a decision replaces what was sent.",
+      inputSchema: {
+        kind: z.enum(['skill', 'mcp', 'app']),
+        name: z
+          .string()
+          .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'lowercase letters, digits and dashes, such as make-lyrics-video')
+          .max(64)
+          .describe("The item's name: its folder's name, and a skill's `name` in its SKILL.md"),
+        made: z
+          .object({
+            title: z.string().min(3).max(200).describe('The finished production made with it, as the user named it'),
+            url: z.string().url().max(500).optional().describe('Its https link, when it is online'),
+          })
+          .describe('The proof the rule asks for'),
+        files: z
+          .array(
+            z.object({
+              path: z.string().min(1).max(300).describe("Relative to the item's folder, with forward slashes, e.g. SKILL.md or scripts/run.mjs"),
+              content: z.string(),
+              encoding: z.enum(['utf8', 'base64']).default('utf8').describe('base64 for a file that is not text'),
+            }),
+          )
+          .min(1)
+          .max(400)
+          .describe("Every file of the item, at most 1 MB each and 3 MB in all. A skill needs its SKILL.md at the top. Leave out .git, node_modules, .env files, builds and media"),
+        title: z.string().max(120).optional().describe("Left out: from the item's item.json, else made from its name"),
+        summary: z.string().max(500).optional().describe("What it does, in a line. Left out: from item.json, else a skill's description"),
+        version: z.string().max(40).optional().describe('Such as 1.0.0. Left out: from item.json or SKILL.md, else 0.1.0'),
+        note: z.string().max(1000).optional().describe('What the user wants the reviewers to know'),
+      },
+      annotations: WRITE,
+    },
+    safe(async input => json({ ...(await client.post<{ submission: unknown }>('/api/submissions', { ...input, source: 'mm-use' })), sent: true, public: false })),
+  );
+
+  server.registerTool(
+    'my_submissions',
+    {
+      title: 'My submissions',
+      description:
+        'What this account sent to the MediaMake store, newest first, with where each stands: waiting for an admin, changes asked for (with what to change), accepted (with the membership that opens it, the membership it earned and, for a Public skill, its pull request), live, declined or withdrawn.',
+      inputSchema: {},
+      annotations: READ,
+    },
+    safe(async () => json(await client.get('/api/submissions'))),
+  );
+
+  server.registerTool(
+    'withdraw_submission',
+    {
+      title: 'Withdraw a submission',
+      description: 'Take back a submission before an admin decides it, when the user asks. The item stays theirs and works as before. my_submissions gives the id.',
+      inputSchema: { submission: z.string().regex(/^sub_[A-Za-z0-9_-]{6,40}$/, 'a submission id such as sub_Ab12Cd34Ef56').describe('The submission id') },
+      annotations: WRITE,
+    },
+    safe(async ({ submission }) => json(await client.request('DELETE', '/api/submissions', { query: { id: submission } }))),
   );
 }

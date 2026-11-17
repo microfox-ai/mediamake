@@ -63,6 +63,7 @@ const ABOUT = {
   update: 'brings this checkout up to GitHub without losing your edits, then npm ci, migrate and doctor',
   login: 'signs this computer in to MediaMake through your browser, no key to paste (mm login status; mm logout)',
   items: 'what your MediaMake account opens (MCPs, apps) and what is installed; mm items install --yes installs it all with the sign-in',
+  submit: 'sends a skill, MCP or app you built to the MediaMake store for review (a dry run; --yes --made="<production>"); mm submit status',
   usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
@@ -158,7 +159,7 @@ const main = () => {
   remindMigrate(cmd);
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
-  if (!['sync-presets', 'update', 'doctor', 'items', 'usage', 'login'].includes(script)) ensurePresets(APP, { soft: true });
+  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)

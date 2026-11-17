@@ -216,6 +216,24 @@ rest on `/app/feedback`. How it works and what to set up: `apps/mediamake/docs/f
 - Merging a pull request tied to a feedback marks it shipped and mails its writer, so tie hand-made
   fixes too ("Add to an existing PR" on the feedback).
 
+## Store submissions: members submit, admins approve
+
+A member's own skill, MCP or app gets into the store through a private review, never a pull request
+they open (`apps/mediamake/docs/submissions.md`).
+
+- "Make this public" is the `submit-to-store` skill: `mm submit <name>` checks it (keys, tokens,
+  paths on this computer) and `mm submit <name> --yes --made="…"` sends it with the production that
+  proves it. The rule at the top holds: no production, no submission.
+- An admin decides on `/app/submissions`: the lowest membership that opens it (Public, Plus, Pro or
+  Cohort), then approve, ask for changes or decline. A Public skill becomes a pull request on this
+  repo; everything else goes to the private store repo (`microfox-ai/mediamake-store`) and is
+  released as a package. Every item enters as Beta.
+- Accepting one gives its sender a membership for 3 months (a Public or Plus item earns Plus, a Pro
+  item Pro); contributing again renews it, and an admin can make it permanent. Merged pull requests
+  from linked GitHub accounts show as suggested grants on Manage Memberships: an admin confirms each.
+- A submission's files and an admin's words about it are for its sender and the admins. Never copy
+  them into a commit, an issue or a SKILL.md. `STORE_GITHUB_TOKEN` is never printed or logged.
+
 ## Usage: names and times only
 
 Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and feedback. The `Skill`
