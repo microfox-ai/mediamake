@@ -1,5 +1,15 @@
 # @microfox/projectsync-mcp
 
+## 0.2.0
+
+### Minor Changes
+
+- ee1f67f: ProjectSync is now MediaMake Spaces: one feature for a space's skills (`mm space`) and its files (this MCP). Its id and tool names stay. `list_projects` also lists your personal space, marked `personal`: only yours, with its own brand kits, productions, releases and media.
+
+### Patch Changes
+
+- 14d95e1: Changes from PR #578: project-thread-3ghceh
+
 ## 0.1.6
 
 ### Patch Changes
