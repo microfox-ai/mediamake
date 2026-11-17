@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeftIcon, ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
+import { ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
+import { ItemShell } from '@/components/app-shell/item-shell';
 import { Badge } from '@/components/ui/badge';
 import { ListingScreenshots, ListingTags } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
@@ -11,6 +12,7 @@ import { SkillActions } from '@/components/skills/skill-actions';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { itemPagePath } from '@/lib/catalog/paths';
+import { itemPath } from '@/lib/catalog/summary';
 import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import { slugOf } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
@@ -19,7 +21,8 @@ import { registry, skillMdUrl, skillNamed, skillRelations } from '@/lib/skills/r
 
 /**
  * /skills/<name>: one skill's own page, the link to share. Every skill in skills.json is public, so
- * the page is the same for everyone: what it does, what was made with it (a gallery that opens on its intro video), its tags and screenshots, what it works with, how it
+ * the page is the same for everyone, inside the app's sidebar (ItemShell: signed out, the sidebar
+ * holds a Sign in button; admins get a Release page button): what it does, what was made with it (a gallery that opens on its intro video), its tags and screenshots, what it works with, how it
  * relates to the other skills, its SKILL.md, and the install prompt. The list of skills is the
  * homepage's Skills tab (/?tab=skills).
  */
@@ -67,19 +70,7 @@ export default async function SkillPage({ params }: Props) {
   const [owner] = skill.upstream?.split('/') ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-            <img src="/brand/mediamake-mark.svg" alt="" className="size-6" />
-            MediaMake
-          </Link>
-          <Link href="/?tab=skills" className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeftIcon className="size-4" /> All skills
-          </Link>
-        </div>
-      </header>
-
+    <ItemShell back={{ href: '/?tab=skills', label: 'All skills' }} releasePath={itemPath(id)}>
       <main className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-3">
@@ -181,7 +172,7 @@ export default async function SkillPage({ params }: Props) {
           {variants.length > 0 && <SkillList title="Variants" names={variants.map(s => s.name)} skills={variants} />}
         </aside>
       </main>
-    </div>
+    </ItemShell>
   );
 }
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
+import { ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
+import { ItemShell } from '@/components/app-shell/item-shell';
 import { AccessActions } from '@/app/(public)/access/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,11 +9,12 @@ import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
-import { accessLevel, getEntitlements, getViewer } from '@/lib/access';
+import { accessLevel, getEntitlements, getViewer, viewerTier } from '@/lib/access';
 import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type ItemUse } from '@/lib/catalog';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf } from '@/lib/catalog/releases';
+import { itemPath } from '@/lib/catalog/summary';
 import { accessRequestsDB, catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import type { CatalogKind } from '@/lib/catalog/types';
 import { registry } from '@/lib/skills/registry';
@@ -36,7 +38,7 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
 /**
  * An MCP's or an app's own page, the link to share, like a skill's (/skills/<name>): what it is,
  * what was made with it (a gallery that opens on its intro video), its screenshots, how to install or open it, what it works with, the skills that use it and its
- * release notes. Who can see it follows the catalog: a locked item goes to its request-access page,
+ * release notes, inside the app's sidebar (ItemShell). Who can see it follows the catalog: a locked item goes to its request-access page,
  * and one hidden from the viewer is not found.
  */
 export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slug: string }) {
@@ -72,21 +74,11 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
   // the repo's skills that work with this MCP
   const usedBy = kind === 'mcp' ? (registry?.skills ?? []).flatMap(skill => skill.mcps?.filter(m => m.id === item.id).map(m => ({ skill, use: m })) ?? []) : [];
   const back = LIST_TAB[kind]!;
+  // the frame's sidebar: the app's own when signed in, a Sign in button when not
+  const shellViewer = viewer.clientId ? { clientId: viewer.clientId, tier: viewerTier(entitlements), isAdmin: entitlements.isAdmin } : null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-            <img src="/brand/mediamake-mark.svg" alt="" className="size-6" />
-            MediaMake
-          </Link>
-          <Link href={back.href} className="ml-auto inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeftIcon className="size-4" /> {back.label}
-          </Link>
-        </div>
-      </header>
-
+    <ItemShell viewer={shellViewer} back={back} releasePath={itemPath(item.id)}>
       <main className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-3">
@@ -203,6 +195,6 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
           )}
         </aside>
       </main>
-    </div>
+    </ItemShell>
   );
 }
