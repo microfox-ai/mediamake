@@ -1,6 +1,6 @@
 ---
 name: use-mediamake-spaces
-description: Work with MediaMake Spaces (it was ProjectSync plus spaces) — the user's personal space and one space per project they are on, each holding the skills, MCPs and apps made for it (a private GitHub repo, `mm space`) and its files (brand kit, productions, releases, media, shared assets, through the MediaMake Spaces MCP and `mm media sync`). Use when the user says "sync my spaces / my MediaMake space", "set up the <project> project on this computer", "join the project", "share this skill with the <project> project", "make this skill mine / private", "invite <someone> to the project", "upload / sync this production (or release, brand kit, media) to the project", "pull the project's files", "what is in my space", "project sync", "ProjectSync", "who can open this project", or asks how spaces, project sharing or cloud projects work in MediaMake.
+description: Work with MediaMake Spaces (it was ProjectSync plus spaces) — the user's personal space and one space per project they are on, each holding the skills, MCPs and apps made for it (a private GitHub repo, `mm space`) and its files (brand kit, productions, releases, media, shared assets, through the MediaMake Spaces MCP and `mm media sync`). Use when the user says "sync my spaces / my MediaMake space", "set up the <project> project on this computer", "join the project", "share this skill with the <project> project", "link this skill to the <project> project (or to several)", "share this skill with <someone>", "let <someone> edit my skill", "unlink it from the <project> project", "make this skill mine / private", "invite <someone> to the project", "upload / sync this production (or release, brand kit, media) to the project", "pull the project's files", "what is in my space", "project sync", "ProjectSync", "who can open this project", or asks how spaces, project sharing or cloud projects work in MediaMake.
 metadata:
   category: other
   internal: 'true'
@@ -13,6 +13,12 @@ A **space** keeps everything for one body of work, the same on every computer. B
 - **Personal**: only the user. `<workspace>/space`, repo `<their GitHub login>/mediamake-space`.
 - **A project's**: everyone on that MediaMake project (a channel, a film, a series, a brand).
   `<workspace>/spaces/<project>`, repo `<maker's login>/mediamake-<project>`.
+
+One more shape, for an item that should stay its owner's and still reach other people: a **linked
+item**. It gets a small private repo of its own (`<owner's login>/mediamake-<kind>-<name>`, cloned to
+`<workspace>/linked/<name>`), one copy with one history. Everyone on each project it is linked to, and
+every member its owner names, gets it with `mm space sync`. Only its owner and the editors the owner
+names can change it.
 
 Every space holds two things, moved by two tools. Know which one the ask is about before doing anything:
 
@@ -54,7 +60,10 @@ only once they agree.
 | "Sync my spaces", or the start of a session that uses their skills | `mm space sync`: brings everything down, shows what would go up, then shows each space's files waiting. `mm space sync --yes` sends the skills once they agree |
 | "Set up / join the <project> project here" | `mm space join <project id or name>` (the line on the project's page). It signs in when needed, accepts the GitHub invitation, clones, links the skills and shows the project's files |
 | "Make me a skill" (their own, not for this repo) | `mm space new skill <name>`, then write it there. Never in this repo. `mm space add <name>` moves a variant from the workspace in |
-| "Share it with the <project> project" | `mm space share <item> --project=<project>` (dry run, then `--yes`; `--copy` keeps theirs too). Tell them who could not be invited (no GitHub account linked in MediaMake) |
+| "Link it to the <project> project", "give it to <project> and <project> too", "share it with the <project> project but keep it mine" | `mm space link <item> --project=<project> [--project=<another>]` (dry run, then `--yes`). It stays theirs, in a repo of its own; everyone on each linked project gets it. Tell them who could not be invited (no GitHub account linked in MediaMake) |
+| "Share it with <someone>" (a person, not a project), "let <someone> edit it" | `mm space link <item> --to=<their MediaMake email>` (can use it) or `--editor=<email>` (can also change it). `--to` on an editor makes them a user again |
+| "Unlink it from <project>", "stop sharing it with <someone>" | `mm space unlink <item> --project=<project>` or `--from=<email>` (dry run, then `--yes`). Only that project's people, or that person, lose it. `mm space link <item>` alone says where it is linked |
+| "Move it into the <project> project", "it belongs to the project now" | `mm space share <item> --project=<project>` (dry run, then `--yes`; `--copy` keeps theirs too). The item leaves their space and everyone on the project who is an owner or editor can change it. When they only say "share it with the project", ask which they mean: linked (stays theirs) is the usual one |
 | "I added <someone> to the project" / "invite them" | With GitHub connected in the app's access panel it already happened. Otherwise `mm space invite <project id>` on the owner's computer, then give the new member `mm space join <project id>` |
 | "Upload / sync this production, release or media" | The MCP: ask which space (`list_projects`; the personal one is marked `personal`) and whether it goes up as a production, a release or media. `create_production` / `create_release` with `dryRun` first, show it, then upload. The same slug again is a new version |
 | "Get the project's files" | `mm media sync status --project=<id>`, then `mm media sync pull --project=<id>` (dry run, `--yes`); or the MCP's `get_production` / `get_release` with `saveTo`, `download_shared_assets` |
@@ -68,7 +77,11 @@ only once they agree.
 - **Repos are made without asking.** A space is created by itself, under the GitHub account of the
   person who makes it. Never ask the user to create or name a repo.
 - **The personal space is only theirs.** It cannot be shared, renamed or deleted as a whole. To work
-  with someone, share the item into a project space.
+  with someone, link the item to a project or to them (it stays theirs), or share it into a project
+  space (it becomes the project's).
+- **A linked item has one owner.** Someone who only uses it can't change it: what they edit stays on
+  their computer, and `mm space sync` says so. Tell them to ask its owner to make them an editor.
+  Being an editor of the project does not make them one of the item.
 - **Nothing goes up without their say.** `mm space sync` sends skills only with `--yes`, and it only
   shows files. Files move with `mm media sync`, `mm media share` or the MCP, each after they agree.
 - **Roles decide.** Owners and editors add and change, viewers read, only the owner deletes and
@@ -89,6 +102,7 @@ only once they agree.
 
 | It says | Do |
 | --- | --- |
+| A linked item isn't there after a sync | Its owner's computer invites on GitHub at its next `mm space sync` (or at once, when they connected GitHub in the app). Check the GitHub account linked in the app is the one `gh` is signed in as |
 | Not invited to the repo yet | The repo's maker invites: they run `mm space sync` (or `mm space invite <project id>`), or connect GitHub in the access panel. Check the GitHub account linked in the app is the one `gh` is signed in as |
 | Two computers changed the same file | Nothing was changed. It names the files: settle them with the user, then sync again |
 | A public repo is refused | A space must be private. Make the repo private on GitHub, or connect another |

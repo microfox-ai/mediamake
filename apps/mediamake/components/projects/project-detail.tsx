@@ -18,8 +18,10 @@ import {
   RoleBadge,
 } from '@/components/projects/project-access';
 import { CopyLine } from './copy-line';
+import { LinkedItems } from '@/components/app-shell/linked-items';
 import { SpaceItems } from '@/components/app-shell/space-items';
 import type { ProjectRole } from '@/lib/editor/project-access';
+import type { LinkedItemView } from '@/lib/space/links';
 import type { SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
 import { cn } from '@/lib/utils';
@@ -126,7 +128,11 @@ export function ProjectDetail({
   me,
   oldEditor,
   space = null,
+  linked = [],
+  linkTargets = [],
 }: {
+  /** The items linked to this project from members' spaces; on the personal space, the member's own linked items. */ linked?: LinkedItemView[];
+  /** The projects the viewer owns or edits: where they may link their own items. */ linkTargets?: { id: string; name: string }[];
   /** What was made for this project (its space), as its people's computers reported it. */ space?: SpaceView | null;
   projectId: string;
   /** The signed-in account. */ me?: string;
@@ -323,7 +329,7 @@ export function ProjectDetail({
                   <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
                 </p>
               </>
-            ) : (
+            ) : linked.length ? null : (
               <Empty>
                 {personal ? (
                   <>
@@ -336,6 +342,24 @@ export function ProjectDetail({
                   </>
                 )}
               </Empty>
+            )}
+            {linked.length > 0 && (
+              <div className={space?.items.length ? 'mt-3 border-t pt-3' : undefined}>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{personal ? 'Yours, linked to more people' : "Linked from members' spaces"}</p>
+                <LinkedItems items={linked} projects={linkTargets} unlinkFrom={!personal && project?.isOwned ? { id: projectId, name: project.displayName } : undefined} />
+                <p className="pt-2 text-xs text-muted-foreground">
+                  {personal
+                    ? 'These stay yours, one copy each. The people of every linked project, and the members you name, get them with'
+                    : 'These stay in their owners\' spaces, and only their owners and the editors they name can change them. Everyone on the project gets them with'}{' '}
+                  <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space sync</span>.
+                </p>
+              </div>
+            )}
+            {!personal && (
+              <p className="pt-2 text-xs text-muted-foreground">
+                To link one of your own skills here and keep it yours: ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot; (
+                <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm space link &lt;skill&gt; --project=…</span>).
+              </p>
             )}
           </Group>
 

@@ -12,6 +12,12 @@
  *   mm space add <skill>           move one of your workspace skills into your space (a dry run; --yes)
  *   mm space share <item> --project=<project>   move an item into a project's space, so everyone on the
  *                                  project gets it (a dry run; --yes). --copy keeps yours too
+ *   mm space link <item> --project=<project> [--project=…] [--to=<email>] [--editor=<email>]
+ *                                  keep an item yours and give it to more people (a dry run; --yes): everyone
+ *                                  on each linked project, and the members you name. Only you and the editors
+ *                                  you name can change it. With only the item, it says where it is linked
+ *   mm space unlink <item> --project=<project> | --from=<email>
+ *                                  take it away from that project's people, or from one person (a dry run; --yes)
  *   mm space join <project>        set a project up on this computer in one go: signs in when needed, accepts
  *                                  the GitHub invitation, clones the project's space, links its skills, and
  *                                  shows the project's shared media (the project's page has this line to copy)
@@ -31,6 +37,12 @@
  *                                                 the repo (<you>/mediamake-<project>) and invites the
  *                                                 project's members on GitHub; their next sync accepts the
  *                                                 invitation and clones it. Editors can push, viewers pull.
+ *   a linked item    <workspace>/linked/<name>    one item that stays its owner's and is used by the people of
+ *                                                 every project it is linked to, and by the members the owner
+ *                                                 named. mm space link gives it a small private repo of its own
+ *                                                 (<you>/mediamake-<kind>-<name>) and moves it there from your
+ *                                                 space: one copy, one history. Those people pull it with their
+ *                                                 next sync or join; the owner and named editors can push.
  * <project> is a project's name or id (mm space lists them). The workspace is usually ~/MediaMake.
  *
  *   <kind>/<name>/item.json        optional: { "title", "summary", "version", "media": ["<library id>"] }
@@ -374,8 +386,32 @@ export function localSpaces(env = process.env) {
     const dir = path.join(workspaceRoot(), 'spaces', entry.slug);
     if (entry?.repo && fs.existsSync(path.join(dir, '.git'))) list.push({ id, project: { id, name: entry.name }, label: `Project ${entry.name}`, repo: entry.repo, dir });
   }
+  for (const [id, entry] of Object.entries(config.linkedItems ?? {})) {
+    const dir = linkedDir(entry.slug);
+    if (entry?.repo && fs.existsSync(path.join(dir, '.git'))) list.push({ id: `item:${id}`, item: { id, ...entry }, label: linkedLabel(entry), repo: entry.repo, dir });
+  }
   return list;
 }
+/** A linked item's clone: <workspace>/linked/<slug>. */
+const linkedDir = slug => path.join(workspaceRoot(), 'linked', slug);
+const KIND_WORD = { skill: 'skill', mcp: 'MCP', app: 'app' };
+const linkedLabel = entry => `${entry.role === 'owner' ? 'Your' : `${entry.owner ?? 'A member'}'s`} ${KIND_WORD[entry.kind] ?? 'item'} ${entry.name}`;
+const saveLinked = (id, entry, env = process.env) => {
+  const file = configFile(env);
+  const config = readJson(file);
+  const all = { ...(config.linkedItems ?? {}) };
+  if (entry) all[id] = entry;
+  else delete all[id];
+  if (Object.keys(all).length) config.linkedItems = all;
+  else delete config.linkedItems;
+  writeJson(file, config);
+};
+/** The folder name for a linked item: its name, made unique with a bit of its id when another item took it. */
+const linkedSlug = (id, name, env = process.env) => {
+  const taken = readJson(configFile(env)).linkedItems ?? {};
+  if (taken[id]?.slug) return taken[id].slug;
+  return Object.entries(taken).some(([other, entry]) => other !== id && entry.slug === name) || (fs.existsSync(linkedDir(name)) && !Object.values(taken).some(entry => entry.slug === name)) ? `${name}-${id.slice(-6)}` : name;
+};
 const saveProjectSpace = (id, entry, env = process.env) => {
   const file = configFile(env);
   const config = readJson(file);
@@ -474,6 +510,7 @@ export function spaceReport(space, env = process.env) {
     device: deviceLabel(env),
     repo: space.repo,
     ...(space.project && { project: space.project.id }),
+    ...(space.item && { item: space.item.id }),
     branch: state.branch,
     ...(state.commit && { commit: state.commit, commitAt: state.commitAt }),
     pushed: state.upstream && state.ahead === 0 && !state.dirty,
@@ -540,7 +577,7 @@ dist/
  * Clones `target` into `dir` (or takes the clone that is there), and gives a new repo its layout.
  * Returns the origin's address.
  */
-async function cloneSpace(target, dir, env, { ssh = false, project } = {}) {
+async function cloneSpace(target, dir, env, { ssh = false, project, item = false } = {}) {
   if (target.github) {
     const priv = await isPrivate(target.repo);
     if (priv === false) throw new Error(`${target.repo} is public. A space is private: make the repo private on GitHub (Settings, Danger Zone), or use another.`);
@@ -556,6 +593,7 @@ async function cloneSpace(target, dir, env, { ssh = false, project } = {}) {
     const r = viaGh ? spawnSync('gh', ['repo', 'clone', target.repo, dir], { stdio: ['ignore', 'ignore', 'inherit'] }) : spawnSync('git', ['clone', '-q', target.url, dir], { stdio: ['ignore', 'ignore', 'inherit'] });
     if (r.status !== 0) throw new Error(`Could not clone ${target.repo}. Check that it exists and that this computer is signed in to GitHub (gh auth login, or an SSH key with --ssh).`);
   }
+  if (item) return git(dir, ['remote', 'get-url', 'origin']).out || target.url;
   if (!git(dir, ['rev-parse', '--verify', '-q', 'HEAD']).ok) {
     // a new repo: give it the layout, and send that so every computer starts from the same place
     for (const folder of Object.values(KINDS)) {
@@ -762,6 +800,132 @@ async function discover(env) {
       console.log(`⚠ ${entry.name}: ${error instanceof Error ? error.message.split('\n')[0] : error}${hasGh() ? '' : ` Accept the invitation at https://github.com/${entry.space.repo}/invitations first.`}`);
     }
   }
+  await discoverLinked(remote, env);
+}
+
+/* ---------- linked items ---------- */
+
+/** How a linked item reached this account, in a few words. */
+const linkedVia = view => {
+  if (view.role === 'owner') {
+    const people = (view.people?.length ?? 0) + (view.invites?.length ?? 0);
+    const where = [view.projects.length && view.projects.map(p => p.name).join(', '), people && plural(people, 'person', 'people')].filter(Boolean).join(' and ');
+    return where ? `yours, linked to ${where}` : 'yours, linked to nobody yet';
+  }
+  const through = [view.projects.length && `through ${view.projects.map(p => p.name).join(', ')}`, view.direct && 'shared with you'].filter(Boolean).join(', ');
+  return `from ${view.owner}${through ? `, ${through}` : ''}; ${view.role === 'editor' ? 'you can change it' : 'you can use it, not change it'}`;
+};
+
+/** A linked item MediaMake lists, by `name` or `kind/name`. `mine`: only the ones this account owns. Null when there is none. */
+function findLinked(remote, wanted, { mine = false } = {}) {
+  const [a, b] = String(wanted ?? '').split('/');
+  const kind = b ? { skill: 'skill', skills: 'skill', mcp: 'mcp', mcps: 'mcp', app: 'app', apps: 'app' }[a] : undefined;
+  const name = b ?? a;
+  const hits = (remote?.linked ?? []).filter(v => v.name === name && (!kind || v.kind === kind) && (!mine || v.role === 'owner'));
+  if (hits.length > 1) throw new Error(`Several linked items are called "${name}": ${hits.map(h => `${h.kind}/${h.name} (${h.role === 'owner' ? 'yours' : `from ${h.owner}`})`).join(', ')}. Say which, like ${hits[0].kind}/${name}.`);
+  return hits[0] ?? null;
+}
+
+/** A linked item's clone on this computer: the one that is here, else a new clone (after accepting its invitation). */
+async function connectLinked(view, env) {
+  const before = readJson(configFile(env)).linkedItems?.[view.id];
+  const slug = linkedSlug(view.id, view.name, env);
+  const dir = linkedDir(slug);
+  if (fs.existsSync(path.join(dir, '.git'))) {
+    // the same repo under a new name on GitHub
+    if (parseRepo(git(dir, ['remote', 'get-url', 'origin']).out)?.repo !== view.repo) must(dir, ['remote', 'set-url', 'origin', parseRepo(view.repo).url]);
+  } else {
+    if (view.role !== 'owner') acceptInvites([view.repo]);
+    await cloneSpace(parseRepo(view.repo), dir, env, { item: true });
+  }
+  const entry = { repo: view.repo, slug, kind: view.kind, name: view.name, role: view.role, owner: view.owner, connectedAt: before?.repo === view.repo ? before.connectedAt : new Date().toISOString() };
+  saveLinked(view.id, entry, env);
+  return { id: `item:${view.id}`, item: { id: view.id, ...entry }, label: linkedLabel(entry), repo: view.repo, dir };
+}
+
+/** An item that is no longer shared with this account leaves this computer, unless something was changed in it here. */
+function dropLinked(id, entry, env) {
+  const dir = linkedDir(entry.slug);
+  const what = `${KIND_WORD[entry.kind] ?? 'item'} ${entry.name}${entry.owner ? ` (${entry.owner}'s)` : ''}`;
+  const here = fs.existsSync(path.join(dir, '.git'));
+  if (here) unlinkSkills(dir, false);
+  saveLinked(id, null, env);
+  if (!here) return;
+  const state = gitState(dir);
+  if (state.dirty || (state.upstream && state.ahead)) return console.log(`○ The ${what} is no longer shared with you: unlinked from Claude. ${tilde(dir)} stays, because you changed it here.`);
+  if (ITEM_NAME.test(entry.slug) && inside(path.join(workspaceRoot(), 'linked'), dir)) fs.rmSync(dir, { recursive: true, force: true });
+  console.log(`○ The ${what} is no longer shared with you: removed from this computer.`);
+}
+
+/**
+ * Makes the people on a linked item's repo exactly the ones who have it (the owner's computer does this):
+ * invites who is missing, changes who may push, takes off who no longer has it. Null when GitHub can't be asked.
+ */
+function syncRepoPeople(repo, wanted) {
+  const rows = out => out.split('\n').map(line => line.trim().split(/\s+/)).filter(parts => parts[0]);
+  const on = gh(['api', `repos/${repo}/collaborators?affiliation=direct`, '--paginate', '-q', '.[] | "\\(.login) \\(.permissions.push)"']);
+  const pending = gh(['api', `repos/${repo}/invitations`, '--paginate', '-q', '.[] | "\\(.id) \\(.invitee.login) \\(.permissions)"']);
+  if (!on.ok || !pending.ok) return null;
+  const owner = repo.split('/')[0].toLowerCase();
+  const have = new Map();
+  for (const [id, login, permission] of rows(pending.out)) if (login) have.set(login.toLowerCase(), { login, permission: permission === 'read' ? 'pull' : 'push', invitation: id });
+  for (const [login, push] of rows(on.out)) have.set(login.toLowerCase(), { login, permission: push === 'true' ? 'push' : 'pull' });
+  have.delete(owner);
+  const result = { invited: [], removed: [], failed: [], noGithub: [] };
+  const keep = new Set();
+  for (const person of wanted) {
+    if (!person.githubLogin) {
+      result.noGithub.push(person.name);
+      continue;
+    }
+    const key = person.githubLogin.toLowerCase();
+    keep.add(key);
+    if (key === owner || have.get(key)?.permission === person.permission) continue;
+    const r = gh(['api', '-X', 'PUT', `repos/${repo}/collaborators/${person.githubLogin}`, '-f', `permission=${person.permission}`]);
+    (r.ok ? result.invited : result.failed).push(person.name);
+  }
+  for (const [key, entry] of have) {
+    if (keep.has(key)) continue;
+    const r = entry.invitation ? gh(['api', '-X', 'DELETE', `repos/${repo}/invitations/${entry.invitation}`]) : gh(['api', '-X', 'DELETE', `repos/${repo}/collaborators/${entry.login}`]);
+    (r.ok ? result.removed : result.failed).push(entry.login);
+  }
+  return result;
+}
+const announceLinkPeople = (view, result, loud = false) => {
+  const what = `${view.kind}/${view.name}`;
+  if (!result) return console.log(`⚠ ${what}: GitHub could not be asked who is on ${view.repo}. mm space sync tries again.`);
+  if (loud && !result.invited.length && !result.removed.length && !result.failed.length && !result.noGithub.length) console.log(`✔ ${what}: everyone who has it is on its repo on GitHub.`);
+  if (result.invited.length) console.log(`✔ ${what}: invited on GitHub: ${result.invited.join(', ')}. Their next mm space sync gets it.`);
+  if (result.removed.length) console.log(`✔ ${what}: taken off its repo on GitHub: ${result.removed.join(', ')}.`);
+  if (result.failed.length) console.log(`⚠ ${what}: GitHub refused for ${result.failed.join(', ')}.`);
+  if (result.noGithub.length) console.log(`⚠ ${what}: ${result.noGithub.join(', ')} ${result.noGithub.length === 1 ? 'has' : 'have'} no GitHub account linked to MediaMake, so can't get it yet: they link it under Account in the app.`);
+};
+
+/**
+ * The linked items of this account: clones the ones that aren't here (all of them, or the ones linked to
+ * one project), removes the ones no longer shared with it, and, for the ones it owns, keeps the people on
+ * each repo the ones who have it.
+ */
+async function discoverLinked(remote, env, onlyProject) {
+  if (!Array.isArray(remote?.linked)) return;
+  const wanted = new Map(remote.linked.map(view => [view.id, view]));
+  const known = readJson(configFile(env)).linkedItems ?? {};
+  if (!onlyProject) for (const [id, entry] of Object.entries(known)) if (!wanted.has(id) && entry.role !== 'owner') dropLinked(id, entry, env);
+  for (const view of remote.linked) {
+    if (onlyProject && !view.projects.some(p => p.id === onlyProject)) continue;
+    try {
+      const isNew = !known[view.id] || !fs.existsSync(path.join(linkedDir(known[view.id].slug), '.git'));
+      const space = await connectLinked(view, env);
+      if (isNew) {
+        console.log(`✔ ${space.label}: ${view.repo} → ${tilde(space.dir)}  (${linkedVia(view)})`);
+        afterChange(space);
+      }
+      if (view.role === 'owner' && view.collaborators && hasGh() && ghLogin()?.toLowerCase() === view.repo.split('/')[0].toLowerCase()) announceLinkPeople(view, syncRepoPeople(view.repo, view.collaborators));
+    } catch (error) {
+      const first = error instanceof Error ? error.message.split('\n')[0] : error;
+      console.log(`⚠ ${view.kind}/${view.name} (${linkedVia(view)}): ${first}${view.role === 'owner' ? '' : ` ${view.owner}'s computer invites you on GitHub at its next mm space sync; check that the GitHub account linked to your MediaMake account is the one this computer uses.`}`);
+    }
+  }
 }
 
 async function pull(_args, flags, env) {
@@ -830,7 +994,8 @@ function pushOne(space, plan, env, message) {
   const sent = git(dir, ['push', '-q', '-u', 'origin', state.branch]);
   if (!sent.ok) {
     const denied = /permission|denied|403|protected/i.test(sent.err);
-    throw new Error(denied ? `GitHub refused the push to ${space.repo}: you can read this space but not change it (a viewer on the project). Nothing is lost: it is committed here.` : `The push to ${space.repo} was refused: ${sent.err}\nNothing is lost: it is committed here. mm space sync --yes tries again.`);
+    const why = space.item ? `only ${space.item.owner ?? 'its owner'} and the editors they named can change this item` : 'you can read this space but not change it (a viewer on the project)';
+    throw new Error(denied ? `GitHub refused the push to ${space.repo}: ${why}. Nothing is lost: it is committed here.` : `The push to ${space.repo} was refused: ${sent.err}\nNothing is lost: it is committed here. mm space sync --yes tries again.`);
   }
   console.log(`✔ pushed to ${space.repo}: ${what}`);
 }
@@ -853,6 +1018,11 @@ async function push(_args, flags, env) {
     }
     const plan = pushPlan(space, flags);
     if (!plan.files.length) continue;
+    if (space.item && space.item.role === 'user') {
+      // theirs to use, not to change: what was edited here stays here
+      console.log(`⚠ ${space.label}: changed on this computer (${plural(plan.files.length, 'file')}), and it stays here. Only ${space.item.owner ?? 'its owner'} and the editors they name can change it: ask them to make you an editor.`);
+      continue;
+    }
     any = true;
     showPlan(space, plan, flags, yes);
     if (plan.blocked) code = 1;
@@ -937,6 +1107,12 @@ async function join(args, flags, env) {
       );
     }
   }
+  // the items linked to this project from their owners' spaces
+  const before = new Set(localSpaces(env).map(s => s.id));
+  await discoverLinked(remote, env, entry.projectId);
+  const linked = localSpaces(env).filter(s => s.item && (remote.linked ?? []).some(view => view.id === s.item.id && view.projects.some(p => p.id === entry.projectId)));
+  for (const space of linked.filter(s => before.has(s.id))) pullOne(space, env);
+  await sendReports(linked, env);
   if (filesWanted(flags, env)) showFiles(entry.name, entry.projectId, env);
   return failed;
 }
@@ -968,7 +1144,7 @@ async function sync(args, flags, env) {
   if (!remote) return pushed;
   const here = localSpaces(env);
   const spaces = [
-    ...(remote.personalProjectId && here.some(s => !s.project) ? [{ name: 'your personal space', id: remote.personalProjectId }] : []),
+    ...(remote.personalProjectId && here.some(s => s.id === 'mine') ? [{ name: 'your personal space', id: remote.personalProjectId }] : []),
     ...here.filter(s => s.project).map(s => ({ name: s.project.name, id: s.id })),
   ];
   for (const space of spaces) showFiles(space.name, space.id, env);
@@ -980,6 +1156,7 @@ async function status(_args, flags, env) {
   const remote = flags.includes('--offline') ? null : await remoteSpaces(env);
   const here = new Set(list.map(s => s.id));
   const waiting = (remote?.projects ?? []).filter(p => p.space?.repo && !here.has(p.projectId));
+  const linkedWaiting = (remote?.linked ?? []).filter(v => !here.has(`item:${v.id}`));
   const json = flags.includes('--json');
   const out = [];
   if (!list.length && !json) {
@@ -997,10 +1174,12 @@ async function status(_args, flags, env) {
     const target = name => real(path.join(dir, 'skills', name));
     const loaded = name => real(path.join(userSkillsDir(), name)) === target(name) && real(path.join(ownSkillsDir(), name)) === target(name);
     if (json) {
-      out.push({ id: space.id, ...(space.project && { project: space.project.name }), repo: space.repo, dir, ...state, reached: reached.ok, toPush: files.length, items: items.map(i => ({ ...i, ...(i.kind === 'skill' && { linked: loaded(i.name) }) })) });
+      out.push({ id: space.id, ...(space.project && { project: space.project.name }), ...(space.item && { item: `${space.item.kind}/${space.item.name}`, role: space.item.role, owner: space.item.owner }), repo: space.repo, dir, ...state, reached: reached.ok, toPush: files.length, items: items.map(i => ({ ...i, ...(i.kind === 'skill' && { linked: loaded(i.name) }) })) });
       continue;
     }
-    console.log(`${space.label}: ${space.repo} → ${tilde(dir)}${space.project ? '  (shared with everyone on the project)' : '  (only you)'}`);
+    const view = space.item && (remote?.linked ?? []).find(v => v.id === space.item.id);
+    const who = space.item ? (view ? linkedVia(view) : space.item.role === 'owner' ? 'yours, linked' : `from ${space.item.owner ?? 'a member'}`) : space.project ? 'shared with everyone on the project' : 'only you';
+    console.log(`${space.label}: ${space.repo} → ${tilde(dir)}  (${who})`);
     const gets = !reached.ok ? 'GitHub could not be reached' : state.behind ? `${plural(state.behind, 'change')} to bring down` : 'nothing to bring down';
     console.log(`  ${gets}, ${files.length ? `${plural(files.length, 'file')} to send up` : 'nothing to send up'}`);
     const width = Math.max(0, ...items.map(i => i.path.length));
@@ -1008,14 +1187,16 @@ async function status(_args, flags, env) {
       const marks = [item.kind === 'skill' && !loaded(item.name) && 'not linked into Claude', item.changed && 'changed here', item.media.length && `needs ${plural(item.media.length, 'media file')}: ${item.media.join(', ')}`].filter(Boolean);
       console.log(`  ${item.path.padEnd(width)}  ${/^(sha|tree):|^new$/.test(item.version) ? '' : item.version}`.trimEnd() + (marks.length ? `  (${marks.join('; ')})` : ''));
     }
-    if (!items.length) console.log(space.project ? `  nothing yet: mm space share <item> --project="${space.project.name}"` : '  nothing yet: mm space new skill <name>, or mm space add <one of your skills>');
+    if (!items.length) console.log(space.item ? '  nothing in it yet: its owner has not sent it' : space.project ? `  nothing yet: mm space share <item> --project="${space.project.name}"` : '  nothing yet: mm space new skill <name>, or mm space add <one of your skills>');
     console.log('');
   }
   if (json) {
-    console.log(JSON.stringify({ spaces: out, waiting: waiting.map(p => ({ project: p.name, id: p.projectId, repo: p.space.repo })) }, null, 2));
+    console.log(JSON.stringify({ spaces: out, waiting: waiting.map(p => ({ project: p.name, id: p.projectId, repo: p.space.repo })), linkedWaiting: linkedWaiting.map(v => ({ item: `${v.kind}/${v.name}`, id: v.id, repo: v.repo, owner: v.owner })) }, null, 2));
     return 0;
   }
   for (const p of waiting) console.log(`${p.name} has a space you don't have here yet (${p.space.repo}): mm space sync connects it.`);
+  for (const v of linkedWaiting) console.log(`The ${KIND_WORD[v.kind]} ${v.name} (${linkedVia(v)}) isn't on this computer yet: mm space sync gets it.`);
+  if (list.some(s => s.id === 'mine') && (remote?.projects ?? []).some(p => p.role !== 'viewer')) console.log('To keep an item yours and give it to a project\'s people: mm space link <item> --project="<name>".');
   const empty = (remote?.projects ?? []).filter(p => !p.space?.repo && p.role !== 'viewer');
   if (list.length && empty.length) console.log(`Projects you can share into: ${empty.map(p => p.name).join(', ')} (mm space share <item> --project="<name>").`);
   if (list.length) console.log('mm space sync brings everything down and shows what would go up; mm space sync --yes sends it too.');
@@ -1073,6 +1254,184 @@ async function share(args, flags, env) {
   if (!copy) linkSkills(mine.dir);
   afterChange(space);
   return push([], ['--yes', ...flags.filter(f => f === '--force' || f.startsWith('--message='))], env);
+}
+
+const values = (flags, name) => flags.filter(f => f.startsWith(name)).flatMap(f => f.slice(name.length).split(',')).map(v => v.trim()).filter(Boolean);
+const linkUsage = 'mm space link <item> --project=<project name or id> [--project=…] [--to=<email>] [--editor=<email>] [--yes]';
+
+/** Changes one linked item on MediaMake. Answers the account's linked items again, and how it went on GitHub. */
+async function linkCall(env, body) {
+  const at = signedIn(env);
+  return call('PATCH', `${at.url}/api/space/links`, at.key, body);
+}
+
+/** After a change: the repo's people follow, from the site when the owner connected GitHub there, else from this computer. */
+function settleRepoPeople(view, answer) {
+  if (!view || view.role !== 'owner') return;
+  const github = answer?.github;
+  if (github?.state === 'done') return announceLinkPeople(view, { invited: github.invited, removed: github.removed, failed: github.failed, noGithub: github.noGithub ?? [] }, true);
+  if (hasGh() && ghLogin()?.toLowerCase() === view.repo.split('/')[0].toLowerCase()) return announceLinkPeople(view, syncRepoPeople(view.repo, view.collaborators ?? []), true);
+  console.log(`⚠ ${view.kind}/${view.name}: the people on ${view.repo} follow at your next mm space sync on the computer whose GitHub account owns it.`);
+}
+
+/**
+ * Gives an item of your space a private repo of its own and moves it there, so it can be linked: it
+ * stays yours, one copy with one history. MediaMake is told which repo it is. Returns its id and its clone.
+ */
+async function makeLinked(item, mine, flags, env) {
+  const login = needGh(`Linking ${item.name}`);
+  const from = path.join(mine.dir, item.path);
+  const files = must(mine.dir, ['ls-files', '-co', '--exclude-standard', '--', item.path]).split('\n').filter(Boolean).map(file => ({ path: file, change: 'new' }));
+  const { large, secrets } = pushProblems(mine.dir, files);
+  if (large.length || (secrets.length && !flags.includes('--force'))) {
+    throw new Error(`${item.path} can't go to a repo of its own as it is:\n${[...large, ...secrets].map(p => `  ✖ ${p}`).join('\n')}\nLarge media goes through the media library (mm media ingest); a key goes in an env var (--force if it is not a key).`);
+  }
+  const { repo, made } = ghEnsureRepo(`${login}/mediamake-${item.kind}-${item.name}`, `MediaMake ${KIND_WORD[item.kind]} ${item.name}, linked to project spaces`);
+  if (made) console.log(`✔ made the private repo ${repo}`);
+  const at = signedIn(env);
+  const { item: id } = await call('POST', `${at.url}/api/space/links`, at.key, { kind: item.kind, name: item.name, repo });
+  const slug = linkedSlug(id, item.name, env);
+  const dir = linkedDir(slug);
+  await cloneSpace(parseRepo(repo), dir, env, { item: true });
+  if (!git(dir, ['rev-parse', '--verify', '-q', 'HEAD']).ok) {
+    fs.mkdirSync(path.dirname(path.join(dir, item.path)), { recursive: true });
+    fs.cpSync(from, path.join(dir, item.path), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'README.md'), `# ${item.title}\n\nA MediaMake ${KIND_WORD[item.kind]} that stays its owner's and is linked to project spaces: everyone on a linked project, and the members its owner names, get it with \`mm space sync\`. Only its owner and the editors they name change it.\n\nIt is in \`${item.path}/\`.\n`);
+    fs.writeFileSync(path.join(dir, '.gitignore'), GITIGNORE);
+    must(dir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+    must(dir, ['add', '-A']);
+    must(dir, [...identity(dir, env), 'commit', '-q', '-m', `${item.path}, from my space`]);
+    const pushed = git(dir, ['push', '-q', '-u', 'origin', 'main']);
+    if (!pushed.ok) throw new Error(`Could not push ${item.path} to ${repo}: ${pushed.err}\nNothing left your space. Run the same line again.`);
+  } else if (!fs.existsSync(path.join(dir, item.path))) {
+    throw new Error(`${repo} exists already and holds something else. Rename it on GitHub, or link the item under another name.`);
+  } else if (!git(dir, ['diff', '--no-index', '--quiet', '--', from, path.join(dir, item.path)]).ok) {
+    throw new Error(`${repo} already holds ${item.path}, and the copy in your space differs from it. Keep one: ${tilde(from)} or ${tilde(path.join(dir, item.path))}. Nothing was changed.`);
+  }
+  const entry = { repo, slug, kind: item.kind, name: item.name, role: 'owner', connectedAt: new Date().toISOString() };
+  saveLinked(id, entry, env);
+  // it leaves the space it was in: the links of that space go first, so the name is free for its new home
+  fs.rmSync(from, { recursive: true, force: true });
+  linkSkills(mine.dir);
+  const space = { id: `item:${id}`, item: { id, ...entry }, label: linkedLabel(entry), repo, dir };
+  console.log(`✔ ${item.path} has its own repo, ${repo} → ${tilde(dir)}. It is still only yours until it is linked.`);
+  afterChange(space);
+  return { id, space };
+}
+
+async function link(args, flags, env) {
+  if (!args[0]) throw new Error(linkUsage);
+  if (!signedIn(env)) throw new Error(`Linking needs this computer signed in to ${site(env)} (mm login): the projects and their people are there.`);
+  const remote = await remoteSpaces(env);
+  if (!remote) throw new Error(`Could not reach ${site(env)} to read your projects.`);
+  if (!Array.isArray(remote.linked)) throw new Error(`${site(env)} doesn't link items yet: it needs a newer MediaMake.`);
+  const projects = values(flags, '--project=').map(wanted => findProject(remote, wanted));
+  const viewer = projects.find(p => p.role === 'viewer');
+  if (viewer) throw new Error(`You are a viewer on ${viewer.name}: its owner and editors link items to it.`);
+  const users = values(flags, '--to=').map(email => ({ email, editor: false }));
+  const editors = values(flags, '--editor=').map(email => ({ email, editor: true }));
+  const people = [...editors, ...users.filter(u => !editors.some(e => e.email === u.email))];
+  const bad = people.find(p => !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(p.email));
+  if (bad) throw new Error(`"${bad.email}" isn't an email address. Name people by the email of their MediaMake account.`);
+
+  let view = findLinked(remote, args[0], { mine: true });
+  // still in your space (never linked, or a link that stopped halfway): it gets its own repo first
+  let mine = localSpaces(env).find(s => s.id === 'mine') ?? null;
+  let item = null;
+  try {
+    if (mine) item = findItem(mine.dir, args[0]);
+  } catch (error) {
+    if (!view) throw error;
+  }
+  if (!view && !item) item = findItem(chosen(['--mine'], env)[0].dir, args[0]);
+  if (!item) mine = null;
+  const what = view ? `${view.kind}/${view.name}` : `${item.kind}/${item.name}`;
+  if (!projects.length && !people.length) {
+    if (!view) throw new Error(`Say who gets ${what}: ${linkUsage}`);
+    console.log(`${what}: ${linkedVia(view)}.`);
+    for (const p of view.people ?? []) console.log(`  ${p.name}${p.email ? ` <${p.email}>` : ''}: ${p.editor ? 'can change it' : 'can use it'}`);
+    for (const p of view.invites ?? []) console.log(`  ${p.email}: invited, ${p.editor ? 'will be able to change it' : 'will be able to use it'}`);
+    return 0;
+  }
+
+  if (!flags.includes('--yes')) {
+    console.log(`Would link ${what}. It stays yours, one copy with one history, and only you and the editors you name can change it:`);
+    if (item) {
+      console.log(`  give it a private repo of its own on your GitHub, mediamake-${item.kind}-${item.name}, and move it there from your space`);
+      console.log('  push your space, which it leaves');
+    }
+    for (const p of projects) console.log(`  link it to ${p.name}: ${p.people > 1 ? `the ${p.people} people on it get it` : 'everyone added to it gets it'} at their next mm space sync`);
+    for (const p of people) console.log(`  share it with ${p.email}: ${p.editor ? 'can use it and change it' : 'can use it'}`);
+    console.log(`A dry run. Add --yes to do it.`);
+    return 0;
+  }
+
+  let space;
+  if (item) {
+    const made = await makeLinked(item, mine, flags, env);
+    space = made.space;
+    view = { id: made.id, kind: item.kind, name: item.name, repo: space.repo, role: 'owner', projects: [] };
+  } else space = await connectLinked(view, env);
+  let answer;
+  let failed = 0;
+  const step = async (body, done) => {
+    try {
+      answer = await linkCall(env, { item: view.id, ...body });
+      console.log(`✔ ${done(answer)}`);
+    } catch (error) {
+      failed++;
+      console.error(`✖ ${error instanceof Error ? error.message : error}`);
+    }
+  };
+  for (const p of projects) await step({ action: 'link', project: p.projectId }, () => `${what} is linked to ${p.name}: its people get it at their next mm space sync (or mm space join ${p.projectId})`);
+  for (const p of people) await step({ action: 'add', email: p.email, editor: p.editor }, a => `${what} is shared with ${p.email} (${p.editor ? 'can change it' : 'can use it'})${a?.mailed ? ': they were told by mail' : ''}`);
+  settleRepoPeople(answer?.item ?? view, answer);
+  // the space it left goes up without it; the item's own repo is already there
+  const pushed = mine ? await push([], ['--yes', '--mine', ...flags.filter(f => f === '--force')], env) : 0;
+  await sendReports([space], env);
+  return failed || pushed ? 1 : 0;
+}
+
+async function unlink(args, flags, env) {
+  const usage = 'mm space unlink <item> --project=<project name or id> | --from=<email> [--yes]';
+  if (!args[0]) throw new Error(usage);
+  if (!signedIn(env)) throw new Error(`Unlinking needs this computer signed in to ${site(env)} (mm login).`);
+  const remote = await remoteSpaces(env);
+  if (!remote) throw new Error(`Could not reach ${site(env)}.`);
+  const view = findLinked(remote, args[0], { mine: true }) ?? findLinked(remote, args[0]);
+  if (!view) throw new Error(`No linked item "${args[0]}". mm space lists them.`);
+  const what = `${view.kind}/${view.name}`;
+  const projects = values(flags, '--project=').map(wanted => {
+    const p = findProject(remote, wanted);
+    if (!view.projects.some(linked => linked.id === p.projectId)) throw new Error(`${what} isn't linked to ${p.name}.`);
+    return p;
+  });
+  const people = values(flags, '--from=');
+  if (!projects.length && !people.length) {
+    console.log(`${what}: ${linkedVia(view)}.\n${usage}`);
+    return 0;
+  }
+  if (!flags.includes('--yes')) {
+    console.log(`Would unlink ${what}:`);
+    for (const p of projects) console.log(`  from ${p.name}: the people who have it only through that project lose it at their next mm space sync`);
+    for (const email of people) console.log(`  from ${email}: they lose it at their next mm space sync, unless a linked project still gives it to them`);
+    console.log(`  It stays ${view.role === 'owner' ? 'yours' : `${view.owner}'s`}, with its history. A dry run. Add --yes to do it.`);
+    return 0;
+  }
+  let answer;
+  let failed = 0;
+  for (const body of [...projects.map(p => ({ action: 'unlink', project: p.projectId, said: `unlinked from ${p.name}` })), ...people.map(email => ({ action: 'remove', email, said: `no longer shared with ${email}` }))]) {
+    const { said, ...change } = body;
+    try {
+      answer = await linkCall(env, { item: view.id, ...change });
+      console.log(`✔ ${what} is ${said}`);
+    } catch (error) {
+      failed++;
+      console.error(`✖ ${error instanceof Error ? error.message : error}`);
+    }
+  }
+  settleRepoPeople(answer?.item ?? view, answer);
+  return failed ? 1 : 0;
 }
 
 async function add(args, flags, env) {
@@ -1184,7 +1543,7 @@ async function main(argv) {
   const dashM = argv.indexOf('-m');
   const args = argv.filter((a, i) => !a.startsWith('-') && !(dashM >= 0 && i === dashM + 1));
   const [cmd = 'status', ...rest] = args;
-  const commands = { status, sync, join, invite, connect, ensure, pull, push, share, add, new: create, report, disconnect, forget };
+  const commands = { status, sync, join, invite, connect, ensure, pull, push, share, link, unlink, add, new: create, report, disconnect, forget };
   if (cmd === 'help' || flags.includes('--help') || flags.includes('-h')) return help(), 0;
   if (!commands[cmd]) {
     console.error(`mm space: no command "${cmd}".\n`);

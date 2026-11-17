@@ -98,6 +98,13 @@ Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`)
 - "Share it with the <project> project" is `mm space share <item> --project=<project>` (a dry run, then
   `--yes` once they agree): it makes the project's space when there is none and invites the project's
   members. Tell the user who could not be invited (no GitHub account linked in MediaMake).
+- An item that should stay its owner's is linked, not moved: `mm space link <item> --project=<project>`
+  (several `--project=`, `--to=<email>` for a member outside those projects, `--editor=<email>` for one
+  who may change it; a dry run, then `--yes`). It gets a small private repo of its own, one copy with
+  one history, cloned to `linked/<name>` in the workspace. Everyone on a linked project and every named
+  member gets it with `mm space sync` or `mm space join`; only its owner and the named editors can
+  change it. `mm space unlink <item> --project=<project>` (or `--from=<email>`) takes it from that
+  project's people, or that person, only. In the app, Manage on the item's row in Mine does the same.
 - Adding someone to a project in the app invites them to the project's repo on GitHub when the owner
   connected GitHub there (once, in the access panel; MediaMake's GitHub App, set up as
   `apps/mediamake/docs/private-spaces.md` says). Otherwise `mm space invite <project id>` on the

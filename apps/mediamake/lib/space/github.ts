@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'crypto';
+import { reconcilePlan, type RepoPerson } from './links';
 
 /**
  * GitHub for project spaces, from the site: with a project owner's say-so
@@ -306,4 +307,52 @@ export async function shareOnGithub(input: ShareInput, repoMade: (repo: string) 
   const result = await inviteCollaborator(grant.token, repo, member.githubLogin, permissionOf(member.role), fetcher);
   if (result === 'failed') return { state: 'failed', repo, reason: `GitHub did not accept the invitation for ${member.githubLogin}. If the MediaMake app on GitHub is limited to some repos, add ${repo} to them (${APP_SETTINGS}).` };
   return { state: result, repo, login: member.githubLogin, ...(madeRepo && { madeRepo }) };
+}
+
+/* ---------- a linked item's repo ---------- */
+
+/** How it went on GitHub after a linked item's people changed (./links), for the page and `mm space` to say. */
+export type GithubLinkSync =
+  | { state: 'done'; repo: string; invited: string[]; removed: string[]; failed: string[] }
+  /** The item's owner has not connected GitHub: their next `mm space sync` does it. */
+  | { state: 'not-connected' }
+  /** The repo is under another GitHub account than the one the owner connected. */
+  | { state: 'other-owner'; repo: string }
+  | { state: 'failed'; repo: string; reason: string };
+
+const listed = (body: unknown): Record<string, unknown>[] => (Array.isArray(body) ? (body as Record<string, unknown>[]) : []);
+
+/**
+ * Makes the people on a linked item's repo exactly `wanted`, with the
+ * owner's grant: invites who is missing, changes who may push, and takes
+ * off who no longer has the item (a pending invitation included). GitHub
+ * logins only; who has none linked is the caller's to say.
+ */
+export async function syncCollaborators(grant: { login: string; token: string }, repo: string, wanted: RepoPerson[], fetcher: Fetch = fetch): Promise<GithubLinkSync> {
+  if (!REPO.test(repo)) return { state: 'failed', repo, reason: 'That is not a repo name' };
+  if (repo.split('/')[0].toLowerCase() !== grant.login.toLowerCase()) return { state: 'other-owner', repo };
+  const call = github(grant.token, fetcher);
+  const [on, pending] = await Promise.all([call('GET', `/repos/${repo}/collaborators?affiliation=direct&per_page=100`), call('GET', `/repos/${repo}/invitations?per_page=100`)]);
+  if (!on.ok || !pending.ok) {
+    const status = on.ok ? pending.status : on.status;
+    const reason =
+      status === 401
+        ? 'GitHub no longer accepts the connection: connect GitHub again.'
+        : `The MediaMake app on GitHub can't reach ${repo}: check that it is installed on your account for all repositories, or add this repo to it (${APP_SETTINGS}).`;
+    return { state: 'failed', repo, reason };
+  }
+  const collaborators = listed(on.body).flatMap((entry): RepoPerson[] =>
+    typeof entry.login === 'string' ? [{ login: entry.login, permission: (entry.permissions as { push?: boolean } | undefined)?.push ? 'push' : 'pull' }] : [],
+  );
+  const invitations = listed(pending.body).flatMap((entry): RepoPerson[] => {
+    const login = (entry.invitee as { login?: string } | undefined)?.login;
+    return typeof login === 'string' ? [{ login, permission: entry.permissions === 'read' ? 'pull' : 'push' }] : [];
+  });
+  const plan = reconcilePlan(repo, wanted, collaborators, invitations);
+  const invited: string[] = [];
+  const removed: string[] = [];
+  const failed: string[] = [];
+  for (const person of plan.invite) ((await inviteCollaborator(grant.token, repo, person.login, person.permission, fetcher)) === 'failed' ? failed : invited).push(person.login);
+  for (const login of plan.remove) ((await removeCollaborator(grant.token, repo, login, fetcher)) ? removed : failed).push(login);
+  return { state: 'done', repo, invited, removed, failed };
 }

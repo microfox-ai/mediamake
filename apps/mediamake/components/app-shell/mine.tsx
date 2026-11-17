@@ -1,8 +1,10 @@
 import Link from 'next/link';
-import { AlertTriangleIcon, LockIcon, UsersIcon } from 'lucide-react';
+import { AlertTriangleIcon, Link2Icon, LockIcon, UsersIcon } from 'lucide-react';
 import { KIND_LABEL, MEMBER_KINDS, type LocalOnly, type Mine, type MineItem } from '@/lib/app-shell/member';
 import { deviceName, type SpaceView } from '@/lib/space/space';
 import type { MySpaces } from '@/lib/space/store';
+import type { LinkedItemView } from '@/lib/space/links';
+import { LinkedItems } from './linked-items';
 import { SpaceItems } from './space-items';
 import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
 
@@ -81,8 +83,28 @@ const Empty = ({ children }: { children: React.ReactNode }) => <p className="rou
 
 const code = 'rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground';
 
-/** One space as a card: who has it, then its items. */
-function SpaceCard({ title, who, Icon, href, space, empty }: { title: string; who: string; Icon: typeof LockIcon; href?: string; space: SpaceView | null; empty: React.ReactNode }) {
+type LinkTargets = { id: string; name: string }[];
+
+/** One space as a card: who has it, then its items, then the items linked to it from members' spaces. */
+function SpaceCard({
+  title,
+  who,
+  Icon,
+  href,
+  space,
+  empty,
+  linked = [],
+  targets = [],
+}: {
+  title: string;
+  who: string;
+  Icon: typeof LockIcon;
+  href?: string;
+  space: SpaceView | null;
+  empty: React.ReactNode;
+  /** Items linked to this space (lib/space/links): they stay in their owner's. */ linked?: LinkedItemView[];
+  /** The projects the viewer may link their own items to. */ targets?: LinkTargets;
+}) {
   const computers = space?.devices.length ?? 0;
   return (
     <div className="rounded-lg border">
@@ -110,14 +132,39 @@ function SpaceCard({ title, who, Icon, href, space, empty }: { title: string; wh
           </span>
         )}
       </div>
-      <div className="px-3">{space?.items.length ? <SpaceItems space={space} /> : <p className="py-3 text-xs text-muted-foreground">{empty}</p>}</div>
+      <div className="px-3">{space?.items.length ? <SpaceItems space={space} /> : linked.length ? null : <p className="py-3 text-xs text-muted-foreground">{empty}</p>}</div>
+      {linked.length > 0 && (
+        <div className="border-t px-3">
+          <p className="pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Linked from members&apos; spaces</p>
+          <LinkedItems items={linked} projects={targets} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Linked items outside a space's card: the member's own, or the ones members shared with them by name. */
+function LinkedCard({ title, who, items, targets }: { title: string; who: string; items: LinkedItemView[]; targets: LinkTargets }) {
+  return (
+    <div className="rounded-lg border">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-muted/40 px-3 py-2">
+        <Link2Icon className="size-4 text-muted-foreground" aria-hidden />
+        <span className="text-sm font-medium">{title}</span>
+        <span className="text-xs text-muted-foreground">{who}</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {items.length} item{items.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="px-3">
+        <LinkedItems items={items} projects={targets} />
+      </div>
     </div>
   );
 }
 
 const STEPS = [
   { title: 'Make it', text: 'Ask Claude to make a skill for you. It is saved in your personal space, which Claude sets up by itself the first time.' },
-  { title: 'Share it, if you want', text: 'Say "share it with the <project> project" and everyone on that project gets it. Otherwise it stays only yours.' },
+  { title: 'Share it, if you want', text: 'Say "link it to the <project> project" and everyone on that project gets it while it stays yours. Otherwise it is only yours.' },
   { title: 'Keep it the same', text: 'On any computer, "sync my MediaMake spaces" brings in what changed elsewhere and sends what changed there.' },
 ];
 
@@ -126,10 +173,17 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
   const projects = spaces?.projects ?? [];
   const withSpace = projects.filter(project => project.space);
   const open = projects.filter(project => !project.space && project.role !== 'viewer');
-  const count = (spaces?.mine?.items.length ?? 0) + withSpace.reduce((sum, project) => sum + project.space!.items.length, 0);
-  const started = !!spaces?.mine || withSpace.length > 0;
+  const linked = spaces?.linked ?? [];
+  const own = linked.filter(item => item.role === 'owner');
+  // an item shared by name shows once, on its own card; the others on each linked project's card
+  const direct = linked.filter(item => item.role !== 'owner' && item.direct);
+  const linkedTo = (projectId: string) => linked.filter(item => item.role !== 'owner' && !item.direct && item.projects.some(project => project.id === projectId));
+  const cards = projects.filter(project => project.space || linkedTo(project.projectId).length);
+  const targets = projects.filter(project => project.role !== 'viewer').map(project => ({ id: project.projectId, name: project.name }));
+  const count = (spaces?.mine?.items.length ?? 0) + withSpace.reduce((sum, project) => sum + project.space!.items.length, 0) + linked.length;
+  const started = !!spaces?.mine || withSpace.length > 0 || linked.length > 0;
   return (
-    <Section id="space" title="Made in your spaces" count={count} about="Skills, MCPs and apps in your personal space and your project spaces. Personal ones are only yours, a project's go to everyone on it, and all of them stay the same on every computer.">
+    <Section id="space" title="Made in your spaces" count={count} about="Skills, MCPs and apps in your personal space and your project spaces. Personal ones are only yours, a project's go to everyone on it, and one of yours can be linked to several projects while it stays yours. All of them stay the same on every computer.">
       {!started && (
         <ol className="grid gap-2 sm:grid-cols-3">
           {STEPS.map((step, index) => (
@@ -157,7 +211,8 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
               </>
             }
           />
-          {withSpace.map(project => (
+          {own.length > 0 && <LinkedCard title="Yours, linked" who="They stay yours: only you and the editors you name can change them" items={own} targets={targets} />}
+          {cards.map(project => (
             <SpaceCard
               key={project.projectId}
               title={project.name}
@@ -166,14 +221,23 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
               href={`/app/spaces/${project.projectId}`}
               space={project.space}
               empty="Nothing shared into this project yet."
+              linked={linkedTo(project.projectId)}
+              targets={targets}
             />
           ))}
+          {direct.length > 0 && <LinkedCard title="Shared with you" who="By members who named you" items={direct} targets={targets} />}
         </div>
       )}
       {open.length > 0 && started && (
         <p className="mt-3 text-xs text-muted-foreground">
           You can also share into {open.map(project => project.name).join(', ')}: ask Claude to &quot;share &lt;skill&gt; with the &lt;project&gt; project&quot;, or run{' '}
           <span className={code}>mm space share &lt;skill&gt; --project=&quot;&lt;project&gt;&quot;</span>.
+        </p>
+      )}
+      {started && targets.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          To keep a skill yours and give it to the people of one or several projects: ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;, or run{' '}
+          <span className={code}>mm space link &lt;skill&gt; --project=&quot;&lt;project&gt;&quot;</span>. Once linked, Manage on its row adds or removes projects and people.
         </p>
       )}
       {started && (
@@ -188,7 +252,10 @@ function MadeByYou({ spaces }: { spaces: MySpaces | null }) {
 
 export function MineView({ mine, spaces = null }: { mine: Mine; spaces?: MySpaces | null }) {
   // a skill in a space is listed there, not again among the skills a computer reported
-  const inSpace = new Set([spaces?.mine, ...(spaces?.projects ?? []).map(project => project.space)].flatMap(space => space?.items.filter(item => item.kind === 'skill').map(item => item.name) ?? []));
+  const inSpace = new Set([
+    ...[spaces?.mine, ...(spaces?.projects ?? []).map(project => project.space)].flatMap(space => space?.items.filter(item => item.kind === 'skill').map(item => item.name) ?? []),
+    ...(spaces?.linked ?? []).filter(item => item.kind === 'skill').map(item => item.name),
+  ]);
   const variants = mine.variants.filter(row => !inSpace.has(row.name));
   const local = mine.local.filter(row => !inSpace.has(row.name));
   const failed = mine.installed.filter(entry => entry.item.failed);
