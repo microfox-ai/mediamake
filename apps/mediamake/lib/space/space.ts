@@ -16,7 +16,8 @@
  * records. ./store keeps them; docs/private-spaces.md is the guide.
  *
  * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
- * reports names, versions, titles and one-line summaries, and git moves the
+ * reports names, versions, titles and one-line summaries (and the names of
+ * the repo's central files), and git moves the
  * files with each member's own sign-in.
  */
 
@@ -57,6 +58,33 @@ export interface ReportedItem {
   media?: number;
 }
 
+/**
+ * A file or folder at the top of a space's repo that isn't an item: what guides and runs every production
+ * of the space (a CLAUDE.md, prefs.md, shared code in engine/). Its name only, never its contents.
+ */
+export interface CentralFile {
+  name: string;
+  folder?: boolean;
+  /** A folder's file count. */
+  files?: number;
+}
+export const MAX_CENTRAL_FILES = 100;
+/** A top-level name: no slash, no leading dot. */
+const CENTRAL_NAME = /^[A-Za-z0-9_][\w.@+ -]{0,99}$/;
+
+/** A report's central files, or undefined when it sent none (a computer from before they were reported). */
+export function parseCentral(value: unknown): CentralFile[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const byName = new Map<string, CentralFile>();
+  for (const entry of value.slice(0, MAX_CENTRAL_FILES)) {
+    const { name, folder, files } = (entry ?? {}) as Record<string, unknown>;
+    if (typeof name !== 'string' || !CENTRAL_NAME.test(name) || name.endsWith('.')) continue;
+    const count = typeof files === 'number' && Number.isInteger(files) && files >= 0 ? Math.min(files, 99999) : undefined;
+    byName.set(name, { name, ...(folder === true && { folder: true }), ...(folder === true && count !== undefined && { files: count }) });
+  }
+  return [...byName.values()].sort((a, b) => Number(!!b.folder) - Number(!!a.folder) || a.name.localeCompare(b.name));
+}
+
 /** What one computer says its clone of a space holds. */
 export interface SpaceReport {
   device: string;
@@ -72,6 +100,8 @@ export interface SpaceReport {
   /** Everything on that computer is on GitHub. */
   pushed: boolean;
   items: ReportedItem[];
+  /** The repo's central files (CentralFile), when the computer sent them. */
+  central?: CentralFile[];
 }
 
 /** A computer that has a space. In a project's space they are several members' computers. */
@@ -97,6 +127,8 @@ export interface SpaceRecord {
   connectedAt: string;
   updatedAt: string;
   devices: SpaceDevice[];
+  /** The repo's central files, as the computer furthest along has them. */
+  central?: CentralFile[];
 }
 
 /** The repo a report means: the space's own when the report names it as it was called before. */
@@ -146,7 +178,7 @@ export const deviceLabel = (value: unknown): string => (typeof value === 'string
  * Only these are read. An item whose name isn't a folder name is left out.
  */
 export function parseSpaceReport(body: unknown): SpaceReport | { error: string } {
-  const { device, repo, project, item: linked, branch, commit, commitAt, pushed, items } = (body ?? {}) as Record<string, unknown>;
+  const { device, repo, project, item: linked, branch, commit, commitAt, pushed, items, central } = (body ?? {}) as Record<string, unknown>;
   const name = repoName(repo);
   if (!name) return { error: "Send { repo }: the space's repo as owner/name" };
   if (project !== undefined && !projectId(project)) return { error: 'project is a project id' };
@@ -183,6 +215,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
     ...(Number.isFinite(when) && { commitAt: new Date(when).toISOString() }),
     pushed: pushed === true,
     items: [...byKey.values()],
+    ...(parseCentral(central) && { central: parseCentral(central) }),
   };
 }
 
@@ -278,8 +311,18 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
     });
   }
 
+  // the central files follow the computer furthest along, like titles do
+  const central = report.central && (leads || !sameRepo || !state.space!.central) ? report.central : sameRepo ? state.space!.central : undefined;
   return {
-    space: { id: spaceId, repo: report.repo, ...(sameRepo && state.space!.formerRepos?.length && { formerRepos: state.space!.formerRepos }), connectedAt: sameRepo ? state.space!.connectedAt : now, updatedAt: now, devices: order },
+    space: {
+      id: spaceId,
+      repo: report.repo,
+      ...(sameRepo && state.space!.formerRepos?.length && { formerRepos: state.space!.formerRepos }),
+      connectedAt: sameRepo ? state.space!.connectedAt : now,
+      updatedAt: now,
+      devices: order,
+      ...(central && { central }),
+    },
     items,
     removed,
   };
@@ -336,6 +379,8 @@ export interface SpaceView {
   repoUrl?: string;
   devices: (DeviceView & { reportedAt: string; pushed: boolean; behind: boolean })[];
   items: SpaceItemView[];
+  /** The repo's central files (guidance, prefs, shared code): names only. */
+  central: CentralFile[];
 }
 
 /** `mac-3f9a` → `Mac 3f9a`. */
@@ -406,6 +451,7 @@ export function spaceView(state: SpaceState, me: string, names: Record<string, s
         behind: !!lead?.commit && !!device.commit && device.commit !== lead.commit,
       })),
     items,
+    central: space.central ?? [],
   };
 }
 

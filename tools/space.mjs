@@ -60,7 +60,9 @@
  *
  * What MediaMake is told (when this computer is signed in and usage reports are on: mm usage): each
  * repo's name, this computer's random label, the commit, and each item's kind, name, version, title
- * and one-line summary. Never a file. mm space report --dry shows it exactly. Which repo is a
+ * and one-line summary, and the names of its central files (the top of the repo beside skills/, mcps/ and
+ * apps/: a CLAUDE.md, prefs.md, engine/ with its file count), which the app's Code tab shows. Never a
+ * file's contents. mm space report --dry shows it exactly. Which repo is a
  * project's space is told whenever you share into it, so its members can find it.
  */
 import { spawnSync } from 'node:child_process';
@@ -593,7 +595,29 @@ export function spaceReport(space, env = process.env) {
       ...(item.changed && { changed: true }),
       ...(item.media.length && { media: item.media.length }),
     })),
+    ...(!space.item && { central: centralFiles(space.dir) }),
   };
+}
+
+/** Kept out of the central files: the layout and what every repo has. */
+const NOT_CENTRAL = new Set([...Object.values(KINDS), 'README.md', 'node_modules', 'dist']);
+/**
+ * A space's central files: what sits at the top of its repo beside skills/, mcps/ and apps/ and guides or
+ * runs every production of it (a CLAUDE.md, prefs.md, shared code in engine/). Names and a folder's file
+ * count only, as git has them (ignored files aren't the space's). The app shows them in the Code tab.
+ */
+export function centralFiles(dir) {
+  const r = git(dir, ['ls-files', '-co', '--exclude-standard', '-z']);
+  if (!r.ok) return [];
+  const byTop = new Map();
+  for (const file of r.out.split('\0').filter(Boolean)) {
+    const [top, ...rest] = file.split('/');
+    if (top.startsWith('.') || NOT_CENTRAL.has(top)) continue;
+    const entry = byTop.get(top) ?? { name: top, ...(rest.length && { folder: true, files: 0 }) };
+    if (rest.length) entry.files = (entry.files ?? 0) + 1;
+    byTop.set(top, entry);
+  }
+  return [...byTop.values()].slice(0, 100);
 }
 
 /** Sends the reports when this computer is signed in and reports are on. Never fails the command it follows. */

@@ -122,3 +122,22 @@ test('a skill that names code only on this computer is told to carry it', () => 
   const refs = codeOutside(skill, { top, workspace: ws }).map(c => c.ref);
   assert.deepEqual(refs, ['apps/studio/src/doomcat/Cat.tsx', 'apps/studio/src/doomcat/', 'extensions/glow/Glow.tsx']);
 });
+
+test('a space reports its central files: top-level names beside the items, nothing ignored', async () => {
+  const { centralFiles } = await import('./space.mjs');
+  const dir = path.join(tmp, 'central');
+  clone(dir, 'me/mediamake-space', {
+    'skills/a/SKILL.md': 'x',
+    'README.md': 'x',
+    'CLAUDE.md': 'x',
+    'prefs.md': 'x',
+    'engine/Cat.tsx': 'x',
+    'engine/lib/util.ts': 'x',
+    '.gitignore': 'secret.txt\n',
+    'secret.txt': 'x',
+  });
+  assert.deepEqual(
+    centralFiles(dir).sort((a, b) => a.name.localeCompare(b.name)),
+    [{ name: 'CLAUDE.md' }, { name: 'engine', folder: true, files: 2 }, { name: 'prefs.md' }],
+  );
+});

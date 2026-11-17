@@ -13,6 +13,7 @@ import {
   RoleBadge,
 } from '@/components/projects/project-access';
 import { CopyLine } from './copy-line';
+import { BrandTab, CentralFiles } from './space-tabs';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
@@ -110,8 +111,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
 }
 
 /**
- * One space in the app, one tab each: the skills, MCPs and apps made for
- * it, what it keeps on MediaMake (its productions, its releases and its
+ * One space in the app, one tab each: its code (the central files at the
+ * top of its repo, and the skills, MCPs and apps made for it), its brand kit, what it keeps on MediaMake (its productions, its releases and its
  * media), who can open it, which its owner changes here, and the line that
  * sets it up on a computer. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
@@ -242,10 +243,11 @@ export function ProjectDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="skills" className="gap-4">
+      <Tabs defaultValue="code" className="gap-4">
         <div className="-mx-4 overflow-x-auto px-4">
           <TabsList>
-            <Tab value="skills" label="Skills" count={(space?.items.length ?? 0) + linked.length} />
+            <Tab value="code" label="Code" count={(space?.items.length ?? 0) + linked.length + (space?.central.length ?? 0)} />
+            <Tab value="brand" label="Brand" count={project?.brandKit?.assetCount} />
             <Tab value="productions" label="Productions" count={productions?.total} />
             <Tab value="releases" label="Releases" count={releases?.total} />
             <Tab value="media" label="Media" count={media?.total} />
@@ -254,7 +256,10 @@ export function ProjectDetail({
           </TabsList>
         </div>
 
-        <TabsContent value="skills">
+        <TabsContent value="code" className="flex flex-col gap-6">
+          <CentralFiles space={space} personal={personal} />
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold">Skills, MCPs and apps</h2>
           <ItemCards
             space={space}
             audience={personal ? 'Only you' : `Everyone on ${project?.displayName ?? 'the project'}`}
@@ -271,6 +276,15 @@ export function ProjectDetail({
             <p className="mt-4 text-xs text-muted-foreground">
               To add one of your own skills here and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the {project?.displayName ?? 'project'} project&quot;.
             </p>
+          )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="brand">
+          {project ? (
+            <BrandTab projectId={projectId} projectName={personal ? 'Your brand' : project.displayName} canEdit={role === 'owner' || role === 'editor'} me={me} />
+          ) : (
+            <Loading />
           )}
         </TabsContent>
 

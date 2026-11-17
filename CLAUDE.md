@@ -264,7 +264,7 @@ Every member's MCP is mm-use (`/mcp/use`): explore and install items, usage and 
 hook (`tools/skill-runs.mjs`) tells MediaMake which skill ran and when, and once a day the names and
 versions of the skills on this computer; never arguments, folders or files. `mm usage` shows what is
 sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
-space also reports its items' names, versions, titles and one-line summaries (`mm space
+space also reports its items' names, versions, titles and one-line summaries, and the names of its central files (`mm space
 report --dry` shows it, the same switch stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

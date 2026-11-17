@@ -69,6 +69,9 @@ only once they agree.
 | "Get the project's files" | `mm media sync status --project=<id>`, then `mm media sync pull --project=<id>` (dry run, `--yes`); or the MCP's `get_production` / `get_release` with `saveTo`, `download_shared_assets` |
 | "Share these overlays / files with the team" | `mm media share <id…> --project=<projectId> --yes` only for files they named, or the MCP's `share_assets` |
 | "Use the brand kit" | The MCP's `get_brand_kit` before making anything for a brand; `upload_brand_kit` sends a `pack-brand-kit` folder |
+| "Put the project's guidance / prefs / shared code in the space" (what every production follows) | Write it at the top of the space's repo beside `skills/` (`spaces/<project>/CLAUDE.md`, `prefs.md`, shared code in `engine/`), then `mm space sync` (dry run, `--yes`). The app's Code tab lists them. Pictures, clips and fonts are not code: Media or the brand kit |
+| "Make sure my skill takes its code" / "update <skill> so it runs anywhere" | The skill's code goes in its own folder (`skills/<name>/engine/…`) and projects import it as `@mediamake/skills/<name>/…`. `mm space sync` names any code it uses that only this computer has (a folder in `apps/studio/src` not on GitHub, the workspace's `extensions/`): move that in, point the SKILL.md at it, then sync |
+| "Run / render this in the cloud" | A cloud session: `mm cloud` (CLAUDE.md › Cloud sessions). The space's repo must be added to the cloud environment's repositories. Never Lambda |
 | "What does MediaMake know about my spaces?" | `mm space report --dry` and `apps/mediamake/docs/usage.md` |
 | "Take this computer off" / "forget my spaces" | `mm space disconnect` (dry run, `--yes`), `mm space forget`. The repos are untouched |
 

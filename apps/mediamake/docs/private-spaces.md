@@ -49,7 +49,16 @@ skills/<name>/SKILL.md      a skill, with anything it needs beside it (code, sma
 mcps/<name>/                an MCP: its code, a README that says how to run it, an item.json
 apps/<name>/                an app, the same way
 <kind>/<name>/item.json     optional: { "title", "summary", "version", "media": ["<library id>"] }
+CLAUDE.md, prefs.md, engine/ …   the space's central files: what guides and runs every production
 ```
+
+**On the space's page** the tabs are Code (the central files, then the skills, MCPs and apps), Brand
+(the brand kit: colours, fonts and a card per file; owners and editors change it in a dialog),
+Productions, Releases, Media, People and Set up. **Central files** are whatever sits at the top of the
+repo beside `skills/`, `mcps/` and `apps/`: the guidance, prefs and shared code that every production
+of the space follows. A computer reports their names (a folder with its file count, never a file's
+contents) and each card opens the file on GitHub. Static files (pictures, clips, fonts) are not code:
+they go in Media.
 
 An item's version is `version` in its `item.json`, else the SKILL.md's
 (`version` or `metadata.version`) or the `package.json`'s, else a short hash
@@ -315,7 +324,8 @@ usage reports are on (`mm usage`):
 ```
 PUT /api/space
 { device, repo, project?, branch, commit, commitAt, pushed,
-  items: [{ kind, name, version, title, summary, changed, media }] }
+  items: [{ kind, name, version, title, summary, changed, media }],
+  central: [{ name, folder?, files? }] }
 ```
 
 `device` is the computer's random label (`mac-3f9a`), `repo` its name

@@ -169,3 +169,26 @@ describe('deviceName', () => {
     assert.equal(deviceName('computer'), 'computer');
   });
 });
+
+describe('central files', () => {
+  it('keeps top-level names and folder counts only, and follows the computer furthest along', () => {
+    const parsed = parseSpaceReport({
+      device: 'mac-1',
+      repo: 'me/mediamake-space',
+      pushed: true,
+      items: [],
+      central: [{ name: 'prefs.md' }, { name: 'engine', folder: true, files: 4 }, { name: '../etc' }, { name: 'a/b.md' }, { name: '.env' }, { name: 'CLAUDE.md', body: 'secret' }],
+    });
+    assert.ok(!('error' in parsed));
+    assert.deepEqual((parsed as SpaceReport).central, [{ name: 'engine', folder: true, files: 4 }, { name: 'CLAUDE.md' }, { name: 'prefs.md' }]);
+
+    let state = after(empty, report('mac-1', { commitAt: '2026-11-17T10:00:00Z', central: [{ name: 'prefs.md' }] }), '2026-11-17T10:00:00Z');
+    // a computer behind doesn't replace them; one ahead does; one that sends none keeps them
+    state = after(state, report('mac-2', { commitAt: '2026-11-16T10:00:00Z', central: [] }), '2026-11-17T11:00:00Z');
+    assert.deepEqual(spaceView(state, 'me')!.central, [{ name: 'prefs.md' }]);
+    state = after(state, report('mac-2', { commitAt: '2026-11-18T10:00:00Z', central: [{ name: 'CLAUDE.md' }] }), '2026-11-18T10:00:00Z');
+    assert.deepEqual(spaceView(state, 'me')!.central, [{ name: 'CLAUDE.md' }]);
+    state = after(state, report('mac-2', { commitAt: '2026-11-19T10:00:00Z' }), '2026-11-19T10:00:00Z');
+    assert.deepEqual(spaceView(state, 'me')!.central, [{ name: 'CLAUDE.md' }]);
+  });
+});
