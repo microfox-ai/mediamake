@@ -97,6 +97,9 @@ mm submit <name> --yes --made="<title>" [--made-url=<link>] [--note="<anything t
 Not signed in: run `mm login` yourself and ask the user to click Allow in the tab it opens. Never
 ask for an API key.
 
+It says the upload got no answer in time: run `mm submit status` before anything else. It may have
+arrived; when it is not listed, send it again (the same item sent again only replaces what was sent).
+
 Tell the user it was sent, that nothing is public yet, that they are mailed when an admin decides,
 and that `mm submit status` (or asking you) shows where it stands. Do not promise a tier or a
 membership: the admin picks both.

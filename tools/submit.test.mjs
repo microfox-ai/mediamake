@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { NO_RUN_SHEET } from './skills.mjs';
-import { candidates, check, collect, describe, madeProblem, payload } from './submit.mjs';
+import { candidates, check, collect, describe, madeProblem, payload, uploadTimedOut, uploadTimeout } from './submit.mjs';
 
 const SKILL_MD = '---\nname: make-thing\ndescription: Makes a thing from a song and a picture\nmetadata:\n  version: 1.2.0\n---\n\n# make-thing\n';
 const SHEET = "\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Make it | `key:elevenlabs` | no | yes | a to-do for a place with the key |\n";
@@ -106,4 +106,14 @@ test('a clean skill passes, and its payload carries the production and the files
 test('a production is a finished work, never a test or a demo', () => {
   for (const made of ['', '  ', 'test', 'a demo', 'TBD', 'n/a']) assert.match(madeProblem(made), /We publish nothing we don't use/, made);
   assert.equal(madeProblem('Akhilanda Natha lyric video'), null);
+});
+
+test('the upload gets a minute for the server plus time to go up, and a time-out says it may have arrived', () => {
+  assert.equal(uploadTimeout(0), 60_000);
+  // the 1.3 MB skill that ran out of 8 s on 18 Nov 2026 (about 1.7 MB as JSON), and the largest item (3 MB, about 4.2 MB as JSON)
+  assert.equal(uploadTimeout(1.7 * 1048576), 88_000);
+  assert.ok(uploadTimeout(4.2 * 1048576) > 120_000 && uploadTimeout(4.2 * 1048576) < 130_000);
+  const said = uploadTimedOut('pack-distrokid', 1.7 * 1048576, 88_000);
+  assert.match(said, /^Sending pack-distrokid \(1\.7 MB\) got no answer within 88 s\./);
+  assert.match(said, /may still have arrived: mm submit status shows whether it did/);
 });

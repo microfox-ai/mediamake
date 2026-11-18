@@ -157,6 +157,19 @@ export function madeProblem(made) {
   return null;
 }
 
+/**
+ * How long sending may take, from the size of the body: a minute for the server (the route's maxDuration,
+ * apps/mediamake/app/api/submissions/route.ts) plus a second for every 64 KB on the way up (a slow
+ * 0.5 Mbit/s uplink). A 1.3 MB skill gets about a minute and a half, the largest item about two minutes.
+ * Usage reports keep call()'s 8 s.
+ */
+export const uploadTimeout = bytes => 60_000 + Math.ceil(bytes / 65_536) * 1000;
+
+/** What to say when the upload got no answer in time: it may have arrived all the same. */
+export function uploadTimedOut(name, bytes, timeoutMs) {
+  return `Sending ${name} (${(bytes / 1048576).toFixed(1)} MB) got no answer within ${Math.round(timeoutMs / 1000)} s. It may still have arrived: mm submit status shows whether it did. Sending it again is safe, since the same item sent again before a decision replaces what you sent.`;
+}
+
 /** The body POST /api/submissions takes. */
 export function payload(item, files, { made, madeUrl, note }) {
   const about = describe(item);
@@ -249,7 +262,17 @@ async function submit(name, flags) {
   }
 
   const { url, key } = signedIn();
-  const { submission } = await call('POST', `${url}/api/submissions`, key, payload(item, files, { made, madeUrl, note: typeof flags.note === 'string' ? flags.note : '' }));
+  const body = payload(item, files, { made, madeUrl, note: typeof flags.note === 'string' ? flags.note : '' });
+  // the whole item travels in one request, often 1–4 MB with a README's pictures: give it time to go up
+  const bytes = Buffer.byteLength(JSON.stringify(body));
+  const timeoutMs = uploadTimeout(bytes);
+  let submission;
+  try {
+    ({ submission } = await call('POST', `${url}/api/submissions`, key, body, { timeoutMs }));
+  } catch (error) {
+    if (error?.name === 'TimeoutError') fail(uploadTimedOut(name, bytes, timeoutMs));
+    throw error;
+  }
   if (json) return console.log(JSON.stringify({ ...report, sent: true, submission }, null, 2));
   console.log(`Sent ${submission.itemId}@${submission.version} for review (${submission.submissionId}). Nothing is public yet.`);
   if (submission.problems?.length) {

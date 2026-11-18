@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { localSkills, runReport, skillVersion, usageSetting } from './usage.mjs';
+import { call, localSkills, runReport, skillVersion, usageSetting } from './usage.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mm-usage-test-')));
@@ -173,4 +173,22 @@ test('mm usage keeps the rest of the config, shows the list without sending, sen
   assert.match(forget.stdout, /Deleted 3 runs, 1 skill lists and 0 app opens/);
   assert.deepEqual([got[1].method, got[1].path], ['DELETE', '/api/usage/skill-runs']);
   assert.equal(usage(['nonsense']).status, 1);
+});
+
+test('call gives up after its timeout, which a caller that sends more makes longer', async () => {
+  // its own server, so the shared one's record of what arrived stays as the other tests expect
+  const slow = http.createServer((req, res) => {
+    req.resume();
+    setTimeout(() => res.end(JSON.stringify({ ok: true })), 300);
+  });
+  await new Promise(resolve => slow.listen(0, '127.0.0.1', resolve));
+  const at = `http://127.0.0.1:${slow.address().port}/api/slow`;
+  try {
+    await assert.rejects(call('POST', at, 'test-key', { big: 'x' }, { timeoutMs: 100 }), { name: 'TimeoutError', message: '/api/slow did not answer within 0.1 s' });
+    assert.deepEqual(await call('POST', at, 'test-key', { big: 'x' }, { timeoutMs: 5000 }), { ok: true });
+    // the default (8 s) is the usage reports' own, and still waits out a slow answer
+    assert.deepEqual(await call('GET', at, 'test-key'), { ok: true });
+  } finally {
+    slow.close();
+  }
 });
