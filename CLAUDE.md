@@ -327,10 +327,10 @@ the format.
 - A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
   release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`).
-- Wherever an item lives, its own README.md is what shows: in a space (a member's own, a project's, a
-  linked item) every `mm space sync` sends it with its pictures and its dialog shows it to whoever may
-  see the space; a member's item released as a store package shows the README.md of the version
-  released. Write it in the item's folder and sync; never paste it onto a listing by hand.
+- Wherever an item lives, its own README.md is what shows: a public skill's from this repo, a private
+  one's (a member's own space, a project's, a linked item) in its dialog, to the people who can see that
+  space, sent with its pictures by every `mm space sync`. Write it in the item's folder and sync; never
+  paste it onto a listing by hand.
 - Never write a badge, a rating or a made-up video into a README: the page draws the badges from what
   MediaMake knows, and a video or a picture is a real one of the item. With no video yet, leave it out.
 - Members rate any item from 1 to 5 stars (mm-use's `rate_item`, only on the user's word).
@@ -376,7 +376,7 @@ versions of the skills on this computer; never arguments, folders or files. `mm 
 sent, `mm usage off` (or `MEDIAMAKE_USAGE=off`) stops it, `mm usage forget` deletes what was sent. A
 space also reports its items' names, versions, titles, one-line summaries, what each needs to run (its run
 sheet's words: key names, MCPs, apps, sign-ins by site and account; never a key) and each item's README.md with the
-pictures it shows (its store listing, kept privately, shown only to who may see the space), and for the app's Code tab its file
+pictures it shows (its store listing, shown in its dialog to who can see the space), and for the app's Code tab its file
 paths, its README.md and its last 30 commits (short id, time, author's name, subject), never another file (`mm space
 report --dry` shows it, the same switch stops it). A computer and a cloud session also report what they can do for
 the register: a random label, the name its owner gave, the run sheets' words, the limit written beside a key, and a

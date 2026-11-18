@@ -44,13 +44,13 @@ export async function itemDetailsFor(viewer: { clientId: string | null }, key: s
 /**
  * The README the dialog shows on its left: the item's own (an item in a space: its README.md as its space
  * reported it; a store item: lib/catalog/readme-data), else the default one. The dialog only has details
- * for what the viewer may see, so a space item's README is theirs to read.
+ * for what the viewer may see: a space item for who can see that space.
  */
 async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> {
   const inSpace = spaceOfKey(key, details);
   if (inSpace) {
     const own = await spaceDB.itemReadme(inSpace.spaceId, inSpace.kind, inSpace.name).catch(() => null);
-    if (own?.text.trim()) return spaceItemReadme(inSpace.spaceId, inSpace, own);
+    if (own?.text.trim()) return spaceItemReadme(inSpace.spaceId, own);
   }
   const id = key.startsWith('catalog:') ? key.slice('catalog:'.length) : null;
   const skill = id?.startsWith('skill/') ? skillNamed(details.name) : null;
@@ -68,8 +68,6 @@ async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> 
       inStore: !!id,
     },
     skill: details.locked ? null : skill,
-    // a locked store item keeps the default: its README is for who can open it
-    ...(id && !details.locked && { itemId: id }),
     listingReadme: listing?.readme,
   });
 }

@@ -18,7 +18,7 @@
  * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
  * reports names, versions, titles, one-line summaries and what each item needs to run (key names, MCPs,
  * apps, sign-ins by site and account: never a key), each item's README.md (its store listing, docs/item-readme.md)
- * with the pictures it shows (./readme-files keeps those, privately), and for the Code tab the repo's file
+ * with the pictures it shows (copied once into MediaMake's storage, ./readme-files), and for the Code tab the repo's file
  * paths, its README.md and its last commits (short id, time, author's name, subject); git moves the files
  * with each member's own sign-in.
  */

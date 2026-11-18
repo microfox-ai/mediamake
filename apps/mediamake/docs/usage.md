@@ -86,11 +86,11 @@ needs to run (the words of its run sheet: key names, MCPs, apps and sign-ins by
 site and account name, never a key or a password; `docs/cloud-device-runs.md`),
 each item's README.md and the pictures it shows from its own folder (its store
 listing, `docs/item-readme.md`: the text with every report, each picture once,
-kept privately and shown only to who may see the space), and for
+shown in the item's dialog to who can see the space), and for
 the space's Code tab the paths of the repo's files, its README.md and its last
 30 commits (short id, time, the git author's name, subject), plus the project's
 id for a project's space (`PUT /api/space`, stored in `spaces` and
-`space_items`, the pictures in `space_readme_files` and private storage). Never another file's contents, a path on the computer or a token. The same switch stops it
+`space_items`, the pictures in MediaMake's storage under `space-readmes/`). Never another file's contents, a path on the computer or a token. The same switch stops it
 (`mm usage off`), `mm space report --dry` shows it, and `mm space forget`
 deletes it. Which repo is a project's space is told when someone makes it,
 whatever the switch says: the project's members need it to find the space.

@@ -5,8 +5,7 @@ import { getDatabase } from '../mongodb';
 import { syncCollaborators, type GithubLinkSync } from './github';
 import { githubGrants } from './github-store';
 import { collaboratorsOf, linkSpaceId, roleOn, takeLinkInvite, type LinkedItemView, type LinkRecord, type LinkRole } from './links';
-import { getProjectRole } from '@/lib/editor/project-access';
-import { spaceView, userSpaceId, type SpaceItemRecord, type SpaceKind, type SpaceRecord } from './space';
+import { spaceView, type SpaceItemRecord, type SpaceKind, type SpaceRecord } from './space';
 import { projectsOf, spaceDB, type MemberProject, type MySpaces } from './store';
 
 /**
@@ -240,21 +239,4 @@ export async function githubAfterProjectChange(projectId: string): Promise<void>
   } catch (error) {
     console.error('[spaces] GitHub sync after a project change failed:', error instanceof Error ? error.message : 'error');
   }
-}
-
-/**
- * True when `clientId` may see what a space holds: their own space, a project's space when they are on the
- * project, a linked item when it is theirs or shared with them. What a README of the space shows follows this.
- */
-export async function canSeeSpace(spaceId: string, clientId: string): Promise<boolean> {
-  if (spaceId === userSpaceId(clientId)) return true;
-  if (spaceId.startsWith('project:')) {
-    const project = spaceId.slice('project:'.length);
-    return !!(await getProjectRole(await getDatabase(), project, clientId).catch(() => null));
-  }
-  if (spaceId.startsWith('item:')) {
-    const link = await linkDB.byId(spaceId.slice('item:'.length));
-    return !!link && !!(await linkDB.roleOf(link, clientId));
-  }
-  return false;
 }

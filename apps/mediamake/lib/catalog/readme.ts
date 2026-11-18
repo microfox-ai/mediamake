@@ -43,19 +43,28 @@ export interface ItemReadme {
 }
 
 /**
- * Where a README's relative links and pictures point: a folder on GitHub, or a path on this site for an
- * item in a member's space (`/api/space/readme-file/<space>/<kind>/<name>/`, lib/space/item-readme).
- * Without one they are dropped.
+ * Where a README's relative links and pictures point: a folder on GitHub, or, for an item in a member's
+ * space, each picture's address by its path (lib/space/item-readme). Without one they are dropped.
  */
 export interface ReadmeBase {
   /** Links: `https://github.com/<repo>/blob/<branch>/<folder>/`. Empty: relative links are dropped. */
   links: string;
-  /** Pictures and clips: `https://raw.githubusercontent.com/<repo>/<branch>/<folder>/`, or a path on this site. */
+  /** Pictures and clips: `https://raw.githubusercontent.com/<repo>/<branch>/<folder>/`. */
   files: string;
+  /** Pictures by their path in the item's folder (`shots/a.png` → its address), instead of `files`. */
+  pictures?: Record<string, string>;
 }
 
-/** Stands in for this site's address while a link is resolved against a path on it. */
-const ON_SITE = 'https://site.invalid';
+/** A relative link as a path in the item's folder (`./shots/a.png` → `shots/a.png`), or null when it climbs out. */
+function folderPath(url: string): string | null {
+  const parts: string[] = [];
+  for (const part of decodeURI(url.replace(/[?#].*$/, '')).split('/')) {
+    if (!part || part === '.') continue;
+    if (part === '..') return null;
+    parts.push(part);
+  }
+  return parts.length ? parts.join('/') : null;
+}
 
 type HastNode = { type: string; tagName?: string; value?: string; properties?: Record<string, unknown>; children?: HastNode[] };
 
@@ -112,14 +121,16 @@ function resolve(url: string, base: ReadmeBase | undefined, file: boolean): stri
   if (url.startsWith('#')) return url;
   if (/^(https?:|mailto:)/i.test(url)) return url;
   if (/^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//') || !base) return null;
-  const root = file ? base.files : base.links;
-  if (!root) return null;
-  const from = root.startsWith('/') ? ON_SITE + root : root;
   try {
-    const resolved = new URL(url.replace(/^\/+/, ''), from).toString();
+    if (file && base.pictures) {
+      const at = folderPath(url);
+      return at ? (base.pictures[at] ?? null) : null;
+    }
+    const root = file ? base.files : base.links;
+    if (!root) return null;
+    const resolved = new URL(url.replace(/^\/+/, ''), root).toString();
     // a link may not climb out of the item's folder
-    if (!resolved.startsWith(from)) return null;
-    return from === root ? resolved : resolved.slice(ON_SITE.length);
+    return resolved.startsWith(root) ? resolved : null;
   } catch {
     return null;
   }

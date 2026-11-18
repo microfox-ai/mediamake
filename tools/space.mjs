@@ -62,7 +62,7 @@
  * repo's name, this computer's random label, the commit, and each item's kind, name, version, title,
  * one-line summary, what it needs to run (its run sheet's words: key names, MCPs, apps and sign-ins
  * by site and account, never a key or a password) and its README.md with the pictures it shows from its folder (each
- * picture once, kept privately); for the app's Code tab, the last 30 commits (short id, time, author's name,
+ * picture once); for the app's Code tab, the last 30 commits (short id, time, author's name,
  * subject), the paths of the repo's files and its README.md. Never another file's contents.
  * mm space report --dry shows it exactly. Which repo is a
  * project's space is told whenever you share into it, so its members can find it.
