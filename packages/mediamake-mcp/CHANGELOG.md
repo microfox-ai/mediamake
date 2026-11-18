@@ -1,5 +1,12 @@
 # @microfox/mediamake-mcp
 
+## 0.8.1
+
+### Patch Changes
+
+- 4b41a89: Changes from PR #607: project-thread-h4ywa4
+- 4882983: A tutorial's link (`plays`, mm-use's `page`) is now `/tutorials/<slug>`: the site's `/access` page is gone, so no tool answers with an `/access?item=` link any more.
+
 ## 0.8.0
 
 ### Minor Changes
