@@ -99,7 +99,8 @@ A step one place can't do goes in the project's to-do queue for a place that can
 space's page › To do, the Spaces MCP's `post_todo` / `claim_todo` / `finish_todo`).
 `apps/mediamake/docs/cloud-device-runs.md` › The to-do queue has the rules.
 
-- Posting: first save the work to the project (the release or production, `mm space sync --yes` for
+- A step of a run is posted by the run (`mm run wait`, below), not by hand. Posting any other: first
+  save the work to the project (the release or production, `mm space sync --yes` for
   code), then `mm todo post <project> "<what to do>" --needs=<the step's needs> --skill=<skill>
   --step="<step>" --release=<slug> --version=<v>`, with `--yes` when the run sheet or the routine says
   the step waits for a person's yes. Then end: a session never waits for a to-do. Tell the user its id
@@ -114,6 +115,30 @@ space's page › To do, the Spaces MCP's `post_todo` / `claim_todo` / `finish_to
 - Everyone on the project reads a to-do. Never a key, a password or anything private in its words.
 - With the Portal MCP connected, a to-do you post is also a task there for the people who can do it,
   and the work of one you finish is logged there.
+
+## Runs: every step ends by saving
+
+A production made with a skill that has a run sheet is a run (`mm run`, the space's page › Runs):
+its record says which steps are saved, where, and which is next, so it can stop in one place and go on
+in another. `apps/mediamake/docs/cloud-device-runs.md` › The run record has the rules.
+
+- Start it where the work begins: `mm run start <project> <slug> --skill=<skill>`. A production runs
+  once at a time: when it says who has it and where, stop and tell the user; never work around it.
+- Each step: `mm run step <slug> <n>` when it starts, and when its work is done
+  `mm run save <slug> <n> --production` (its code and renders go to the project's Productions),
+  `--release` for a release kit, `--output="<the link>"` for what it made. A step isn't done until it
+  is saved, and a saved step is never done again.
+- A step this place can't do: `mm run wait <slug> <n>` posts it as a to-do and lets go of the run. Then
+  end; don't post the to-do by hand as well.
+- "Continue <slug> in <project>" is `mm run resume <slug> --project=<project>`: do what it prints, from
+  the step it names. When it lists files here that differ from the saved ones, show the user and run
+  `--take-saved` only when they say so.
+- A step that was started and never saved, and must not happen twice: check it didn't already before
+  doing it, as the resume says.
+- The session-start line says when a run is ready to continue here. Tell the user; continue one only
+  when they say so (a routine's own instructions are that word).
+- `mm run cancel` is the user's: only on their word, in this session. Never a key or a password in an
+  output.
 
 ## Git: main stays a clean copy of GitHub
 

@@ -121,6 +121,25 @@ and compares it here with what the computer can do; it sends nothing about the
 computer. `mm usage off` does not stop to-dos, and `mm usage forget` does not
 delete them: cancel one on the project's page or with `mm todo cancel`.
 
+## Runs
+
+A production's run record (`mm run`, `docs/cloud-device-runs.md` › The run
+record) is the project's own work too. It holds the production's slug and
+title, the skill's name, each step's name and what it needs, who started or
+saved it and on which place by name, a line of output (a version, a link), and
+what was saved by reference: a version of the production, the release's slug,
+version and folder in the workspace, a commit (`POST /api/space/runs`, stored
+in `runs`). Everyone on the project reads it, so it never holds a key or a
+password: an output that looks like one is refused. `mm run save --production`
+and `--release` send the production's files to the project's storage, the same
+files and the same way as the MediaMake Spaces MCP's `create_production` and
+`create_release`, and only when a session runs that line. At the start of a
+session `tools/run.mjs --hook` asks MediaMake for the runs that aren't over in
+the account's projects and compares here what the next step needs with what the
+computer can do; it sends nothing about the computer. `mm usage off` does not
+stop runs, and `mm usage forget` does not delete them: cancel one on the
+project's page or with `mm run cancel`.
+
 ## Feedback
 
 `POST /api/feedback` `{ text, itemId?, version? }` takes a member's feedback

@@ -27,13 +27,13 @@ async function todos() {
 }
 
 /** A project as its to-dos need it, for one account: null when the account isn't on it. A personal space is its owner's alone. */
-interface Context {
+export interface Context {
   id: string;
   name: string;
   role: ProjectRole;
   people: string[];
 }
-async function contextOf(db: Db, project: string, clientId: string): Promise<Context | null> {
+export async function contextOf(db: Db, project: string, clientId: string): Promise<Context | null> {
   type Doc = { clientId?: string; displayName?: string; personal?: boolean; sharedWith?: { clientId?: string; role?: ProjectRole }[] };
   let doc: Doc | null = null;
   try {
@@ -103,7 +103,14 @@ export const todoDB = {
       const next = applyTodoAsk(todo, { clientId, role: ctx.role, onProject: new Set(ctx.people) }, ask);
       if ('error' in next) return { error: next.error, status: 409, todo: (await viewOf(db, ctx, clientId, [todo])).todos[0] };
       const saved = await col.replaceOne({ id: todo.id, rev: todo.rev }, next);
-      if (saved.matchedCount) return { todo: (await viewOf(db, ctx, clientId, [next])).todos[0] };
+      if (saved.matchedCount) {
+        // a step of a run: finishing the to-do saves the step, cancelling it gives the step back to the run
+        if (next.run && (next.state === 'done' || next.state === 'cancelled')) {
+          const { runDB } = await import('./run-store');
+          await runDB.todoChanged(next, todo.claim?.place).catch(error => console.error(`[todos] Could not tell run ${next.run} about ${next.id}:`, error));
+        }
+        return { todo: (await viewOf(db, ctx, clientId, [next])).todos[0] };
+      }
       // someone changed it in between: read it again, and the ask is judged against what it is now
     }
     return { error: 'It keeps changing: try again', status: 409 };

@@ -25,7 +25,7 @@ type Ask = { action: 'yes' | 'release' | 'reopen' | 'cancel' } | { action: 'done
 const button = 'inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50';
 
 /** A result that is a link opens; anything else is read. */
-function Result({ text }: { text: string }) {
+export function Result({ text }: { text: string }) {
   return /^https:\/\/\S+$/.test(text) ? (
     <a href={text} target="_blank" rel="noreferrer" className="break-all underline underline-offset-4">
       {text}

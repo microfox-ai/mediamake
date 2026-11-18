@@ -17,7 +17,9 @@ import { BrandTab } from './space-tabs';
 import { CodeTab } from './space-code';
 import { CloudSetupCard } from './space-cloud';
 import { PlacesTab } from './space-places';
+import { RunsTab } from './space-runs';
 import { TodosTab } from './space-todos';
+import type { RunsView } from '@/lib/space/runs';
 import type { TodosView } from '@/lib/space/todos';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -169,9 +171,22 @@ export function ProjectDetail({
         .catch(e => setTodosError(e.message)),
     [projectId],
   );
+  const [runs, setRuns] = React.useState<RunsView | null>(null);
+  const [runsError, setRunsError] = React.useState<string | null>(null);
+  const loadRuns = React.useCallback(
+    () =>
+      getJson<RunsView>(`/api/space/runs?project=${encodeURIComponent(projectId)}`)
+        .then(view => {
+          setRuns(view);
+          setRunsError(null);
+        })
+        .catch(e => setRunsError(e.message)),
+    [projectId],
+  );
   React.useEffect(() => {
     void loadTodos();
-  }, [loadTodos]);
+    void loadRuns();
+  }, [loadTodos, loadRuns]);
 
   React.useEffect(() => {
     const id = encodeURIComponent(projectId);
@@ -283,6 +298,7 @@ export function ProjectDetail({
             <Tab value="releases" label="Releases" count={releases?.total} />
             <Tab value="media" label="Media" count={media?.total} />
             {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
+            <Tab value="runs" label="Runs" count={runs?.ready || undefined} />
             <Tab value="todos" label="To do" count={todos?.todos.filter(todo => todo.state !== 'done' && todo.state !== 'cancelled').length || undefined} />
             {!personal && <Tab value="places" label="Where it runs" />}
             <Tab value="setup" label="Set up" />
@@ -368,8 +384,12 @@ export function ProjectDetail({
           </TabsContent>
         )}
 
+        <TabsContent value="runs">
+          <RunsTab view={runs} error={runsError} onChanged={() => Promise.all([loadRuns(), loadTodos()]).then(() => undefined)} />
+        </TabsContent>
+
         <TabsContent value="todos">
-          <TodosTab view={todos} error={todosError} onChanged={loadTodos} />
+          <TodosTab view={todos} error={todosError} onChanged={() => Promise.all([loadTodos(), loadRuns()]).then(() => undefined)} />
         </TabsContent>
 
         {!personal && (

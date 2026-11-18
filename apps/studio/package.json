@@ -49,6 +49,7 @@
     "cloud": "node ../../tools/cloud.mjs",
     "access": "node ../../tools/access.mjs",
     "todo": "node ../../tools/todo.mjs",
+    "run": "node ../../tools/run.mjs",
     "items": "node ../../tools/items.mjs",
     "submit": "node ../../tools/submit.mjs",
     "login": "node ../../tools/login.mjs",
