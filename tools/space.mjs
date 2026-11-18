@@ -1789,6 +1789,11 @@ async function create(args, flags, env) {
   fs.mkdirSync(at, { recursive: true });
   if (kind === 'skill') {
     fs.writeFileSync(path.join(at, 'SKILL.md'), `---\nname: ${name}\ndescription: <What it does, and when Claude should use it: "Use when the user says …">\nmetadata:\n  version: 0.1.0\n---\n\n# ${humanize(name)}\n\n<The steps.>\n\n${RUN_SHEET}`);
+    // its store listing (apps/mediamake/docs/item-readme.md): a video first, the title, what it does, how to use it
+    fs.writeFileSync(
+      path.join(at, 'README.md'),
+      `---\ndescription: <What it is, for people, in a line or two>\ntags: <words people look for it by, with commas between them>\n---\n\n<A YouTube link to its video, alone on this line. None yet: delete this line.>\n\n# ${humanize(name)}\n\n<What it does, in a line or two.>\n\n## How to use\n\n1. <What to say to Claude>\n2. <What happens next>\n`,
+    );
   } else {
     writeJson(path.join(at, 'item.json'), { title: humanize(name), summary: `<What this ${kind === 'mcp' ? 'MCP' : 'app'} does, in one line>`, version: '0.1.0', needs: [], media: [] });
     fs.writeFileSync(path.join(at, 'README.md'), `# ${humanize(name)}\n\n<What it is, and how to run or install it on a new computer.>\n`);

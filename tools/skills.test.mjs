@@ -205,3 +205,25 @@ test('publish onto a base that still commits the registry updates it there', () 
   git(repo, 'fetch', '--quiet', 'origin', branch);
   assert.ok(JSON.parse(git(repo, 'show', `origin/${branch}:skills.json`)).skills.some(s => s.name === 'make-demo-like-z'));
 });
+
+test("a skill's README.md gives its store listing: description, tags, headshot and the video it opens with", async () => {
+  const { readmeListing, folderSize } = await import('./skills.mjs');
+  const dir = path.join(tmp, 'listing-skill');
+  fs.mkdirSync(path.join(dir, 'shots'), { recursive: true });
+  assert.equal(readmeListing(dir), null);
+  fs.writeFileSync(path.join(dir, 'shots', 'head.jpg'), 'x');
+  fs.writeFileSync(
+    path.join(dir, 'README.md'),
+    '---\ndescription: Makes an intro for your channel.\ntags: Intro, YouTube, lyric video\nheadshot: shots/head.jpg\n---\n\nhttps://youtu.be/dQw4w9WgXcQ\n\n# Make my intro\n\n## How to use\n',
+  );
+  assert.deepEqual(readmeListing(dir), {
+    description: 'Makes an intro for your channel.',
+    tags: ['intro', 'youtube', 'lyric-video'],
+    headshot: 'shots/head.jpg',
+    video: 'https://youtu.be/dQw4w9WgXcQ',
+  });
+  assert.deepEqual(folderSize(dir), { bytes: fs.statSync(path.join(dir, 'README.md')).size + 1, files: 2 });
+  // no headshot named: the video's thumbnail; a file outside the folder is never one
+  fs.writeFileSync(path.join(dir, 'README.md'), '---\nheadshot: ../../etc/passwd\n---\n\n# Make my intro\n\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ\n');
+  assert.deepEqual(readmeListing(dir), { headshot: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg', video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+});

@@ -253,6 +253,25 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
   );
 
   server.registerTool(
+    'rate_item',
+    {
+      title: 'Rate an item',
+      description:
+        "Rate a MediaMake skill, MCP or app from 1 to 5 stars for the user. Everyone sees an item's average and how many rated it; nobody sees who gave what. One rating per account and item: rating again changes it. Only on the user's word: after a run of a MediaMake item, you may ask once how many stars they give it, and send exactly what they say. When they also say why, send those words with send_feedback. Never rate for them.",
+      inputSchema: {
+        item: ITEM_ID.describe('The skill, MCP or app, e.g. skill/pack-brand-kit'),
+        stars: z.number().int().min(1).max(5).describe('1 (poor) to 5 (great), as the user said'),
+        version: z.string().max(80).optional().describe('The version of the item they used, when known'),
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ item, stars, version }) => {
+      const saved = await client.post<{ rating: unknown; mine: number }>('/api/catalog/ratings', { itemId: item, stars, version, source: 'mm-use' });
+      return json({ ...saved, rated: true, page: page(item) });
+    }),
+  );
+
+  server.registerTool(
     'my_feedback',
     {
       title: 'My feedback',

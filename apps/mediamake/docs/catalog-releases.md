@@ -209,6 +209,10 @@ screenshot or video each open a dialog, and every change saves at once.
 - `{ type: 'set_listing', itemId, tags?, media?: [{ kind: 'image' | 'video', url, title? }] }`:
   each one given replaces what was there (an empty list clears it); left out,
   it stays. At most 12 tags and 12 screenshots.
+- The same call takes `description`, `headshot` (a 16:9 picture by https link), `icon` (an MCP's or
+  an app's, a square picture by https link) and `readme` (Markdown, for an item without a README.md
+  of its own): each a text, empty to clear it. The panel's "Headshot and description" and "README"
+  buttons set them. `docs/item-readme.md` has the README's format.
 
 From Claude, mm-release's `catalog_set_listing` does the same.
 
@@ -267,7 +271,7 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_set_stage` | Set the lowest membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (`set_item_tier`): public, plus, pro, cohort or vault, optionally with a gate. Repo skills and items made by others refuse: archive them instead. |
 | `catalog_set_health` | Say whether items of any kind work (`set_health`): healthy, inactive, archived, or failed with its reason. |
 | `catalog_set_readiness` | Mark items Ready with the finished productions that prove it, or back to Beta (`set_readiness`). |
-| `catalog_set_listing` | Set an item's tags and screenshots (`set_listing`), shown on its own page. |
+| `catalog_set_listing` | Set an item's store listing (`set_listing`): its tags, screenshots, description, headshot, icon and README, shown on its own page and in its dialog (`docs/item-readme.md`). |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
 | `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts with the cohort. |

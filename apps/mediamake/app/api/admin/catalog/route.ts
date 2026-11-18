@@ -16,7 +16,7 @@ import {
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
 import { catalogIndex } from '@/lib/catalog/admin-index';
-import { MAX_LISTING_MEDIA, MAX_LISTING_TAGS, parseTags, withListingTags, type ItemListing } from '@/lib/catalog/listing';
+import { MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
 import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
 import { usedByOf } from '@/lib/catalog/summary';
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
   const marked = <T extends { id: string; kind: CatalogKind }>(records: T[]) =>
-    withListingTags(withReadiness(withHealth(withVideos(withArchive(records, archived), videos), health), readiness), listings);
+    withListing(withReadiness(withHealth(withVideos(withArchive(records, archived), videos), health), readiness), listings);
   return NextResponse.json({
     items: marked(items.map(withRegistryUses)),
     skills: marked(skillRecords(items)),
@@ -547,7 +547,8 @@ export async function POST(req: NextRequest) {
       const itemId = typeof body.itemId === 'string' ? body.itemId : '';
       const item = itemId ? (staticRecord(itemId) ?? (await catalogItemsDB.get(itemId))) : null;
       if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
-      if (body.tags === undefined && body.media === undefined) return bad('Give tags, media or both');
+      const TEXTS = ['description', 'headshot', 'icon', 'readme'] as const;
+      if (body.tags === undefined && body.media === undefined && TEXTS.every(key => body[key] === undefined)) return bad('Give tags, media, description, headshot, icon or readme');
       const current = await catalogListingDB.get(item.id);
       let tags = current?.tags ?? [];
       if (body.tags !== undefined) {
@@ -562,10 +563,25 @@ export async function POST(req: NextRequest) {
         if (!parsed.success) return bad(parsed.error.issues.map(i => `media.${i.path.join('.')}: ${i.message}`).join('; '));
         media = parsed.data.map(entry => ({ kind: entry.kind, url: entry.url, ...(entry.title && { title: entry.title }) }));
       }
-      const listing = await catalogListingDB.set(item.id, { tags, media }, adminId);
+      // each of these is a text: given, it replaces what was there; empty, it clears it; left out, it stays
+      const texts: Partial<Record<(typeof TEXTS)[number], string>> = { description: current?.description, headshot: current?.headshot, icon: current?.icon, readme: current?.readme };
+      for (const key of TEXTS) {
+        if (body[key] === undefined) continue;
+        if (typeof body[key] !== 'string') return bad(`${key} must be text`);
+        texts[key] = body[key].trim();
+      }
+      if ((texts.description?.length ?? 0) > MAX_LISTING_DESCRIPTION) return bad(`Keep the description under ${MAX_LISTING_DESCRIPTION} characters`);
+      if ((texts.readme?.length ?? 0) > MAX_LISTING_README) return bad('The README is too long: keep it under 32 KB');
+      for (const key of ['headshot', 'icon'] as const) {
+        if (texts[key] && !/^https:\/\/\S{1,1000}$/.test(texts[key]!)) return bad(`${key} must be an https link to a picture`);
+      }
+      if (texts.icon && item.kind === 'skill') return bad('Only an MCP or an app has an icon');
+      const listing = await catalogListingDB.set(item.id, { tags, media, ...texts }, adminId);
       revalidatePath('/');
       refreshSkillPages([item.id]);
-      return NextResponse.json({ listing: { tags: listing?.tags ?? [], media: listing?.media ?? [] } });
+      return NextResponse.json({
+        listing: { tags: listing?.tags ?? [], media: listing?.media ?? [], description: listing?.description, headshot: listing?.headshot, icon: listing?.icon, readme: listing?.readme },
+      });
     }
 
     case 'create_video_item': {

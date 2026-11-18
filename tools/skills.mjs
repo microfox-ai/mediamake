@@ -314,6 +314,57 @@ const thirdPartyIds = () => {
   }
 };
 
+/** A YouTube link that stands alone on a line: the video a README opens with. */
+const README_VIDEO = /^\s*<?(https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s>]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)[\w-]{11}[^\s>]*)>?\s*$/m;
+const YOUTUBE_ID_IN = /(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/;
+
+/**
+ * A skill's store listing as its README.md gives it (apps/mediamake/docs/item-readme.md): the
+ * frontmatter's `description`, `tags` and `headshot` (a 16:9 picture: a file in the skill's folder or an
+ * https link), and the video the README opens with. With no `headshot` the video's thumbnail is the
+ * headshot. Null when the skill has no README.md. `bytes` and `files` are the whole folder's.
+ */
+export const readmeListing = dir => {
+  const file = path.join(dir, 'README.md');
+  if (!fs.existsSync(file)) return null;
+  const fm = frontmatter(file);
+  const body = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '');
+  const video = fm.video || body.match(README_VIDEO)?.[1];
+  const youtubeId = video?.match(YOUTUBE_ID_IN)?.[1];
+  const tags = String(fm.tags ?? '')
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map(tag => unquote(tag).toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, ''))
+    .filter(Boolean);
+  let headshot = fm.headshot;
+  // a file must be inside the skill's folder
+  if (headshot && !/^https:\/\//.test(headshot)) {
+    const at = path.resolve(dir, headshot);
+    headshot = at.startsWith(dir + path.sep) && fs.existsSync(at) ? path.relative(dir, at).split(path.sep).join('/') : undefined;
+  }
+  const listing = {
+    description: fm.description ? decode(fm.description).slice(0, 300) : undefined,
+    tags: tags.length ? [...new Set(tags)].slice(0, 12) : undefined,
+    headshot: headshot || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : undefined),
+    video,
+  };
+  return Object.fromEntries(Object.entries(listing).filter(([, v]) => v !== undefined));
+};
+
+/** How big a skill's folder is: every file in it. */
+export const folderSize = dir => {
+  let bytes = 0;
+  let files = 0;
+  const walk = d => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) walk(path.join(d, e.name));
+      else if (e.isFile()) (files++, (bytes += fs.statSync(path.join(d, e.name)).size));
+    }
+  };
+  walk(dir);
+  return { bytes, files };
+};
+
 /**
  * A skill folder as its SKILL.md describes it, the shape `checks` takes. `where` is what only the
  * skills folders say (allSkills knows it); the media CLI reads the variants it shares this way.
@@ -347,6 +398,8 @@ export const skillAt = (name, dir, where = {}) => {
     version: fm.version ?? fm.metadata.version,
     description: fm.description ?? '',
     frontName: fm.name,
+    /** Its store listing from README.md (null: it has none yet, and its page writes a default one). */
+    listing: readmeListing(dir),
   };
 };
 
@@ -529,6 +582,9 @@ export const registry = (skills = allSkills()) => {
       runsOn: runsOf(s.steps),
       upstream: s.upstream,
       version: s.version,
+      readme: s.listing ? true : undefined,
+      listing: s.listing && Object.keys(s.listing).length ? s.listing : undefined,
+      ...folderSize(s.dir),
     };
     return Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== ''));
   };

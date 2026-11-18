@@ -6,7 +6,10 @@ import { LockIcon, SearchIcon, XIcon } from 'lucide-react';
 import { HealthBadge } from '@/components/catalog/health';
 import { RunsBadges } from '@/components/catalog/runs';
 import { MadeByLine } from '@/components/catalog/uses';
+import { ItemIcon } from '@/components/catalog/item-listing';
 import { VideoThumb } from '@/components/catalog/video';
+import { RatingChip } from '@/components/ratings/item-rating';
+import { headshotOf } from '@/lib/catalog/listing';
 import { Input } from '@/components/ui/input';
 import { EXPLORE_PARAMS, KIND_LABEL, MEMBER_KINDS, explore, type AppItem, type ExploreFilters, type MemberKind } from '@/lib/app-shell/member';
 import { detailsKey } from '@/lib/app-shell/details-key';
@@ -181,14 +184,13 @@ export function Explore({
 }
 
 function ExploreCard({ item }: { item: AppItem }) {
-  const thumb = !!item.video?.thumbnail || item.kind === 'skill';
+  // every item has a headshot: the one its listing names, else its video's thumbnail, else its title on its own colour
+  const headshot = headshotOf(item);
   return (
     <article className={cn('flex h-full flex-col overflow-hidden rounded-xl border bg-card', item.locked && 'border-dashed', item.failed && 'border-red-500/40')}>
-      {thumb && (
-        <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} tabIndex={-1} aria-hidden className="block w-full">
-          <VideoThumb id={item.id} title={item.video?.title || item.title} src={item.video?.thumbnail} className={cn('border-b', item.locked && 'opacity-60')} />
-        </DetailsButton>
-      )}
+      <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} tabIndex={-1} aria-hidden className="block w-full">
+        <VideoThumb id={item.id} title={item.video?.title || item.title} src={headshot} className={cn('border-b', item.locked && 'opacity-60')} />
+      </DetailsButton>
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="rounded border px-1.5 py-0.5 text-[11px] font-medium">{KIND_LABEL[item.kind].one}</span>
@@ -202,11 +204,15 @@ function ExploreCard({ item }: { item: AppItem }) {
         </div>
 
         <div className={cn('flex flex-col gap-1', item.locked && 'opacity-70')}>
-          <h3 className="font-semibold leading-snug">
-            <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page}>
-              {item.title}
-            </DetailsButton>
-          </h3>
+          <div className="flex items-center gap-2">
+            {item.kind !== 'skill' && <ItemIcon id={item.id} title={item.title} src={item.icon} className="size-7 rounded-md text-xs" />}
+            <h3 className="min-w-0 flex-1 font-semibold leading-snug">
+              <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page}>
+                {item.title}
+              </DetailsButton>
+            </h3>
+            <RatingChip rating={item.rating} />
+          </div>
           <p className="line-clamp-3 text-sm text-muted-foreground">{item.summary}</p>
           {item.madeBy && <MadeByLine madeBy={item.madeBy} link={false} />}
         </div>

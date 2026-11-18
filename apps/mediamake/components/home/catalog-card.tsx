@@ -45,7 +45,9 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
         ? watchPath(card.id)
         : (card.href ?? (card.installPrompt ? accessHref : undefined));
   // a skill always shows a picture on top: its thumbnail, else its title on its own colour
-  const showThumb = !!card.video?.thumbnail || card.kind === 'skill';
+  // its listing's headshot, else its video's thumbnail
+  const headshot = card.headshot ?? card.video?.thumbnail;
+  const showThumb = !!headshot || card.kind === 'skill';
 
   const body = (
     <div
@@ -58,7 +60,7 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
         <VideoThumb
           id={card.id}
           title={card.video?.title || card.title}
-          src={card.video?.thumbnail}
+          src={headshot}
           className={cn('border-b', locked && 'opacity-60')}
         />
       )}

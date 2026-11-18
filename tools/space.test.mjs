@@ -343,7 +343,7 @@ test('push is a dry run until --yes, then the other computer gets the skill link
   const dry = await mac.space(['push']);
   assert.equal(dry.status, 0, dry.out);
   assert.match(dry.out, /Would push to me\/my-space \(your space\)/);
-  assert.match(dry.out, /skills\/make-my-intro {2}1 new/);
+  assert.match(dry.out, /skills\/make-my-intro {2}2 new/);
   assert.match(dry.out, /A dry run/);
   assert.match(dry.out, /README\.md {2}its list of what's here is brought up to date/);
   assert.ok(!remoteFiles().includes('skills/make-my-intro/SKILL.md'));
@@ -655,7 +655,7 @@ test('link gives an item its own repo, keeps it its owner\'s, and gives it to a 
   assert.match(done.out, /invited on GitHub: Bob, Eve/);
   assert.match(done.out, /Cy has no GitHub account linked to MediaMake/);
   // one copy: in its own repo, gone from her space, and still loaded on her computer
-  assert.deepEqual(hubFiles(thumbRepo).filter(f => f.startsWith('skills/')), [`skills/${thumb}/SKILL.md`]);
+  assert.deepEqual(hubFiles(thumbRepo).filter(f => f.startsWith('skills/')), [`skills/${thumb}/README.md`, `skills/${thumb}/SKILL.md`]);
   assert.ok(!hubFiles('ann/mediamake-space').includes(`skills/${thumb}/SKILL.md`));
   assert.ok(!fs.existsSync(path.join(ann.dir, 'skills', thumb)));
   assert.equal(fs.realpathSync(ann.claudeSkill(thumb)), fs.realpathSync(path.join(ann.linkedDir(thumb), 'skills', thumb)));

@@ -4,13 +4,13 @@ import { requireAdmin } from '@/lib/admin-utils';
 import { catalogIndex } from '@/lib/catalog/admin-index';
 import { CANONICAL_SITE, installPromptFor, siteUrl } from '@/lib/catalog/install-prompt';
 import { hasLaunchVideo, launchVideoPromptFor } from '@/lib/catalog/launch-video';
-import { codeUrlOf, staticOrigin } from '@/lib/catalog/items';
+import { codeUrlOf, isRepoSkill, staticOrigin } from '@/lib/catalog/items';
 import { planInstall } from '@/lib/catalog/plan';
 import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
 import { usedByOf } from '@/lib/catalog/summary';
 import { knownIssuesDB } from '@/lib/feedback/known-issues-store';
-import { registry } from '@/lib/skills/registry';
-import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, type CatalogItemRecord } from '@/lib/catalog/types';
+import { registry, skillNamed } from '@/lib/skills/registry';
+import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, slugOf, type CatalogItemRecord } from '@/lib/catalog/types';
 import { currentMembership } from '@/lib/memberships/membership';
 import { membershipsDB } from '@/lib/memberships/store';
 import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
@@ -93,7 +93,16 @@ export async function GET(req: NextRequest) {
     description,
     video,
     // its store listing: the tags an admin added (item.tags has its own too) and its screenshots
-    listing: { tags: listings.get(id)?.tags ?? [], media: listings.get(id)?.media ?? [] },
+    listing: {
+      tags: listings.get(id)?.tags ?? [],
+      media: listings.get(id)?.media ?? [],
+      description: listings.get(id)?.description,
+      headshot: listings.get(id)?.headshot,
+      icon: listings.get(id)?.icon,
+      readme: listings.get(id)?.readme,
+      // a repo skill's README.md is a file in its folder: it is edited there, not here
+      readmeFile: isRepoSkill(id) && !!skillNamed(slugOf(id))?.readme,
+    },
     openKnownIssues: knownIssues,
     // what an admin pastes into Claude to make its Cook with Claude episode
     ...(hasLaunchVideo(item.kind) && {

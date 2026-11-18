@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission'].sort(),
     );
   });
 
@@ -245,7 +245,7 @@ describe('catalog admin tools', () => {
 
   it("sets an item's tags and screenshots, and needs one of them", async () => {
     const calls = stubApi(() => ({ listing: { tags: ['anime'], media: [] } }));
-    expect((await call('catalog_set_listing', { item: 'skill/x' })).out).toContain('tags, media or both');
+    expect((await call('catalog_set_listing', { item: 'skill/x' })).out).toContain('Give tags, media, description');
     expect(calls).toHaveLength(0);
     const media = [{ kind: 'image', url: 'https://cdn.test/shot.png', title: 'The board' }];
     const { out } = await call('catalog_set_listing', { item: 'skill/x', tags: ['anime'], media });
@@ -681,6 +681,14 @@ describe('mm-use', () => {
     expect((await call('my_submissions', {})).out.submissions).toHaveLength(1);
     await call('withdraw_submission', { submission: 'sub_Ab12Cd34Ef56' });
     expect([calls[2].method, calls[2].url.pathname, calls[2].url.searchParams.get('id')]).toEqual(['DELETE', '/api/submissions', 'sub_Ab12Cd34Ef56']);
+  });
+
+  it('rates an item with the stars the user gave', async () => {
+    const calls = stubApi(() => ({ rating: { average: 4.5, count: 2 }, mine: 4 }));
+    const { out } = await call('rate_item', { item: 'skill/make-lyrics-video', stars: 4, version: '2.0.0' });
+    expect([calls[0].method, calls[0].url.pathname]).toEqual(['POST', '/api/catalog/ratings']);
+    expect(calls[0].body).toEqual({ itemId: 'skill/make-lyrics-video', stars: 4, version: '2.0.0', source: 'mm-use' });
+    expect(out).toMatchObject({ rated: true, mine: 4, rating: { average: 4.5, count: 2 } });
   });
 
   it('reads back what the account sent, and an item\'s known issues', async () => {

@@ -1,5 +1,5 @@
 import { getStaticRecords, withRegistryUses } from './items';
-import { withListingTags, type ItemListing } from './listing';
+import { withListing, type ItemListing } from './listing';
 import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from './store';
 import { withVideos } from './video';
 import { withArchive, withHealth, withReadiness, type ArchiveMark, type CatalogItemRecord, type CatalogVideo, type HealthMark, type ReadinessMark } from './types';
@@ -28,7 +28,7 @@ export async function catalogIndex(): Promise<{
     catalogListingDB.list().catch((): ItemListing[] => []),
   ]);
   const byId = new Map<string, CatalogItemRecord>();
-  for (const record of withListingTags(withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(), ...stored.map(withRegistryUses)], marks), videos), health), readiness), listings))
+  for (const record of withListing(withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(), ...stored.map(withRegistryUses)], marks), videos), health), readiness), listings))
     byId.set(record.id, record);
   return {
     byId,

@@ -1,7 +1,9 @@
 import { accessLevel, getEntitlements, type Entitlements, type Viewer } from '@/lib/access';
 import { installPromptFor, updatePromptFor } from './install-prompt';
 import { getStaticRecords, withRegistryUses } from './items';
-import { withListingTags, type ItemListing } from './listing';
+import { withListing, type ItemListing } from './listing';
+import { withRatings, type RatingSummary } from '../ratings/ratings';
+import { ratingsDB } from '../ratings/store';
 import { catalogArchiveDB, catalogHealthDB, catalogItemsDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from './store';
 import { withVideos } from './video';
 import {
@@ -31,7 +33,13 @@ export { installPromptFor, updatePromptFor } from './install-prompt';
 /** Strips stored-only fields (slug, versions, install spec, history) off a record. */
 export function toCard(record: CatalogItemRecord | CatalogItem): CatalogItem {
   const { slug, install, versions, createdAt, createdBy, stageHistory, gateStartedAt, ...card } = record as CatalogItemRecord;
-  return card;
+  // the badges on its listing: how big its latest package is, and how many items it works with
+  const latest = versions?.length ? [...versions].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))[0] : undefined;
+  return {
+    ...card,
+    ...(card.size === undefined && latest?.bytes && { size: { bytes: latest.bytes } }),
+    ...(card.deps === undefined && install?.uses?.length && { deps: install.uses.length }),
+  };
 }
 
 /**
@@ -85,21 +93,23 @@ export async function listCatalog(
   let health: HealthMark[] = [];
   let readiness: ReadinessMark[] = [];
   let listings: ItemListing[] = [];
+  let ratings = new Map<string, RatingSummary>();
   try {
-    [stored, archived, videos, health, readiness, listings] = await Promise.all([
+    [stored, archived, videos, health, readiness, listings, ratings] = await Promise.all([
       catalogItemsDB.list({ kind }),
       catalogArchiveDB.list(),
       catalogVideosDB.list(),
       catalogHealthDB.list(),
       catalogReadinessDB.list(),
       catalogListingDB.list().catch((): ItemListing[] => []),
+      ratingsDB.summaries().catch(() => new Map<string, RatingSummary>()),
     ]);
   } catch (error) {
     console.error('[catalog] Could not load items from the database:', error);
   }
 
   const byId = new Map<string, { card: CatalogItem; installable: boolean; uses?: ItemUse[]; runs: McpRuns[] }>();
-  for (const record of withListingTags(withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health), readiness), listings)) {
+  for (const record of withRatings(withListing(withReadiness(withHealth(withVideos(withArchive([...getStaticRecords(kind), ...stored.map(withRegistryUses)], archived), videos), health), readiness), listings), ratings)) {
     byId.set(record.id, { card: toCard(record), installable: isInstallable(record), uses: record.install?.uses, runs: mcpRunsOf(record) });
   }
 

@@ -1,6 +1,9 @@
 import { getEntitlements } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
-import { registry } from '@/lib/skills/registry';
+import { itemReadme } from '@/lib/catalog/readme-data';
+import type { ItemReadme } from '@/lib/catalog/readme';
+import { catalogListingDB } from '@/lib/catalog/store';
+import { registry, skillNamed } from '@/lib/skills/registry';
 import { registerDB } from '@/lib/space/register-store';
 import { runDB } from '@/lib/space/run-store';
 import { submissionsDB } from '@/lib/submissions/store';
@@ -32,6 +35,33 @@ function registryNeeds(): Map<string, string[]> {
  * projects made. Null when the viewer has no such item.
  */
 export async function itemDetailsFor(viewer: { clientId: string | null }, key: string): Promise<ItemDetails | null> {
+  const details = await detailsFor(viewer, key);
+  return details ? { ...details, readme: await readmeOf(key, details) } : null;
+}
+
+/** The README the dialog shows on its left: the item's own, else the default one (lib/catalog/readme-data). */
+async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> {
+  const id = key.startsWith('catalog:') ? key.slice('catalog:'.length) : null;
+  const skill = id?.startsWith('skill/') ? skillNamed(details.name) : null;
+  // a locked item's README stays the default: its listing is for who can open it
+  const listing = id && !details.locked ? await catalogListingDB.get(id).catch(() => null) : null;
+  return itemReadme({
+    facts: {
+      kind: details.kind,
+      name: details.name,
+      title: details.title,
+      summary: details.summary,
+      description: skill?.description,
+      youtubeId: details.video?.youtubeId,
+      open: details.open,
+      inStore: !!id,
+    },
+    skill: details.locked ? null : skill,
+    listingReadme: listing?.readme,
+  });
+}
+
+async function detailsFor(viewer: { clientId: string | null }, key: string): Promise<ItemDetails | null> {
   const skills = registry?.skills ?? [];
   const now = Date.now();
   const { clientId } = viewer;
