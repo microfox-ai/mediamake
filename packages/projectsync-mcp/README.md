@@ -18,6 +18,8 @@ writes your files, and it signs in to MediaMake with your **MediaMake API key**.
 | Release | A complete release kit: a YouTube upload pack, a DistroKid release, … | `list_releases`, `get_release`, `create_release`, `update_release`, `delete_release` |
 | Media | Single files (pictures, songs, clips; usually inputs), stored as they are, **never analysed** | `list_media`, `search_media`, `get_media`, `upload_media`, `delete_media` |
 | Shared assets | The library files a project's team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, tags), so everyone on the project can download them | `list_shared_assets`, `download_shared_assets`, `share_assets`, `unshare_assets`, `set_shared_limit` |
+| To-dos | A step one place cannot do (an upload that needs a signed-in browser, pictures from Midjourney), waiting in the project's queue for a place that can. Only one pick-up succeeds, and its result (the video's link) is kept on it | `list_todos`, `post_todo`, `claim_todo`, `finish_todo` |
+| Register | Which cloud environment and which opened computer can do what, by name: renders, keys, MCPs, apps, sign-ins. Never a key | `where_it_runs` |
 
 Whether something goes up as a production, a release or media is **your choice**: Claude asks you each
 time, and which project, and shows you what would go up (a dry run) before uploading.
@@ -94,6 +96,7 @@ The MediaMake routes it calls, in `apps/mediamake` (code in `lib/projectsync/`):
 | `GET/POST/PUT/DELETE /api/project/releases`, `POST …/finish` | The same for release kits |
 | `GET/POST/DELETE /api/project/media`, `POST …/upload` | List and search, record uploaded files, move to the trash; `upload` hands out upload links |
 | `GET/PUT /api/channel-sync`, `GET/PUT …/items`, `POST/PUT/DELETE …/files` | Shared assets (code in `lib/channel-sync/`): the project's limit and role, each asset's details, upload links, confirmations and withdrawals |
+| `GET/POST /api/space/todos`, `GET /api/space/places` | A project's to-do queue and its register (code in `lib/space/todos.ts`, `lib/space/register.ts`; `docs/cloud-device-runs.md`) |
 | `GET/POST/PUT /api/project`, `/api/project/brand-kit` | Projects and brand kits (owners and editors may rename a project) |
 
 ## Development

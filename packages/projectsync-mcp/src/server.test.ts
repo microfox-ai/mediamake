@@ -18,6 +18,7 @@ const TOOLS = [
   'list_releases', 'get_release', 'create_release', 'update_release', 'delete_release',
   'list_media', 'search_media', 'get_media', 'upload_media', 'delete_media',
   'list_shared_assets', 'download_shared_assets', 'share_assets', 'unshare_assets', 'set_shared_limit',
+  'list_todos', 'post_todo', 'claim_todo', 'finish_todo', 'where_it_runs',
 ];
 
 async function connect(baseUrl = 'http://ps.test') {
@@ -388,5 +389,55 @@ describe('shared assets against a stand-in MediaMake', () => {
     expect(r.shared.map((s: { name: string }) => s.name)).toEqual(['small.mp4']);
     expect(text(await client.callTool({ name: 'set_shared_limit', arguments: { projectId: 'proj', limitMb: 250 } })).limitMb).toBe(250);
     expect(seen.find(s => s.path === '/api/channel-sync' && s.method === 'PUT')?.body).toEqual({ projectId: 'proj', limitMb: 250 });
+  });
+});
+
+describe('to-dos and the register', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('posts, picks up and finishes a to-do, and says who has one that is taken', async () => {
+    const seen: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+    const todo = { id: 'td-abc234', state: 'open', title: 'Upload doomcat-0412 to YouTube', line: 'Pick up to-do td-abc234 in Doomcat', repeat: false, needsYes: true };
+    let taken = false;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      const at = new URL(url);
+      seen.push({ method: init?.method ?? 'GET', path: at.pathname + at.search, body });
+      if (at.pathname === '/api/space/places') return new Response(JSON.stringify({ places: [{ name: 'Studio Mac', status: 'open' }], needs: [], unknown: [], admins: ['Ana'] }), { status: 200 });
+      if (!body) return new Response(JSON.stringify({ todos: [todo] }), { status: 200 });
+      if (body.action === 'claim' && taken) return new Response(JSON.stringify({ error: 'Someone else has it', todo: { ...todo, state: 'claimed', mine: false, claimedBy: 'Ben', claimedOn: 'Studio Mac', claimedAt: '2026-11-18T10:05:00.000Z' } }), { status: 409 });
+      if (body.action === 'claim') taken = true;
+      return new Response(JSON.stringify({ todo: { ...todo, state: { post: 'open', claim: 'claimed', done: 'done', fail: 'open' }[body.action as string], ...(body.result && { result: body.result }) } }), { status: 200 });
+    });
+    const client = await connect();
+    const call = async (name: string, args: Record<string, unknown>) => (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+
+    const posted = text(await call('post_todo', { projectId: 'p1', title: 'Upload doomcat-0412 to YouTube', needs: ['mcp:browse-hack', 'browser:youtube/doomcat'], release: 'doomcat-0412', version: 'v2', needsYes: true }));
+    expect(posted).toMatchObject({ posted: true, tell: 'Whoever picks it up pastes into Claude: Pick up to-do td-abc234 in Doomcat' });
+    expect(seen.at(-1)).toEqual({ method: 'POST', path: '/api/space/todos', body: { action: 'post', project: 'p1', title: 'Upload doomcat-0412 to YouTube', needs: ['mcp:browse-hack', 'browser:youtube/doomcat'], release: 'doomcat-0412', version: 'v2', yes: true } });
+    // a need that isn't one of the words never reaches MediaMake
+    expect((await call('post_todo', { projectId: 'p1', title: 'x', needs: ['my youtube password'] })).isError).toBe(true);
+
+    expect(text(await call('list_todos', {})).todos).toHaveLength(1);
+    expect(seen.at(-1)?.path).toBe('/api/space/todos');
+    await call('list_todos', { projectId: 'p1' });
+    expect(seen.at(-1)?.path).toBe('/api/space/todos?project=p1');
+
+    const mine = text(await call('claim_todo', { id: 'TD-ABC234', place: 'Studio Mac' }));
+    expect(seen.at(-1)?.body).toEqual({ action: 'claim', id: 'td-abc234', place: 'Studio Mac' });
+    expect(mine.todo.state).toBe('claimed');
+    expect(mine.next.join(' ')).toMatch(/must not happen twice.*person's yes.*finish_todo/);
+    const second = await call('claim_todo', { id: 'td-abc234' });
+    expect(second.isError).toBe(true);
+    expect(second.content[0].text).toBe('Someone else has it: Ben has it on Studio Mac since 2026-11-18T10:05:00.000Z.');
+
+    expect((await call('finish_todo', { id: 'td-abc234', outcome: 'failed' })).isError).toBe(true);
+    await call('finish_todo', { id: 'td-abc234', outcome: 'done', result: 'https://youtu.be/x', reason: 'ignored' });
+    expect(seen.at(-1)?.body).toEqual({ action: 'done', id: 'td-abc234', result: 'https://youtu.be/x' });
+
+    expect(text(await call('where_it_runs', { projectId: 'p1' })).places[0].name).toBe('Studio Mac');
+    expect(seen.at(-1)?.path).toBe('/api/space/places?project=p1');
   });
 });

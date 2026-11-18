@@ -17,6 +17,8 @@ import { BrandTab } from './space-tabs';
 import { CodeTab } from './space-code';
 import { CloudSetupCard } from './space-cloud';
 import { PlacesTab } from './space-places';
+import { TodosTab } from './space-todos';
+import type { TodosView } from '@/lib/space/todos';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
@@ -118,8 +120,9 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
  * it: files, README, commits, who has it and where each computer stands),
  * its skills, MCPs and apps, its brand kit, what it keeps on MediaMake (its
  * productions, its releases and its media), who can open it, which its owner
- * changes here, where its steps can run (its cloud environments and the computers
- * open to it), and how to set it up: the line for a computer, and for a Claude cloud
+ * changes here, its to-dos (the steps a session could not do where it ran, waiting
+ * for a place that can), where its steps can run (its cloud environments and the
+ * computers open to it), and how to set it up: the line for a computer, and for a Claude cloud
  * environment the repos to add and the keys to set. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
@@ -154,6 +157,21 @@ export function ProjectDetail({
   const [releases, setReleases] = React.useState<Listing<Bundle> | null>(null);
   const [media, setMedia] = React.useState<Listing<MediaItem> | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [todos, setTodos] = React.useState<TodosView | null>(null);
+  const [todosError, setTodosError] = React.useState<string | null>(null);
+  const loadTodos = React.useCallback(
+    () =>
+      getJson<TodosView>(`/api/space/todos?project=${encodeURIComponent(projectId)}`)
+        .then(view => {
+          setTodos(view);
+          setTodosError(null);
+        })
+        .catch(e => setTodosError(e.message)),
+    [projectId],
+  );
+  React.useEffect(() => {
+    void loadTodos();
+  }, [loadTodos]);
 
   React.useEffect(() => {
     const id = encodeURIComponent(projectId);
@@ -265,6 +283,7 @@ export function ProjectDetail({
             <Tab value="releases" label="Releases" count={releases?.total} />
             <Tab value="media" label="Media" count={media?.total} />
             {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
+            <Tab value="todos" label="To do" count={todos?.todos.filter(todo => todo.state !== 'done' && todo.state !== 'cancelled').length || undefined} />
             {!personal && <Tab value="places" label="Where it runs" />}
             <Tab value="setup" label="Set up" />
           </TabsList>
@@ -348,6 +367,10 @@ export function ProjectDetail({
             </section>
           </TabsContent>
         )}
+
+        <TabsContent value="todos">
+          <TodosTab view={todos} error={todosError} onChanged={loadTodos} />
+        </TabsContent>
 
         {!personal && (
           <TabsContent value="places">

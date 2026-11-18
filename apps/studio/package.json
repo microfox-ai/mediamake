@@ -48,6 +48,7 @@
     "space": "node ../../tools/space.mjs",
     "cloud": "node ../../tools/cloud.mjs",
     "access": "node ../../tools/access.mjs",
+    "todo": "node ../../tools/todo.mjs",
     "items": "node ../../tools/items.mjs",
     "submit": "node ../../tools/submit.mjs",
     "login": "node ../../tools/login.mjs",

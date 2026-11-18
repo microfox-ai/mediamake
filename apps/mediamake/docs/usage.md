@@ -107,6 +107,20 @@ those words. The same switch stops it (`mm usage off`), `mm access --dry`
 shows it, and `mm access forget` deletes it. `mm usage forget` does not: it
 deletes runs, skill lists and app opens.
 
+## To-dos
+
+A project's to-do queue (`mm todo`, `docs/cloud-device-runs.md` › The to-do
+queue) is the project's own work, not usage: a to-do holds what its poster
+wrote (the step, what it needs, the release or production it works on), who
+posted it and from which place by name, who picked it up and on which computer
+by name, and the result they recorded (`POST /api/space/todos`, stored in
+`todos`). Everyone on the project reads it, so it never holds a key or a
+password: a post that looks like one is refused. At the start of a session
+`tools/todo.mjs --hook` asks MediaMake for what waits in the account's projects
+and compares it here with what the computer can do; it sends nothing about the
+computer. `mm usage off` does not stop to-dos, and `mm usage forget` does not
+delete them: cancel one on the project's page or with `mm todo cancel`.
+
 ## Feedback
 
 `POST /api/feedback` `{ text, itemId?, version? }` takes a member's feedback
