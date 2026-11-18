@@ -152,7 +152,9 @@ you, in `~/MediaMake/notes/<skill>.md`, or the `workspace` that `~/.mediamake/co
 Before planning, read them with `mm notes <skill>` beside the skill's own Feedback or Lessons log. That
 log is shared and changes only in a pull request: when the user wants their notes shared,
 `mm notes promote <skill>` (a dry run, then `--yes`) puts them on a new branch and opens the PR, without
-touching this checkout. Taste for one production still goes in its `projects/<slug>/prefs.md`.
+touching this checkout. A skill in one of the user's spaces gets them in that space's repo instead: one
+commit pushed straight to the space's branch, as `mm space sync` sends a space (no PR), its folder
+untouched until the next sync. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
 ## MediaMake Spaces: the user's personal space and their projects'
 

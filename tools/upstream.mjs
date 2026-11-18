@@ -5,6 +5,10 @@
  * your edits and other sessions in this checkout are never touched, so it is safe on main.
  *
  * Used by `mm notes promote` (apps/studio/scripts/notes.ts) and `node tools/skills.mjs publish`.
+ *
+ * pushTo is the other way, for a repo whose convention is to push straight to its branch (a MediaMake
+ * space, as `mm space sync` sends one): the same temporary worktree from <remote>/<branch>, one
+ * commit, pushed onto that branch with no pull request. The checkout is never touched either.
  */
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -67,6 +71,67 @@ export const openPr = ({ repo, branch, title, body = '', message, change, remote
     // a pushed branch lives on the remote and a failed one is dropped; only push: false keeps its
     // commit here, for you to push
     if (push || !committed) spawnSync('git', ['branch', '-D', branch], { cwd: repo });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+};
+
+/** https://github.com/<owner>/<repo>/commit/<sha>, when the remote is on GitHub. */
+export const commitUrl = (remoteUrl, sha) => {
+  const m = remoteUrl.match(/github\.com[:/]([^/]+)\/(.+?)(?:\.git)?\/?$/);
+  return m ? `https://github.com/${m[1]}/${m[2]}/commit/${sha}` : undefined;
+};
+
+/**
+ * Make `change(worktree)` on top of <remote>/<branch> and push it straight onto that branch: no pull
+ * request. `local` names the temporary branch (kept, with its commit, only when push is false). When
+ * someone pushed in between, it is put on top of theirs once and pushed again.
+ * Returns { branch, local, commit, pushed, url? }; throws (leaving nothing behind) on failure.
+ */
+export const pushTo = ({ repo, branch = 'main', local, title, message, change, remote = 'origin', push = true }) => {
+  run(repo, 'fetch', '--quiet', remote, branch);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-upstream-'));
+  const wt = path.join(tmp, 'wt');
+  run(repo, 'worktree', 'add', '--quiet', '-b', local, wt, `${remote}/${branch}`);
+  let committed = false;
+  try {
+    const paths = change(wt);
+    if (!paths?.length) throw new Error('nothing changed');
+    run(wt, 'add', '-A', '--', ...paths);
+    run(wt, 'commit', '--quiet', '-m', title, ...(message ? ['-m', message] : []));
+    committed = true;
+    if (!push)
+      return {
+        branch,
+        local,
+        commit: run(wt, 'rev-parse', 'HEAD'),
+        pushed: false,
+      };
+    const send = () => spawnSync('git', ['push', '--quiet', remote, `HEAD:refs/heads/${branch}`], { cwd: wt, encoding: 'utf8' });
+    let sent = send();
+    if (sent.status !== 0 && /non-fast-forward|fetch first|rejected/i.test(sent.stderr)) {
+      run(wt, 'fetch', '--quiet', remote, branch);
+      run(wt, 'rebase', '--quiet', `${remote}/${branch}`);
+      sent = send();
+    }
+    if (sent.status !== 0) {
+      const denied = /permission|denied|403|protected/i.test(sent.stderr);
+      throw new Error(
+        denied
+          ? `GitHub refused the push: you can read this repo but not change it (${sent.stderr.trim().split('\n')[0]})`
+          : `git push: ${(sent.stderr || sent.stdout).trim()}`,
+      );
+    }
+    const commit = run(wt, 'rev-parse', 'HEAD');
+    let url;
+    try {
+      url = commitUrl(run(repo, 'remote', 'get-url', remote), commit);
+    } catch {
+      // a remote with no URL: no link
+    }
+    return { branch, local, commit, pushed: true, url };
+  } finally {
+    spawnSync('git', ['worktree', 'remove', '--force', wt], { cwd: repo });
+    if (push || !committed) spawnSync('git', ['branch', '-D', local], { cwd: repo });
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 };
