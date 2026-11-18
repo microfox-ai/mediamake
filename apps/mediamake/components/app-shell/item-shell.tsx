@@ -111,8 +111,8 @@ export function ItemShell({
             </div>
           </div>
         </header>
-        {/* the items the page lists (what it works with, its variants) open the item dialog */}
-        <ItemDetailsProvider>{children}</ItemDetailsProvider>
+        {/* the items the page lists (what it works with, its variants) open their page in the app, for someone signed in */}
+        <ItemDetailsProvider inApp={!!viewer}>{children}</ItemDetailsProvider>
       </SidebarInset>
     </SidebarProvider>
   );

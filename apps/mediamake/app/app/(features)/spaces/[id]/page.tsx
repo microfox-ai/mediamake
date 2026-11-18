@@ -18,8 +18,8 @@ export const metadata = { title: 'Space · MediaMake' };
  * (lib/projects/personal), with the member's own skills. Plus and above, like
  * the list; the APIs it reads check the membership and the sharing again.
  */
-export default async function AppSpacePage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, viewer] = await Promise.all([params, getAppViewer()]);
+export default async function AppSpacePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
+  const [{ id }, { tab }, viewer] = await Promise.all([params, searchParams, getAppViewer()]);
   if (!canUseCloudProjects(viewer.tier)) redirect('/app/spaces');
   const spaces = viewer.clientId ? await getSpaces(viewer.clientId) : null;
   const personal = spaces?.personalProjectId === id;
@@ -43,6 +43,7 @@ export default async function AppSpacePage({ params }: { params: Promise<{ id: s
         readmeHtml={readme}
         about={code?.readme ? readmeAbout(code.readme) : undefined}
         storageHost={storageHost()}
+        tab={tab}
       />
     </AppPage>
   );

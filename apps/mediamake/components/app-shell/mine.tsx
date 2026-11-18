@@ -8,7 +8,7 @@ import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemCards } from './item-cards';
 import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
-import { DetailsButton } from './item-details';
+import { DetailsButton, rememberTab } from './item-details';
 
 /**
  * Mine (lib/app-shell/member › mine), one tab each: what the member
@@ -16,7 +16,7 @@ import { DetailsButton } from './item-details';
  * beside it), what is theirs (their personal space and the items they
  * shared from it), what their projects have (a tab per project), what
  * members shared with them by name, and the other skills on their
- * computers. Clicking an item anywhere opens the item dialog (./item-details).
+ * computers. Clicking an item anywhere opens its page (./item-details ItemView).
  */
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -169,7 +169,7 @@ export function MineView({
           </div>
         )}
 
-        <Tabs defaultValue={first} className="gap-4">
+        <Tabs defaultValue={first} onValueChange={value => rememberTab(value)} className="gap-4">
           <div className="-mx-4 overflow-x-auto px-4">
             <TabsList>
               <Tab value="installed" label="Installed" count={mine.installed.length} />

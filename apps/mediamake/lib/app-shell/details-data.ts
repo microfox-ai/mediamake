@@ -14,7 +14,7 @@ import { viewerDetails, type ItemDetails } from './details';
 import { appItems, lastUsed, mine } from './member';
 import { MOST_USED_DAYS, getAppItems, getMemberActivity, getSpaces } from './member-data';
 
-/** A list that comes back empty when its store can't be reached, so the dialog still shows the rest. */
+/** A list that comes back empty when its store can't be reached, so the page still shows the rest. */
 async function orEmpty<T>(what: string, load: () => Promise<T[]>): Promise<T[]> {
   try {
     return await load();
@@ -30,7 +30,7 @@ function registryNeeds(): Map<string, string[]> {
 }
 
 /**
- * What the item dialog says about one item (./details), for whoever asks.
+ * What the item page says about one item (./details), for whoever asks.
  * Signed out, only a store item has details, with nothing of a member's.
  * Signed in, they carry what the member installed, their computers and
  * cloud environments (the access register), their spaces and what their
@@ -42,8 +42,8 @@ export async function itemDetailsFor(viewer: { clientId: string | null }, key: s
 }
 
 /**
- * The README the dialog shows on its left: the item's own (an item in a space: its README.md as its space
- * reported it; a store item: lib/catalog/readme-data), else the default one. The dialog only has details
+ * The README its page shows on its left: the item's own (an item in a space: its README.md as its space
+ * reported it; a store item: lib/catalog/readme-data), else the default one. The page only has details
  * for what the viewer may see: a space item for who can see that space.
  */
 async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> {

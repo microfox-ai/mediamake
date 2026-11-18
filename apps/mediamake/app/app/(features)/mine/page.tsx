@@ -12,7 +12,7 @@ export const metadata = { title: 'Mine · MediaMake' };
  * (the last used first), what is theirs, what their projects have, what
  * members shared with them and the other skills their computers reported,
  * with a warning on anything installed that is failed right now. Clicking
- * an item opens the item dialog.
+ * an item opens its page (/app/item), whose breadcrumb leads back to the tab.
  */
 export default async function MinePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;

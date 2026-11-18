@@ -2,36 +2,33 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowUpRightIcon, CheckIcon, CloudIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon, CheckIcon, ChevronRightIcon, CloudIcon, CopyIcon, ExternalLinkIcon, ImagesIcon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { Poster } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type { DetailsDevice, ItemDetails } from '@/lib/app-shell/details';
+import { itemPageHref, type Crumb } from '@/lib/app-shell/item-page';
 import type { GalleryTile } from '@/lib/catalog/gallery';
 import type { ListingBadge } from '@/lib/catalog/listing';
 import { youtubeEmbedUrl } from '@/lib/catalog/video';
 
 /**
- * The item dialog: click a skill, MCP or app wherever it is listed (Home,
- * Explore, Mine, a space's Skills tab, an item's own page) and the same
- * dialog opens, laid out as GitHub lays out a repo. On the left its README,
- * the item's store listing: a video first, its title, its badges and how to
- * use it, with what was made with it on a second tab. On the right a narrow
- * column: what it is, its tags, its rating (a store item can be rated right
- * there), its link in the store, what it belongs to and which computers
- * have it. At the foot, the command that puts it on the computer picked,
- * with the steps that set MediaMake up first when that computer is new.
+ * An item's page: click a skill, MCP or app wherever it is listed (Home,
+ * Explore, Mine, a space's Skills tab, a store page) and its page opens
+ * (/app/item, lib/app-shell/item-page), the same for every item, private or
+ * public, laid out as a space's Code tab is. A breadcrumb at the top says
+ * where it was opened and goes back there. On the left the command that puts
+ * it on the computer picked, its README (the item's store listing: a video
+ * first, its title, its badges and how to use it) and what was made with it;
+ * on the right what it is, its tags, its rating, its link in the store, what
+ * it belongs to and which computers have it.
  *
- * ItemDetailsProvider holds the one dialog and asks /api/catalog/details for
- * an item's details the first time it is opened (lib/app-shell/details);
- * DetailsButton is what opens it. Outside a provider the button is a link
- * to `href`, or plain text.
+ * DetailsButton is the link every list uses; ItemDetailsProvider marks where
+ * it goes to the app's page (outside it, the link is `href` or plain text).
  */
-
-const Context = React.createContext<{ open: (key: string) => void } | null>(null);
 
 const DOT: Record<DetailsDevice['state'], string> = {
   has: 'bg-emerald-500',
@@ -265,190 +262,194 @@ function badgesOf(item: ItemDetails): ListingBadge[] {
 }
 
 /**
- * Laid out as GitHub lays out a repo: the README on the left (the video
- * first, the title, the badges, how to use it), with what was made with it
- * on a second tab; a narrow column on the right with what it is, its tags,
- * its rating and where it lives.
+ * An item's page, laid out as a space's Code tab is: the breadcrumb back to where it was opened, then on
+ * the left what puts it on a computer, its README (the video first, the title, the badges, how to use
+ * it) and what was made with it; on the right what it is, its tags, its rating and where it lives. The
+ * same page for every item, private or public.
  */
-function Details({ itemKey, item }: { itemKey: string; item: ItemDetails }) {
+export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: ItemDetails; crumbs: Crumb[] }) {
   const notes = item.status.filter(status => status.note && status.tone !== 'good' && status.tone !== 'plain');
-  const [tab, setTab] = React.useState<'readme' | 'made'>('readme');
   const made = item.outputs.length;
   const readme = item.readme ?? { html: '', written: false };
+  const back = [...crumbs].reverse().find(crumb => crumb.href);
   return (
-    <>
-      <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
-        <div className="flex min-w-0 flex-col lg:overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{item.title}</DialogTitle>
-            <DialogDescription>{item.summary ?? item.name}</DialogDescription>
-          </DialogHeader>
-          <div className="sticky top-0 z-10 flex items-center gap-1 border-b bg-background px-4 pr-12" role="tablist" aria-label={item.title}>
-            {(['readme', 'made'] as const)
-              .filter(id => id === 'readme' || made > 0)
-              .map(id => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === id}
-                  onClick={() => setTab(id)}
-                  className={cn('-mb-px flex h-11 cursor-pointer items-center gap-1.5 border-b-2 px-2 text-sm font-medium', tab === id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}
-                >
-                  {id === 'readme' ? 'README' : 'Made with it'}
-                  {id === 'made' && <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{made}</span>}
-                </button>
-              ))}
-            <span className="ml-auto truncate font-mono text-xs text-muted-foreground">{item.name}</span>
-          </div>
-          <div className="p-6">
-            {tab === 'readme' ? (
-              <ReadmeView id={itemKey} kind={item.kind} title={item.title} readme={readme} badges={badgesOf(item)} video={item.video} headshot={item.listing?.headshot} icon={item.listing?.icon} heading="h2" />
-            ) : (
-              <Outputs itemId={itemKey} tiles={item.outputs} />
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-5 border-t bg-muted/30 p-5 lg:overflow-y-auto lg:border-l lg:border-t-0">
-          <AboutCard
-            kind={item.kind}
-            description={item.summary}
-            tags={item.listing?.tags}
-            rating={item.itemId ? <ItemRating itemId={item.itemId} title={item.title} version={item.version} initial={item.listing?.rating} /> : undefined}
-            facts={{ version: item.version, people: item.people, size: item.listing?.size, deps: item.listing?.deps }}
-          >
-            {notes.length > 0 && (
-              <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-                {notes.map(status => (
-                  <li key={status.label}>
-                    <span className="font-medium text-foreground">{status.label}:</span> {status.note}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </AboutCard>
-
-          {item.manage && <Manage manage={item.manage} />}
-
-          <dl className="divide-y border-y">
-            <Row label="Store">
-              {item.store.href ? (
-                <>
-                  <Link href={item.store.href} className="inline-flex items-center gap-1 font-medium underline underline-offset-4 hover:text-primary">
-                    <StoreIcon className="size-3.5" aria-hidden /> In the store
-                  </Link>
-                  <span className="text-xs text-muted-foreground"> · {item.store.note}</span>
-                </>
-              ) : (
-                <span className="text-muted-foreground">{item.store.note}</span>
-              )}
-            </Row>
-            <Row label="Belongs to">
-              <ul className="flex flex-wrap gap-1.5">
-                {item.belongs.map(entry => (
-                  <li key={entry.label}>
-                    {entry.href ? (
-                      <Go href={entry.href} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium hover:border-foreground/40 hover:bg-muted">
-                        {entry.label} <ArrowUpRightIcon className="size-3" aria-hidden />
-                      </Go>
-                    ) : (
-                      <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{entry.label}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Row>
-            {item.used !== undefined && !item.open && !item.locked && (
-              <Row label="Computers">
-                <Devices devices={item.devices} />
-              </Row>
-            )}
-            {item.used && <Row label="Last used">{item.used}</Row>}
-            {item.itemId && item.store.href && (
-              <Row label="Feedback">
-                <Link href={`${item.store.href}#feedback`} className="font-medium underline underline-offset-4 hover:text-primary">
-                  Known issues and feedback
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-5 lg:px-6">
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
+        {back?.href && (
+          <Link href={back.href} className="flex size-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Back to ${back.label}`}>
+            <ArrowLeftIcon className="size-4" aria-hidden />
+          </Link>
+        )}
+        <ol className="flex min-w-0 flex-wrap items-center gap-1 text-muted-foreground">
+          {crumbs.map((crumb, index) => (
+            <li key={`${index}-${crumb.label}`} className="flex min-w-0 items-center gap-1">
+              {index > 0 && <ChevronRightIcon className="size-3.5 shrink-0" aria-hidden />}
+              {crumb.href ? (
+                <Link href={crumb.href} className="truncate hover:text-foreground hover:underline underline-offset-4">
+                  {crumb.label}
                 </Link>
-              </Row>
-            )}
-          </dl>
-        </div>
-      </div>
+              ) : (
+                <span className="truncate font-medium text-foreground" aria-current="page">
+                  {crumb.label}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+        <span className="ml-auto hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">
+          {item.kind}/{item.name}
+        </span>
+      </nav>
 
-      {(item.locked || item.install || item.open) && (
-        <div className="shrink-0 border-t bg-background px-6 py-3">
-          <Install key={itemKey} item={item} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {(item.locked || item.install || item.open) && (
+            <div className="rounded-xl border bg-muted/30 px-4 py-3">
+              <Install key={itemKey} item={item} />
+            </div>
+          )}
+          <section id="readme" className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold">
+              <BookOpenIcon className="size-4 text-muted-foreground" aria-hidden /> README
+            </div>
+            <div className="px-5 py-5 sm:px-8">
+              <ReadmeView id={itemKey} kind={item.kind} title={item.title} readme={readme} badges={badgesOf(item)} video={item.video} headshot={item.listing?.headshot} icon={item.listing?.icon} heading="h1" />
+            </div>
+          </section>
+          {made > 0 && (
+            <section id="made" className="overflow-hidden rounded-xl border bg-card">
+              <div className="flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold">
+                <ImagesIcon className="size-4 text-muted-foreground" aria-hidden /> Made with it
+                <span className="rounded-full bg-muted px-1.5 text-[11px] font-normal tabular-nums text-muted-foreground">{made}</span>
+              </div>
+              <div className="p-4">
+                <Outputs itemId={itemKey} tiles={item.outputs} />
+              </div>
+            </section>
+          )}
         </div>
-      )}
-    </>
+
+        <aside className="flex min-w-0 flex-col divide-y [&>section]:py-5 [&>section:first-child]:pt-0">
+          <section>
+            <AboutCard
+              kind={item.kind}
+              description={item.summary}
+              tags={item.listing?.tags}
+              rating={item.itemId ? <ItemRating itemId={item.itemId} title={item.title} version={item.version} initial={item.listing?.rating} /> : undefined}
+              facts={{ version: item.version, people: item.people, size: item.listing?.size, deps: item.listing?.deps }}
+            >
+              {notes.length > 0 && (
+                <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  {notes.map(status => (
+                    <li key={status.label}>
+                      <span className="font-medium text-foreground">{status.label}:</span> {status.note}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </AboutCard>
+          </section>
+
+          {item.manage && (
+            <section>
+              <Manage manage={item.manage} />
+            </section>
+          )}
+
+          <section>
+            <dl className="divide-y">
+              <Row label="Store">
+                {item.store.href ? (
+                  <>
+                    <Link href={item.store.href} className="inline-flex items-center gap-1 font-medium underline underline-offset-4 hover:text-primary">
+                      <StoreIcon className="size-3.5" aria-hidden /> In the store
+                    </Link>
+                    <span className="text-xs text-muted-foreground"> · {item.store.note}</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">{item.store.note}</span>
+                )}
+              </Row>
+              <Row label="Belongs to">
+                <ul className="flex flex-wrap gap-1.5">
+                  {item.belongs.map(entry => (
+                    <li key={entry.label}>
+                      {entry.href ? (
+                        <Go href={entry.href} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium hover:border-foreground/40 hover:bg-muted">
+                          {entry.label} <ArrowUpRightIcon className="size-3" aria-hidden />
+                        </Go>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{entry.label}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Row>
+              {item.used !== undefined && !item.open && !item.locked && (
+                <Row label="Computers">
+                  <Devices devices={item.devices} />
+                </Row>
+              )}
+              {item.used && <Row label="Last used">{item.used}</Row>}
+              {item.itemId && item.store.href && (
+                <Row label="Feedback">
+                  <Link href={`${item.store.href}#feedback`} className="font-medium underline underline-offset-4 hover:text-primary">
+                    Known issues and feedback
+                  </Link>
+                </Row>
+              )}
+            </dl>
+          </section>
+        </aside>
+      </div>
+    </div>
   );
 }
 
-type Loaded = { item: ItemDetails } | { error: string };
+/** Whether links open the app's item page: inside the app, and on a store page for someone signed in. */
+const Context = React.createContext<{ inApp: boolean }>({ inApp: false });
 
-/** The one dialog, for everything under it. `details` are ones the page already has, by key. */
-export function ItemDetailsProvider({ details, children }: { details?: Record<string, ItemDetails>; children: React.ReactNode }) {
-  const [open, setOpen] = React.useState<string | null>(null);
-  const [loaded, setLoaded] = React.useState<Record<string, Loaded>>({});
-  const asked = React.useRef(new Set<string>());
+/** Makes every item name under it a link to the item's page (/app/item), with where it was opened from. */
+export function ItemDetailsProvider({ inApp = true, children }: { inApp?: boolean; children: React.ReactNode }) {
+  const value = React.useMemo(() => ({ inApp }), [inApp]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+}
 
-  const show = React.useCallback(
-    (key: string) => {
-      setOpen(key);
-      if (details?.[key] || asked.current.has(key)) return;
-      asked.current.add(key);
-      fetch(`/api/catalog/details?key=${encodeURIComponent(key)}`)
-        .then(async response => {
-          const json = await response.json().catch(() => ({}));
-          if (!response.ok || !json.details) throw new Error(response.status === 404 ? 'It is not listed for you any more.' : (json.error ?? `Could not load it (${response.status}).`));
-          setLoaded(current => ({ ...current, [key]: { item: json.details as ItemDetails } }));
-        })
-        .catch(error => {
-          // asking again is allowed after a failure
-          asked.current.delete(key);
-          setLoaded(current => ({ ...current, [key]: { error: error instanceof Error ? error.message : 'Could not load it.' } }));
-        });
-    },
-    [details],
-  );
-  const value = React.useMemo(() => ({ open: show }), [show]);
+const HERE_CHANGED = 'mm:here';
 
-  const given = open ? details?.[open] : undefined;
-  const state: Loaded | undefined = given ? { item: given } : open ? loaded[open] : undefined;
-  const item = state && 'item' in state ? state.item : undefined;
-  return (
-    <Context.Provider value={value}>
-      {children}
-      <Dialog open={!!open} onOpenChange={next => !next && setOpen(null)}>
-        <DialogContent className={cn('flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl', item && 'lg:max-w-5xl')}>
-          {item && open ? (
-            <Details itemKey={open} item={item} />
-          ) : (
-            <div className="flex flex-col gap-2 p-6">
-              <DialogTitle className="text-base">{state && 'error' in state ? 'Could not open it' : 'Loading'}</DialogTitle>
-              <DialogDescription className="flex items-center gap-2">
-                {state && 'error' in state ? (
-                  state.error
-                ) : (
-                  <>
-                    <Loader2Icon className="size-4 animate-spin" aria-hidden /> Getting its details
-                  </>
-                )}
-              </DialogDescription>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </Context.Provider>
-  );
+/**
+ * Keeps a page's open tab in its address (`?tab=skills`), without a navigation, so the breadcrumb of an
+ * item opened from that tab leads back to it.
+ */
+export function rememberTab(value: string, param = 'tab') {
+  const url = new URL(window.location.href);
+  url.searchParams.set(param, value);
+  window.history.replaceState(window.history.state, '', url);
+  window.dispatchEvent(new Event(HERE_CHANGED));
+}
+
+/** The page this one is, path and query, so an item's breadcrumb leads back to the same tab. */
+function useHere(): string {
+  const pathname = usePathname() ?? '';
+  const [search, setSearch] = React.useState('');
+  React.useEffect(() => {
+    const read = () => setSearch(window.location.search);
+    read();
+    window.addEventListener(HERE_CHANGED, read);
+    window.addEventListener('popstate', read);
+    return () => {
+      window.removeEventListener(HERE_CHANGED, read);
+      window.removeEventListener('popstate', read);
+    };
+  }, [pathname]);
+  return pathname + search;
 }
 
 /**
- * An item's name that opens its dialog. `cover` makes the whole card or
- * row around it (the nearest `relative` parent) the click target; other
- * buttons there need `relative z-10` to stay clickable. Outside a provider
- * it is a link to `href` when there is one, else plain text.
+ * An item's name that opens its page. `cover` makes the whole card or row around it (the nearest
+ * `relative` parent) the click target; other buttons there need `relative z-10` to stay clickable.
+ * Outside the app (a store page for someone signed out) it is a link to `href` when there is one, else
+ * plain text.
  */
 export function DetailsButton({
   detailsKey,
@@ -459,31 +460,24 @@ export function DetailsButton({
   ...rest
 }: {
   detailsKey?: string;
-  /** Where the name goes when there is no dialog to open. */
+  /** Where the name goes outside the app. */
   href?: string;
   cover?: boolean;
   className?: string;
   children: React.ReactNode;
-} & Pick<React.ButtonHTMLAttributes<HTMLButtonElement>, 'tabIndex' | 'aria-hidden' | 'aria-label'>) {
-  const context = React.useContext(Context);
-  if (!detailsKey || !context) {
-    return href ? (
-      <Link href={href} className={cn('underline-offset-4 hover:underline', className)}>
-        {children}
-      </Link>
-    ) : (
-      <span className={className}>{children}</span>
-    );
-  }
+} & Pick<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'tabIndex' | 'aria-hidden' | 'aria-label'>) {
+  const { inApp } = React.useContext(Context);
+  const here = useHere();
+  const to = inApp && detailsKey ? itemPageHref(detailsKey, here) : href;
+  if (!to) return <span className={className}>{children}</span>;
   return (
-    <button
-      type="button"
+    <Link
+      href={to}
       data-details
-      className={cn('cursor-pointer text-left underline-offset-4 outline-none hover:underline focus-visible:underline', cover && 'after:absolute after:inset-0 after:rounded-[inherit]', className)}
-      onClick={() => context.open(detailsKey)}
+      className={cn('underline-offset-4 outline-none hover:underline focus-visible:underline', cover && 'after:absolute after:inset-0 after:rounded-[inherit]', className)}
       {...rest}
     >
       {children}
-    </button>
+    </Link>
   );
 }
