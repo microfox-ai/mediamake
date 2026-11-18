@@ -11,6 +11,12 @@
  *                                         (this checkout is never touched), the notes added to each
  *                                         skill's log, one commit, pushed, and a pull request
  *     … --again                           also the notes sent before in a PR that never merged
+ *                                         A skill in one of your spaces (your own, a project's, a linked
+ *                                         item: mm space) goes to that space's repo instead, the way
+ *                                         mm space sync sends one: one commit on GitHub's latest, in a
+ *                                         temporary worktree of the space (its folder is never touched),
+ *                                         pushed straight to its branch, no pull request. mm space sync
+ *                                         brings it here
  *   mm notes tidy [<skill>] [--yes]       drop notes that the skill's shared log has now
  *
  * Where: <workspace>/notes/<skill>.md. The workspace is MEDIAMAKE_WORKSPACE, else `workspace` in
@@ -20,18 +26,21 @@
  * they said → the rule"). Edit it by hand as you like.
  *
  * The shared log is each skill's `## Feedback log` or `## Lessons log` in its SKILL.md: everyone who
- * pulls gets it, and it changes only in a pull request. `promote` is how notes get there. A note the
+ * pulls gets it, and it changes only in a pull request (in a space: only by a push from someone who may
+ * change the space, as every change to a space is made). `promote` is how notes get there. A note the
  * shared log already has (its PR merged and you pulled) is left out of `mm notes <skill>`, and `tidy`
  * drops it. Notes sent in a PR that hasn't merged yet are recorded in notes/.sent.json, so they are
  * never sent twice.
  */
+import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { frontmatter, lineProblems, workspaceRoot } from '../../../tools/skills.mjs';
-import { openPr, stamp } from '../../../tools/upstream.mjs';
+import { localSpaces } from '../../../tools/space.mjs';
+import { openPr, pushTo, stamp } from '../../../tools/upstream.mjs';
 import { REPO } from './paths.ts';
 
 // ---------- where ----------
@@ -52,7 +61,32 @@ const tilde = (p: string) => (p === os.homedir() || p.startsWith(os.homedir() + 
 // ---------- skills ----------
 
 const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-export type SkillRef = { name: string; dir: string; file: string; committed: boolean; variantOf?: string };
+/** A space a skill lives in (mm space): its clone, the SKILL.md's path in it, and its repo for people. */
+export type SpaceRef = { dir: string; rel: string; repo: string; label: string };
+export type SkillRef = { name: string; dir: string; file: string; committed: boolean; variantOf?: string; space?: SpaceRef };
+
+const real = (p: string) => {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+};
+
+/**
+ * The space a skill's folder is in, through any link (<workspace>/skills/<name> and ~/.claude/skills/<name>
+ * point into it): your own (<workspace>/space), a project's (<workspace>/spaces/<project>) or a linked
+ * item (<workspace>/linked/<name>), as mm space knows them. Undefined for any other folder.
+ */
+export const spaceOf = (skillDir: string): SpaceRef | undefined => {
+  const at = real(skillDir);
+  for (const space of localSpaces() as { dir: string; repo: string; label: string }[]) {
+    const root = real(space.dir);
+    if (!at.startsWith(root + path.sep)) continue;
+    return { dir: space.dir, rel: path.relative(root, path.join(at, 'SKILL.md')).split(path.sep).join('/'), repo: space.repo, label: space.label };
+  }
+  return undefined;
+};
 
 /** Where a skill can be, first match wins: this checkout's (committed), then the user's own. */
 const skillRoots = (repo: string) => [
@@ -67,7 +101,8 @@ export const findSkill = (name: string, repo = REPO): SkillRef | undefined => {
   for (const root of skillRoots(repo)) {
     const file = path.join(root.dir, name, 'SKILL.md');
     if (!fs.existsSync(file)) continue;
-    return { name, dir: path.dirname(file), file, committed: root.committed, variantOf: frontmatter(file).metadata['variant-of'] };
+    const space = root.committed ? undefined : spaceOf(path.dirname(file));
+    return { name, dir: path.dirname(file), file, committed: root.committed, variantOf: frontmatter(file).metadata['variant-of'], ...(space ? { space } : {}) };
   }
   return undefined;
 };
@@ -178,7 +213,8 @@ export const addNote = (skill: string, words: string, opts: { date?: string; rep
 
 // ---------- what each note is now ----------
 
-type Sent = { hash: string; branch: string; pr?: string; at: string };
+/** pr is the pull request (or its link); for a space, the commit pushed to its branch. repo: a space's. */
+type Sent = { hash: string; branch: string; pr?: string; repo?: string; at: string };
 type SentLedger = { schema: 'mediamake.notes-sent/v1'; sent: Record<string, Sent[]> };
 
 const readSent = (): SentLedger => {
@@ -246,7 +282,20 @@ export const appendToLog = (skillMd: string, notes: Entry[]) => {
 
 // ---------- promote ----------
 
-export type PromoteItem = { skill: string; heading?: string; notes: Note[]; problems: string[] };
+/** space: where a space skill's notes go instead of this repo. warnings don't stop it. */
+export type PromoteItem = { skill: string; heading?: string; notes: Note[]; problems: string[]; warnings?: string[]; space?: SpaceRef };
+
+const gitOut = (cwd: string, ...a: string[]) => {
+  const r = spawnSync('git', a, { cwd, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : '';
+};
+
+/** Whether the space's clone has changes to this SKILL.md that GitHub doesn't: the next sync merges them over the notes. */
+const unsent = (space: SpaceRef) => {
+  const branch = gitOut(space.dir, 'symbolic-ref', '--short', '-q', 'HEAD') || 'main';
+  const ahead = gitOut(space.dir, 'rev-list', `origin/${branch}..HEAD`, '--', space.rel);
+  return !!(ahead || gitOut(space.dir, 'status', '--porcelain', '--', space.rel));
+};
 
 /** What promote would send: each skill's new notes, and why one can't go. */
 export const planPromote = (skills: string[], repo = REPO, opts: { again?: boolean } = {}): PromoteItem[] =>
@@ -254,59 +303,126 @@ export const planPromote = (skills: string[], repo = REPO, opts: { again?: boole
     const ref = mustFind(skill, repo);
     const notes = notesOf(skill, repo).notes.filter(n => n.status === 'new' || (opts.again && n.status === 'sent'));
     const problems: string[] = [];
-    if (!ref.committed) problems.push("it is your own skill, not in the repo: publish it first (publish-skill), then promote its notes");
+    const warnings: string[] = [];
+    if (!ref.committed && !ref.space)
+      problems.push('it is your own skill, not in the repo or a space: publish it first (publish-skill) or put it in a space (mm space add), then promote its notes');
     const at = logSection(fs.readFileSync(ref.file, 'utf8').split('\n'));
-    if (ref.committed && !at) problems.push('its SKILL.md has no "## Feedback log" or "## Lessons log" to add them to');
+    if ((ref.committed || ref.space) && !at) problems.push('its SKILL.md has no "## Feedback log" or "## Lessons log" to add them to');
     for (const n of notes) for (const p of leaksIn(n.text)) problems.push(`the note on line ${n.line} ${p}: reword it in ${tilde(notesFile(skill))}`);
-    return { skill, heading: at?.heading, notes, problems };
+    if (ref.space && notes.length && unsent(ref.space))
+      warnings.push(`${tilde(path.join(ref.space.dir, ref.space.rel))} has changes GitHub doesn't: send them first (mm space sync --yes), or the next sync may stop to merge them`);
+    return { skill, heading: at?.heading, notes, problems, ...(warnings.length ? { warnings } : {}), ...(ref.space ? { space: ref.space } : {}) };
   });
 
-export type Promoted = { branch: string; commit: string; pushed: boolean; pr?: string; compare?: string; sent: number };
+/**
+ * One send. target: "the repo" (a branch and a PR) or a space's repo (a commit on its branch). branch is
+ * the PR's branch, or the space's branch the commit went onto; url is the commit there.
+ */
+export type Promoted = { target: string; branch: string; commit: string; pushed: boolean; pr?: string; compare?: string; url?: string; local?: string; sent: number };
 
-/** The notes on a new branch from origin/<base> (tools/upstream.mjs: a worktree, never this checkout), pushed, and a PR. */
-export const promote = (
-  items: PromoteItem[],
-  opts: { repo?: string; remote?: string; base?: string; push?: boolean; pr?: boolean; now?: Date } = {},
-): Promoted => {
-  const go = items.filter(i => i.notes.length && !i.problems.length);
-  if (!go.length) throw new Error('Nothing to send: no new notes, or every skill with them has a problem to fix first');
-  const now = opts.now ?? new Date();
-  const count = go.reduce((n, i) => n + i.notes.length, 0);
-  const remote = opts.remote ?? 'origin';
-  const base = opts.base ?? 'main';
-  const r = openPr({
-    repo: opts.repo ?? REPO,
-    remote,
-    base,
-    push: opts.push,
-    pr: opts.pr,
-    branch: `notes/${go.length === 1 ? go[0].skill : `${go.length}-skills`}-${stamp(now)}`,
-    title:
-      go.length === 1
-        ? `skill(${go[0].skill}): ${count} ${count === 1 ? 'lesson' : 'lessons'} from notes`
-        : `skills: ${count} lessons from notes (${go.map(i => i.skill).join(', ')})`,
-    message: 'Sent from the workspace notes with `mm notes promote`.',
-    body: [
-      "Lessons from the workspace notes (`mm notes promote`), for each skill's shared log.",
-      '',
-      ...go.flatMap(i => [`**${i.skill}** (${i.heading}):`, '', ...i.notes.map(n => n.text), '']),
-    ].join('\n'),
-    change: wt =>
-      go.map(item => {
-        const rel = path.join('.agents', 'skills', item.skill, 'SKILL.md');
-        const file = path.join(wt, rel);
-        if (!fs.existsSync(file)) throw new Error(`${item.skill} isn't in ${remote}/${base} yet: its notes can go once it has merged`);
-        fs.writeFileSync(file, appendToLog(fs.readFileSync(file, 'utf8'), item.notes));
-        return rel;
-      }),
-  });
+const lessons = (n: number) => `${n} ${n === 1 ? 'lesson' : 'lessons'}`;
+const titleFor = (go: PromoteItem[], count: number) =>
+  go.length === 1 ? `skill(${go[0].skill}): ${lessons(count)} from notes` : `skills: ${count} lessons from notes (${go.map(i => i.skill).join(', ')})`;
+const branchFor = (go: PromoteItem[], now: Date) => `notes/${go.length === 1 ? go[0].skill : `${go.length}-skills`}-${stamp(now)}`;
+
+const record = (go: PromoteItem[], sent: Omit<Sent, 'hash'>) => {
   const ledger = readSent();
   for (const item of go) {
     const list = (ledger.sent[item.skill] ??= []);
-    for (const n of item.notes) list.push({ hash: hashOf(n.body), branch: r.branch, pr: r.pr ?? r.compare, at: now.toISOString() });
+    for (const n of item.notes) list.push({ hash: hashOf(n.body), ...sent });
   }
   writeSent(ledger);
-  return { ...r, sent: count };
+};
+
+/**
+ * Sends the notes: the repo's skills as one branch from origin/<base> and a PR (tools/upstream.mjs: a
+ * worktree, never this checkout); each space's skills as one commit pushed onto that space's branch (a
+ * worktree of the space, never its folder), as mm space sync sends a space. One result per place.
+ */
+export const promote = (
+  items: PromoteItem[],
+  opts: { repo?: string; remote?: string; base?: string; push?: boolean; pr?: boolean; now?: Date } = {},
+): Promoted[] => {
+  const go = items.filter(i => i.notes.length && !i.problems.length);
+  if (!go.length) throw new Error('Nothing to send: no new notes, or every skill with them has a problem to fix first');
+  const now = opts.now ?? new Date();
+  const remote = opts.remote ?? 'origin';
+  const base = opts.base ?? 'main';
+  const out: Promoted[] = [];
+
+  const inRepo = go.filter(i => !i.space);
+  if (inRepo.length) {
+    const count = inRepo.reduce((n, i) => n + i.notes.length, 0);
+    const r = openPr({
+      repo: opts.repo ?? REPO,
+      remote,
+      base,
+      push: opts.push,
+      pr: opts.pr,
+      branch: branchFor(inRepo, now),
+      title: titleFor(inRepo, count),
+      message: 'Sent from the workspace notes with `mm notes promote`.',
+      body: [
+        "Lessons from the workspace notes (`mm notes promote`), for each skill's shared log.",
+        '',
+        ...inRepo.flatMap(i => [`**${i.skill}** (${i.heading}):`, '', ...i.notes.map(n => n.text), '']),
+      ].join('\n'),
+      change: wt =>
+        inRepo.map(item => {
+          const rel = path.join('.agents', 'skills', item.skill, 'SKILL.md');
+          const file = path.join(wt, rel);
+          if (!fs.existsSync(file)) throw new Error(`${item.skill} isn't in ${remote}/${base} yet: its notes can go once it has merged`);
+          fs.writeFileSync(file, appendToLog(fs.readFileSync(file, 'utf8'), item.notes));
+          return rel;
+        }),
+    });
+    record(inRepo, { branch: r.branch, pr: r.pr ?? r.compare, at: now.toISOString() });
+    out.push({ target: 'the repo', ...r, sent: count });
+  }
+
+  // one commit per space, in the order the skills came
+  const spaces = new Map<string, PromoteItem[]>();
+  for (const item of go) if (item.space) spaces.set(item.space.dir, [...(spaces.get(item.space.dir) ?? []), item]);
+  const failed: string[] = [];
+  for (const [dir, list] of spaces) {
+    const space = list[0].space!;
+    try {
+      const count = list.reduce((n, i) => n + i.notes.length, 0);
+      const branch = gitOut(dir, 'symbolic-ref', '--short', '-q', 'HEAD') || 'main';
+      const r = pushTo({
+        repo: dir,
+        remote: 'origin',
+        branch,
+        local: branchFor(list, now),
+        push: opts.push,
+        title: titleFor(list, count),
+        message: 'Sent from the workspace notes with `mm notes promote`.',
+        change: wt => {
+          const changed = list.flatMap(item => {
+            const file = path.join(wt, item.space!.rel);
+            if (!fs.existsSync(file)) throw new Error(`${item.skill} isn't on GitHub in ${space.repo} yet: send it first (mm space sync --yes), then promote its notes`);
+            const text = fs.readFileSync(file, 'utf8');
+            // another computer may have sent some already: those aren't added twice
+            const missing = item.notes.filter(n => !normal(text).includes(normal(n.body)));
+            if (!missing.length) return [];
+            fs.writeFileSync(file, appendToLog(text, missing));
+            return [item.space!.rel];
+          });
+          if (!changed.length) throw new Error(`${space.repo} on GitHub has these notes already: mm space sync brings them here`);
+          return changed;
+        },
+      });
+      record(list, { branch: r.pushed ? branch : r.local, pr: r.url, repo: space.repo, at: now.toISOString() });
+      out.push({ target: space.repo, branch: r.branch, local: r.local, commit: r.commit, pushed: r.pushed, url: r.url, sent: count });
+    } catch (err) {
+      failed.push(`${space.repo}: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  if (failed.length) {
+    const done = out.map(r => `${r.sent} for ${r.target} (${r.pr ?? r.compare ?? r.url ?? r.branch})`);
+    throw new Error([`Not sent to ${failed.join('\n')}`, ...(done.length ? [`Sent (recorded in notes/.sent.json): ${done.join(', ')}`] : [])].join('\n'));
+  }
+  return out;
 };
 
 // ---------- tidy ----------
@@ -434,26 +550,43 @@ const main = () => {
         console.log(`${i.skill}: no new notes`);
         continue;
       }
-      console.log(`${i.skill}: ${i.notes.length} new ${i.notes.length === 1 ? 'note' : 'notes'} → its ${i.heading ?? 'log'}`);
+      const where = i.space ? ` in ${i.space.repo} (${i.space.label}: ${i.space.rel})` : ` in this repo (.agents/skills/${i.skill}/SKILL.md)`;
+      console.log(`${i.skill}: ${i.notes.length} new ${i.notes.length === 1 ? 'note' : 'notes'} → its ${i.heading ?? 'log'}${where}`);
       for (const n of i.notes) console.log(`  ${n.text.split('\n').join('\n  ')}`);
       for (const p of i.problems) console.log(`  ✖ ${p}`);
+      for (const w of i.warnings ?? []) console.log(`  ⚠ ${w}`);
     }
     const ready = items.filter(i => i.notes.length && !i.problems.length);
     if (!ready.length) return console.log('\nNothing to send.');
     if (!has('yes')) {
-      console.log(
-        `\nA dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is), ` +
-          `these notes added to the end of each skill's log, one commit${has('no-push') ? ' (kept here, not pushed)' : ', pushed, and a pull request (gh) or its link'}.`,
-      );
+      console.log('\nA dry run, nothing changed. With --yes:');
+      if (ready.some(i => !i.space))
+        console.log(
+          `  this repo: a branch from origin/${base} in a temporary worktree (this checkout stays as it is), ` +
+            `these notes added to the end of each skill's log, one commit${has('no-push') ? ' (kept here, not pushed)' : ', pushed, and a pull request (gh) or its link'}.`,
+        );
+      for (const repoName of new Set(ready.flatMap(i => (i.space ? [i.space.repo] : []))))
+        console.log(
+          `  ${repoName}: one commit on GitHub's latest, in a temporary worktree of the space (its folder stays as it is), these notes added to the end of each skill's log, ` +
+            `${has('no-push') ? 'kept on a local branch of the space (not pushed)' : "pushed straight to the space's branch the way mm space sync sends it (no pull request: a space has none)"}.`,
+        );
       return;
     }
-    const r = promote(items, { repo, base, push: !has('no-push') });
-    console.log(`\n✔ ${r.sent} ${r.sent === 1 ? 'note' : 'notes'} on ${r.branch} (${r.commit.slice(0, 10)})`);
-    if (r.pr) console.log(`  pull request: ${r.pr}`);
-    else if (r.compare) console.log(`  open the pull request: ${r.compare}`);
-    else if (r.pushed) console.log(`  pushed: open a pull request for ${r.branch}`);
-    else console.log(`  not pushed: git push -u origin ${r.branch}, then open a pull request`);
-    console.log('  They stay in your notes; once the PR merges and you pull, mm notes leaves them out (mm notes tidy drops them).');
+    const results = promote(items, { repo, base, push: !has('no-push') });
+    for (const r of results) {
+      console.log(`\n✔ ${r.sent} ${r.sent === 1 ? 'note' : 'notes'} for ${r.target} (${r.commit.slice(0, 10)})`);
+      if (r.target === 'the repo') {
+        console.log(`  on ${r.branch}`);
+        if (r.pr) console.log(`  pull request: ${r.pr}`);
+        else if (r.compare) console.log(`  open the pull request: ${r.compare}`);
+        else if (r.pushed) console.log(`  pushed: open a pull request for ${r.branch}`);
+        else console.log(`  not pushed: git push -u origin ${r.branch}, then open a pull request`);
+        console.log('  They stay in your notes; once the PR merges and you pull, mm notes leaves them out (mm notes tidy drops them).');
+      } else if (r.pushed) {
+        console.log(`  pushed to its ${r.branch}${r.url ? `: ${r.url}` : ''}`);
+        console.log('  mm space sync brings it to this computer; then mm notes leaves them out (mm notes tidy drops them).');
+      } else console.log(`  not pushed: on the space's local branch ${r.local} (git push origin ${r.local}:${r.branch} in the space's folder sends it)`);
+    }
     return;
   }
   // mm notes <skill>

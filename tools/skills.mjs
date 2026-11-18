@@ -438,10 +438,29 @@ const list = () => {
 /** The files a skill's checks read, and the only ones `media sync` shares: text, never binaries. */
 export const TEXT_FILE = /\.(md|mjs|js|ts|tsx|py|json|txt|sh|ya?ml|env)$/;
 
+/** A home folder's path: /Users/<name>, /home/<name>, C:\Users\. */
+const HOME_PATH = /\/(?:Users|home)\/[^/\s…]+/g;
+/**
+ * Whether a line names a path on this machine. A /Users/<name> or /home/<name> is one unless it sits
+ * inside a relative path, as in prose such as "it nests Downloads/Users/…" (the word it is joined to
+ * starts with a letter or a dot, not /, ~ or a scheme): /Volumes/Mac/Users/me, file:///Users/me,
+ * "~/x/Users/me" and `=/Users/me` all still count.
+ */
+export const hasLocalPath = line => {
+  if (/C:\\Users\\/i.test(line)) return true;
+  for (const m of line.matchAll(HOME_PATH)) {
+    // the word this match is part of: back to a space, a quote, a bracket, = , ; |
+    const before = line.slice(0, m.index);
+    const word = before.slice(before.search(/[^\s"'`([{<=,;|]*$/));
+    if (!/^[A-Za-z0-9_.][\w.@+-]*(?:\/[\w.@+ -]*)*$/.test(word)) return true;
+  }
+  return false;
+};
+
 /** What in one line of a skill must not be committed: a path on this machine, a key or a token. */
 export const lineProblems = line => {
   const problems = [];
-  if (/\/Users\/[^/\s…]+|\/home\/[^/\s…]+|C:\\Users\\/.test(line)) problems.push('has a path on this machine');
+  if (hasLocalPath(line)) problems.push('has a path on this machine');
   if (/(sk-[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[a-zA-Z0-9]{30,}|xox[bap]-[a-zA-Z0-9-]{10,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY|eyJ[a-zA-Z0-9_-]{30,}\.)/.test(line)) problems.push('looks like an API key or token');
   return problems;
 };
