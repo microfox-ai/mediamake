@@ -64,6 +64,23 @@ export interface RegistrySkill {
   /** `owner/repo` a skill was vendored from (skills-lock.json), e.g. remotion-dev/skills. */
   upstream?: string;
   version?: string;
+  /** It has a README.md, its store listing (docs/item-readme.md). Without one its page writes a default. */
+  readme?: boolean;
+  /** What its README.md says for the listing: the frontmatter, and the video it opens with. */
+  listing?: SkillListing;
+  /** Its folder's size: every file in it. */
+  bytes?: number;
+  files?: number;
+}
+
+/** A skill's store listing as its README.md gives it. */
+export interface SkillListing {
+  description?: string;
+  tags?: string[];
+  /** A 16:9 picture: an https link, or a file's path inside the skill's folder. */
+  headshot?: string;
+  /** The video the README opens with. */
+  video?: string;
 }
 
 /** One step of a skill's run sheet. */

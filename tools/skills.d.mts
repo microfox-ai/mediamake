@@ -16,6 +16,8 @@ export type SkillInfo = {
   version?: string;
   description: string;
   frontName?: string;
+  /** Its store listing from README.md; null when it has none. */
+  listing: { description?: string; tags?: string[]; headshot?: string; video?: string } | null;
 };
 export const TEXT_FILE: RegExp;
 export function frontmatter(file: string): { name?: string; description?: string; version?: string; metadata: Record<string, string> };

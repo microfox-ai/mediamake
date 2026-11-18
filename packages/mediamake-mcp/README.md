@@ -95,7 +95,7 @@ The bundle is the deprecated server (the old video tools). Double-click `mediama
 | Install | `install_item` (the item's install plan for this account; Claude carries it out) |
 | Usage | `report_skill_run` (a skill's name and the time, nothing else), `my_usage`, `report_local_skills` (names and versions) |
 | Store submissions | `submit_item` (a skill, MCP or app the user built, sent privately for review with the finished production made with it), `my_submissions` (where each stands), `withdraw_submission` |
-| Feedback | `send_feedback` (the user's words, about one item or MediaMake as a whole), `my_feedback` (what they sent and what came of it), `known_issues` (an item's known issues, the list admins keep) |
+| Feedback | `rate_item` (1 to 5 stars for a skill, MCP or app, on the user's word), `send_feedback` (the user's words, about one item or MediaMake as a whole), `my_feedback` (what they sent and what came of it), `known_issues` (an item's known issues, the list admins keep) |
 
 Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is sent, where it is kept, and how to turn it off (`mm usage off`).
 

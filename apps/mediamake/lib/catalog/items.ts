@@ -212,6 +212,13 @@ export function registryUses(name: string): ItemUse[] | undefined {
   return registry?.skills.find((skill) => skill.name === name)?.mcps;
 }
 
+/** A registry skill's headshot as a link: the picture its README.md names (a file in its folder is read from GitHub). */
+export function skillHeadshot(skill: RegistrySkill): string | undefined {
+  const headshot = skill.listing?.headshot;
+  if (!headshot) return undefined;
+  return /^https:\/\//.test(headshot) ? headshot : `https://raw.githubusercontent.com/${SKILLS_REPO}/main/${skill.path}/${headshot}`;
+}
+
 /** One registry skill as a card: always public, opening on its own page, /skills/<name>. */
 function skillCard(skill: RegistrySkill): CatalogItem {
   const [owner] = skill.upstream?.split('/') ?? [];
@@ -228,7 +235,11 @@ function skillCard(skill: RegistrySkill): CatalogItem {
     // a skill vendored from another repo (skills-lock.json) is someone else's
     ...(skill.upstream && { madeBy: { name: owner, repo: skill.upstream } }),
     href: `/skills/${skill.name}`,
-    tags: [skill.category, ...(skill.variantOf ? ['variant'] : []), ...(skill.internal ? ['internal'] : [])],
+    // its own tags, then the ones its README.md names
+    tags: [...new Set([skill.category, ...(skill.variantOf ? ['variant'] : []), ...(skill.internal ? ['internal'] : []), ...(skill.listing?.tags ?? [])])],
+    ...(skillHeadshot(skill) && { headshot: skillHeadshot(skill) }),
+    ...(skill.bytes !== undefined && { size: { bytes: skill.bytes, ...(skill.files !== undefined && { files: skill.files }) } }),
+    deps: (skill.dependsOn?.length ?? 0) + (skill.mcps?.length ?? 0),
     releasedAt: SKILLS_LISTED_AT,
   };
 }

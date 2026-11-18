@@ -2,23 +2,25 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, ImagePlus, Loader2, Play, Tag, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileText, ImagePlus, Loader2, Pencil, Play, Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MAX_LISTING_MEDIA, MAX_LISTING_TAGS, mediaKindOf, parseTags, type ListingMedia } from '@/lib/catalog/listing';
+import { Textarea } from '@/components/ui/textarea';
+import { MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, mediaKindOf, parseTags, type ListingMedia } from '@/lib/catalog/listing';
 import { parseYouTubeId, youtubeThumbnail } from '@/lib/catalog/video';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { GroupLabel, Panel } from './parts';
 import { adminCall, type ItemDetail } from './model';
 
 /**
- * A skill's, MCP's or app's store listing on its release page: its tags (its
- * own, such as a skill's category, and the ones an admin adds) and its
- * screenshots, pictures and videos added by link, like an app store
- * listing's. Each change is saved at once (`set_listing`); the item's own
+ * A skill's, MCP's or app's store listing on its release page: its headshot
+ * (the 16:9 picture its cards show), its description, an MCP's or app's
+ * icon, its README, its tags (its own, such as a skill's category, and the
+ * ones an admin adds) and its screenshots, pictures and videos added by
+ * link, like an app store listing's. Each change is saved at once (`set_listing`); the item's own
  * page shows them. Adding is a dialog from the buttons under the panel.
  */
 export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: () => void }) {
@@ -26,10 +28,12 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
   const added = detail.listing?.tags ?? [];
   const media = detail.listing?.media ?? [];
   const own = (item.tags ?? []).filter(tag => !added.includes(tag));
-  const [dialog, setDialog] = useState<'tags' | 'media' | null>(null);
+  const [dialog, setDialog] = useState<'tags' | 'media' | 'words' | 'readme' | null>(null);
+  const listing = detail.listing;
+  const hasIcon = item.kind === 'mcp' || item.kind === 'app';
   const [busy, setBusy] = useState(false);
 
-  async function save(change: { tags?: string[]; media?: ListingMedia[] }, done: string) {
+  async function save(change: { tags?: string[]; media?: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string }, done: string) {
     setBusy(true);
     try {
       await adminCall({ type: 'set_listing', itemId: item.id, ...change });
@@ -56,6 +60,12 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
       description={`Shown on its page, ${itemPagePath(item.id)}.`}
       footer={
         <>
+          <Button size="sm" variant="outline" onClick={() => setDialog('words')}>
+            <Pencil /> Headshot and description
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setDialog('readme')}>
+            <FileText /> README
+          </Button>
           <Button size="sm" variant="outline" disabled={added.length >= MAX_LISTING_TAGS} onClick={() => setDialog('tags')}>
             <Tag /> Add tags
           </Button>
@@ -65,6 +75,33 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
         </>
       }
     >
+      <div className="mb-5 grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden rounded-lg border bg-muted">
+          {listing?.headshot ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={listing.headshot} alt="" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs text-muted-foreground">No headshot set: its video&apos;s thumbnail is used</span>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {hasIcon &&
+              (listing?.icon ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={listing.icon} alt="" className="size-9 rounded-lg border object-cover" />
+              ) : (
+                <span className="flex size-9 items-center justify-center rounded-lg border border-dashed text-[10px] text-muted-foreground">Icon</span>
+              ))}
+            <p className="min-w-0 text-sm">{listing?.description || <span className="text-muted-foreground">No description set: its summary is used.</span>}</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            README:{' '}
+            {listing?.readme ? 'written here' : listing?.readmeFile ? 'its README.md, in its folder' : 'the default one (video, title, badges, how to use)'}
+          </p>
+        </div>
+      </div>
+
       <GroupLabel>Tags</GroupLabel>
       {own.length || added.length ? (
         <ul className="flex flex-wrap gap-1.5">
@@ -134,6 +171,24 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
           busy={busy}
           onClose={() => setDialog(null)}
           onAdd={async tags => (await save({ tags: [...added, ...tags] }, tags.length === 1 ? `Tag ${tags[0]} added` : `${tags.length} tags added`)) && setDialog(null)}
+        />
+      )}
+      {dialog === 'words' && (
+        <WordsDialog
+          hasIcon={hasIcon}
+          current={{ description: listing?.description ?? '', headshot: listing?.headshot ?? '', icon: listing?.icon ?? '' }}
+          busy={busy}
+          onClose={() => setDialog(null)}
+          onSave={async words => (await save(words, 'Listing saved')) && setDialog(null)}
+        />
+      )}
+      {dialog === 'readme' && (
+        <ReadmeDialog
+          current={listing?.readme ?? ''}
+          fromFile={!!listing?.readmeFile}
+          busy={busy}
+          onClose={() => setDialog(null)}
+          onSave={async readme => (await save({ readme }, readme ? 'README saved' : 'README cleared')) && setDialog(null)}
         />
       )}
       {dialog === 'media' && (
@@ -236,6 +291,117 @@ function TagsDialog({ have, left, busy, onClose, onAdd }: { have: string[]; left
 }
 
 const HTTPS = /^https:\/\/\S+$/;
+
+/** The headshot (a 16:9 picture), the description and, for an MCP or an app, the icon. An empty box clears it. */
+function WordsDialog({
+  hasIcon,
+  current,
+  busy,
+  onClose,
+  onSave,
+}: {
+  hasIcon: boolean;
+  current: { description: string; headshot: string; icon: string };
+  busy: boolean;
+  onClose: () => void;
+  onSave: (words: { description: string; headshot: string; icon?: string }) => void;
+}) {
+  const [description, setDescription] = useState(current.description);
+  const [headshot, setHeadshot] = useState(current.headshot);
+  const [icon, setIcon] = useState(current.icon);
+  const bad = (link: string) => !!link.trim() && !HTTPS.test(link.trim());
+  const valid = !bad(headshot) && !bad(icon);
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Headshot and description</DialogTitle>
+          <DialogDescription>What its cards and its page show. Leave a box empty to use the default.</DialogDescription>
+        </DialogHeader>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={e => {
+            e.preventDefault();
+            if (valid && !busy) onSave({ description: description.trim(), headshot: headshot.trim(), ...(hasIcon && { icon: icon.trim() }) });
+          }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="listing-headshot">Headshot (a 16:9 picture, by link)</Label>
+            <Input id="listing-headshot" value={headshot} onChange={e => setHeadshot(e.target.value)} placeholder="https://… (empty: its video's thumbnail)" aria-invalid={bad(headshot)} />
+            {HTTPS.test(headshot.trim()) && (
+              <div className="relative aspect-video w-48 overflow-hidden rounded-lg border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={headshot.trim()} alt="" className="absolute inset-0 size-full object-cover" />
+              </div>
+            )}
+          </div>
+          {hasIcon && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="listing-icon">Icon (a square picture, by link)</Label>
+              <Input id="listing-icon" value={icon} onChange={e => setIcon(e.target.value)} placeholder="https://…" aria-invalid={bad(icon)} />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="listing-description">Description</Label>
+            <Textarea id="listing-description" value={description} maxLength={MAX_LISTING_DESCRIPTION} onChange={e => setDescription(e.target.value)} placeholder="What it is, for people, in a line or two" className="min-h-20" />
+          </div>
+          {!valid && <p className="text-xs text-destructive">A picture is added by its https link</p>}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!valid || busy}>
+              {busy && <Loader2 className="animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The README in Markdown, for an item without a README.md of its own. Empty: the item's own, or the default one. */
+function ReadmeDialog({ current, fromFile, busy, onClose, onSave }: { current: string; fromFile: boolean; busy: boolean; onClose: () => void; onSave: (readme: string) => void }) {
+  const [text, setText] = useState(current);
+  return (
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>README</DialogTitle>
+          <DialogDescription>
+            {fromFile ? 'This skill has a README.md in its folder. What you write here is shown instead.' : 'Its store listing, in Markdown: a video link first, a title, what it does, how to use it.'} Empty: {fromFile ? 'its README.md' : 'the default one'}.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={e => {
+            e.preventDefault();
+            if (!busy) onSave(text.trim());
+          }}
+        >
+          <Textarea
+            value={text}
+            maxLength={MAX_LISTING_README}
+            onChange={e => setText(e.target.value)}
+            placeholder={'https://youtu.be/…\n\n# Its name\n\nWhat it does, in a line or two.\n\n## How to use\n\n1. …'}
+            className="max-h-[50dvh] min-h-64 font-mono text-xs"
+            aria-label="README, in Markdown"
+          />
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy && <Loader2 className="animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /** Adds one screenshot or video by its link. */
 function MediaDialog({ busy, onClose, onAdd }: { busy: boolean; onClose: () => void; onAdd: (entry: ListingMedia) => void }) {

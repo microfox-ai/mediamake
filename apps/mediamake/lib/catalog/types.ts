@@ -196,6 +196,19 @@ export interface CatalogItem {
   archivedAt?: string;
   /** Its video (see CatalogVideo, kept apart like the archive): a skill's intro, a tutorial, a course. */
   video?: ItemVideo;
+  /**
+   * Its listing headshot, a 16:9 picture (see ItemListing): the one its README.md or an admin names.
+   * Without one, cards show its video's thumbnail, else its title on its own colour.
+   */
+  headshot?: string;
+  /** An MCP's or an app's icon, a square picture by https link (see ItemListing). */
+  icon?: string;
+  /** How big it is: a skill's folder, or the latest package of an MCP or an app. */
+  size?: { bytes: number; files?: number };
+  /** How many other items it works with or runs: a skill's MCPs and the skills it depends on, an MCP's or app's uses. */
+  deps?: number;
+  /** What members rated it, 1 to 5 stars (lib/ratings). */
+  rating?: { average: number; count: number };
   /** Where the card links once the viewer has access. Never sent to viewers without access. */
   href?: string;
   cover?: string;

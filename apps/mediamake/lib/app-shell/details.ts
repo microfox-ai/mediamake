@@ -1,5 +1,8 @@
 import { galleryTiles, proofTile, type GalleryTile } from '@/lib/catalog/gallery';
 import { INSTALL_GUIDE_URL, SETUP_PROMPT } from '@/lib/catalog/install-prompt';
+import { headshotOf, listingBadges, type ListingBadge } from '@/lib/catalog/listing';
+import type { ItemReadme } from '@/lib/catalog/readme';
+import type { RatingSummary } from '@/lib/ratings/ratings';
 import { itemPath } from '@/lib/catalog/summary';
 import { slugOf } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
@@ -90,6 +93,25 @@ export interface ItemDetails {
   open?: string;
   /** What was made with it: its trailer first, then productions, pictures and links. */
   outputs: GalleryTile[];
+  /** Its id in the store, when it is a store item the viewer can open: it can be rated and given feedback there. */
+  itemId?: string;
+  /** A store item's listing: what its cards and its About column show. A private item has none. */
+  listing?: {
+    /** Its headshot, a 16:9 picture: shown above the README when it opens with no video. */
+    headshot?: string;
+    /** An MCP's or an app's icon. */
+    icon?: string;
+    tags: string[];
+    /** The membership that opens it, the version, its size and what it works with, after `status`. */
+    badges: ListingBadge[];
+    size?: { bytes: number; files?: number };
+    deps?: number;
+    rating?: RatingSummary;
+  };
+  /** Its intro video, played above the README when the README opens with none. */
+  video?: { youtubeId: string; title?: string };
+  /** Its README, the left side of the dialog (lib/catalog/readme). Added where the details are loaded (./details-data). */
+  readme?: ItemReadme;
 }
 
 export { detailsKey } from './details-key';
@@ -457,6 +479,20 @@ function ofCatalog(
       ...galleryTiles(item.video, item.readyProof ?? []),
       ...made(ctx, item.kind, slug),
     ],
+    ...(!item.locked && { itemId: item.id }),
+    listing: {
+      ...(headshotOf(item) && { headshot: headshotOf(item) }),
+      ...(item.icon && { icon: item.icon }),
+      tags: item.tags ?? [],
+      // Failed, Beta and Ready are in `status` already; a locked item says which membership opens it there
+      badges: listingBadges({ beta: item.beta, tier: item.tier, version: item.version, size: item.size, deps: item.deps }).filter(
+        (badge, i) => i > 0 && !(item.locked && i === 1),
+      ),
+      ...(item.size && { size: item.size }),
+      ...(item.deps && { deps: item.deps }),
+      ...(item.rating && { rating: item.rating }),
+    },
+    ...(item.video?.youtubeId && { video: { youtubeId: item.video.youtubeId, title: item.video.title } }),
   };
 }
 

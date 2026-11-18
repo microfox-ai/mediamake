@@ -2,23 +2,28 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowUpRightIcon, CheckIcon, CloudIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon, UsersIcon } from 'lucide-react';
+import { ArrowUpRightIcon, CheckIcon, CloudIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
+import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
+import { ItemRating } from '@/components/ratings/item-rating';
 import { Poster, Stage } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import type { DetailsDevice, DetailsStatus, ItemDetails } from '@/lib/app-shell/details';
+import type { DetailsDevice, ItemDetails } from '@/lib/app-shell/details';
 import type { GalleryTile } from '@/lib/catalog/gallery';
+import type { ListingBadge } from '@/lib/catalog/listing';
 import { youtubeEmbedUrl } from '@/lib/catalog/video';
 
 /**
  * The item dialog: click a skill, MCP or app wherever it is listed (Home,
  * Explore, Mine, a space's Skills tab, an item's own page) and the same
- * dialog opens. On the left, what it is and where it stands, its link in the
- * store, what it belongs to (each project a link), who can use it and which
- * computers have it; on the right, what was made with it, the trailer first;
- * at the foot, the command that puts it on the computer picked, with the
- * steps that set MediaMake up first when that computer is new.
+ * dialog opens, laid out as GitHub lays out a repo. On the left its README,
+ * the item's store listing: a video first, its title, its badges and how to
+ * use it, with what was made with it on a second tab. On the right a narrow
+ * column: what it is, its tags, its rating (a store item can be rated right
+ * there), its link in the store, what it belongs to and which computers
+ * have it. At the foot, the command that puts it on the computer picked,
+ * with the steps that set MediaMake up first when that computer is new.
  *
  * ItemDetailsProvider holds the one dialog and asks /api/catalog/details for
  * an item's details the first time it is opened (lib/app-shell/details);
@@ -27,15 +32,6 @@ import { youtubeEmbedUrl } from '@/lib/catalog/video';
  */
 
 const Context = React.createContext<{ open: (key: string) => void } | null>(null);
-
-const KIND: Record<ItemDetails['kind'], string> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
-
-const TONE: Record<DetailsStatus['tone'], string> = {
-  good: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
-  warn: 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
-  bad: 'bg-red-500/15 text-red-700 dark:text-red-300',
-  plain: 'bg-muted text-muted-foreground',
-};
 
 const DOT: Record<DetailsDevice['state'], string> = {
   has: 'bg-emerald-500',
@@ -64,8 +60,8 @@ function useCopy() {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-1 py-3 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:gap-3">
-      <dt className="text-xs font-medium text-muted-foreground sm:pt-0.5">{label}</dt>
+    <div className="flex flex-col gap-1 py-3">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-sm">{children}</dd>
     </div>
   );
@@ -192,7 +188,6 @@ function Outputs({ itemId, tiles }: { itemId: string; tiles: GalleryTile[] }) {
   const rest = tiles.filter(tile => tile !== trailer);
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Made with it</h3>
       {trailer && (
         <div>
           <div className="relative aspect-video overflow-hidden rounded-lg border bg-black">
@@ -205,7 +200,7 @@ function Outputs({ itemId, tiles }: { itemId: string; tiles: GalleryTile[] }) {
         </div>
       )}
       {rest.length > 0 && (
-        <ul className="grid grid-cols-2 gap-x-2 gap-y-3">
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
           {rest.map(tile => (
             <OutputTile key={tile.key} itemId={itemId} tile={tile} />
           ))}
@@ -279,36 +274,78 @@ function Install({ item }: { item: ItemDetails }) {
   );
 }
 
+/** A private item's badges: where it stands, and its version. A store item's come with its listing. */
+function badgesOf(item: ItemDetails): ListingBadge[] {
+  return [
+    ...item.status.map(status => ({ label: status.label, tone: status.tone, title: status.note })),
+    ...(item.listing?.badges ?? (item.version ? [{ label: `v${item.version.replace(/^v/, '')}`, tone: 'plain' as const }] : [])),
+  ];
+}
+
+/**
+ * Laid out as GitHub lays out a repo: the README on the left (the video
+ * first, the title, the badges, how to use it), with what was made with it
+ * on a second tab; a narrow column on the right with what it is, its tags,
+ * its rating and where it lives.
+ */
 function Details({ itemKey, item }: { itemKey: string; item: ItemDetails }) {
   const notes = item.status.filter(status => status.note && status.tone !== 'good' && status.tone !== 'plain');
-  const wide = item.outputs.length > 0;
+  const [tab, setTab] = React.useState<'readme' | 'made'>('readme');
+  const made = item.outputs.length;
+  const readme = item.readme ?? { html: '', written: false };
   return (
     <>
-      <div className={cn('min-h-0 flex-1 overflow-y-auto', wide && 'lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:overflow-hidden')}>
-        <div className="flex flex-col gap-4 p-6 lg:overflow-y-auto">
-          <DialogHeader>
-            <div className="flex flex-wrap items-center gap-1.5 pr-8">
-              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{KIND[item.kind]}</span>
-              {item.version && <span className="text-xs tabular-nums text-muted-foreground">v{item.version.replace(/^v/, '')}</span>}
-              {item.status.map(status => (
-                <span key={status.label} title={status.note} className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', TONE[status.tone])}>
-                  {status.label}
-                </span>
-              ))}
-            </div>
+      <div className="min-h-0 flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden">
+        <div className="flex min-w-0 flex-col lg:overflow-y-auto">
+          <DialogHeader className="sr-only">
             <DialogTitle>{item.title}</DialogTitle>
             <DialogDescription>{item.summary ?? item.name}</DialogDescription>
           </DialogHeader>
-
-          {notes.length > 0 && (
-            <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-              {notes.map(status => (
-                <li key={status.label}>
-                  <span className="font-medium text-foreground">{status.label}:</span> {status.note}
-                </li>
+          <div className="sticky top-0 z-10 flex items-center gap-1 border-b bg-background px-4 pr-12" role="tablist" aria-label={item.title}>
+            {(['readme', 'made'] as const)
+              .filter(id => id === 'readme' || made > 0)
+              .map(id => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id)}
+                  className={cn('-mb-px flex h-11 cursor-pointer items-center gap-1.5 border-b-2 px-2 text-sm font-medium', tab === id ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}
+                >
+                  {id === 'readme' ? 'README' : 'Made with it'}
+                  {id === 'made' && <span className="rounded-full bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{made}</span>}
+                </button>
               ))}
-            </ul>
-          )}
+            <span className="ml-auto truncate font-mono text-xs text-muted-foreground">{item.name}</span>
+          </div>
+          <div className="p-6">
+            {tab === 'readme' ? (
+              <ReadmeView id={itemKey} kind={item.kind} title={item.title} readme={readme} badges={badgesOf(item)} video={item.video} headshot={item.listing?.headshot} icon={item.listing?.icon} heading="h2" />
+            ) : (
+              <Outputs itemId={itemKey} tiles={item.outputs} />
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5 border-t bg-muted/30 p-5 lg:overflow-y-auto lg:border-l lg:border-t-0">
+          <AboutCard
+            kind={item.kind}
+            description={item.summary}
+            tags={item.listing?.tags}
+            rating={item.itemId ? <ItemRating itemId={item.itemId} title={item.title} version={item.version} initial={item.listing?.rating} /> : undefined}
+            facts={{ version: item.version, people: item.people, size: item.listing?.size, deps: item.listing?.deps }}
+          >
+            {notes.length > 0 && (
+              <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                {notes.map(status => (
+                  <li key={status.label}>
+                    <span className="font-medium text-foreground">{status.label}:</span> {status.note}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AboutCard>
 
           {item.manage && <Manage manage={item.manage} />}
 
@@ -330,7 +367,7 @@ function Details({ itemKey, item }: { itemKey: string; item: ItemDetails }) {
                 {item.belongs.map(entry => (
                   <li key={entry.label}>
                     {entry.href ? (
-                      <Go href={entry.href} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:border-foreground/40 hover:bg-muted">
+                      <Go href={entry.href} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium hover:border-foreground/40 hover:bg-muted">
                         {entry.label} <ArrowUpRightIcon className="size-3" aria-hidden />
                       </Go>
                     ) : (
@@ -340,26 +377,21 @@ function Details({ itemKey, item }: { itemKey: string; item: ItemDetails }) {
                 ))}
               </ul>
             </Row>
-            <Row label="Access">
-              <p className="flex items-start gap-1.5">
-                <UsersIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                <span>{item.people}</span>
-              </p>
-              {item.used !== undefined && !item.open && !item.locked && (
-                <div className="mt-2.5">
-                  <Devices devices={item.devices} />
-                </div>
-              )}
-            </Row>
+            {item.used !== undefined && !item.open && !item.locked && (
+              <Row label="Computers">
+                <Devices devices={item.devices} />
+              </Row>
+            )}
             {item.used && <Row label="Last used">{item.used}</Row>}
+            {item.itemId && item.store.href && (
+              <Row label="Feedback">
+                <Link href={`${item.store.href}#feedback`} className="font-medium underline underline-offset-4 hover:text-primary">
+                  Known issues and feedback
+                </Link>
+              </Row>
+            )}
           </dl>
         </div>
-
-        {wide && (
-          <div className="border-t bg-muted/30 p-4 lg:overflow-y-auto lg:border-l lg:border-t-0 lg:pt-12">
-            <Outputs itemId={itemKey} tiles={item.outputs} />
-          </div>
-        )}
       </div>
 
       {(item.locked || item.install || item.open) && (
@@ -407,7 +439,7 @@ export function ItemDetailsProvider({ details, children }: { details?: Record<st
     <Context.Provider value={value}>
       {children}
       <Dialog open={!!open} onOpenChange={next => !next && setOpen(null)}>
-        <DialogContent className={cn('flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl', item && item.outputs.length > 0 && 'lg:max-w-5xl')}>
+        <DialogContent className={cn('flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl', item && 'lg:max-w-5xl')}>
           {item && open ? (
             <Details itemKey={open} item={item} />
           ) : (

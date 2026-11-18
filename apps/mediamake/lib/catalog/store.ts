@@ -29,7 +29,7 @@ import {
   type ReadyProof,
   type Visibility,
 } from './types';
-import type { ItemListing, ListingMedia } from './listing';
+import { isEmptyListing, type ItemListing, type ListingFields } from './listing';
 
 const COL = {
   items: 'catalog_items',
@@ -487,7 +487,7 @@ export const catalogVideosDB = {
 
 // ── Listings ─────────────────────────────────────────────────────────────────
 
-/** Store listings (see ItemListing): an admin's tags and screenshots for any id, a skill from the repo too. */
+/** Store listings (see ItemListing): what an admin adds to any id's listing, a skill from the repo too. */
 export const catalogListingDB = {
   async list(): Promise<ItemListing[]> {
     const db = await getDatabase();
@@ -499,14 +499,24 @@ export const catalogListingDB = {
     return db.collection<ItemListing>(COL.listing).findOne({ id }, { projection: { _id: 0 } });
   },
 
-  /** Sets an item's tags and screenshots, replacing the ones it had; with neither, the listing goes. */
-  async set(id: string, listing: { tags: string[]; media: ListingMedia[] }, actor?: string): Promise<ItemListing | null> {
+  /** Sets an item's listing, replacing the one it had; with nothing in it, the listing goes. */
+  async set(id: string, listing: ListingFields, actor?: string): Promise<ItemListing | null> {
     const db = await getDatabase();
-    if (!listing.tags.length && !listing.media.length) {
+    if (isEmptyListing(listing)) {
       await db.collection(COL.listing).deleteOne({ id });
       return null;
     }
-    const record = withoutUndefined({ id, tags: listing.tags, media: listing.media, updatedAt: nowISO(), updatedBy: actor }) as ItemListing;
+    const record = withoutUndefined({
+      id,
+      tags: listing.tags,
+      media: listing.media,
+      description: listing.description || undefined,
+      headshot: listing.headshot || undefined,
+      icon: listing.icon || undefined,
+      readme: listing.readme || undefined,
+      updatedAt: nowISO(),
+      updatedBy: actor,
+    }) as ItemListing;
     await db.collection<ItemListing>(COL.listing).replaceOne({ id }, record, { upsert: true });
     return record;
   },

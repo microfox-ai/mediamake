@@ -288,7 +288,7 @@ what it is, who can open it, where it lives, what installing it does, and what n
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
   plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
-  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_listing` (an item's tags and screenshots, by link), `catalog_set_video` (a skill's
+  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_listing` (an item's store listing: its tags, screenshots, description, headshot, icon and README), `catalog_set_video` (a skill's
   intro, a tutorial's video, a course's lessons; YouTube only) and `catalog_add_video_item` (a new
   tutorial or course), and for people `catalog_people`,
   `catalog_set_tier` and `catalog_membership` (the ladder is strict: Public, Plus, Pro, Cohort, Admin,
@@ -315,6 +315,21 @@ them all, `mm items install <id> --yes` one (`tools/items.mjs`).
   stdin) is only for a computer with no browser. `mm login status` says who is signed in,
   `mm logout` signs out (`tools/login.mjs`).
 - The install prompt (`install.md`, no code in it) is for computers without the repo or a sign-in.
+
+## READMEs: every item's store listing
+
+Every skill, MCP and app has a README, its store listing: its page and its dialog show it on the left,
+GitHub-style, with the details in a narrow column on the right. `apps/mediamake/docs/item-readme.md` has
+the format.
+
+- A README introduces the item, in this order: a video link alone on the first line, `# Title`, what it
+  does in a line or two, `## How to use`. Never how it works: that stays in SKILL.md.
+- A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
+  picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
+  release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`).
+- Never write a badge, a rating or a made-up video into a README: the page draws the badges from what
+  MediaMake knows, and a video or a picture is a real one of the item. With no video yet, leave it out.
+- Members rate any item from 1 to 5 stars (mm-use's `rate_item`, only on the user's word).
 
 ## Feedback: read it on /app/feedback, never paste it in public
 

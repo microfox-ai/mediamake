@@ -335,9 +335,9 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
   server.registerTool(
     'catalog_set_listing',
     {
-      title: "Set an item's tags and screenshots (admins)",
+      title: "Set an item's store listing (admins)",
       description:
-        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page: tags (words people look for it by, added beside the ones it already has, such as a skill's category) and screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). Each one given replaces what was there: give the whole list, an empty list to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
+        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page and in its dialog. tags: words people look for it by, added beside the ones it already has, such as a skill's category. media: screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). description: what it is, for people, in a line or two, shown instead of its summary. headshot: its 16:9 picture by https link, shown on its cards (without one, its video's thumbnail is used). icon: an MCP's or an app's square icon by https link. readme: its README in Markdown, the left side of its page, for an item without a README.md of its own (a repo skill's README.md is a file in its folder): a video link alone on the first line, then `# Title`, what it does, and `## How to use`; it introduces the item and never explains how it works (that stays in SKILL.md). Each one given replaces what was there: give the whole list or text, an empty list or empty text to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
       inputSchema: {
         item: ITEM_ID,
         tags: z.array(z.string().min(1).max(30)).max(12).optional().describe('The tags an admin adds, e.g. ["anime", "lyric-video"]; stored in lowercase with dashes'),
@@ -352,12 +352,18 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
           .max(12)
           .optional()
           .describe('The screenshots, in the order they show'),
+        description: z.string().max(300).optional().describe('What it is, for people, in a line or two; empty clears it'),
+        headshot: z.string().max(1000).optional().describe('Its 16:9 picture, by https link; empty clears it'),
+        icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon, by https link; empty clears it"),
+        readme: z.string().max(32768).optional().describe('Its README in Markdown; empty clears it'),
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
-    safe(async ({ item, tags, media }) => {
-      if (!tags && !media) throw new Error('Give tags, media or both');
-      const { listing } = await client.post<{ listing: unknown }>('/api/admin/catalog', { type: 'set_listing', itemId: item, ...(tags && { tags }), ...(media && { media }) });
+    safe(async ({ item, tags, media, description, headshot, icon, readme }) => {
+      const texts = { description, headshot, icon, readme };
+      const given = Object.fromEntries(Object.entries(texts).filter(([, value]) => value !== undefined));
+      if (!tags && !media && !Object.keys(given).length) throw new Error('Give tags, media, description, headshot, icon or readme');
+      const { listing } = await client.post<{ listing: unknown }>('/api/admin/catalog', { type: 'set_listing', itemId: item, ...(tags && { tags }), ...(media && { media }), ...given });
       return json({ item, listing, page: page(item) });
     }),
   );
