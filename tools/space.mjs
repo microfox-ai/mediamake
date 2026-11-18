@@ -347,6 +347,8 @@ function itemAt(dir, kind, name) {
     title: text(meta.title, 120) ?? text(pkg.display_name, 120) ?? humanize(name),
     ...(summary && { summary }),
     needs,
+    // a run sheet with a row that can't be read: mm run refuses the skill, and its page shows only the rows that can
+    ...(sheet?.errors.length && { sheetErrors: sheet.errors }),
     media: Array.isArray(meta.media) ? meta.media.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim()) : [],
     changed: !!git(dir, ['status', '--porcelain', '-uall', '--', rel]).out,
   };
@@ -1228,7 +1230,16 @@ function pushPlan(space, flags) {
     .filter(k => k.startsWith(`${KINDS.skill}/`))
     .map(k => ({ name: k.split('/')[1], list: codeOutside(path.join(space.dir, k)) }))
     .filter(c => c.list.length);
-  return { state, files, byItem, large, secrets, blocked, code, readme: !!readmeUpdate(space) };
+  const sheets = spaceItems(space.dir).filter(item => item.sheetErrors && byItem.has(item.path));
+  return { state, files, byItem, large, secrets, blocked, code, sheets, readme: !!readmeUpdate(space) };
+}
+
+/** Says that a skill's run sheet can't be read, row by row. It still goes up: the skill works, only its runs don't. */
+function showSheetErrors(item) {
+  console.log(`⚠ ${item.path}: its run sheet (## Where it runs) can't be read, so mm run can't start it and the space's page doesn't show what it needs.`);
+  for (const error of item.sheetErrors.slice(0, 12)) console.log(`    ${error}`);
+  if (item.sheetErrors.length > 12) console.log(`    … and ${item.sheetErrors.length - 12} more`);
+  console.log('  A Needs cell holds only: render, key:<name>, mcp:<id>, app:<name>, browser:<site>[/<account>], media:library, or nothing. The yes and repeat cells are yes or no; notes go under the table.');
 }
 
 function showPlan(space, plan, flags, yes) {
@@ -1249,6 +1260,7 @@ function showPlan(space, plan, flags, yes) {
   }
   if (plan.secrets.length && !flags.includes('--force')) console.log('  Take the key out (name an env var instead), or add --force if it is not a key.');
   for (const c of plan.code ?? []) showCodeOutside(c.name, c.list);
+  for (const item of plan.sheets ?? []) showSheetErrors(item);
 }
 
 /** Sends one space: everything this computer has that GitHub doesn't, as one commit. */
@@ -1464,9 +1476,10 @@ async function status(_args, flags, env) {
     console.log(`  ${gets}, ${files.length ? `${plural(files.length, 'file')} to send up` : 'nothing to send up'}`);
     const width = Math.max(0, ...items.map(i => i.path.length));
     for (const item of items) {
-      const marks = [item.kind === 'skill' && !loaded(item.name) && 'not linked into Claude', item.changed && 'changed here', item.media.length && `needs ${plural(item.media.length, 'media file')}: ${item.media.join(', ')}`].filter(Boolean);
+      const marks = [item.kind === 'skill' && !loaded(item.name) && 'not linked into Claude', item.changed && 'changed here', item.sheetErrors && "its run sheet can't be read", item.media.length && `needs ${plural(item.media.length, 'media file')}: ${item.media.join(', ')}`].filter(Boolean);
       console.log(`  ${item.path.padEnd(width)}  ${/^(sha|tree):|^new$/.test(item.version) ? '' : item.version}`.trimEnd() + (marks.length ? `  (${marks.join('; ')})` : ''));
     }
+    for (const item of items.filter(i => i.sheetErrors)) showSheetErrors(item);
     if (!items.length) console.log(space.item ? '  nothing in it yet: its owner has not sent it' : space.project ? `  nothing yet: mm space share <item> --project="${space.project.name}"` : '  nothing yet: mm space new skill <name>, or mm space add <one of your skills>');
     console.log('');
   }
@@ -1751,7 +1764,8 @@ const RUN_SHEET = `## Where it runs
 
 What each step needs, so it runs in the cloud or on a device (the words: render, key:<name>, mcp:<id>,
 app:<name>, browser:<site>[/<account>], media:library; \`nothing\` for none). The space's page reads the
-keys from here.
+keys from here. A cell holds only those words, or yes or no: notes go under the table. "Without it" is
+what a place that lacks the need does instead, or "a to-do …" when the step has to wait for one that has it.
 
 | Step | Needs | A person's yes | Safe to repeat | Without it |
 |---|---|---|---|---|

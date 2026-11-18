@@ -32,7 +32,7 @@ let run = null;
 let url;
 let server;
 
-const stepView = (step, i) => ({ n: i + 1, step: step.step, needs: step.needs.map(need => ({ need, label: need })), needsYes: !!step.yes, repeat: !!step.repeat, state: step.state === 'started' && !run.hold ? 'unsaved' : step.state, ...(step.place && { place: step.place }), ...(step.at && { at: step.at }), ...(step.output && { output: step.output }), ...(step.todo && { todo: step.todo, todoState: 'open' }) });
+const stepView = (step, i) => ({ n: i + 1, step: step.step, needs: step.needs.map(need => ({ need, label: need })), needsYes: !!step.yes, repeat: !!step.repeat, state: step.state === 'started' && !run.hold ? 'unsaved' : step.state, ...(step.place && { place: step.place }), ...(step.at && { at: step.at }), ...(step.output && { output: step.output }), ...(step.todo && { todo: step.todo, todoState: 'open' }), ...(step.without && !/^a to-do/.test(step.without) && { without: step.without }), ...(step.lacked && { lacked: step.lacked.map(need => ({ need, label: need })) }) });
 function runView() {
   const index = run.steps.findIndex(step => step.state !== 'done');
   const next = run.state === 'open' && index >= 0 ? run.steps[index] : null;
@@ -47,7 +47,7 @@ function runView() {
     line: `Continue ${run.slug} in Doomcat`,
     steps: run.steps.map(stepView),
     done: run.steps.filter(step => step.state === 'done').length,
-    ...(next && { next: { n: index + 1, step: next.step, needs: next.needs, places: next.needs.length ? ['Studio Mac'] : ['Cloud environment', 'Studio Mac'], yours: [] } }),
+    ...(next && { next: { n: index + 1, step: next.step, needs: next.needs, places: next.needs.length ? ['Studio Mac'] : ['Cloud environment', 'Studio Mac'], yours: [], ...(next.without && !/^a to-do/.test(next.without) && { without: next.without }) } }),
     ...(run.hold && { heldBy: 'You', heldOn: run.hold.place, heldSince: run.hold.at }),
     mine: !!run.hold,
     ...(Object.keys(run.saved).length && { saved: run.saved }),
@@ -75,7 +75,7 @@ function runAsk(body) {
     if (body.action !== 'wait' && run.hold?.place !== body.place) return refuse(run.hold ? 'It is already running' : `No place has this run now: continue it first (mm run resume ${run.slug})`);
     const step = run.steps[body.step - 1];
     if (step.state === 'done') return refuse(`Step ${body.step} (${step.step}) is already saved: a saved step is never done again`);
-    if (body.action === 'step') Object.assign(step, { state: 'started', place: body.place, at: now });
+    if (body.action === 'step') Object.assign(step, { state: 'started', place: body.place, at: now, ...(body.lacked && { lacked: body.lacked }) });
     if (body.action === 'save') {
       Object.assign(step, { state: 'done', place: body.place, at: now, ...(body.output && { output: body.output }) });
       Object.assign(run.saved, body.saved);
@@ -176,6 +176,7 @@ const place = (name, has) => {
   write(path.join(home, '.mediamake', 'config.json'), JSON.stringify({ workspace: work, access: { name, has } }));
   write(path.join(home, '.claude', 'skills', 'doomcat', 'SKILL.md'), ['---', 'name: doomcat', '---', '', '## Where it runs', '', "| Step | Needs | A person's yes | Safe to repeat | Without it |", '|---|---|---|---|---|', '| 1. Write and render | nothing | no | yes | - |', '| 2. YouTube pack | nothing | no | yes | - |', '| 3. Upload to YouTube | `browser:youtube/doomcat` | no | no | a to-do for a computer signed in to the channel |', ''].join('\n'));
   write(path.join(home, '.claude', 'skills', 'plain', 'SKILL.md'), '---\nname: plain\n---\nNo sheet.\n');
+  write(path.join(home, '.claude', 'skills', 'takes', 'SKILL.md'), ['---', 'name: takes', '---', '', '## Where it runs', '', "| Step | Needs | A person's yes | Safe to repeat | Without it |", '|---|---|---|---|---|', "| 1. The crowd's takes | `mcp:browse-hack` | no | yes | the takes from the web only |", '| 2. Upload | `browser:youtube/doomcat` | no | no | a to-do for a computer signed in to the channel |', ''].join('\n'));
   const env = { PATH: process.env.PATH, HOME: home, MEDIAMAKE_CONFIG: path.join(home, '.mediamake', 'config.json'), MEDIAMAKE_STATE: path.join(home, '.mediamake', 'state.json'), MEDIAMAKE_USAGE: 'off', MEDIAMAKE_API_KEY: 'test-key' };
   const mm = (args, more = {}) =>
     new Promise(resolve => {
@@ -246,7 +247,7 @@ test('the brief says what is next, what to check first and how to save', () => {
 
 test('a skill with no run sheet runs whole, as one step', () => {
   assert.deepEqual(stepsOf(path.join(cloud.home, '.claude', 'skills', 'plain', 'SKILL.md')), { steps: [{ step: 'The whole skill', needs: [] }], whole: true });
-  assert.deepEqual(stepsOf(path.join(cloud.home, '.claude', 'skills', 'doomcat', 'SKILL.md')).steps[2], { step: 'Upload to YouTube', needs: ['browser:youtube/doomcat'] });
+  assert.deepEqual(stepsOf(path.join(cloud.home, '.claude', 'skills', 'doomcat', 'SKILL.md')).steps[2], { step: 'Upload to YouTube', needs: ['browser:youtube/doomcat'], without: 'a to-do for a computer signed in to the channel' });
 });
 
 test('a production is saved with only its changed files, and fetched without replacing a file that differs', async () => {
@@ -299,7 +300,7 @@ test('a run starts in the cloud, saves each step, hands the upload over, and con
   assert.match(started.out, /✔ doomcat-0412 runs here \(Cloud box\), with the doomcat skill/);
   assert.match(started.out, /○ 3\. Upload to YouTube {3}not this place \(no browser:youtube\/doomcat\)/);
   assert.doesNotMatch(started.out, /never done again/);
-  assert.deepEqual(calls.findLast(call => call.body?.action === 'start').body.steps, [{ step: 'Write and render', needs: [], repeat: true }, { step: 'YouTube pack', needs: [], repeat: true }, { step: 'Upload to YouTube', needs: ['browser:youtube/doomcat'] }]);
+  assert.deepEqual(calls.findLast(call => call.body?.action === 'start').body.steps, [{ step: 'Write and render', needs: [], repeat: true }, { step: 'YouTube pack', needs: [], repeat: true }, { step: 'Upload to YouTube', needs: ['browser:youtube/doomcat'], without: 'a to-do for a computer signed in to the channel' }]);
 
   // the same production, started on another computer, is told where it runs
   const twice = await mac.mm(['start', 'Doomcat', 'doomcat-0412', '--skill=doomcat']);
@@ -366,4 +367,48 @@ test('a run starts in the cloud, saves each step, hands the upload over, and con
   // the hook never fails a session: a server that is gone says nothing
   const gone = await mac.mm(['--hook'], { MEDIAMAKE_API_URL: 'http://127.0.0.1:9' });
   assert.deepEqual([gone.code, gone.out], [0, '']);
+});
+
+test("a step this place lacks something for is done the run sheet's other way, when the sheet says one", async () => {
+  // the sheet's "Without it" travels with the steps; "a to-do …" is not another way
+  const { steps } = stepsOf(path.join(cloud.home, '.claude', 'skills', 'takes', 'SKILL.md'));
+  assert.deepEqual(steps.map(step => step.without), ['the takes from the web only', 'a to-do for a computer signed in to the channel']);
+
+  const takes = { n: 1, step: "The crowd's takes", needs: ['mcp:browse-hack'], places: ['Studio Mac'], yours: [], without: 'the takes from the web only' };
+  const ready = view({ skill: 'takes', done: 0, steps: [{ n: 1, step: takes.step, needs: [{ need: 'mcp:browse-hack', label: 'Browse Hack' }], needsYes: false, repeat: true, state: 'todo', without: takes.without }], next: takes });
+  assert.match(runLine(ready, []), /this place can do it the run sheet's other way \(no mcp:browse-hack\)/);
+  assert.match(stepLines(ready, [])[0], /here the run sheet's other way \(no mcp:browse-hack\)/);
+  assert.match(hookLine([ready], []), /^MediaMake: a run is ready to continue that this place can do/);
+  const text = brief(ready, [], 'Cloud box');
+  assert.match(text, /Go on with step 1 \(The crowd's takes\)/);
+  assert.match(text, /This place has no mcp:browse-hack\. The run sheet says what to do without: "the takes from the web only"\. Do that here, so the run stays in one place\./);
+  assert.match(text, /When it starts: {11}mm run step doomcat-0412 1 --without/);
+  assert.doesNotMatch(brief(ready, ['mcp:browse-hack'], 'Studio Mac'), /--without/);
+
+  run = null;
+  const started = await cloud.mm(['start', 'Doomcat', 'takes-01', '--skill=takes']);
+  assert.equal(started.code, 0, started.out);
+  assert.match(started.out, /mm run step takes-01 1 --without/);
+  // it says so before doing it another way, and names both ways
+  const plain = await cloud.mm(['step', 'takes-01', '1']);
+  assert.equal(plain.code, 1);
+  assert.match(plain.out, /doesn't have what step 1 \(The crowd's takes\) needs: mcp:browse-hack\. The run sheet says what to do without: "the takes from the web only"\. To do that here: mm run step takes-01 1 --without\. To post it for a place that has it: mm run wait takes-01 1\./);
+  const other = await cloud.mm(['step', 'takes-01', '1', '--without']);
+  assert.equal(other.code, 0, other.out);
+  assert.match(other.out, /◐ Step 1 \(The crowd's takes\) of takes-01 started here, without mcp:browse-hack: the takes from the web only\./);
+  assert.deepEqual(run.steps[0].lacked, ['mcp:browse-hack']);
+  const saved = await cloud.mm(['save', 'takes-01', '1', '--output=web takes only']);
+  assert.match(saved.out, /Next, step 2 \(Upload\), needs browser:youtube\/doomcat, which this place doesn't have: mm run wait takes-01 2/);
+  assert.match((await cloud.mm(['status', 'takes-01'])).out, /✔ 1\. The crowd's takes .*without mcp:browse-hack {3}web takes only/);
+  // a step whose sheet says it waits is never done another way
+  const upload = await cloud.mm(['step', 'takes-01', '2', '--without']);
+  assert.equal(upload.code, 1);
+  assert.match(upload.out, /needs: browser:youtube\/doomcat\. Post it for a place that has: mm run wait takes-01 2\./);
+  // where a place has what the step needs, --without changes nothing
+  run = null;
+  const hack = place('Hack Mac', ['mcp:browse-hack']);
+  await hack.mm(['start', 'Doomcat', 'takes-02', '--skill=takes']);
+  const withIt = await hack.mm(['step', 'takes-02', '1', '--without']);
+  assert.match(withIt.out, /◐ Step 1 \(The crowd's takes\) of takes-02 started here\.\n/);
+  assert.equal(run.steps[0].lacked, undefined);
 });

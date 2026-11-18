@@ -69,8 +69,9 @@
  * Where a skill's steps can run goes in a second table, its run sheet (by convention under
  * `## Where it runs`): each step, what it needs from the place that runs it (the words in
  * tools/places.mjs), whether a person must say yes first, whether it is safe to do twice, and what
- * happens when no place has what it needs. A run in the cloud that reaches a step only a device can
- * do posts it as a to-do (apps/mediamake/docs/cloud-device-runs.md):
+ * happens on a place that lacks what it needs: "a to-do …" when it waits for a place that has it,
+ * else what the place does instead. A run in the cloud that reaches a step that waits posts it as a
+ * to-do (apps/mediamake/docs/cloud-device-runs.md):
  *
  *   | Step | Needs | A person's yes | Safe to repeat | Without it |
  *   |---|---|---|---|---|

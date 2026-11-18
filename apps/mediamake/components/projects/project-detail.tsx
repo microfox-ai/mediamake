@@ -140,7 +140,9 @@ export function ProjectDetail({
   code = null,
   readmeHtml,
   about,
+  storageHost,
 }: {
+  /** The host of MediaMake's file storage, for a cloud environment with limited network access. */ storageHost?: string;
   /** The Code tab (lib/space/space spaceCodeView), with its README as HTML and its opening paragraph. */ code?: SpaceCodeView | null;
   readmeHtml?: string;
   about?: string;
@@ -400,7 +402,7 @@ export function ProjectDetail({
 
         <TabsContent value="setup" className="flex flex-col gap-3">
           <SetUp projectId={projectId} personal={personal} />
-          <CloudSetupCard space={space} linked={linked} personal={personal} />
+          <CloudSetupCard space={space} linked={linked} personal={personal} storage={storageHost} />
           <p className="text-xs text-muted-foreground">
             Productions, releases and media are added from Claude: ask it to share or sync them (the MediaMake Spaces MCP, or{' '}
             <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm media sync</span>).

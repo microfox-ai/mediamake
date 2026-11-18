@@ -57,7 +57,10 @@ missing (a space repo not added to the environment, a key one of its skills need
 the app (Set up › Run it in the cloud) lists what to add to a cloud environment before that: the
 repositories, and the keys by their variable's name; give the user that page when they set up a cloud
 session or a routine. Renders run in the session's machine
-(`mm render <slug> --preview`, then the master). The files land in the workspace's `out/<slug>/`; give
+(`mm render <slug> --preview`, then the master). A cloud session has no ElevenLabs MCP: a voice take there
+is `mm voice <slug> --text=<the script> --voice=<the brand's voices.json>` (the characters and the credits
+left first, `--yes` after the user's yes or within a routine's budget), with the environment's key, as
+`mm transcribe` does; on a computer the MCP's `text_to_speech` stays the first choice. The files land in the workspace's `out/<slug>/`; give
 them to the user with `mm cloud deliver <slug>` (into the project's shared files when there are some). A
 project that needs Browse Hack, Midjourney or media only on the Mac is not for a cloud session yet.
 `apps/studio/README.md` › Cloud sessions has the details.
@@ -74,9 +77,12 @@ so those steps never run in a cloud session. `apps/mediamake/docs/cloud-device-r
   changes. `skills.mjs add`, `publish` and `mm submit` stop on a skill without one.
 - A need names a thing, never a secret: `key:elevenlabs`, never the key; `browser:youtube/<channel>`,
   never a password. Keys are set in the cloud environment or on the device, by the person.
-- In a cloud session, do the steps that can run there and stop at one that needs a device: say which
-  step, what it needs and what the sheet's "Without it" says, and post it as a to-do (below). Don't
-  work around it.
+- "Without it" says what a place that lacks the need does: "a to-do …" means the step waits for a
+  place that has it; anything else is what to do instead, there. A cell holds only its column's words
+  (a reason or a condition goes under the table): `mm space status` says which rows can't be read.
+- In a cloud session, do the steps that can run there, a step with another way that way, and stop at
+  one that waits: say which step, what it needs and what the sheet's "Without it" says, and post it
+  as a to-do (below). Don't work around it.
 
 ## The register: where a step can run
 
@@ -128,8 +134,10 @@ in another. `apps/mediamake/docs/cloud-device-runs.md` › The run record has th
   `mm run save <slug> <n> --production` (its code and renders go to the project's Productions),
   `--release` for a release kit, `--output="<the link>"` for what it made. A step isn't done until it
   is saved, and a saved step is never done again.
-- A step this place can't do: `mm run wait <slug> <n>` posts it as a to-do and lets go of the run. Then
-  end; don't post the to-do by hand as well.
+- A step this place lacks something for: when the run sheet says what to do without it, do that here
+  (`mm run step <slug> <n> --without`), so the run stays in one place. When it says "a to-do …",
+  `mm run wait <slug> <n>` posts it as a to-do and lets go of the run. Then end; don't post the to-do
+  by hand as well.
 - "Continue <slug> in <project>" is `mm run resume <slug> --project=<project>`: do what it prints, from
   the step it names. When it lists files here that differ from the saved ones, show the user and run
   `--take-saved` only when they say so.

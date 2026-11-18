@@ -4,6 +4,7 @@ import { ProjectDetail } from '@/components/projects/project-detail';
 import { canUseCloudProjects } from '@/lib/access';
 import { getSpaces } from '@/lib/app-shell/member-data';
 import { getAppViewer } from '@/lib/app-shell/viewer';
+import { storageHost } from '@/lib/projectsync/storage';
 import { readmeAbout, readmeHtml } from '@/lib/space/readme';
 import { spaceDB } from '@/lib/space/store';
 
@@ -41,6 +42,7 @@ export default async function AppSpacePage({ params }: { params: Promise<{ id: s
         code={code}
         readmeHtml={readme}
         about={code?.readme ? readmeAbout(code.readme) : undefined}
+        storageHost={storageHost()}
       />
     </AppPage>
   );

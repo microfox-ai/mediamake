@@ -230,7 +230,10 @@ the workspace and Claude, then checks the keys their run sheets name (`ELEVENLAB
 `key:elevenlabs`, and so on): set them as the environment's variables. The space's page in the app (Set
 up › Run it in the cloud) lists the repositories and the keys for an environment before you make it.
 Skills linked during a session load in the next one; read their SKILL.md until
-then. A session's machine is thrown away afterwards: `mm cloud deliver` copies the renders and the
+then. MCPs set up on your computer aren't there either: for a voice, `mm voice <slug> --text=<file>
+--voice=<voices.json | voice id>` makes the take with the environment's `ELEVENLABS_API_KEY` (the first
+run only says the characters and the credits left; `--yes` sends it), as `mm transcribe` does for the
+words. A session's machine is thrown away afterwards: `mm cloud deliver` copies the renders and the
 project's code (no analysis or media over 2 MB) to where you can get them, and changes to a skill go back
 with `mm space sync --yes`. Not yet in a cloud session: Browse Hack, Midjourney, anything signed in on
 your computer, media only in your library there.

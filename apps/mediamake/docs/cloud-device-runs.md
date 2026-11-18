@@ -55,9 +55,10 @@ Every skill has a `## Where it runs` section with one table, a row a step, in th
 | Step | Needs | A person's yes | Safe to repeat | Without it |
 |---|---|---|---|---|
 | 1. Write the short | nothing | no | yes | - |
-| 2. Voice it | `key:elevenlabs` | no | yes | a to-do for a place with the key |
-| 3. Build and render | `render` | no | yes | - |
-| 4. Upload to YouTube | `mcp:browse-hack`, `browser:youtube/doomcat` | no | no | a to-do: upload the release from a computer signed in to the channel |
+| 2. The crowd's takes | `mcp:browse-hack` | no | yes | the takes from the web only |
+| 3. Voice it | `key:elevenlabs` | no | yes | a to-do for a place with the key |
+| 4. Build and render | `render` | no | yes | - |
+| 5. Upload to YouTube | `mcp:browse-hack`, `browser:youtube/doomcat` | no | no | a to-do: upload the release from a computer signed in to the channel |
 ```
 
 - **Needs**: the words above, separated by commas; `nothing` for none.
@@ -65,9 +66,17 @@ Every skill has a `## Where it runs` section with one table, a row a step, in th
   name, spending past a limit). Most steps are `no`.
 - **Safe to repeat**: `no` when running it twice does harm (an upload, a purchase), so a resumed run
   never repeats it.
-- **Without it**: what happens when no place has what the step needs. Required for a step that needs
-  a key, an MCP, an app, a sign-in or the library; `-` when it needs nothing, or only `render` (every
-  place that is set up renders).
+- **Without it**: what happens on a place that lacks what the step needs. Required for a step that
+  needs a key, an MCP, an app, a sign-in or the library; `-` when it needs nothing, or only `render`
+  (every place that is set up renders). It says one of two things:
+  - **"a to-do …"**: the step waits for a place that has it. Write it this way when nothing else will
+    do (an upload, a paid voice).
+  - **anything else**: what the place does instead, there ("the takes from the web only", "skipped in
+    a cloud session"). The run stays in one place, and its record says the step was done without.
+- A cell holds only what its column is for. A reason or a condition ("in auto mode", "optional",
+  "it costs") goes in a line under the table, never in a Needs, yes or repeat cell: a row that can't
+  be read is left out, and `mm run` refuses the whole sheet. `mm space status` and `mm space sync`
+  say which rows.
 
 `mm space new skill <name>` starts a skill with the table. `node tools/skills.mjs check` reads every
 sheet in the repo; `skills.mjs add`, `publish` and `mm submit` stop on a skill with no sheet or a row
@@ -87,7 +96,8 @@ or a routine:
 2. **The keys to set**, by the name of the environment variable: `MEDIAMAKE_API_KEY` always (it signs
    the session in to MediaMake; made on `/app/api-keys`), then one per `key:<name>` with the skills
    that use it and where to get one. A skill with no run sheet is named, because its keys aren't known.
-   For an environment whose network access is Limited it also names the hosts the keys call.
+   For an environment whose network access is Limited it also names the hosts the keys call and the
+   host of MediaMake's file storage, where a run saves and fetches productions and releases.
 3. **The line each session starts with**: `npm run mm -- cloud`.
 
 Under them: what stays on a computer (the device-only needs, and which skills have them).
@@ -251,8 +261,9 @@ A session runs a production like this:
 | --- | --- | --- |
 | It begins | `mm run start <project> <slug> --skill=<name>` | Makes the record from the skill's run sheet and takes the run for this place. It shows each step and whether this place has what it needs |
 | A step starts | `mm run step <slug> <n>` | Marks it started here (`--hours=<n>` when it takes more than 2). Refused when this place lacks what the step needs |
+| This place lacks what a step needs, and the sheet says what to do instead | `mm run step <slug> <n> --without` | Marks it started here, done the sheet's other way. The record keeps what the place lacked. Refused when the sheet's "Without it" is "a to-do …" |
 | A step's work is done | `mm run save <slug> <n>` | Marks it saved. `--production` sends `projects/<slug>` and `out/<slug>` to the project's Productions, `--release[=<folder>]` sends the release kit (`out/youtube/<slug>` unless named) to its Releases, `--output="<a link>"` records what it made. Only changed files go up, and nothing changed makes no new version |
-| The next step can't run here | `mm run wait <slug> [<n>]` | Posts the step as a to-do (its needs, its yes, the production or release and its version) and lets go of the run. The session ends: it never waits |
+| The next step can't run here, and the sheet says it waits | `mm run wait <slug> [<n>]` | Posts the step as a to-do (its needs, its yes, the production or release and its version) and lets go of the run. The session ends: it never waits |
 | Another place goes on | `mm run resume <slug>` | Takes the run, brings the project's space up to date, fetches what the run saved into the workspace, and says what is next |
 | It stops for now | `mm run stop <slug>` | Lets go of the run, so any place may continue it |
 
@@ -314,8 +325,9 @@ Where people and sessions meet it:
 | `GET /api/space/runs?project=<id>` | That project's runs. `&slug=<slug>` is one; without `project`, the runs that aren't over in every project the account works on |
 | `POST /api/space/runs` | `{ action: "start", project, slug, skill, steps, … }`, or `{ action: "resume" \| "step" \| "save" \| "wait" \| "stop" \| "cancel", project, slug, … }`. An ask from a place that doesn't have the run is answered 409 with who has it |
 
-A run record holds the production's slug and title, the skill's name, each step's name, needs and
-state, the name of the place and the person that did it, what it saved by reference (a version of the
+A run record holds the production's slug and title, the skill's name, each step's name, needs,
+"Without it" line and state, the name of the place and the person that did it, the needs that place
+lacked when it did the step the sheet's other way, what it saved by reference (a version of the
 production, the release's slug, version and workspace folder, a commit), and a line of output. Never a
 key, a password, a file or a path outside the workspace: an output that looks like a secret is refused.
 

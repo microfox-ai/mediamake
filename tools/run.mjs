@@ -13,8 +13,12 @@
  *                                       starts the run of production <slug> here, with that skill's run
  *                                       sheet. A production runs once at a time: a second start is told
  *                                       who has it and where. --again runs a finished one from step 1.
- *   mm run step <slug> <n> [--hours=<n>]
- *                                       step n starts here (--hours when it takes more than 2)
+ *   mm run step <slug> <n> [--hours=<n>] [--without]
+ *                                       step n starts here (--hours when it takes more than 2).
+ *                                       --without: this place lacks something the step needs and does
+ *                                       what the run sheet's "Without it" says instead (web search for
+ *                                       Browse Hack, say). Refused when the sheet says the step waits
+ *                                       ("a to-do …") or says nothing.
  *   mm run save <slug> <n> [--production] [--release[=<folder>]] [--output="<what it made, a link>"]
  *                                       step n is saved. --production sends projects/<slug> and
  *                                       out/<slug> to the project's Productions; --release sends the
@@ -74,7 +78,7 @@ export function stepsOf(file) {
   const sheet = runSheet(file);
   if (sheet.found && sheet.errors.length) throw new Error(`The skill's run sheet can't be read:\n  ${sheet.errors.join('\n  ')}`);
   if (!sheet.found) return { steps: [{ step: 'The whole skill', needs: [] }], whole: true };
-  return { steps: sheet.steps.map(({ step, needs, yes, repeat }) => ({ step, needs, ...(yes && { yes: true }), ...(repeat && { repeat: true }) })), whole: false };
+  return { steps: sheet.steps.map(({ step, needs, yes, repeat, without }) => ({ step, needs, ...(yes && { yes: true }), ...(repeat && { repeat: true }), ...(without && { without }) })), whole: false };
 }
 
 /** What a step needs that this place doesn't have. */
@@ -84,7 +88,7 @@ export const lacksHere = (step, can) => missing(can, step.needs.map(n => (typeof
 export function runLine(run, can) {
   const next = run.next;
   const lacks = next ? missing(can, next.needs) : [];
-  const where = next ? (lacks.length ? `not this place (no ${lacks.join(', ')})${next.places.length ? `; ${next.places.join(', ')} can` : ''}` : 'this place can do it') : '';
+  const where = next ? (!lacks.length ? 'this place can do it' : next.without ? `this place can do it the run sheet's other way (no ${lacks.join(', ')})` : `not this place (no ${lacks.join(', ')})${next.places.length ? `; ${next.places.join(', ')} can` : ''}`) : '';
   const tail =
     run.state === 'running'
       ? `${run.heldBy} ${run.heldBy === 'You' ? 'have' : 'has'} it${run.heldOn ? ` on ${run.heldOn}` : ''} since ${clock(run.heldSince)}${next ? `, at step ${next.n} (${next.step})` : ''}`
@@ -105,7 +109,7 @@ export function stepLines(run, can) {
     const lacks = lacksHere(step, can);
     const tail =
       step.state === 'done'
-        ? [[step.place, step.at && clock(step.at)].filter(Boolean).join(', '), step.output].filter(Boolean).join('   ')
+        ? [[step.place, step.at && clock(step.at)].filter(Boolean).join(', '), step.lacked?.length && `without ${step.lacked.map(l => l.need).join(', ')}`, step.output].filter(Boolean).join('   ')
         : step.state === 'waiting'
           ? `waits as to-do ${step.todo}${step.todoState ? ` (${step.todoState})` : ''}`
           : step.state === 'unsaved'
@@ -113,7 +117,9 @@ export function stepLines(run, can) {
             : step.state === 'started'
               ? `started${step.place ? ` on ${step.place}` : ''}${step.at ? `, ${clock(step.at)}` : ''}`
               : lacks.length
-                ? `not this place (no ${lacks.join(', ')})`
+                ? step.without
+                  ? `here the run sheet's other way (no ${lacks.join(', ')})`
+                  : `not this place (no ${lacks.join(', ')})`
                 : step.needs.length
                   ? 'this place can do it'
                   : '';
@@ -121,9 +127,15 @@ export function stepLines(run, can) {
   });
 }
 
+/** What to say about a step this place does the run sheet's other way, lacking `lacks`. */
+const otherWay = (slug, step, lacks) => [
+  `This place has no ${lacks.join(', ')}. The run sheet says what to do without: "${step.without}". Do that here, so the run stays in one place.`,
+  `Only when that isn't good enough for this production: mm run wait ${slug} ${step.n} posts the step for a place that has it${step.places?.length ? ` (${step.places.join(', ')})` : ''}.`,
+];
+
 /** The session-start line: the runs ready to continue that this place can do. Empty when there are none. */
 export function hookLine(runs, can) {
-  const able = runs.filter(run => run.state === 'ready' && run.next && !missing(can, run.next.needs).length);
+  const able = runs.filter(run => run.state === 'ready' && run.next && (run.next.without || !missing(can, run.next.needs).length));
   if (!able.length) return '';
   const first = able.slice(0, 3).map(run => `${run.slug} (${run.projectName}), next step ${run.next.n} "${run.next.step}"`);
   return `MediaMake: ${able.length === 1 ? 'a run is' : `${able.length} runs are`} ready to continue that this place can do: ${first.join('; ')}${able.length > 3 ? '; …' : ''}. Tell the user, and continue one only when they say so: mm run resume <slug>.`;
@@ -143,7 +155,7 @@ export function brief(run, can, place, fetched = []) {
     lines.push(`Step ${next.n} (${next.step}) waits as to-do ${step.todo}. ${lacks.length ? 'This place can\'t do it either: let go of the run (mm run stop ' + run.slug + ').' : `This place can do it: mm todo pick ${step.todo}`}`);
     return lines.join('\n');
   }
-  if (lacks.length) {
+  if (lacks.length && !next.without) {
     lines.push(
       `Step ${next.n} (${next.step}) needs ${lacks.join(', ')}, which this place doesn't have.${next.places.length ? ` ${next.places.join(', ')} can do it.` : ''}`,
       `Post it for a place that can, and end there (a session never waits):  mm run wait ${run.slug} ${next.n}`,
@@ -151,10 +163,11 @@ export function brief(run, can, place, fetched = []) {
     return lines.join('\n');
   }
   lines.push(`Go on with step ${next.n} (${next.step}): follow the ${run.skill} skill for that step.`);
+  if (lacks.length) lines.push(...otherWay(run.slug, next, lacks));
   if (step.state === 'unsaved' && !step.repeat) lines.push("It was started before and never saved, and it must not happen twice: check first that it didn't already (a link on the release, the video on the channel). If it did, only save the step with its result.");
   if (step.needsYes) lines.push("It waits for a person's yes: ask the user, here, before doing it.");
   lines.push(
-    `  When it starts:           mm run step ${run.slug} ${next.n}`,
+    `  When it starts:           mm run step ${run.slug} ${next.n}${lacks.length ? ' --without' : ''}`,
     `  When its work is saved:   mm run save ${run.slug} ${next.n} --production   (--release for a release kit, --output="<a link>" for what it made)`,
     `  A step this place can't do:  mm run wait ${run.slug} <n>     Not now after all:  mm run stop ${run.slug}`,
   );
@@ -250,16 +263,22 @@ async function start(env, args, flags, flag) {
   return 0;
 }
 
-async function step(env, slug, raw, wanted, flag) {
+async function step(env, slug, raw, wanted, flags, flag) {
   const run = await findRun(env, slug, wanted);
   const n = stepOf(raw, run);
   const { can, name } = here(env);
-  const lacks = lacksHere(run.steps[n - 1], can);
-  if (lacks.length) throw new Error(`This place doesn't have what step ${n} (${run.steps[n - 1].step}) needs: ${lacks.join(', ')}. Post it for a place that has: mm run wait ${slug} ${n}. If this place does have it, say so first (mm access add <need>).`);
+  const sheet = run.steps[n - 1];
+  const lacks = lacksHere(sheet, can);
+  if (lacks.length) {
+    const no = `This place doesn't have what step ${n} (${sheet.step}) needs: ${lacks.join(', ')}.`;
+    const has = `If this place does have it, say so first (mm access add <need>).`;
+    if (!sheet.without) throw new Error(`${no} Post it for a place that has: mm run wait ${slug} ${n}. ${has}`);
+    if (!flags.includes('--without')) throw new Error(`${no} The run sheet says what to do without: "${sheet.without}". To do that here: mm run step ${slug} ${n} --without. To post it for a place that has it: mm run wait ${slug} ${n}. ${has}`);
+  }
   const hours = Number(flag('hours'));
-  const { run: now } = await api(env, 'POST', '', { action: 'step', project: run.project, slug, step: n, place: name, ...(hours > 0 && { hours }) });
+  const { run: now } = await api(env, 'POST', '', { action: 'step', project: run.project, slug, step: n, place: name, ...(hours > 0 && { hours }), ...(lacks.length && { lacked: lacks }) });
   const started = now.steps[n - 1];
-  console.log(`◐ Step ${n} (${started.step}) of ${slug} started here.`);
+  console.log(`◐ Step ${n} (${started.step}) of ${slug} started here${lacks.length ? `, without ${lacks.join(', ')}: ${sheet.without}` : ''}.`);
   if (run.steps[n - 1].state === 'unsaved' && !started.repeat) console.log("  It was started before and never saved, and it must not happen twice: check first that it didn't already. If it did, only save it with its result.");
   if (started.needsYes) console.log("  It waits for a person's yes: ask the user, here, before doing it.");
   console.log(`  When its work is saved: mm run save ${slug} ${n} --production   (--release for a release kit, --output="<a link>")`);
@@ -311,7 +330,7 @@ async function save(env, slug, raw, wanted, flags, flag) {
   if (now.state === 'done') return console.log(`✔ ${slug} ran to the end.`), 0;
   const next = now.next;
   const lacks = missing(can, next.needs);
-  console.log(lacks.length ? `  Next, step ${next.n} (${next.step}), needs ${lacks.join(', ')}, which this place doesn't have: mm run wait ${slug} ${next.n} posts it for a place that can.` : `  Next: step ${next.n} (${next.step}). mm run step ${slug} ${next.n}`);
+  console.log(!lacks.length ? `  Next: step ${next.n} (${next.step}). mm run step ${slug} ${next.n}` : next.without ? `  Next: step ${next.n} (${next.step}). This place has no ${lacks.join(', ')}; the run sheet says what to do without: "${next.without}". mm run step ${slug} ${next.n} --without` : `  Next, step ${next.n} (${next.step}), needs ${lacks.join(', ')}, which this place doesn't have: mm run wait ${slug} ${next.n} posts it for a place that can.`);
   return 0;
 }
 
@@ -414,7 +433,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     if (run.state === 'ready' || run.state === 'waiting') console.log(`  The line to continue it: ${run.line}`);
     return 0;
   }
-  if (cmd === 'step') return step(env, slugOf(args[0]), args[1], wanted, flag);
+  if (cmd === 'step') return step(env, slugOf(args[0]), args[1], wanted, flags, flag);
   if (cmd === 'save') return save(env, slugOf(args[0]), args[1], wanted, flags, flag);
   if (cmd === 'wait') return wait(env, slugOf(args[0]), args[1], wanted, flag);
   if (cmd === 'resume' || cmd === 'continue') return resume(env, slugOf(args[0]), wanted, flags);

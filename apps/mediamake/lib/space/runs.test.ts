@@ -172,3 +172,41 @@ test('the view says what comes next and which place can do it', () => {
   assert.deepEqual(waits.steps[3].needs[1], { need: 'browser:youtube/doomcat', label: 'a browser signed in to youtube as doomcat' });
   assert.deepEqual([runs.heldBy, runs.heldOn, runs.mine, runs.steps[0].state], ['You', 'cloud', true, 'todo']);
 });
+
+test("a step is done the run sheet's other way on a place that lacks a need, never when the sheet says it waits", () => {
+  const sheet = [
+    { step: "The crowd's takes", needs: ['mcp:browse-hack'], repeat: true, without: ' the takes from the  web only ' },
+    { step: 'Voice it', needs: ['key:elevenlabs'], repeat: true, without: 'a to-do for a place with the key' },
+    { step: 'Upload', needs: ['browser:youtube/doomcat'], without: 'A to-do: upload it from a computer' },
+    { step: 'Close', needs: [], without: 'sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+  ];
+  // the words travel with the steps, a secret never
+  assert.deepEqual(sheetSteps(sheet).map(step => step.without), ['the takes from the web only', 'a to-do for a place with the key', 'A to-do: upload it from a computer', undefined]);
+  let run = ok(startRun(null, ana, parseRunAsk({ action: 'start', ...at, skill: 'takes', steps: sheet, place: 'cloud' }) as Start, T0));
+
+  // the page says a step has another way only when it does
+  const page = (r: RunRecord) => runsView({ project: P1, name: 'Doomcat', role: 'owner', me: 'ana', runs: [r], now: T0.getTime() + HOLD_MS * 2 }).runs[0];
+  assert.equal(page(run).next?.without, 'the takes from the web only');
+  assert.deepEqual(page(run).steps.map(step => step.without), ['the takes from the web only', undefined, undefined, undefined]);
+
+  // lacked needs that aren't the step's are dropped; the ones that are, are kept on the step through the save
+  run = ok(applyRunAsk(run, ana, ask({ action: 'step', step: 1, place: 'cloud', lacked: ['mcp:browse-hack', 'key:other', 'nonsense'] }), later(1000)));
+  assert.deepEqual(run.steps[0].lacked, ['mcp:browse-hack']);
+  run = ok(applyRunAsk(run, ana, ask({ action: 'save', step: 1, place: 'cloud', output: 'web takes only' }), later(2000)));
+  assert.deepEqual([run.steps[0].state, run.steps[0].lacked, run.steps[0].without], ['done', ['mcp:browse-hack'], 'the takes from the web only']);
+  assert.deepEqual(page(run).steps[0].lacked, [{ need: 'mcp:browse-hack', label: 'the browse-hack MCP' }]);
+
+  // "a to-do …" waits: it is never done another way, and the page shows none
+  const refused = applyRunAsk(run, ana, ask({ action: 'step', step: 2, place: 'cloud', lacked: ['key:elevenlabs'] }), later(3000)) as { error: string };
+  assert.match(refused.error, /Step 2 \(Voice it\) waits for a place that has key:elevenlabs: its run sheet doesn't say what to do without \(mm run wait doomcat-0412 2\)/);
+  assert.equal(page(run).next?.without, undefined);
+  // started again on a place that has it: nothing lacked is left on the step
+  run = ok(applyRunAsk(run, ana, ask({ action: 'step', step: 2, place: 'cloud' }), later(4000)));
+  assert.equal(run.steps[1].lacked, undefined);
+
+  // a to-do that is cancelled gives the step back with its sheet's words
+  run = ok(applyRunAsk(run, ana, ask({ action: 'save', step: 2, place: 'cloud' }), later(5000)));
+  run = ok(applyRunAsk(run, ana, ask({ action: 'wait', step: 3 }), later(6000), 'td-up0001'));
+  const back = afterTodo(run, { id: 'td-up0001', step: 'Upload', state: 'cancelled' }, later(7000))!;
+  assert.deepEqual(back.steps[2], { step: 'Upload', needs: ['browser:youtube/doomcat'], without: 'A to-do: upload it from a computer', state: 'todo' });
+});

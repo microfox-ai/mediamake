@@ -23,6 +23,13 @@ const DEVICE_MCPS = new Set<string>(table.deviceMcps);
 /** True when only a device can have it: a browser sign-in, an app, the media library, an MCP that drives a browser. */
 export const deviceOnly = (need: string): boolean => /^(browser|app|media):/.test(need) || (need.startsWith('mcp:') && DEVICE_MCPS.has(need.slice('mcp:'.length)));
 
+/**
+ * Does a step wait for a place that has what it needs? Yes when its "Without it" is empty or starts
+ * with "a to-do". Any other "Without it" says what a place that lacks the need does instead, there.
+ * The same rule as tools/places.mjs.
+ */
+export const waitsWithout = (without?: string): boolean => !without || /^(a\s+)?to-?do\b/i.test(without.trim());
+
 export interface KeyInfo {
   /** As a run sheet names it: `elevenlabs`. */
   name: string;

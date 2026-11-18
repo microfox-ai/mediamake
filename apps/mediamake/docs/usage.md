@@ -125,8 +125,9 @@ delete them: cancel one on the project's page or with `mm todo cancel`.
 
 A production's run record (`mm run`, `docs/cloud-device-runs.md` › The run
 record) is the project's own work too. It holds the production's slug and
-title, the skill's name, each step's name and what it needs, who started or
-saved it and on which place by name, a line of output (a version, a link), and
+title, the skill's name, each step's name, what it needs and its run sheet's
+"Without it" line, who started or saved it and on which place by name, the
+needs that place lacked when it did the step another way, a line of output (a version, a link), and
 what was saved by reference: a version of the production, the release's slug,
 version and folder in the workspace, a commit (`POST /api/space/runs`, stored
 in `runs`). Everyone on the project reads it, so it never holds a key or a

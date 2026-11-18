@@ -61,6 +61,12 @@ export function has(can, need) {
 export const missing = (can, needs) => needs.filter(need => !has(can, need));
 
 /**
+ * Does a step wait for a place that has what it needs? Yes when its "Without it" is empty or starts
+ * with "a to-do". Any other "Without it" says what a place that lacks the need does instead, there.
+ */
+export const waitsWithout = without => !without || /^(a\s+)?to-?do\b/i.test(String(without).trim());
+
+/**
  * Where a skill's steps can run, in one word: `anywhere` (no step needs a device), `device` (every step
  * that needs anything needs a device) or `mixed` (some steps need a device: the split the planner may make).
  */

@@ -42,6 +42,7 @@ const toCommand = script => Object.entries(ALIASES).find(([, s]) => s === script
 const ABOUT = {
   analyze: 'stems, beat grid and aligned words of a project → analysis/',
   transcribe: "a song's timed words with ElevenLabs Scribe (free first run: the price)",
+  voice: "a take of a script in an ElevenLabs voice, where no ElevenLabs MCP runs (free first run: the characters)",
   prepare: 'input/ (+ analysis/) → manifest.json',
   preview: 'Remotion Studio (mm preview <slug> opens one project, fastest)',
   stills: 'one frame per section, or the seconds you list',
