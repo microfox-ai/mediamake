@@ -57,7 +57,10 @@ missing (a space repo not added to the environment, a key one of its skills need
 the app (Set up › Run it in the cloud) lists what to add to a cloud environment before that: the
 repositories, and the keys by their variable's name; give the user that page when they set up a cloud
 session or a routine. Renders run in the session's machine
-(`mm render <slug> --preview`, then the master). The files land in the workspace's `out/<slug>/`; give
+(`mm render <slug> --preview`, then the master). A cloud session has no ElevenLabs MCP: a voice take there
+is `mm voice <slug> --text=<the script> --voice=<the brand's voices.json>` (the characters and the credits
+left first, `--yes` after the user's yes or within a routine's budget), with the environment's key, as
+`mm transcribe` does; on a computer the MCP's `text_to_speech` stays the first choice. The files land in the workspace's `out/<slug>/`; give
 them to the user with `mm cloud deliver <slug>` (into the project's shared files when there are some). A
 project that needs Browse Hack, Midjourney or media only on the Mac is not for a cloud session yet.
 `apps/studio/README.md` › Cloud sessions has the details.

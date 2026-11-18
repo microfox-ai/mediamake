@@ -96,7 +96,8 @@ or a routine:
 2. **The keys to set**, by the name of the environment variable: `MEDIAMAKE_API_KEY` always (it signs
    the session in to MediaMake; made on `/app/api-keys`), then one per `key:<name>` with the skills
    that use it and where to get one. A skill with no run sheet is named, because its keys aren't known.
-   For an environment whose network access is Limited it also names the hosts the keys call.
+   For an environment whose network access is Limited it also names the hosts the keys call and the
+   host of MediaMake's file storage, where a run saves and fetches productions and releases.
 3. **The line each session starts with**: `npm run mm -- cloud`.
 
 Under them: what stays on a computer (the device-only needs, and which skills have them).

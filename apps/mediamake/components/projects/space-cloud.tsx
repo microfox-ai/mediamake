@@ -39,15 +39,16 @@ function Row({ line, label, children }: { line: string; label: string; children:
  * add and the keys to set, read from what the space's computers reported (lib/space/cloud-setup). Names
  * only: a key's value is set in Claude and never comes here.
  */
-export function CloudSetupCard({ space, linked = [], personal = false }: { space: SpaceView | null; linked?: LinkedItemView[]; personal?: boolean }) {
+export function CloudSetupCard({ space, linked = [], personal = false, storage }: { space: SpaceView | null; linked?: LinkedItemView[]; personal?: boolean; /** The host of MediaMake's file storage. */ storage?: string }) {
   const setup = React.useMemo(() => {
     const items = (view: SpaceView | null): SetupItem[] => (view?.items ?? []).map(item => ({ kind: item.kind, name: item.name, title: item.title, needs: item.needs }));
     return cloudSetup({
       personal,
       space: space && { repo: space.repo, repoUrl: space.repoUrl, items: items(space) },
       linked: linked.map(item => ({ repo: item.repo, repoUrl: item.repoUrl, title: item.title, items: items(item.space) })),
+      storage,
     });
-  }, [space, linked, personal]);
+  }, [space, linked, personal, storage]);
 
   return (
     <section className="rounded-xl border bg-card p-4">

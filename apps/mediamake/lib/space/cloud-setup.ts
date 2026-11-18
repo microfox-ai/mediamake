@@ -34,7 +34,7 @@ export interface SetupKey extends KeyInfo {
 export interface CloudSetup {
   repos: SetupRepo[];
   keys: SetupKey[];
-  /** The hosts the keys call, for an environment that allows only named domains. */
+  /** The hosts the keys call, and MediaMake's file storage, for an environment that allows only named domains. */
   hosts: string[];
   /** What only a device has: those steps never run in the cloud. */
   device: { need: string; label: string; usedBy: string[] }[];
@@ -67,8 +67,10 @@ export function cloudSetup(input: {
   personal?: boolean;
   space: { repo: string; repoUrl?: string; items: SetupItem[] } | null;
   linked?: { repo: string; repoUrl?: string; title: string; items: SetupItem[] }[];
+  /** The host of MediaMake's file storage, where a run saves and fetches productions and releases. */
+  storage?: string;
 }): CloudSetup {
-  const { personal = false, space, linked = [] } = input;
+  const { personal = false, space, linked = [], storage } = input;
   const repos: SetupRepo[] = [{ repo: FRAMEWORK_REPO, url: github(FRAMEWORK_REPO), why: 'MediaMake itself: the studio, mm and the renders' }];
   if (space) repos.push({ repo: space.repo, url: space.repoUrl ?? github(space.repo), why: personal ? 'Your space: your skills, MCPs and apps' : "This space: the project's skills, MCPs and apps" });
   for (const item of linked) if (!repos.some(r => r.repo === item.repo)) repos.push({ repo: item.repo, url: item.repoUrl ?? github(item.repo), why: `Linked: ${item.title}` });
@@ -101,7 +103,7 @@ export function cloudSetup(input: {
   return {
     repos,
     keys: list,
-    hosts: [...new Set(list.map(key => key.host).filter((host): host is string => !!host))],
+    hosts: [...new Set([...list.map(key => key.host), storage].filter((host): host is string => !!host))],
     device: [...device].map(([need, usedBy]) => ({ need, label: needLabel(need), usedBy })),
     unknown,
   };

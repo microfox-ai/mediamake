@@ -1,5 +1,5 @@
 /**
- * elevenlabs: the ElevenLabs API key and the two calls the scripts make with it (Scribe, the
+ * elevenlabs: the ElevenLabs API key and the calls the scripts make with it (Scribe, a voice take, the
  * credits left). The key is the one the ElevenLabs MCP already has, so the person pastes it once,
  * while setting up that MCP, and never into a script or a .env.
  *
@@ -129,4 +129,31 @@ export async function scribe(key: string, file: string, o: ScribeOptions = {}): 
     );
   }
   return (await res.json()) as ScribeResult;
+}
+
+export type VoiceSettings = { stability?: number; speed?: number; style?: number; boost?: boolean; similarity?: number };
+export type SpeakOptions = VoiceSettings & { voice: string; model?: string; format?: string; api?: string };
+
+/**
+ * One take of a text in a voice (text to speech): the audio's bytes. The same call the ElevenLabs
+ * MCP's text_to_speech makes, for a place that has the key and no MCP (a cloud session).
+ */
+export async function speak(key: string, text: string, o: SpeakOptions): Promise<Buffer> {
+  const settings = {
+    ...(o.stability !== undefined && { stability: o.stability }),
+    ...(o.similarity !== undefined && { similarity_boost: o.similarity }),
+    ...(o.style !== undefined && { style: o.style }),
+    ...(o.speed !== undefined && { speed: o.speed }),
+    ...(o.boost !== undefined && { use_speaker_boost: o.boost }),
+  };
+  const res = await fetch(`${o.api ?? API}/text-to-speech/${encodeURIComponent(o.voice)}?output_format=${encodeURIComponent(o.format ?? 'mp3_44100_128')}`, {
+    method: 'POST',
+    headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+    body: JSON.stringify({ text, model_id: o.model ?? 'eleven_v3', ...(Object.keys(settings).length && { voice_settings: settings }) }),
+  });
+  if (!res.ok) {
+    const why = await failure(res);
+    throw new Error(res.status === 401 ? `${why}\nThe key was refused: check it at ${KEYS_PAGE} (a restricted key needs Text to Speech allowed).` : why);
+  }
+  return Buffer.from(await res.arrayBuffer());
 }

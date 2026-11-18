@@ -21,6 +21,22 @@ function bucket() {
   return process.env.PROJECTSYNC_BUCKET || process.env.SPACES_BUCKET || '';
 }
 
+/**
+ * The host the signed links point at (the bucket's own, since the client addresses buckets by host):
+ * what a place with limited network access has to allow to save or fetch a production. Not a secret:
+ * it is in every link. Undefined when storage isn't set up.
+ */
+export function storageHost(env: Readonly<Record<string, string | undefined>> = process.env): string | undefined {
+  const name = env.PROJECTSYNC_BUCKET || env.SPACES_BUCKET;
+  try {
+    const host = new URL(env.SPACES_ENDPOINT ?? '').host;
+    // a bucket with a dot in its name is addressed by path, on the endpoint's own host
+    return name && host ? (name.includes('.') ? host : `${name}.${host}`) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** One file of one bundle: content-addressed, so versions share unchanged files. */
 export function fileKey(projectId: string, kind: BundleKind, bundleId: string, sha256: string, path: string) {
   const name = (path.split('/').pop() ?? 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);

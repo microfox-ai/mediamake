@@ -61,6 +61,9 @@ test('the cloud setup lists the repos to add, the keys to set and what stays on 
     ['OPEN_WEATHER_API_KEY', ['Pack']],
   ]);
   assert.deepEqual(setup.hosts, ['mediamake.microfox.app', 'api.elevenlabs.io']);
+  // with MediaMake's file storage, where a run saves and fetches: named once
+  assert.deepEqual(cloudSetup({ space: null, storage: 'files.blr1.example.com' }).hosts, ['mediamake.microfox.app', 'files.blr1.example.com']);
+  assert.deepEqual(cloudSetup({ space: null, storage: 'mediamake.microfox.app' }).hosts, ['mediamake.microfox.app']);
   assert.deepEqual(setup.device.map(d => [d.label, d.usedBy]), [
     ['the browse-hack MCP', ['Doomcat']],
     ['a browser signed in to youtube as doomcat', ['Doomcat']],
