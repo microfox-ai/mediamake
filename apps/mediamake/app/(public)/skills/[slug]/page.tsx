@@ -148,7 +148,7 @@ export default async function SkillPage({ params }: Props) {
                 count: made,
                 content: (
                   <div className="flex flex-col gap-6">
-                    <MadeWithThis itemId={id} mark={readiness} video={video} />
+                    <MadeWithThis itemId={id} mark={readiness} />
                     <ListingScreenshots itemId={id} media={listing?.media} />
                   </div>
                 ),

@@ -18,7 +18,7 @@ import { adminCall, type ItemDetail } from './model';
  * productions that make it Ready, each with a title, a link (a YouTube link
  * plays in the gallery), an uploaded picture and an uploaded clip. Saving
  * marks the item Ready with them (set_readiness); with none it can only go
- * back to Beta. The preview is the gallery its page shows, trailer first.
+ * back to Beta. The preview is the gallery its page shows (never the trailer, which plays above the README).
  */
 
 type Draft = { title: string; url: string; image: string; video: string };
@@ -68,7 +68,7 @@ export function ReadinessButton({ detail, onDone }: { detail: ItemDetail; onDone
 }
 
 function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose: () => void; onDone: () => void }) {
-  const { item, readinessMark, video } = detail;
+  const { item, readinessMark } = detail;
   const ready = item.readiness === 'ready';
   const [drafts, setDrafts] = useState<Draft[]>(() => {
     const saved = draftsOf(proofOf(readinessMark));
@@ -79,7 +79,7 @@ function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose:
   const proof = useMemo(() => proofFrom(drafts), [drafts]);
   const problems = drafts.map(problemOf);
   const valid = proof.length > 0 && problems.every(problem => !problem);
-  const tiles = useMemo(() => galleryTiles(video, proof), [video, proof]);
+  const tiles = useMemo(() => galleryTiles(proof), [proof]);
 
   const change = (i: number, patch: Partial<Draft>) => setDrafts(list => list.map((draft, at) => (at === i ? { ...draft, ...patch } : draft)));
   const move = (i: number, by: number) =>
@@ -110,8 +110,7 @@ function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose:
         <DialogHeader>
           <DialogTitle>Made with this: {item.title}</DialogTitle>
           <DialogDescription>
-            {RULE} Add the finished productions made with it: they are what makes it Ready, and its page shows them as a gallery, after its trailer
-            {video?.youtubeId ? '' : ' (it has none yet: add its intro video below on this page)'}.
+            {RULE} Add the finished productions made with it: they are what makes it Ready, and its page shows them as a gallery under Made with this. Its trailer is separate: it plays above the README.
           </DialogDescription>
         </DialogHeader>
 

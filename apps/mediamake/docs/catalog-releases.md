@@ -399,15 +399,15 @@ Every item of every kind, ours or made by others, has both, shown as badges:
   `lib/catalog/types.ts`), is kept: every item's page (`/skills/<name>`,
   `/mcps/<slug>`, `/apps/<slug>`) has a "Made with this" panel
   (`components/catalog/made-with.tsx`), laid out like a store listing: a
-  gallery whose big first tile is the item's trailer (its intro video), then
-  the productions of a Ready item. Each production (`ReadyProof`) has a
+  gallery of the productions of a Ready item. The item's trailer (its intro
+  video) is not one of them: it plays above the README, apart. Each production (`ReadyProof`) has a
   title and, optionally, a link (`url`: a YouTube link plays in place, any
   other opens from its tile), a picture (`image`) and a clip (`video`, MP4
   or WebM). An admin adds them on the item's release page (**Mark Ready** or
   **Made with this**: uploads go through `create_proof_upload`, public once
   uploaded), or as links with `catalog_set_readiness` and
-  `npm run catalog -- ready … --url --image --video`. A Beta item shows its
-  trailer and the note that no production is on record yet. A skill's
+  `npm run catalog -- ready … --url --image --video`. A Beta item shows the
+  note that no production is on record yet. A skill's
   production is asked for when it is published
   (`node tools/skills.mjs publish <name> --yes --made="…"`) and in every pull
   request (`.github/pull_request_template.md`).

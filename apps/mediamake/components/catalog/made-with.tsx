@@ -5,25 +5,22 @@ import { proofOf, RULE, type ReadinessMark } from '@/lib/catalog/types';
 
 /**
  * "Made with this": the proof behind the rule (RULE), on every item's page,
- * laid out like a store listing. The item's trailer (its intro video) is the
- * big first tile, then the finished productions made with it, as an admin
- * recorded them with the Ready mark (pictures, clips, YouTube links, links).
- * A Beta item shows its trailer when it has one and says that no production
- * is on record yet, so nobody takes it for proven.
+ * laid out like a store listing: the finished productions made with it, as
+ * an admin recorded them with the Ready mark (pictures, clips, YouTube links,
+ * links). The item's trailer is not one of them: it plays above the README.
+ * A Beta item says that no production is on record yet, so nobody takes it
+ * for proven.
  */
 export function MadeWithThis({
   itemId,
   mark,
-  video,
 }: {
   itemId: string;
   mark: ReadinessMark | null;
-  /** The item's intro video: the trailer. */
-  video?: { youtubeId?: string; title: string; description?: string; thumbnail?: string } | null;
 }) {
   const proof = proofOf(mark);
   const ready = proof.length > 0;
-  const tiles = galleryTiles(video, proof);
+  const tiles = galleryTiles(proof);
   return (
     <section id="made-with-this" className="flex scroll-mt-6 flex-col gap-3 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center gap-2">

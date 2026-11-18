@@ -91,7 +91,7 @@ export interface ItemDetails {
   locked?: string;
   /** An app that runs in MediaMake: where it opens. */
   open?: string;
-  /** What was made with it: its trailer first, then productions, pictures and links. */
+  /** What was made with it: productions, pictures and links. Never its trailer, which is `video`. */
   outputs: GalleryTile[];
   /** Its id in the store, when it is a store item the viewer can open: it can be rated and given feedback there. */
   itemId?: string;
@@ -476,7 +476,8 @@ function ofCatalog(
             },
           }),
     outputs: [
-      ...galleryTiles(item.video, item.readyProof ?? []),
+      // the trailer is not something made with it: it plays above the README (`video`)
+      ...galleryTiles(item.readyProof ?? []),
       ...made(ctx, item.kind, slug),
     ],
     ...(!item.locked && { itemId: item.id }),

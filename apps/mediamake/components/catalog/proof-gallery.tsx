@@ -8,8 +8,8 @@ import { onYouTubeThumbnailLoad, placeholderBackground, youtubeEmbedUrl } from '
 
 /**
  * The gallery of "Made with this" (see galleryTiles): one big stage, like a
- * store listing's first screenshot, and a strip of the others under it. The
- * trailer comes first as the big thumbnail and plays in place when pressed;
+ * store listing's first screenshot, and a strip of the others under it. A
+ * YouTube link plays in place when pressed,
  * a picture is shown whole, an uploaded clip plays, and a production with
  * only a link is a titled tile that opens it.
  */
@@ -32,7 +32,6 @@ export function ProofGallery({ itemId, tiles }: { itemId: string; tiles: Gallery
 
       <div className="flex flex-col gap-1">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          {tile.trailer && <span className="rounded bg-foreground px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-background">Trailer</span>}
           <span className="font-medium">{tile.title}</span>
           {tile.href && (
             <a href={tile.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline">
@@ -63,7 +62,6 @@ export function ProofGallery({ itemId, tiles }: { itemId: string; tiles: Gallery
                     <PlayIcon className="size-2.5 fill-current" />
                   </span>
                 )}
-                {entry.trailer && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">Trailer</span>}
               </button>
             </li>
           ))}
