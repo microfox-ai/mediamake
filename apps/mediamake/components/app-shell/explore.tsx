@@ -34,7 +34,7 @@ function writeFilters(f: ExploreFilters) {
  * ones a higher membership would open, locked and saying which (the cohort's
  * never reach this page: lib/app-shell/member › appItems). Search, kind and
  * category; Beta and membership badges; failed items only behind their
- * filter, with the reason. A card's picture or name opens the item dialog
+ * filter, with the reason. A card's picture or name opens the item's page
  * (./item-details); Open goes to its page.
  */
 export function Explore({

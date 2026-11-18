@@ -28,13 +28,13 @@ import type {
 import { detailsKey } from './details-key';
 
 /**
- * What the item dialog says about one skill, MCP or app, the same wherever
+ * What the item page says about one skill, MCP or app, the same wherever
  * it is listed (components/app-shell/item-details): what it is and where it
  * stands, its place in the store, what it belongs to, who can use it and
  * which computers have it, the command that puts it on a computer, and what
  * was made with it. Everything but its SKILL.md, which MediaMake never
  * holds. Pure, so it can be tested: plain text and links, made on the
- * server (./details-data) and handed to the dialog by key.
+ * server (./details-data) and shown on its page (/app/item) by key.
  */
 
 export interface DetailsStatus {
@@ -110,7 +110,7 @@ export interface ItemDetails {
   };
   /** Its intro video, played above the README when the README opens with none. */
   video?: { youtubeId: string; title?: string };
-  /** Its README, the left side of the dialog (lib/catalog/readme). Added where the details are loaded (./details-data). */
+  /** Its README, the left side of its page (lib/catalog/readme). Added where the details are loaded (./details-data). */
   readme?: ItemReadme;
 }
 

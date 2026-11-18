@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { rememberTab } from '@/components/app-shell/item-details';
 import {
   ArrowLeftIcon,
   Loader2Icon,
@@ -143,7 +144,9 @@ export function ProjectDetail({
   readmeHtml,
   about,
   storageHost,
+  tab,
 }: {
+  /** The tab to open first (`?tab=`): code, skills, brand… */ tab?: string;
   /** The host of MediaMake's file storage, for a cloud environment with limited network access. */ storageHost?: string;
   /** The Code tab (lib/space/space spaceCodeView), with its README as HTML and its opening paragraph. */ code?: SpaceCodeView | null;
   readmeHtml?: string;
@@ -292,7 +295,7 @@ export function ProjectDetail({
         </div>
       </div>
 
-      <Tabs defaultValue="code" className="gap-4">
+      <Tabs defaultValue={tab ?? 'code'} onValueChange={value => rememberTab(value)} className="gap-4">
         <div className="-mx-4 overflow-x-auto px-4">
           <TabsList>
             <Tab value="code" label="Code" />

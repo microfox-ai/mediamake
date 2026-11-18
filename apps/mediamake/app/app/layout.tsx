@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }
       >
         <AppShellSidebar variant="inset" tier={viewer.tier} clientId={viewer.clientId} />
-        {/* the one item dialog: a skill, MCP or app clicked on any page opens it */}
+        {/* a skill, MCP or app clicked on any page opens its page (/app/item) */}
         <ItemDetailsProvider>{children}</ItemDetailsProvider>
       </SidebarProvider>
     </SessionProvider>
