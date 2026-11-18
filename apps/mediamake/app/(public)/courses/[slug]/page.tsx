@@ -17,7 +17,7 @@ interface CoursePageProps {
 
 /**
  * A course and the lessons this viewer can open, in order. Hidden (as if it
- * didn't exist) from viewers who can't open the course, like /access.
+ * didn't exist) from viewers who can't open the course, like a locked item.
  */
 const loadCourse = cache(async (slug: string) => {
   const viewer = await getViewer();

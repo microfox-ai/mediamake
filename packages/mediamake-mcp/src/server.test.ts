@@ -438,7 +438,7 @@ describe('catalog admin tools', () => {
       item: 'tutorial/brand-kit-in-one-prompt',
       stage: 'cohort',
       page: 'http://mm.test/core/releases/tutorial/brand-kit-in-one-prompt',
-      plays: 'http://mm.test/access?item=tutorial%2Fbrand-kit-in-one-prompt',
+      plays: 'http://mm.test/tutorials/brand-kit-in-one-prompt',
     });
 
     const course = await call('catalog_add_video_item', { kind: 'course', slug: 'cwc', title: 'Cook with Claude' });

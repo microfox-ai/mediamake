@@ -690,7 +690,7 @@ describe('redirects', () => {
     const { safeRedirect, withRedirect } = await import('./redirect');
     assert.equal(safeRedirect('/oauth/authorize?client_id=x'), '/oauth/authorize?client_id=x');
     assert.equal(safeRedirect('https://evil.example', '/'), '/');
-    assert.equal(withRedirect('/signup', '/access?item=skill%2Fx'), '/signup?redirectTo=%2Faccess%3Fitem%3Dskill%252Fx');
+    assert.equal(withRedirect('/signup', '/skills/x?tab=made'), '/signup?redirectTo=%2Fskills%2Fx%3Ftab%3Dmade');
     assert.equal(withRedirect('/signup', '//evil.example'), '/signup');
   });
 });

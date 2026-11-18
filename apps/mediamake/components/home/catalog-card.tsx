@@ -32,18 +32,17 @@ const statusLabel: Record<CatalogEntry['status'], string> = {
 
 export function CatalogCard({ card }: { card: CatalogEntry }) {
   const locked = card.access === 'locked';
-  // Locked cards lead to the request-access page; a skill, an
-  // MCP or an app to its own page (which plays its intro video and opens or
-  // installs it); a tutorial or course to where it plays; and anything else
-  // installable to /access, its only page.
-  const accessHref = `/access?item=${encodeURIComponent(card.id)}`;
-  const href = locked
-    ? accessHref
-    : card.kind === 'skill' || card.kind === 'mcp' || card.kind === 'app'
-      ? itemPagePath(card.id)
+  // A skill, an MCP or an app leads to its own page (which plays its intro video and opens or
+  // installs it, or says which membership opens it); a tutorial or course to where it plays,
+  // and a locked one to Subscription, where a membership is asked for.
+  const item = card.kind === 'skill' || card.kind === 'mcp' || card.kind === 'app';
+  const href = item
+    ? itemPagePath(card.id)
+    : locked
+      ? '/app/subscription'
       : card.kind === 'course' || card.video
         ? watchPath(card.id)
-        : (card.href ?? (card.installPrompt ? accessHref : undefined));
+        : card.href;
   // a skill always shows a picture on top: its thumbnail, else its title on its own colour
   // its listing's headshot, else its video's thumbnail
   const headshot = card.headshot ?? card.video?.thumbnail;
@@ -94,12 +93,12 @@ export function CatalogCard({ card }: { card: CatalogEntry }) {
           {/* the card is a link itself: no link inside */}
           {card.madeBy && <MadeByLine madeBy={card.madeBy} link={false} />}
           {!locked && card.uses && card.uses.length > 0 && <UsesLine uses={card.uses} />}
-          {locked && <p className="text-xs font-medium text-foreground/80">Request access</p>}
+          {locked && <p className="text-xs font-medium text-foreground/80">How to get it</p>}
         </div>
 
         {!locked && card.installPrompt && (
           <div className="flex flex-wrap gap-2">
-            <CopyInstallPrompt prompt={card.installPrompt} fallbackHref={href ?? accessHref} />
+            <CopyInstallPrompt prompt={card.installPrompt} fallbackHref={href ?? itemPagePath(card.id)} />
             {card.updatePrompt && <CopyUpdatePrompt prompt={card.updatePrompt} />}
           </div>
         )}

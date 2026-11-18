@@ -103,8 +103,8 @@ export function rejectLocalArgs(
 
 /**
  * An item's own page on the site, the link to give people (the site's lib/catalog/paths and
- * video): /skills/<slug>, /mcps/<slug>, /apps/<slug>, a course's /courses/<slug>, and a tutorial's
- * /access?item=<id>, its only page.
+ * video): /skills/<slug>, /mcps/<slug>, /apps/<slug>, a course's /courses/<slug> and a tutorial's
+ * /tutorials/<slug>.
  */
 export function itemPagePath(id: string): { path: string; query?: Record<string, string> } {
   const [kind, slug] = id.split('/');
@@ -112,5 +112,6 @@ export function itemPagePath(id: string): { path: string; query?: Record<string,
   if (kind === 'mcp') return { path: `/mcps/${slug}` };
   if (kind === 'app') return { path: `/apps/${slug}` };
   if (kind === 'course') return { path: `/courses/${slug}` };
-  return { path: '/access', query: { item: id } };
+  if (kind === 'tutorial') return { path: `/tutorials/${slug}` };
+  return { path: '/' };
 }
