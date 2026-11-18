@@ -155,14 +155,28 @@ export function deviceLabel(env = process.env) {
   return device;
 }
 
-export async function call(method, url, key, body) {
-  const res = await fetch(url, {
-    method,
-    headers: { Accept: 'application/json', Authorization: `Bearer ${key}`, ...(body !== undefined && { 'Content-Type': 'application/json' }) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  const text = await res.text();
+/**
+ * One JSON request to the site, signed in with `key`. It gives up after 8 s, which suits usage reports and
+ * the other small calls; a caller that sends more (mm submit sends a whole item) passes a longer `timeoutMs`.
+ * Running out of time throws an Error named TimeoutError that says which route and how long it waited.
+ */
+export async function call(method, url, key, body, { timeoutMs = TIMEOUT_MS } = {}) {
+  let res;
+  let text;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: { Accept: 'application/json', Authorization: `Bearer ${key}`, ...(body !== undefined && { 'Content-Type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    text = await res.text();
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error;
+    const timedOut = new Error(`${new URL(url).pathname} did not answer within ${Math.round(timeoutMs / 100) / 10} s`, { cause: error });
+    timedOut.name = 'TimeoutError';
+    throw timedOut;
+  }
   let data;
   try {
     data = text ? JSON.parse(text) : undefined;
