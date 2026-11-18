@@ -7,14 +7,16 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import webpack from 'webpack';
 import * as app from '../../mediamake/lib/remotion-editor/server/workspace.ts';
 // @ts-expect-error: plain JS, no types (tools/workspace.mjs)
 import * as tools from '../../../tools/workspace.mjs';
-import { engineWebpack, overlayAliases, workspaceWebpack } from './workspace-webpack.ts';
+import { WorkspaceContexts, engineWebpack, overlayAliases, workspaceWebpack } from './workspace-webpack.ts';
 import { STUDIO_FOLDERS, WORKSPACE_FOLDERS, fromStudioPath, isWorkspaceSet, toStudioPath, workspaceDir, workspaceDirs, workspaceRoot, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 const STUDIO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -169,14 +171,44 @@ test('workspaceWebpack points the contexts, packages and engine at an outside wo
   const ws = path.join(tmp, 'ws');
   process.env.MEDIAMAKE_WORKSPACE = ws;
   const config = { plugins: [], resolve: { alias: { react: '/r' } } };
-  const out = workspaceWebpack(config, { studio: STUDIO }) as unknown as { plugins: { constructor: { name: string }; resourceRegExp: RegExp; newContentResource: string }[]; resolve: { modules: string[]; alias: Record<string, string> } };
-  const contexts = out.plugins.filter(p => p.constructor.name === 'ContextReplacementPlugin');
-  assert.deepEqual(contexts.map(p => p.newContentResource), [path.join(ws, 'projects'), path.join(ws, 'brands'), path.join(ws, 'thumbnails', 'jobs')]);
-  assert.ok(contexts[0].resourceRegExp.test(path.join(STUDIO, 'projects')));
-  assert.ok(!contexts[0].resourceRegExp.test(path.join(STUDIO, 'projects', 'x')));
+  const out = workspaceWebpack(config, { studio: STUDIO }) as unknown as { plugins: unknown[]; resolve: { modules: string[]; alias: Record<string, string> } };
+  const contexts = out.plugins.filter((p): p is WorkspaceContexts => p instanceof WorkspaceContexts);
+  assert.equal(contexts.length, 1);
+  const { moves } = contexts[0];
+  assert.deepEqual(moves.map(m => m.to), [path.join(ws, 'projects'), path.join(ws, 'brands'), path.join(ws, 'thumbnails', 'jobs')]);
+  assert.ok(moves[0].from.includes(path.join(STUDIO, 'projects')));
+  assert.ok(!moves[0].from.includes(path.join(STUDIO, 'projects', 'x')));
+  assert.ok(moves[2].from.includes(path.join(STUDIO, 'thumbnails', 'jobs')));
   assert.deepEqual(out.resolve.modules, ['node_modules', path.join(STUDIO, 'node_modules'), path.resolve(STUDIO, '..', '..', 'node_modules')]);
   assert.equal(out.resolve.alias.react, '/r');
   assert.equal(out.resolve.alias[path.join(ws, 'src')], path.join(STUDIO, 'src'));
+});
+
+test("a moved context compiles whether or not the studio's own folder exists (a fresh clone, a worktree)", async () => {
+  // a studio with logoGraphics/ and no brands/, as in every new checkout, and a workspace with one brand
+  const studio = path.join(tmp, 'studio');
+  const ws = path.join(tmp, 'ws');
+  const write = (file: string, text: string) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text);
+  };
+  write(path.join(studio, 'logoGraphics', 'index.js'), "module.exports = require.context('../brands', true, /^\\.\\/[^/]+\\/graphics\\/index\\.js$/).keys();\n");
+  write(path.join(ws, 'brands', 'acme', 'graphics', 'index.js'), "module.exports = 'acme';\n");
+  const bundle = async (name: string) => {
+    const dist = path.join(tmp, name);
+    const config = workspaceWebpack(
+      { mode: 'development', devtool: false, target: 'node', context: studio, entry: path.join(studio, 'logoGraphics', 'index.js'), output: { path: dist, library: { type: 'commonjs2' } }, plugins: [] },
+      { studio, dirs: { brands: path.join(ws, 'brands') }, root: null },
+    );
+    const stats = await new Promise<webpack.Stats>((resolve, reject) => webpack(config as webpack.Configuration).run((err, s) => (err || !s ? reject(err) : resolve(s))));
+    assert.deepEqual(stats.toJson({ all: false, errors: true }).errors?.map(e => e.message) ?? [], [], name);
+    return createRequire(import.meta.url)(path.join(dist, 'main.js')) as string[];
+  };
+  assert.ok(!fs.existsSync(path.join(studio, 'brands')));
+  assert.deepEqual(await bundle('without'), ['./acme/graphics/index.js']);
+  // with the old folder there (and something in it), only the workspace's brands are read
+  write(path.join(studio, 'brands', 'old', 'graphics', 'index.js'), "module.exports = 'old';\n");
+  assert.deepEqual(await bundle('with'), ['./acme/graphics/index.js']);
 });
 
 test('the overlay: framework entries of the studio, never the workspace folders', () => {
