@@ -53,8 +53,8 @@
  * MediaMake never gets a repo's contents. It holds a GitHub token only for an owner who clicked Connect GitHub
  * in the app, to make a project's repo and invite its members from there. A space is private: a public repo is refused.
  *
- * Large media stays out of git. push refuses a file over 10 MB, or a video, audio or layered image
- * over 2 MB: put it in the media library (mm media ingest), name it under "media" in the item's
+ * Large media stays out of git. push refuses any file over 10 MB, media included (a skill's central
+ * files, such as a show's music bed, travel with it up to that): put a bigger one in the media library (mm media ingest), name it under "media" in the item's
  * item.json, and it travels with the library (mm media share, mm media sync). push also stops on
  * anything that looks like a key or a token (--force sends it anyway).
  *
@@ -83,9 +83,6 @@ const KIND_TITLE = { skill: 'Skills', mcp: 'MCPs', app: 'Apps' };
 export const ITEM_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** No file over this goes into git. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
-/** Media over this goes through the media library. */
-export const MAX_MEDIA_BYTES = 2 * 1024 * 1024;
-const MEDIA_FILE = /\.(mp4|mov|mkv|webm|avi|m4v|mp3|wav|flac|aiff?|m4a|ogg|psd|psb|aep|prproj|blend|exr|tiff?|zip|tgz|gz|7z|rar|dmg)$/i;
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 const SUMMARY_MAX = 200;
 
@@ -241,7 +238,6 @@ export function pushProblems(dir, files) {
     if (!st?.isFile()) continue;
     const mb = `${(st.size / 1048576).toFixed(1)} MB`;
     if (st.size > MAX_FILE_BYTES) large.push(`${file.path} is ${mb}: over 10 MB`);
-    else if (MEDIA_FILE.test(file.path) && st.size > MAX_MEDIA_BYTES) large.push(`${file.path} is ${mb} of media: over 2 MB`);
     if (/^\.env(\..+)?$/.test(path.basename(file.path)) && !/\.(example|sample|template)$/.test(file.path)) secrets.push(`${file.path} is an env file`);
     else if (st.size <= 2 * 1024 * 1024 && TEXT_FILE.test(file.path)) {
       fs.readFileSync(abs, 'utf8')
@@ -833,6 +829,9 @@ what it needs under \`media\` in its \`item.json\`.
 `;
 const GITIGNORE = `.DS_Store
 node_modules/
+# the workspace's projects and renders never go in a space
+/projects/
+/out/
 dist/
 .env
 .env.*
