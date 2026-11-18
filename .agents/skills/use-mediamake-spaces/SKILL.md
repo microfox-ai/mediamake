@@ -94,7 +94,7 @@ only once they agree.
 - **Roles decide.** Owners and editors add and change, viewers read, only the owner deletes and
   decides who has access. When a command says they are a viewer or not invited yet, tell them who
   invites (it names them). Don't work around it.
-- **Large media never goes in a space's repo.** `push` refuses a file over 10 MB, or media over 2 MB.
+- **Large media never goes in a space's repo.** `push` refuses any file over 10 MB, media included. A new space ignores the workspace's `projects/` and `out/`.
   Put it in the media library (`mm media ingest`) and name it under `media` in the item's `item.json`.
 - **Keys stay out.** `push` stops on anything that looks like a key or a token. Take it out of the
   file; `--force` only when they say it is not a secret.

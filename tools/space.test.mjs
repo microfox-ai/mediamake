@@ -428,13 +428,22 @@ test('two computers changing the same file: the second is told, and nothing of i
 
 test('large media and keys never go up', async () => {
   assert.equal((await mac.space(['pull'])).status, 0);
-  fs.writeFileSync(path.join(mac.dir, 'skills', 'make-my-intro', 'sting.wav'), Buffer.alloc(3 * 1024 * 1024));
+  fs.writeFileSync(path.join(mac.dir, 'skills', 'make-my-intro', 'sting.wav'), Buffer.alloc(11 * 1024 * 1024));
   const big = await mac.space(['push', '--yes']);
   assert.equal(big.status, 1);
-  assert.match(big.out, /sting\.wav is 3\.0 MB of media/);
+  assert.match(big.out, /sting\.wav is 11\.0 MB: over 10 MB/);
   assert.match(big.out, /mm media ingest/);
   assert.ok(!remoteFiles().includes('skills/make-my-intro/sting.wav'));
   fs.rmSync(path.join(mac.dir, 'skills', 'make-my-intro', 'sting.wav'));
+
+  // media up to 10 MB goes up with its skill; a project or a render made inside the space stays out
+  fs.writeFileSync(path.join(mac.dir, 'skills', 'make-my-intro', 'bed.mp3'), Buffer.alloc(6 * 1024 * 1024));
+  mac.write('projects/my-short/video/index.tsx', 'export {};\n');
+  mac.write('out/my-short/my-short.mp4', 'not a video\n');
+  const small = await mac.space(['push', '--yes']);
+  assert.equal(small.status, 0, small.out);
+  assert.ok(remoteFiles().includes('skills/make-my-intro/bed.mp3'));
+  assert.ok(!remoteFiles().some(f => f.startsWith('projects/') || f.startsWith('out/')));
 
   mac.write('mcps/my-tools/config.json', `{ "key": "sk-${'a'.repeat(30)}" }\n`);
   const key = await mac.space(['push', '--yes']);

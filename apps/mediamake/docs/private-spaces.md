@@ -336,12 +336,16 @@ they sign up: the owner runs `mm space invite` then.
 
 ## Large media
 
-Media does not go in git. `push` refuses any file over 10 MB, and a video,
-audio, layered image or archive over 2 MB. Put it in the media library
+Large media does not go in git. `push` refuses any file over 10 MB, media included
+(a skill's central files, such as a show's music bed, travel with it up to that). Put a bigger one in the media library
 (`mm media ingest`), name it under `media` in the item's `item.json`, and it
 travels with the library (`mm media share`, `mm media sync`). `mm space` and
 Mine show what each item needs. `push` also stops on an env file or anything
 that looks like a key or a token (`--force` sends it anyway).
+
+Productions never go in a space either: they live in the workspace's `projects/` and `out/`, beside
+the space's folder, and a new space's `.gitignore` names both (`/projects/`, `/out/`), so a project
+or a render made inside a space by mistake stays out of git too.
 
 ## What MediaMake is told
 
