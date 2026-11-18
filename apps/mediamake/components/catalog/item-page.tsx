@@ -107,8 +107,6 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
   const opens = kind === 'app' && item.href && !installable ? item.href : undefined;
   const readme = await itemReadme({
     facts: { kind, name: slug, title: item.title, summary: description, youtubeId: video?.youtubeId, open: opens },
-    // a member's skill released as a store package shows the README.md it was released with
-    itemId: item.id,
     listingReadme: listing?.readme,
   });
   const made = proof.length + (listing?.media.length ?? 0);

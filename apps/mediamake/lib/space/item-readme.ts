@@ -1,23 +1,25 @@
 import { renderReadme, type ItemReadme, type ReadmeBase } from '@/lib/catalog/readme';
 import { linkSpaceId } from './links';
-import type { ItemReadmeText } from './space';
+import { pictureUrl } from './readme-files';
+import type { ItemReadmeText, ReadmePicture } from './space';
 
 /**
  * The README of an item in a space (a member's own, a project's or a linked
  * item's), as its space last reported it (./space ItemReadmeText): the same
  * store listing a repo skill's README.md is (docs/item-readme.md), shown in the
- * item's dialog to whoever can see the space. Its pictures come through
- * /api/space/readme-file, which checks the viewer again; its relative links to
- * other files are dropped, since the repo is private.
+ * item's dialog, which only who can see the space opens. Its pictures show from
+ * where ./readme-files keeps them; relative links to other files are dropped.
  */
 
-/** Where a space item's README points its pictures: its folder, served by /api/space/readme-file. */
-export function spaceItemReadmeBase(spaceId: string, item: { kind: string; name: string }): ReadmeBase {
-  return { files: `/api/space/readme-file/${encodeURIComponent(spaceId)}/${item.kind}/${item.name}/`, links: '' };
+type UrlOf = (spaceId: string, picture: Pick<ReadmePicture, 'sha256' | 'type'>) => string;
+
+/** Each picture's address by its path in the item's folder. */
+export function spaceItemReadmeBase(spaceId: string, readme: ItemReadmeText, urlOf: UrlOf = pictureUrl): ReadmeBase {
+  return { files: '', links: '', pictures: Object.fromEntries((readme.pictures ?? []).map(picture => [picture.path, urlOf(spaceId, picture)])) };
 }
 
-export async function spaceItemReadme(spaceId: string, item: { kind: string; name: string }, readme: ItemReadmeText): Promise<ItemReadme> {
-  return renderReadme(readme.text, spaceItemReadmeBase(spaceId, item));
+export async function spaceItemReadme(spaceId: string, readme: ItemReadmeText, urlOf: UrlOf = pictureUrl): Promise<ItemReadme> {
+  return renderReadme(readme.text, spaceItemReadmeBase(spaceId, readme, urlOf));
 }
 
 /**

@@ -50,15 +50,20 @@ describe('an item README in a report', () => {
 });
 
 describe("a space item's README", () => {
-  it('shows its pictures from its folder through the access-checked route, and drops relative links', async () => {
-    const readme = await spaceItemReadme('user:abc', { kind: 'skill', name: 'pack-distrokid' }, {
-      text: '# Pack DistroKid\n\nWhat it does.\n\n![steps](shots/steps.png) [the skill](SKILL.md) [site](https://example.com)\n\n![out](../../other/x.png)',
-    });
+  it('shows each picture from where it was copied, by its path, and drops relative links', async () => {
+    const urlOf = (space: string, picture: { sha256: string }) => `https://cdn.example/space-readmes/${space}/${picture.sha256}.png`;
+    const readme = await spaceItemReadme(
+      'user:abc',
+      {
+        text: '# Pack DistroKid\n\nWhat it does.\n\n![steps](./shots/steps.png) ![missing](shots/gone.png) [the skill](SKILL.md) [site](https://example.com)\n\n![out](../other/x.png)',
+        pictures: [{ path: 'shots/steps.png', sha256: SHA('a'), type: 'image/png', bytes: 10 }],
+      },
+      urlOf,
+    );
     assert.equal(readme.title, 'Pack DistroKid');
-    assert.match(readme.html, /src="\/api\/space\/readme-file\/user%3Aabc\/skill\/pack-distrokid\/shots\/steps\.png"/);
-    assert.doesNotMatch(readme.html, /href="SKILL\.md"/);
+    assert.match(readme.html, new RegExp(`src="https://cdn.example/space-readmes/user:abc/${SHA('a')}.png"`));
+    assert.doesNotMatch(readme.html, /gone\.png|other\/x\.png|href="SKILL\.md"/);
     assert.match(readme.html, /href="https:\/\/example\.com"/);
-    assert.doesNotMatch(readme.html, /other\/x\.png/);
     assert.equal(readme.written, true);
   });
 

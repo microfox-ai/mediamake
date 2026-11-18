@@ -406,7 +406,7 @@ one line of at most 200 characters, `media` a count, `ahead` the commits not on
 GitHub yet. `readme` is the item's README.md (at most 32 KB) and the pictures
 it shows from its folder, by path and SHA-256 (at most 2 MB a picture, 16 and 8
 MB an item); `uploads` are signed PUTs for the pictures the space doesn't have
-yet, which the computer sends straight to private storage
+yet, which the computer sends straight to MediaMake's storage
 (`lib/space/readme-files.ts`). `code` is what the Code tab shows: the repo's file paths (at most
 2,000) and its README.md (at most 32 KB). Never another file, a path on the
 computer or a token; the server drops anything else (`lib/space/space.ts`). `mm usage off`
@@ -421,7 +421,6 @@ and naming a project's repo when you make its space.
 | --- | --- |
 | `GET /api/space` | Your space and one per project you are on, as Mine shows them. People who may change a project also get its members' names and GitHub logins, to invite them |
 | `PUT /api/space` | What one computer's clone holds now; replaces what that computer said before. For a project: members only, and only for the repo that is its space. Answers with the README pictures to send |
-| `GET /api/space/readme-file/<space>/<kind>/<name>/<path>` | A picture an item's README shows, for whoever may see the space: a redirect to a short-lived signed link |
 | `POST /api/space` `{ project, repo }` | Names the repo of a project's space (owner and editors) |
 | `DELETE /api/space?device=<label>[&project=<id>]` | That computer disconnected |
 | `DELETE /api/space` | Forget your space and take your computers off every project's |
