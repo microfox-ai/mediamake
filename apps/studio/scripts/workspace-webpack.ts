@@ -6,7 +6,8 @@
  *
  * - The studio finds work with require.context: src/Root.tsx ('../projects'), logoGraphics/Root.tsx
  *   ('../brands'), thumbnails/Root.tsx and Thumbnail.tsx ('./jobs'). Each context that is somewhere
- *   else now reads the folder where it is.
+ *   else now reads the folder where it is, asked for there straight away (WorkspaceContexts), so the
+ *   studio's own folder need not exist: a fresh clone, a worktree or a cloud session has none.
  * - Code outside the checkout finds no node_modules above it, so the studio's and the repo's are
  *   added to where packages are looked up (after the usual walk up, so code in the checkout resolves
  *   exactly as before). React and remotion are single copies whatever imports them (Remotion's own
@@ -23,7 +24,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import webpack from 'webpack';
 import { SKILLS, engineAliases, readEngine, skillsDir } from './engine.ts';
 import { WORKSPACE_FOLDERS, workspaceDirs, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
@@ -34,7 +34,6 @@ const CONTEXTS: [rel: string, folder: WorkspaceFolder][] = [
   ['thumbnails/jobs', 'thumbnailJobs'],
 ];
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const real = (p: string) => {
   try {
     return fs.realpathSync(p);
@@ -44,6 +43,49 @@ const real = (p: string) => {
 };
 /** A path and its real path (webpack sees real paths: macOS's temp folder is a link into /private). */
 const spellings = (p: string) => [...new Set([path.resolve(p), real(p)])];
+/** <base>/<rel> every way webpack may spell it, also when <rel> doesn't exist (its real path is then its parent's). */
+const folderSpellings = (base: string, rel: string) => {
+  const parts = rel.split('/');
+  return [...new Set([...spellings(path.join(base, ...parts)), path.join(real(path.resolve(base)), ...parts)])];
+};
+
+/** What webpack's context module factory hands its beforeResolve hook (the fields read here). */
+type ContextRequest = { context?: string; request?: unknown };
+type ContextCompiler = {
+  hooks: {
+    contextModuleFactory: {
+      tap: (name: string, fn: (factory: { hooks: { beforeResolve: { tap: (name: string, fn: (data: ContextRequest | false | undefined) => unknown) => void } } }) => void) => void;
+    };
+  };
+};
+
+/**
+ * Asks for each moved require.context at its new folder before webpack resolves it: a context whose
+ * folder (its request from the importing file's folder: '../brands' from logoGraphics/) is one of a
+ * move's `from` is asked for at its `to`. webpack.ContextReplacementPlugin can't do this: it matches
+ * the folder after webpack has found it, so the studio's own folder had to exist (2026-11-18: every
+ * new worktree failed `mm logos` with "Can't resolve '../brands'"). No webpack import: the CLI's
+ * webpack and @remotion/bundler's own copy both run it. Its moves are enumerable: they are part of the
+ * config hash Remotion names the cache after, as ContextReplacementPlugin's folder was.
+ */
+export class WorkspaceContexts {
+  moves: { from: string[]; to: string }[];
+  constructor(moves: { from: string[]; to: string }[]) {
+    this.moves = moves;
+  }
+  apply(compiler: ContextCompiler) {
+    compiler.hooks.contextModuleFactory.tap('WorkspaceContexts', factory => {
+      // a waterfall: the data returned is what webpack resolves (false would drop the context)
+      factory.hooks.beforeResolve.tap('WorkspaceContexts', data => {
+        if (!data || !data.context || typeof data.request !== 'string') return data;
+        const asked = path.resolve(data.context, data.request);
+        const move = this.moves.find(m => m.from.includes(asked));
+        if (move) data.request = move.to;
+        return data;
+      });
+    });
+  }
+}
 
 export type WorkspaceBundle = {
   /** apps/studio (or another engine checkout's app folder) */
@@ -137,10 +179,7 @@ export const workspaceWebpack = <C extends AnyConfig>(config: C, opts: Workspace
     ...config,
     plugins: [
       ...(config.plugins ?? []),
-      ...moved.map(([rel, folder]) => {
-        const from = new RegExp(`^(${spellings(path.join(studio, ...rel.split('/'))).map(escapeRegExp).join('|')})$`);
-        return new webpack.ContextReplacementPlugin(from, path.resolve(dirs[folder]));
-      }),
+      ...(moved.length ? [new WorkspaceContexts(moved.map(([rel, folder]) => ({ from: folderSpellings(studio, rel), to: path.resolve(dirs[folder]) })))] : []),
     ],
     resolve: {
       ...resolve,

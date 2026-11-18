@@ -12,6 +12,8 @@
  *     30 s is too short here). The bundle holds every brand's graphics and each brand loads its fonts at
  *     import, so every tab loads every brand's fonts first; at 30 s that once failed a CWC opener three
  *     times in a row on one font. --verbose prints Remotion's log, with how long each delayRender took.
+ *   MM_BROWSER=<path to Chrome> renders with that browser, as mm render does (mm sets it from `browser`
+ *     in ~/.mediamake/config.json, which mm cloud writes).
  *
  * Everything lands in one folder per brand, never loose in out/:
  *   out/brands/<brand>/stills/<scene>/<t>s.jpg         on the brand's preview colour (black by default)
@@ -47,8 +49,9 @@ const main = async () => {
   const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
   // ANGLE gives headless Chrome a GPU path (some scenes use WebGL)
   const chromiumOptions = { gl: 'angle' as const };
-  // every Remotion call gets the timeout (delayRender() takes its own from it, less 2 s) and the log level
-  const remotion = { chromiumOptions, timeoutInMilliseconds, logLevel };
+  // every Remotion call gets the timeout (delayRender() takes its own from it, less 2 s), the log level
+  // and the browser from MM_BROWSER (a cloud session's or a VPS's Chrome), as mm render does (render-tuning.ts)
+  const remotion = { chromiumOptions, timeoutInMilliseconds, logLevel, browserExecutable: process.env.MM_BROWSER ?? null };
   const all = await getCompositions(serveUrl, remotion);
   // --exact: whole ids only (`x-logo` alone, not `x-logo-still` too)
   const exact = flags.includes('--exact');
