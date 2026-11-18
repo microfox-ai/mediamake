@@ -57,6 +57,8 @@ export interface TodoRecord {
   options?: string[];
   /** What comes after it: "resume the run in the cloud". */
   then?: string;
+  /** The run whose step this is (./runs), by its slug: finishing the to-do saves that step. Set by the run, never by a post. */
+  run?: string;
   state: TodoState;
   postedBy: string;
   /** The place that posted it, by name: "cloud". */
@@ -104,6 +106,8 @@ export interface TodoPost {
   options?: string[];
   then?: string;
   postedFrom?: string;
+  /** Only a run sets this (./run-store): a post's body is never read for it. */
+  run?: string;
 }
 
 /**
@@ -263,6 +267,8 @@ export interface TodoView {
   repeat: boolean;
   options?: string[];
   then?: string;
+  /** The run whose step it is, by its slug. */
+  run?: string;
   state: TodoState;
   /** The line to paste into Claude on a computer that can do it. */
   line: string;
@@ -296,7 +302,8 @@ export interface TodosView {
   todos: TodoView[];
 }
 
-const label = (need: string) => (need === 'render' ? 'a place that renders' : need.startsWith('key:') ? `the ${keyInfo(need.slice(4)).title} key` : needLabel(need));
+/** A need in words: "a browser signed in to youtube as doomcat". */
+export const needWords = (need: string) => (need === 'render' ? 'a place that renders' : need.startsWith('key:') ? `the ${keyInfo(need.slice(4)).title} key` : needLabel(need));
 const ORDER: Record<TodoState, number> = { open: 0, failed: 1, claimed: 2, done: 3, cancelled: 4 };
 
 /**
@@ -323,12 +330,13 @@ export function todosView(input: { project: string; name: string; role: ProjectR
         ...(todo.release && { release: todo.release }),
         ...(todo.version && { version: todo.version }),
         ...(todo.commit && { commit: todo.commit }),
-        needs: todo.needs.map(need => ({ need, label: label(need) })),
+        needs: todo.needs.map(need => ({ need, label: needWords(need) })),
         needsYes: todo.yes === true && !todo.agreed,
         ...(todo.agreed && { agreedBy: who(todo.agreed.by) }),
         repeat: todo.repeat === true,
         ...(todo.options && { options: todo.options }),
         ...(todo.then && { then: todo.then }),
+        ...(todo.run && { run: todo.run }),
         state,
         line: `Pick up to-do ${todo.id} in ${name}`,
         postedBy: who(todo.postedBy),

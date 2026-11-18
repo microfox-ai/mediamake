@@ -17,10 +17,12 @@ another place) is in the Claude Doc "Cloud and device runs: plan"; this page say
 | The same check inside a cloud session | `mm cloud` (`tools/cloud.mjs`, `needsOf`) |
 | The register: what each computer and cloud environment can do | `mm access` (`tools/access.mjs`), `/api/space/places` (`lib/space/register.ts`, `register-store.ts`), the project's page › Where it runs (`components/projects/space-places.tsx`) |
 | The to-do queue: a step one place could not do, waiting for a place that can | `mm todo` (`tools/todo.mjs`), `/api/space/todos` (`lib/space/todos.ts`, `todo-store.ts`), the space's page › To do (`components/projects/space-todos.tsx`), the Spaces MCP's `list_todos`, `post_todo`, `claim_todo`, `finish_todo`, `where_it_runs` |
+| The run record: which steps of a production are saved, where, and which is next | `mm run` (`tools/run.mjs`, `tools/bundles.mjs`), `/api/space/runs` (`lib/space/runs.ts`, `run-store.ts`), the space's page › Runs (`components/projects/space-runs.tsx`) |
 
-Not built yet: the run record (a run that stops in one place and resumes in another by itself), and the
-planner that picks a place. Until then a person carries each hand-over: a session posts the to-do, and
-someone pastes its line into Claude on a computer that can do it.
+Not built yet: the planner that picks a place before a run starts (`mm run plan`), running a device's
+step from the cloud with nobody at it, and starting the next part by itself. Until then a person carries
+each hand-over: a session posts the to-do or stops, and someone pastes a line into Claude on a place
+that can go on.
 
 ## The words
 
@@ -126,7 +128,7 @@ it uses.
 **A spend limit** is a few words beside a key, written by whoever set the key: on a computer
 `mm access limit elevenlabs "unlimited"` (`--clear` removes it), in a cloud environment a variable
 beside the key's own, `ELEVENLABS_API_KEY_LIMIT=unlimited`. It is shown with the key. Nothing enforces
-it yet: the planner that reads it comes with the to-do queue.
+it yet: the planner that reads it comes later.
 
 **On the project's page**, the Where it runs tab has a card for what the space's skills need (which
 open place has each, and what no place has yet), a card per place (cloud environments, the computers
@@ -217,7 +219,11 @@ person's yes), `--repeat` (doing it twice does no harm) and `--options="A|B|C"` 
 3. It brings the project's space up to GitHub and checks the space has the commit the to-do names. If
    the space can't be brought up to date (edits here that conflict), or its skill isn't on this
    computer, the to-do is given back and it says what to do.
-4. It prints what to do: the skill and step, what it works on and how to get it, the check before a
+4. For a step of a run, it fetches what the run saved (its production, its release kit) into the
+   workspace. A file here that differs from the saved one is never replaced: the to-do is given back,
+   the files are listed, and `mm todo pick <id> --take-saved` takes the saved ones (the ones here are
+   kept in `.before-resume/`).
+5. It prints what to do: the skill and step, what it works on and how to get it, the check before a
    step that must not happen twice, the yes it waits for, and the lines that finish it
    (`mm todo done <id> --result="<link>"`, `mm todo fail <id> --reason="…"`, `mm todo release <id>`).
 
@@ -227,5 +233,92 @@ person's yes), `--repeat` (doing it twice does no harm) and `--options="A|B|C"` 
 | `POST /api/space/todos` | `{ action: "post", project, title, needs, … }`, or `{ action: "claim" \| "done" \| "fail" \| "release" \| "yes" \| "cancel" \| "reopen", id, … }`. A claim that loses is answered 409 with who has it |
 
 Not in the queue yet: a notice sent to the people who can do a to-do (today it is the count on the tab,
-the session-start line and the Portal task), a device's line when two runs want it, and starting the
-next part by itself when a to-do is done. Those come with the run record and the planner.
+the session-start line and the Portal task), and a device's line when two runs want it. Those come with
+the planner.
+
+## The run record
+
+A run is one production going through one skill's run sheet. Every step ends by saving: its work goes
+to the project (Productions, Releases) and the production's run record says which steps are saved,
+where, with what output, and which step is next. A place that starts or continues a run reads only
+that record, so a run can stop in one place and go on in another, and nothing depends on a session
+staying alive. Run records live in MediaMake with the project, like to-dos, one per production (its
+slug). A personal space has them too.
+
+A session runs a production like this:
+
+| When | Line | What it does |
+| --- | --- | --- |
+| It begins | `mm run start <project> <slug> --skill=<name>` | Makes the record from the skill's run sheet and takes the run for this place. It shows each step and whether this place has what it needs |
+| A step starts | `mm run step <slug> <n>` | Marks it started here (`--hours=<n>` when it takes more than 2). Refused when this place lacks what the step needs |
+| A step's work is done | `mm run save <slug> <n>` | Marks it saved. `--production` sends `projects/<slug>` and `out/<slug>` to the project's Productions, `--release[=<folder>]` sends the release kit (`out/youtube/<slug>` unless named) to its Releases, `--output="<a link>"` records what it made. Only changed files go up, and nothing changed makes no new version |
+| The next step can't run here | `mm run wait <slug> [<n>]` | Posts the step as a to-do (its needs, its yes, the production or release and its version) and lets go of the run. The session ends: it never waits |
+| Another place goes on | `mm run resume <slug>` | Takes the run, brings the project's space up to date, fetches what the run saved into the workspace, and says what is next |
+| It stops for now | `mm run stop <slug>` | Lets go of the run, so any place may continue it |
+
+"Continue <slug> in <project>", pasted into Claude, is `mm run resume <slug> --project=<project>`.
+`mm run` lists the runs that aren't over in your projects and which of them this place can continue;
+`mm run <project>` lists one project's, the finished ones too; `mm run status <slug>` shows every step
+of one; `mm run cancel <slug>` ends one.
+
+| State | Means |
+| --- | --- |
+| running | One place has it now |
+| waiting | Its next step waits as a to-do |
+| ready to continue | No place has it, and its next step can be done: any place with what that step needs may go on |
+| done | Its last step is saved |
+| cancelled | Someone cancelled it |
+
+The rules, each with one answer:
+
+- **A production runs once at a time.** While one place has a run, a second start or resume is refused
+  and told who has it and where. The same account on another computer is another place. Every change is
+  saved over the version it read, so of two that start at once, one is refused.
+- **A run nobody touched for 2 hours is free again** (the session died, the computer slept), and so is
+  the run of someone who left the project. A step that says it takes longer keeps it up to 12 hours.
+  An owner can free a run someone else has (`mm run stop`, or Let go of it on the page).
+- **A saved step is never done again.** Steps are saved in the run sheet's order.
+- **A step that was started and never saved is done again** by whoever continues. When it must not
+  happen twice (`Safe to repeat: no`), they first check it didn't already, and if it did, only save it
+  with its result.
+- **A step that waits as a to-do is done through the to-do.** Finishing the to-do saves the step with
+  the to-do's result, and the run is ready to continue, or done when that was its last step. A to-do
+  that a person cancels gives the step back to the run.
+- **Cancelling a run cancels the to-dos its steps wait for.** Whoever has one is told when they try to
+  finish it. What the run saved to Productions and Releases stays.
+- **Continuing never loses work on the computer that continues.** A file there that differs from the
+  saved one is not replaced: nothing is fetched, the run is let go again and the files are listed.
+  `mm run resume <slug> --take-saved` takes the saved ones and keeps the ones there in
+  `.before-resume/` inside the project's folder.
+- **The space's code travels by GitHub, not with the run.** A save records the commit of the project's
+  space when GitHub has it, and warns when the space has changes GitHub doesn't. Continuing brings the
+  space up to date first and stops when it doesn't have that commit.
+- **A skill with no run sheet runs whole**, as one step, where it was started. It is never split.
+- **What a run saves counts against the project owner's storage**, like any production
+  (`docs/project-storage.md`). A save that doesn't fit is refused, and the step stays unsaved.
+- **Inputs over 200 MB stay behind.** A production carries its `input/` folder only up to that; a place
+  that needs more gets it from the media library.
+- **Owners and editors** start and continue a project's runs; viewers read them.
+
+Where people and sessions meet it:
+
+| Where | What |
+| --- | --- |
+| The space's page › Runs | A card per run: its state, every step with where it was saved and what it made, which place can do the next step, and for a run that is ready the line to paste with a copy button. Cancel, and Let go of it for a run you have |
+| `mm run` | Everything above |
+| The start of a session | One line when a run is ready to continue that this place can do (`tools/run.mjs --hook`). It is quiet otherwise, and Claude continues one only when the user says so |
+| The to-do queue | A run's step that waits shows there as a to-do; picking it up fetches what the run saved |
+
+| Call | What |
+| --- | --- |
+| `GET /api/space/runs?project=<id>` | That project's runs. `&slug=<slug>` is one; without `project`, the runs that aren't over in every project the account works on |
+| `POST /api/space/runs` | `{ action: "start", project, slug, skill, steps, … }`, or `{ action: "resume" \| "step" \| "save" \| "wait" \| "stop" \| "cancel", project, slug, … }`. An ask from a place that doesn't have the run is answered 409 with who has it |
+
+A run record holds the production's slug and title, the skill's name, each step's name, needs and
+state, the name of the place and the person that did it, what it saved by reference (a version of the
+production, the release's slug, version and workspace folder, a commit), and a line of output. Never a
+key, a password, a file or a path outside the workspace: an output that looks like a secret is refused.
+
+Not in the run record yet: starting the next part by itself when a to-do is done or a run is ready (a
+person, or a routine's next session, continues it), a time limit per step taken from the skill, and
+runs in the Spaces MCP (a Claude with only that MCP works a run's step through its to-do).

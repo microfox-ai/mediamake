@@ -13,8 +13,10 @@
  *                                  posts one. --yes: it must wait for a person's yes. --repeat: doing it
  *                                  twice does no harm. --options: a choice for a person, not a step.
  *                                  The same step of the same work and version is posted once.
- *   mm todo pick <id>              picks it up: claims it (only one claim succeeds), brings the project's
- *                                  space up to date, and says what to do and how to finish
+ *   mm todo pick <id> [--take-saved]
+ *                                  picks it up: claims it (only one claim succeeds), brings the project's
+ *                                  space up to date, fetches what its run saved (a file here that differs
+ *                                  is replaced only with --take-saved), and says what to do and how to finish
  *   mm todo done <id> [--result="<the link, or what came of it>"]
  *   mm todo fail <id> --reason="<why>"     back to the queue; the third failure stops it for a person
  *   mm todo release <id>           gives it back, not as a failure
@@ -42,7 +44,7 @@ const ID = /^td-[a-z0-9]{6}$/;
 /** What a to-do needs that this place doesn't have. */
 export const missingHere = (todo, can) => missing(can, todo.needs.map(n => n.need));
 
-const clock = iso => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+export const clock = iso => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const MARK = { open: '○', claimed: '◐', done: '✔', failed: '✖', cancelled: '–' };
 
 /** One to-do in a list: its state, what it needs and whether this computer can do it. */
@@ -73,12 +75,13 @@ export function hookLine(todos, can) {
 }
 
 /** What to do with a to-do that was just picked up, for the person or the Claude that did. */
-export function brief(todo, place) {
+export function brief(todo, place, fetched = []) {
   const lines = [`✔ ${todo.id} is yours${place ? `, on ${place}` : ''}. Unfinished, it goes back to the queue by itself after 2 hours.`, '', todo.title, `  Project   ${todo.projectName}`];
   if (todo.skill) lines.push(`  Skill     ${todo.skill}${todo.step ? `, step "${todo.step}"` : ''}: follow that skill for this step only`);
   else if (todo.step) lines.push(`  Step      ${todo.step}`);
   const work = todo.release ? `release ${todo.release}` : todo.production ? `production ${todo.production}` : '';
-  if (work) lines.push(`  Works on  ${work}${todo.version ? `, version ${todo.version}` : ''}: get it from the project with the MediaMake Spaces MCP (get_${todo.release ? 'release' : 'production'} with saveTo)`);
+  if (work && fetched.length) lines.push(`  Works on  ${work}${todo.version ? `, version ${todo.version}` : ''}, fetched here:`, ...fetched.map(line => `            ${line}`));
+  else if (work) lines.push(`  Works on  ${work}${todo.version ? `, version ${todo.version}` : ''}: get it from the project with the MediaMake Spaces MCP (get_${todo.release ? 'release' : 'production'} with saveTo)`);
   if (todo.needs.length) lines.push(`  Needs     ${todo.needs.map(n => n.need).join(', ')}`);
   if (todo.notes) lines.push(`  Notes     ${todo.notes.replace(/\n/g, '\n            ')}`);
   if (todo.then) lines.push(`  Then      ${todo.then}`);
@@ -112,12 +115,12 @@ export function postBody(project, title, flags) {
   };
 }
 
-const signedIn = (env = process.env) => {
+export const signedIn = (env = process.env) => {
   const url = site(env);
   const key = apiKey(url, env);
   return key ? { url, key: key.key } : null;
 };
-const needSignIn = env => {
+export const needSignIn = env => {
   const at = signedIn(env);
   if (!at) throw new Error(`This computer isn't signed in to ${site(env)}: mm login.`);
   return at;
@@ -126,7 +129,8 @@ const api = (env, method, query = '', body) => {
   const at = needSignIn(env);
   return call(method, `${at.url}/api/space/todos${query}`, at.key, body);
 };
-const here = env => {
+/** This place: what it can do, and the name the project's people see. */
+export const here = env => {
   const report = placeReport({ env });
   return { can: report.can, name: report.name ?? report.device };
 };
@@ -137,7 +141,7 @@ const idOf = raw => {
 };
 
 /** A project by name or id, "mine" for the account's own space. */
-async function projectNamed(wanted, env) {
+export async function projectNamed(wanted, env) {
   if (!wanted) throw new Error('Which project? Its name or id ("mine" for your own space).');
   const remote = await remoteSpaces(env);
   if (!remote) throw new Error(`This computer isn't signed in to ${site(env)}: mm login.`);
@@ -158,21 +162,25 @@ async function ask(env, body) {
   throw new Error(`${data.error ?? `MediaMake answered ${res.status}`}.${held}`);
 }
 
-/** Brings the project's space here up to GitHub, and checks it has the code the to-do was made with. Throws with what to do when it can't. */
-function syncSpace(todo, env) {
-  const space = localSpaces(env).find(s => s.id === todo.project || (s.id === 'mine' && todo.projectName === 'your space'));
+/**
+ * Brings the project's space here up to GitHub, and checks it has the code the work was made with
+ * (`work`: { project, projectName, skill?, commit? }, a to-do or a run). Throws with what to do when it can't.
+ */
+export function syncSpace(work, env, { thing = 'The to-do', again = 'pick the to-do up again', made = 'this to-do was made with', who = 'whoever posted it' } = {}) {
+  const space = localSpaces(env).find(s => s.id === work.project || (s.id === 'mine' && work.projectName === 'your space'));
   if (!space) {
     // without the space, the step can still be done when its skill is here another way (one of MediaMake's own)
-    if (todo.skill && !localSkills([path.join(path.dirname(SELF), '..', '.claude', 'skills'), ...skillRoots(env)]).some(skill => skill.name === todo.skill)) {
-      throw new Error(`The to-do needs the ${todo.skill} skill, which isn't on this computer: ${todo.projectName === 'your space' ? 'mm space sync' : `mm space join ${todo.project}`} brings the space that has it.`);
+    if (work.skill && !localSkills([path.join(path.dirname(SELF), '..', '.claude', 'skills'), ...skillRoots(env)]).some(skill => skill.name === work.skill)) {
+      throw new Error(`${thing} needs the ${work.skill} skill, which isn't on this computer: ${work.projectName === 'your space' ? 'mm space sync' : `mm space join ${work.project}`} brings the space that has it.`);
     }
-    return;
+    return null;
   }
   const pulled = spawnSync(process.execPath, [path.join(path.dirname(SELF), 'space.mjs'), 'pull', space.id === 'mine' ? '--mine' : `--project=${space.id}`], { stdio: 'inherit', env });
-  if (pulled.status !== 0) throw new Error(`${space.label} could not be brought up to date (above). Fix that, then pick the to-do up again.`);
-  if (todo.commit && spawnSync('git', ['-C', space.dir, 'merge-base', '--is-ancestor', todo.commit, 'HEAD']).status !== 0) {
-    throw new Error(`${space.label} here doesn't have the code this to-do was made with (commit ${todo.commit.slice(0, 7)}): whoever posted it has to send it first (mm space sync --yes there).`);
+  if (pulled.status !== 0) throw new Error(`${space.label} could not be brought up to date (above). Fix that, then ${again}.`);
+  if (work.commit && spawnSync('git', ['-C', space.dir, 'merge-base', '--is-ancestor', work.commit, 'HEAD']).status !== 0) {
+    throw new Error(`${space.label} here doesn't have the code ${made} (commit ${work.commit.slice(0, 7)}): ${who} has to send it first (mm space sync --yes there).`);
   }
+  return space;
 }
 
 async function list(env, project) {
@@ -194,7 +202,7 @@ async function list(env, project) {
   return 0;
 }
 
-async function pick(env, id) {
+async function pick(env, id, takeSaved = false) {
   const { todo } = await api(env, 'GET', `?id=${id}`);
   if (todo.options) throw new Error(`It is a choice for a person (${todo.options.join(' | ')}): ask the user, then mm todo done ${id} --result="<their choice>"`);
   const { can, name } = here(env);
@@ -203,13 +211,21 @@ async function pick(env, id) {
     throw new Error(`This computer doesn't have what it needs: ${lacks.join(', ')}.${todo.places.length ? ` ${todo.places.join(', ')} can do it.` : ''} If this computer does have it, say so (mm access add <need>) and pick it up again.`);
   }
   const claimed = (await ask(env, { action: 'claim', id, place: name })).todo;
+  let fetched = [];
   try {
     syncSpace(claimed, env);
+    // a step of a run: what the run saved (its production, its release kit) comes here with it
+    if (claimed.run) {
+      const at = needSignIn(env);
+      const found = await call('GET', `${at.url}/api/space/runs?project=${claimed.project}&slug=${claimed.run}`, at.key).catch(() => null);
+      const { fetchSaved } = await import('./run.mjs');
+      if (found?.run) fetched = await fetchSaved(env, found.run, takeSaved, `mm todo pick ${id} --take-saved`);
+    }
   } catch (error) {
     await ask(env, { action: 'release', id }).catch(() => null);
     throw error;
   }
-  console.log(brief(claimed, name));
+  console.log(brief(claimed, name, fetched));
   return 0;
 }
 
@@ -256,7 +272,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     console.log(`  The line for whoever picks it up: ${todo.line}`);
     return 0;
   }
-  if (cmd === 'pick' || cmd === 'run') return pick(env, idOf(args[0]));
+  if (cmd === 'pick' || cmd === 'run') return pick(env, idOf(args[0]), flags.includes('--take-saved'));
   if (cmd === 'done') {
     const { todo } = await ask(env, { action: 'done', id: idOf(args[0]), ...(flag('result') && { result: flag('result') }) });
     console.log(`✔ ${todo.id} is done${todo.result ? `: ${todo.result}` : ''}.${todo.then ? ` Next: ${todo.then}` : ''}`);

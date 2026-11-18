@@ -64,7 +64,9 @@ README and its last commits, never another file's contents. **Set up** has the l
 up on a computer and, for a Claude cloud session or a routine, what to add to the cloud environment: the
 repositories (MediaMake, the space's, each linked item's) and the keys its skills need, by the name of
 their environment variable, read from the skills' run sheets (`docs/cloud-device-runs.md`). Only names: a
-key's value is set in Claude and never comes to MediaMake. **To do** is the space's queue of
+key's value is set in Claude and never comes to MediaMake. **Runs** shows each production going through
+its skill's steps: which are saved, where, and which is next, with the line that continues one in
+another place (`mm run`, `docs/cloud-device-runs.md` › The run record). **To do** is the space's queue of
 steps a session could not do where it ran (an upload that needs a signed-in browser), a card each, with
 the line that picks one up on a computer that can (`mm todo`, `docs/cloud-device-runs.md` › The to-do
 queue). **Where it runs** is the project's register:
