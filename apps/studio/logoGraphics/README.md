@@ -81,6 +81,12 @@ uv run --with librosa --with scipy --with matplotlib python logoGraphics/tools/s
 `which` matches composition ids by substring (`--exact` for whole ids only); it must stay within
 one brand unless you pass `--all-brands`.
 
+A render uses 3 Chrome tabs (`--concurrency=<n>`; more and the Mac overheats) and gives each frame
+120 s (`--timeout=<s>`), which is also the default for every `delayRender()`, font loads included.
+The bundle holds every brand, so every tab loads every brand's fonts first; at Remotion's own 30 s
+that once failed a scene on a font load. `--verbose` prints Remotion's log, with how long each
+`delayRender()` took.
+
 ## Using a logo in another composition
 
 The logo component animates from frame 0 of wherever it is mounted, so place it with a

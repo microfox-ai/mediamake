@@ -3,10 +3,15 @@
  * engine in logoGraphics/). Bundles once per run. Composition ids are `<logo>-<scene>` (e.g.
  * subhodayam-intro-6-tamara); `which` matches ids exactly or by substring, comma-separated, or `all`.
  *
- * Usage: mm logos stills <which> 0.5,1.2,3 [--scale=0.5] [--alpha] [--guides]
- *        mm logos render <which> [--crf=16]
+ * Usage: mm logos stills <which> 0.5,1.2,3 [--scale=0.5] [--alpha] [--guides] [--timeout=120] [--verbose]
+ *        mm logos render <which> [--crf=16] [--concurrency=3] [--timeout=120] [--verbose]
  *   <which> must stay within one brand (use the logo prefix, e.g. subhodayam-intro) unless --all-brands;
  *   --exact matches whole ids only (subhodayam-logo without subhodayam-logo-still)
+ *   --concurrency: Chrome tabs a render uses, 3 by default (more and the Mac overheats)
+ *   --timeout: seconds a frame, and each delayRender() in it, may wait (120 by default; Remotion's own
+ *     30 s is too short here). The bundle holds every brand's graphics and each brand loads its fonts at
+ *     import, so every tab loads every brand's fonts first; at 30 s that once failed a CWC opener three
+ *     times in a row on one font. --verbose prints Remotion's log, with how long each delayRender took.
  *
  * Everything lands in one folder per brand, never loose in out/:
  *   out/brands/<brand>/stills/<scene>/<t>s.jpg         on the brand's preview colour (black by default)
@@ -28,13 +33,23 @@ const main = async () => {
   const [cmd, which, times] = args.filter(a => !a.startsWith('--'));
   const flag = (k: string) => flags.find(f => f.startsWith(`--${k}=`))?.split('=')[1];
   if (!cmd || !which || !['stills', 'render'].includes(cmd)) {
-    console.error('Usage: mm logos stills|render <id|all> [seconds,...]');
+    console.error('Usage: mm logos stills|render <id|all> [seconds,...] [--concurrency=3] [--timeout=120]');
     process.exit(1);
   }
+  const positive = (k: string, fallback: number) => {
+    const v = Number(flag(k) ?? fallback);
+    if (!Number.isFinite(v) || v <= 0) throw new Error(`--${k} must be a positive number (got "${flag(k)}")`);
+    return v;
+  };
+  const concurrency = Math.round(positive('concurrency', 3));
+  const timeoutInMilliseconds = Math.round(positive('timeout', 120) * 1000);
+  const logLevel = flags.includes('--verbose') ? ('verbose' as const) : undefined;
   const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'logoGraphics/index.ts'), publicDir: assemblePublic() });
   // ANGLE gives headless Chrome a GPU path (some scenes use WebGL)
   const chromiumOptions = { gl: 'angle' as const };
-  const all = await getCompositions(serveUrl, { chromiumOptions });
+  // every Remotion call gets the timeout (delayRender() takes its own from it, less 2 s) and the log level
+  const remotion = { chromiumOptions, timeoutInMilliseconds, logLevel };
+  const all = await getCompositions(serveUrl, remotion);
   // --exact: whole ids only (`x-logo` alone, not `x-logo-still` too)
   const exact = flags.includes('--exact');
   const comps = which === 'all' ? all : all.filter(c => which.split(',').some(w => c.id === w || (!exact && c.id.includes(w))));
@@ -70,7 +85,7 @@ const main = async () => {
           imageFormat: alpha ? 'png' : 'jpeg',
           jpegQuality: alpha ? undefined : 88,
           scale: Number(flag('scale') ?? 0.5),
-          chromiumOptions,
+          ...remotion,
         });
         show(output);
       }
@@ -81,11 +96,11 @@ const main = async () => {
     const crf = Number(flag('crf') ?? 16);
     if (transparent) {
       const mov = path.join(renders, `${scene}.mov`);
-      await renderMedia({ serveUrl, composition, codec: 'prores', proResProfile: '4444', pixelFormat: 'yuva444p10le', imageFormat: 'png', outputLocation: mov, chromiumOptions, muted: true });
+      await renderMedia({ serveUrl, composition, codec: 'prores', proResProfile: '4444', pixelFormat: 'yuva444p10le', imageFormat: 'png', outputLocation: mov, ...remotion, concurrency, muted: true });
       show(mov);
       // small alpha copy for the web and for <OffthreadVideo transparent> in other compositions
       const webm = path.join(renders, `${scene}.webm`);
-      await renderMedia({ serveUrl, composition, codec: 'vp9', crf: 18, pixelFormat: 'yuva420p', imageFormat: 'png', outputLocation: webm, chromiumOptions, muted: true });
+      await renderMedia({ serveUrl, composition, codec: 'vp9', crf: 18, pixelFormat: 'yuva420p', imageFormat: 'png', outputLocation: webm, ...remotion, concurrency, muted: true });
       show(webm);
     }
     const mp4 = path.join(renders, `${scene}${transparent ? '.preview' : ''}.mp4`);
@@ -97,7 +112,8 @@ const main = async () => {
       imageFormat: 'jpeg',
       jpegQuality: 95,
       outputLocation: mp4,
-      chromiumOptions,
+      ...remotion,
+      concurrency,
       // scenes may carry sound (intro sound effects); the transparent logo renders are silent
       muted: transparent,
     });
