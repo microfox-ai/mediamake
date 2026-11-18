@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { HealthBadge } from '@/components/catalog/health';
 import { KIND_LABEL, type HomeColumn, type HomeRow, type MemberKind } from '@/lib/app-shell/member';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { BetaBadge, ItemActions, TierBadge } from './item-bits';
+import { DetailsButton } from './item-details';
 
 /** Home's three columns (lib/app-shell/member › homeColumns): most used, then installed lately. */
 
@@ -31,11 +33,13 @@ function Row({ row }: { row: HomeRow }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           {item ? (
-            <Link href={item.page} className="truncate text-sm font-medium underline-offset-4 hover:underline">
+            <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} className="truncate text-sm font-medium">
               {item.title}
-            </Link>
+            </DetailsButton>
           ) : (
-            <span className="truncate font-mono text-sm">{row.name}</span>
+            <DetailsButton detailsKey={detailsKey.local(row.name)} className="truncate font-mono text-sm">
+              {row.name}
+            </DetailsButton>
           )}
           {item?.beta && <BetaBadge />}
           {item && <TierBadge item={item} />}

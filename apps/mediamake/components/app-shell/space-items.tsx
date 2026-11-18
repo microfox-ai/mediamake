@@ -1,5 +1,7 @@
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon } from 'lucide-react';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import type { SpaceItemView, SpaceView } from '@/lib/space/space';
+import { DetailsButton } from './item-details';
 
 /**
  * The items of one space (lib/space): a member's own, or a project's. Each
@@ -64,7 +66,9 @@ export function SpaceItems({ space }: { space: SpaceView }) {
       {space.items.map(item => (
         <li key={item.key} className="py-3">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-medium">{item.title}</span>
+            <DetailsButton detailsKey={detailsKey.space(space.id, item.key)} className="text-sm font-medium">
+              {item.title}
+            </DetailsButton>
             <span className="rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{KIND[item.kind]}</span>
             {item.version && <span className="text-xs tabular-nums text-muted-foreground">v{item.version.replace(/^v/, '')}</span>}
             <span className="ml-auto">

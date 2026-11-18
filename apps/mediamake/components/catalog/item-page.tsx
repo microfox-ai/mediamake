@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
+import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { AccessActions } from '@/app/(public)/access/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -182,9 +184,9 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
                 {usedBy.map(({ skill, use }) => (
                   <li key={skill.name} className="flex flex-col gap-1 py-2">
                     <div className="flex items-center gap-2">
-                      <Link href={`/skills/${skill.name}`} className="font-mono text-sm font-medium hover:underline">
+                      <DetailsButton detailsKey={detailsKey.catalog(`skill/${skill.name}`)} href={`/skills/${skill.name}`} className="font-mono text-sm font-medium">
                         {skill.name}
-                      </Link>
+                      </DetailsButton>
                       <NeedBadge need={use.need} />
                     </div>
                     <p className="text-xs text-muted-foreground">{use.for}</p>

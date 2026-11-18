@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import type { GithubLinkSync } from '@/lib/space/github';
 import { linkedSummary, type LinkedItemView } from '@/lib/space/links';
 import type { SpaceItemView, SpaceView } from '@/lib/space/space';
-import { detailsKey } from '@/lib/app-shell/details';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { DetailsButton } from './item-details';
 import { NextStep, SyncPill } from './space-items';
 

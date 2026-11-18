@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
+import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
 import { Badge } from '@/components/ui/badge';
 import { ListingScreenshots, ListingTags } from '@/components/catalog/listing';
@@ -9,6 +10,7 @@ import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
 import { SkillActions } from '@/components/skills/skill-actions';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { itemPagePath } from '@/lib/catalog/paths';
@@ -154,9 +156,9 @@ export default async function SkillPage({ params }: Props) {
               {skill.mcps.map(mcp => (
                 <li key={mcp.id} className="flex flex-col gap-1 py-2">
                   <div className="flex items-center gap-2">
-                    <Link href={itemPagePath(mcp.id)} className="font-mono text-sm font-medium hover:underline">
+                    <DetailsButton detailsKey={detailsKey.catalog(mcp.id)} href={itemPagePath(mcp.id)} className="font-mono text-sm font-medium">
                       {slugOf(mcp.id)}
-                    </Link>
+                    </DetailsButton>
                     <NeedBadge need={mcp.need} />
                   </div>
                   <p className="text-xs text-muted-foreground">{mcp.for}</p>
@@ -203,9 +205,9 @@ function SkillList({ title, names, skills }: { title: string; names: string[]; s
 
 function SkillLink({ name }: { name: string }) {
   return (
-    <Link href={`/skills/${encodeURIComponent(name)}`} className="font-mono text-sm font-medium text-foreground hover:underline">
+    <DetailsButton detailsKey={detailsKey.catalog(`skill/${name}`)} href={`/skills/${encodeURIComponent(name)}`} className="font-mono text-sm font-medium text-foreground">
       {name}
-    </Link>
+    </DetailsButton>
   );
 }
 

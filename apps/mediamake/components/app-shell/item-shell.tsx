@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeftIcon, LogInIcon, RocketIcon } from 'lucide-react';
 import { AppShellSidebar } from '@/components/app-shell/app-shell-sidebar';
+import { ItemDetailsProvider } from '@/components/app-shell/item-details';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -110,7 +111,8 @@ export function ItemShell({
             </div>
           </div>
         </header>
-        {children}
+        {/* the items the page lists (what it works with, its variants) open the item dialog */}
+        <ItemDetailsProvider>{children}</ItemDetailsProvider>
       </SidebarInset>
     </SidebarProvider>
   );

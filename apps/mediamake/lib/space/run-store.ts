@@ -119,6 +119,13 @@ export const runDB = {
     return viewOf(db, ctx, clientId, [...live, ...finished] as RunRecord[]);
   },
 
+  /** The runs of some projects that weren't cancelled, newest first: what a skill's dialog shows as made with it. The caller checked the account is on them. */
+  async madeIn(projects: string[], limit = 300): Promise<RunRecord[]> {
+    if (!projects.length) return [];
+    const { col } = await runs();
+    return (await col.find({ project: { $in: projects }, state: { $ne: 'cancelled' } }, noId).sort({ updatedAt: -1 }).limit(limit).toArray()) as RunRecord[];
+  },
+
   /** The runs that aren't over in every project the account works on (its own space too): what `mm run status` and a session's first line read. */
   async mine(clientId: string): Promise<{ runs: RunView[] }> {
     const { db, col } = await runs();
