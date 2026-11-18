@@ -100,6 +100,13 @@ or a routine:
    host of MediaMake's file storage, where a run saves and fetches productions and releases.
 3. **The line each session starts with**: `npm run mm -- cloud`.
 
+Two buttons copy it whole. **Copy all keys** gives the variables as `.env` lines, each name with nothing
+after its `=` (`ELEVENLABS_API_KEY=`), then `MEDIAMAKE_PLACE=<a name for the environment>`: paste them
+into the environment's variables and fill in each value there. **Copy setup instructions** gives the
+whole list as text in the order it is done (repositories, those variables, the domains, the first line,
+what stays on a computer), for a note, a teammate or Claude. Neither holds a value: only names are known
+here (`envLines` and `setupText` in `lib/space/cloud-setup.ts`).
+
 Under them: what stays on a computer (the device-only needs, and which skills have them).
 
 MediaMake knows the names only. A key's value is set in Claude, in the environment's settings, and
