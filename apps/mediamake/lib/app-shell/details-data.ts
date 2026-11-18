@@ -4,6 +4,8 @@ import { itemReadme } from '@/lib/catalog/readme-data';
 import type { ItemReadme } from '@/lib/catalog/readme';
 import { catalogListingDB } from '@/lib/catalog/store';
 import { registry, skillNamed } from '@/lib/skills/registry';
+import { spaceItemReadme, spaceOfKey } from '@/lib/space/item-readme';
+import { spaceDB } from '@/lib/space/store';
 import { registerDB } from '@/lib/space/register-store';
 import { runDB } from '@/lib/space/run-store';
 import { submissionsDB } from '@/lib/submissions/store';
@@ -39,8 +41,17 @@ export async function itemDetailsFor(viewer: { clientId: string | null }, key: s
   return details ? { ...details, readme: await readmeOf(key, details) } : null;
 }
 
-/** The README the dialog shows on its left: the item's own, else the default one (lib/catalog/readme-data). */
+/**
+ * The README the dialog shows on its left: the item's own (an item in a space: its README.md as its space
+ * reported it; a store item: lib/catalog/readme-data), else the default one. The dialog only has details
+ * for what the viewer may see, so a space item's README is theirs to read.
+ */
 async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> {
+  const inSpace = spaceOfKey(key, details);
+  if (inSpace) {
+    const own = await spaceDB.itemReadme(inSpace.spaceId, inSpace.kind, inSpace.name).catch(() => null);
+    if (own?.text.trim()) return spaceItemReadme(inSpace.spaceId, inSpace, own);
+  }
   const id = key.startsWith('catalog:') ? key.slice('catalog:'.length) : null;
   const skill = id?.startsWith('skill/') ? skillNamed(details.name) : null;
   // a locked item's README stays the default: its listing is for who can open it
@@ -57,6 +68,8 @@ async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> 
       inStore: !!id,
     },
     skill: details.locked ? null : skill,
+    // a locked store item keeps the default: its README is for who can open it
+    ...(id && !details.locked && { itemId: id }),
     listingReadme: listing?.readme,
   });
 }

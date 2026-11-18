@@ -60,7 +60,8 @@ the latest commit over the file list (folders open in place, a file opens on Git
 it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
 and Devices (each computer that has the space, and how many updates it is behind the newest one or has
 not sent). It comes from the computer furthest along: a computer reports the repo's file paths, its
-README and its last commits, never another file's contents. **Set up** has the line that sets the space
+README and its last commits, and each item's own README.md with its pictures (an item's dialog shows it:
+`docs/item-readme.md`), never another file's contents. **Set up** has the line that sets the space
 up on a computer and, for a Claude cloud session or a routine, what to add to the cloud environment: the
 repositories (MediaMake, the space's, each linked item's) and the keys its skills need, by the name of
 their environment variable, read from the skills' run sheets (`docs/cloud-device-runs.md`). Only names: a
@@ -155,8 +156,8 @@ Only the owner and editors of a project can make its space or share into it.
   session loads it. A folder of your own with the same name is never replaced:
   the command says so.
 - Git moves the files, with the sign-in the computer already has. MediaMake
-  never sees a file, and holds a GitHub token only for an owner who connected
-  GitHub (below).
+  sees only each item's README.md and the pictures it shows (its store listing),
+  and holds a GitHub token only for an owner who connected GitHub (below).
 - `sync`, `pull` and `push` first keep what changed here as a commit on this
   computer, so nothing is lost. When two computers changed the same file,
   nothing is changed and the command names the files; they are merged with
@@ -393,14 +394,20 @@ PUT /api/space
 { device, repo, project?, branch, commit, commitAt, pushed, ahead,
   history: [{ sha, at, author, subject }],          the last 30 commits
   items: [{ kind, name, version, title, summary, changed, media,
-            needs: ["key:elevenlabs", "browser:youtube"] }],     what it needs to run; left out when it doesn't say
+            needs: ["key:elevenlabs", "browser:youtube"],        what it needs to run; left out when it doesn't say
+            readme: { text, pictures: [{ path, sha256, type, bytes }] } }],   its README.md, when it has one
   code: { files: ["<path in the repo>"], truncated?, readme } }   a space's, not a linked item's
+→ { space, repo, device, items, uploads?: [{ sha256, url, headers }] }   README pictures to send, each once
 ```
 
 `device` is the computer's random label (`mac-3f9a`), `repo` its name
 (`owner/name`), `project` the project's id for a project's space, `summary`
 one line of at most 200 characters, `media` a count, `ahead` the commits not on
-GitHub yet. `code` is what the Code tab shows: the repo's file paths (at most
+GitHub yet. `readme` is the item's README.md (at most 32 KB) and the pictures
+it shows from its folder, by path and SHA-256 (at most 2 MB a picture, 16 and 8
+MB an item); `uploads` are signed PUTs for the pictures the space doesn't have
+yet, which the computer sends straight to private storage
+(`lib/space/readme-files.ts`). `code` is what the Code tab shows: the repo's file paths (at most
 2,000) and its README.md (at most 32 KB). Never another file, a path on the
 computer or a token; the server drops anything else (`lib/space/space.ts`). `mm usage off`
 stops it, `mm space report --dry` shows it exactly, `mm space forget` deletes
@@ -413,7 +420,8 @@ and naming a project's repo when you make its space.
 | Route | |
 | --- | --- |
 | `GET /api/space` | Your space and one per project you are on, as Mine shows them. People who may change a project also get its members' names and GitHub logins, to invite them |
-| `PUT /api/space` | What one computer's clone holds now; replaces what that computer said before. For a project: members only, and only for the repo that is its space |
+| `PUT /api/space` | What one computer's clone holds now; replaces what that computer said before. For a project: members only, and only for the repo that is its space. Answers with the README pictures to send |
+| `GET /api/space/readme-file/<space>/<kind>/<name>/<path>` | A picture an item's README shows, for whoever may see the space: a redirect to a short-lived signed link |
 | `POST /api/space` `{ project, repo }` | Names the repo of a project's space (owner and editors) |
 | `DELETE /api/space?device=<label>[&project=<id>]` | That computer disconnected |
 | `DELETE /api/space` | Forget your space and take your computers off every project's |

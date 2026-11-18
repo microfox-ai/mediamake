@@ -50,7 +50,7 @@
  *   ~/.claude/skills/<name>        the link Claude loads it through, like a variant's
  *
  * Git does the moving, with the sign-in this computer already has (gh, SSH or a credential helper).
- * MediaMake never gets a repo's contents. It holds a GitHub token only for an owner who clicked Connect GitHub
+ * MediaMake gets only each item's README.md and the pictures it shows (its store listing). It holds a GitHub token only for an owner who clicked Connect GitHub
  * in the app, to make a project's repo and invite its members from there. A space is private: a public repo is refused.
  *
  * Large media stays out of git. push refuses any file over 10 MB, media included (a skill's central
@@ -60,13 +60,15 @@
  *
  * What MediaMake is told (when this computer is signed in and usage reports are on: mm usage): each
  * repo's name, this computer's random label, the commit, and each item's kind, name, version, title,
- * one-line summary and what it needs to run (its run sheet's words: key names, MCPs, apps and sign-ins
- * by site and account, never a key or a password); for the app's Code tab, the last 30 commits (short id, time, author's name,
+ * one-line summary, what it needs to run (its run sheet's words: key names, MCPs, apps and sign-ins
+ * by site and account, never a key or a password) and its README.md with the pictures it shows from its folder (each
+ * picture once, kept privately); for the app's Code tab, the last 30 commits (short id, time, author's name,
  * subject), the paths of the repo's files and its README.md. Never another file's contents.
  * mm space report --dry shows it exactly. Which repo is a
  * project's space is told whenever you share into it, so its members can find it.
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -582,8 +584,10 @@ function acceptInvites(repos) {
 
 /**
  * The report: the repo's name, this computer's label, the commit and its last commits, each item's name,
- * version, title, summary and what it needs to run (its run sheet's words: key names, MCPs, apps, sign-ins
- * by site and account, never a key), and for a space (not a linked item) what the app's Code tab shows.
+ * version, title, summary, what it needs to run (its run sheet's words: key names, MCPs, apps, sign-ins
+ * by site and account, never a key) and its README.md with the pictures it shows (by content hash; the
+ * files go up once, when MediaMake asks for them), and for a space (not a linked item) what the app's Code
+ * tab shows.
  */
 export function spaceReport(space, env = process.env) {
   const state = gitState(space.dir);
@@ -596,20 +600,27 @@ export function spaceReport(space, env = process.env) {
     ...(state.commit && { commit: state.commit, commitAt: state.commitAt }),
     pushed: state.upstream && state.ahead === 0 && !state.dirty,
     ...(state.hasHead && { ahead: state.ahead, history: commitsOf(space.dir) }),
-    items: spaceItems(space.dir).map(item => ({
-      kind: item.kind,
-      name: item.name,
-      version: item.version,
-      title: item.title,
-      ...(item.summary && { summary: item.summary }),
-      ...(item.changed && { changed: true }),
-      ...(item.media.length && { media: item.media.length }),
-      ...(item.needs && { needs: item.needs }),
-    })),
+    items: spaceItems(space.dir).map(item => {
+      const readme = itemReadme(path.join(space.dir, item.path));
+      return {
+        kind: item.kind,
+        name: item.name,
+        version: item.version,
+        title: item.title,
+        ...(item.summary && { summary: item.summary }),
+        ...(item.changed && { changed: true }),
+        ...(item.media.length && { media: item.media.length }),
+        ...(item.needs && { needs: item.needs }),
+        // its README.md, the item's store listing, shown wherever the item is (docs/item-readme.md)
+        ...(readme && { readme }),
+      };
+    }),
     ...(!space.item && { code: spaceCode(space.dir) }),
   };
 }
 
+/** How long a report may take: it carries every item's README, and MediaMake checks which pictures it has. */
+const REPORT_TIMEOUT = 30_000;
 /** How many commits a report names: enough to say how far behind a computer is. */
 export const HISTORY = 30;
 /** How many file paths a report names at most. */
@@ -659,6 +670,102 @@ export function spaceCode(dir) {
     ...(files.length > MAX_REPORT_FILES && { truncated: true }),
     ...(text.trim() && { readme: text.slice(0, README_MAX) }),
   };
+}
+
+/* ---------- an item's README: its store listing, wherever the item lives ---------- */
+
+/** The pictures an item's README may show, by extension, with the type MediaMake keeps them as. */
+export const README_PICTURE_TYPES = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+};
+/** At most this big a picture, this many pictures and this many bytes in all, for one item's README. */
+export const README_PICTURE_MAX = 2 * 1024 * 1024;
+export const README_PICTURES_MAX = 16;
+export const README_PICTURES_BYTES = 8 * 1024 * 1024;
+
+const MD_IMAGE = /!\[[^\]]*\]\(\s*(?:<([^>\n]+)>|([^)\s]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
+const MD_REFERENCE = /^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)/gm;
+
+/** A link as a path inside the item's folder (`shots/a.png`), or null: a web link, an anchor or a path out of it. */
+function localPath(link) {
+  const raw = String(link).trim().replace(/[?#].*$/, '');
+  if (!raw || /^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith('//') || raw.startsWith('/')) return null;
+  let decoded;
+  try {
+    decoded = decodeURI(raw);
+  } catch {
+    return null;
+  }
+  const rel = path.posix.normalize(decoded.replace(/\\/g, '/')).replace(/^\.\//, '');
+  return !rel || rel === '.' || rel.startsWith('../') ? null : rel;
+}
+
+/**
+ * The pictures a README shows that are files beside it: its headshot (frontmatter) and every Markdown
+ * picture with a relative link, in the order they appear, each once.
+ */
+export function readmePictureLinks(markdown, headshot) {
+  const found = [];
+  const add = link => {
+    const rel = localPath(link);
+    if (rel && README_PICTURE_TYPES[path.posix.extname(rel).toLowerCase()] && !found.includes(rel)) found.push(rel);
+  };
+  if (typeof headshot === 'string') add(headshot);
+  const body = markdown.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '');
+  for (const m of body.matchAll(MD_IMAGE)) add(m[1] ?? m[2]);
+  for (const m of body.matchAll(MD_REFERENCE)) add(m[1]);
+  return found;
+}
+
+/**
+ * An item's README.md as MediaMake shows it, wherever the item lives (docs/item-readme.md): its text,
+ * and each picture it shows from its own folder by path, content hash, type and size. Pictures travel
+ * once: MediaMake asks for the ones it doesn't have yet (uploadReadmePictures). Null when it has none.
+ */
+export function itemReadme(at) {
+  const file = readmeFile(at);
+  if (!file) return null;
+  const text = fs.readFileSync(file, 'utf8').replace(/\u0000/g, '');
+  if (!text.trim()) return null;
+  const pictures = [];
+  let total = 0;
+  for (const rel of readmePictureLinks(text, frontmatter(file).headshot)) {
+    if (pictures.length >= README_PICTURES_MAX) break;
+    const full = path.resolve(at, ...rel.split('/'));
+    if (!inside(path.resolve(at), full)) continue;
+    const st = fs.statSync(full, { throwIfNoEntry: false });
+    if (!st?.isFile() || st.size > README_PICTURE_MAX || total + st.size > README_PICTURES_BYTES) continue;
+    const bytes = fs.readFileSync(full);
+    pictures.push({ path: rel, sha256: createHash('sha256').update(bytes).digest('hex'), type: README_PICTURE_TYPES[path.extname(rel).toLowerCase()], bytes: st.size });
+    total += st.size;
+  }
+  return { text: text.slice(0, README_MAX), ...(pictures.length && { pictures }) };
+}
+
+/**
+ * Sends the README pictures MediaMake asked for in its answer to a report (`uploads`: content hash, a
+ * signed address and the headers to send), from the items' folders. Returns how many went up.
+ */
+export async function uploadReadmePictures(dir, report, uploads) {
+  if (!Array.isArray(uploads) || !uploads.length) return 0;
+  const where = new Map();
+  for (const item of report.items) for (const picture of item.readme?.pictures ?? []) where.set(picture.sha256, path.join(dir, KINDS[item.kind], item.name, ...picture.path.split('/')));
+  let sent = 0;
+  for (const upload of uploads) {
+    const file = where.get(upload?.sha256);
+    if (!file || typeof upload.url !== 'string' || !/^https?:\/\//.test(upload.url)) continue;
+    const bytes = fs.readFileSync(file);
+    if (createHash('sha256').update(bytes).digest('hex') !== upload.sha256) continue; // changed since the report
+    const res = await fetch(upload.url, { method: 'PUT', headers: upload.headers ?? {}, body: bytes, signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`a README picture (${path.basename(file)}) was refused: ${res.status}`);
+    sent++;
+  }
+  return sent;
 }
 
 /* ---------- the README's list of what's here ---------- */
@@ -794,13 +901,16 @@ async function sendReports(list, env = process.env, { loud = false } = {}) {
   const at = signedIn(env);
   if (!at) return say(loud, `Not reported to MediaMake: this computer isn't signed in to ${url} (mm media cloud login, or MEDIAMAKE_API_KEY). Mine shows your spaces once it is.`);
   let items = 0;
+  let pictures = 0;
   try {
     for (const space of list) {
       const report = spaceReport(space, env);
-      await call('PUT', `${at.url}/api/space`, at.key, report);
+      const answer = await call('PUT', `${at.url}/api/space`, at.key, report, { timeoutMs: REPORT_TIMEOUT });
       items += report.items.length;
+      // the README pictures MediaMake doesn't have yet: each one goes up once
+      pictures += await uploadReadmePictures(space.dir, report, answer?.uploads);
     }
-    console.log(`Mine is up to date: ${url}/app/mine (${plural(items, 'item')} as ${deviceLabel(env)}).`);
+    console.log(`Mine is up to date: ${url}/app/mine (${plural(items, 'item')} as ${deviceLabel(env)}${pictures ? `, ${plural(pictures, 'README picture')} sent` : ''}).`);
     // the register keeps what this computer can do current with the same report (tools/access.mjs)
     await import('./access.mjs').then(access => access.sendPlace(env)).catch(() => null);
     return true;

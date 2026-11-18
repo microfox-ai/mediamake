@@ -27,8 +27,9 @@ import type { LinkedItemView } from './links';
  *   space's own page reads them.
  *   `id` is `user:<clientId>` or `project:<projectId>`.
  * - `space_items`: one document per item, `{ space, kind, name, title,
- *   summary, version, media, needs, devices: [{ device, version, changed }],
- *   createdAt, updatedAt }`.
+ *   summary, version, media, needs, readme: { text, pictures: [{ path, sha256, type, bytes }] },
+ *   devices: [{ device, version, changed }], createdAt, updatedAt }`. Lists leave out the README's text
+ *   and pictures: its dialog reads them (itemReadme). The pictures themselves are in ./readme-files.
  */
 const COL = { spaces: 'spaces', items: 'space_items' } as const;
 
@@ -47,6 +48,8 @@ export function ensureSpaceIndexes() {
 }
 
 const noId = { projection: { _id: 0 } } as const;
+/** An item as lists show it: everything but its README's text and pictures (an empty `readme` says it has one). */
+const LIST_ITEM = { _id: 0, 'readme.text': 0, 'readme.pictures': 0 } as const;
 /** GitHub's names don't tell upper from lower case. */
 const SAME_NAME = { locale: 'en', strength: 2 } as const;
 
@@ -124,6 +127,13 @@ export const spaceDB = {
       db.collection<SpaceItemRecord>(COL.items).find({ space: spaceId }, noId).toArray(),
     ]);
     return { space: space as SpaceRecord | null, items: items as SpaceItemRecord[] };
+  },
+
+  /** One item's README as its space last reported it, or null. Who may read it is the caller's to check. */
+  async itemReadme(spaceId: string, kind: string, name: string): Promise<SpaceItemRecord['readme'] | null> {
+    const db = await getDatabase();
+    const item = await db.collection<SpaceItemRecord>(COL.items).findOne({ space: spaceId, kind: kind as SpaceItemRecord['kind'], name }, { projection: { _id: 0, readme: 1 } });
+    return item?.readme ?? null;
   },
 
   /** Saves what a report changed. */
@@ -214,7 +224,8 @@ export const spaceDB = {
     const ids = [userSpaceId(clientId), ...projects.map(project => projectSpaceId(project.id))];
     const [spaces, items, people] = await Promise.all([
       db.collection<SpaceRecord>(COL.spaces).find({ id: { $in: ids } }, { projection: { _id: 0, code: 0, 'devices.history': 0 } }).toArray(),
-      db.collection<SpaceItemRecord>(COL.items).find({ space: { $in: ids } }, noId).toArray(),
+      // a README's text and pictures are read when its dialog opens (itemReadme), not with every list
+      db.collection<SpaceItemRecord>(COL.items).find({ space: { $in: ids } }, { projection: LIST_ITEM }).toArray(),
       peopleOf(db, projects.flatMap(project => project.people.map(person => person.clientId))),
     ]);
     const names = Object.fromEntries([...people].map(([id, person]) => [id, person.name]));

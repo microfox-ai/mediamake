@@ -4,6 +4,7 @@ import { getDatabase } from '@/lib/mongodb';
 import { linkId, linkSpaceId } from '@/lib/space/links';
 import { allSpaces, linkDB } from '@/lib/space/links-store';
 import { applyReport, deviceLabel, dropDevice, parseSpaceReport, projectId, projectSpaceId, repoName, repoNow, userSpaceId } from '@/lib/space/space';
+import { uploadsFor, type ReadmeUpload } from '@/lib/space/readme-files';
 import { spaceDB } from '@/lib/space/store';
 
 /**
@@ -16,11 +17,13 @@ import { spaceDB } from '@/lib/space/store';
  *        it stands on each computer. People who may change a project also get its members'
  *        GitHub logins, to invite them to the project's repo. `linked` has the linked items
  *        (lib/space/links) the account owns or may use; they are changed at /api/space/links.
- * PUT    { device, repo, project?, item?, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media }] }
- *        what one computer's clone holds now. Names, versions, titles and one-line summaries
- *        only: never a file or a token. With `project`, the report is about that project's
- *        space, from anyone on the project; with `item`, about that linked item's repo, from
- *        anyone who has it.
+ * PUT    { device, repo, project?, item?, branch, commit, commitAt, pushed, items: [{ kind, name, version, title, summary, changed, media, needs, readme }] }
+ *        what one computer's clone holds now. Names, versions, titles, one-line summaries and
+ *        each item's README.md (`readme: { text, pictures: [{ path, sha256, type, bytes }] }`, its
+ *        store listing): never another file, never a token. With `project`, the report is about
+ *        that project's space, from anyone on the project; with `item`, about that linked item's
+ *        repo, from anyone who has it. Answers with `uploads`: signed PUTs for the README
+ *        pictures this space doesn't have yet (lib/space/readme-files), each sent once.
  * POST   { project, repo }   names the repo of a project's space. Its owner and editors only.
  * DELETE ?device=<label>[&project=<id>|&item=<id>]   that computer disconnected; with neither, forget
  *        the account's own space and its computers everywhere (the repos are untouched).
@@ -72,7 +75,14 @@ export async function PUT(req: NextRequest) {
     }
     const change = applyReport(before, spaceId, clientId, report);
     await spaceDB.save(before, change);
-    return NextResponse.json({ space: spaceId, repo: change.space.repo, device: report.device, items: report.items.length });
+    // the README pictures this space doesn't have yet; a report still counts when storage can't be reached
+    let uploads: ReadmeUpload[] = [];
+    try {
+      uploads = await uploadsFor(spaceId, report.items.flatMap(item => item.readme?.pictures ?? []));
+    } catch (error) {
+      console.error('[space] Could not ask for README pictures:', error);
+    }
+    return NextResponse.json({ space: spaceId, repo: change.space.repo, device: report.device, items: report.items.length, ...(uploads.length && { uploads }) });
   } catch (error) {
     return failed('save the report', error);
   }
