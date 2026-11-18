@@ -1,5 +1,11 @@
 # @microfox/projectsync-mcp
 
+## 0.3.1
+
+### Patch Changes
+
+- 4b41a89: Changes from PR #607: project-thread-h4ywa4
+
 ## 0.3.0
 
 ### Minor Changes
