@@ -28,6 +28,7 @@ describe('launchVideoPromptFor', () => {
     const prompt = launchVideoPromptFor(facts({ code: 'https://github.com/microfox-ai/mediamake/tree/HEAD/.agents/skills/pack-brand-kit' }));
     assert.match(prompt, /^Make the Cook with Claude launch video for Pack Brand Kit \(skill\/pack-brand-kit, v1\.4\.0\) with the make-cwc-tutorial skill\./);
     assert.match(prompt, /catalog on 16 Nov 2026/);
+    assert.match(prompt, /in the Cook with Claude project's space, so run mm space sync, or mm space join "Cook with Claude"/);
     assert.match(prompt, /- What it is: Builds a brand kit from a logo\./);
     assert.match(prompt, /- Who can open it: Public \(everyone\)/);
     assert.match(prompt, /- Readiness: Ready\n/);

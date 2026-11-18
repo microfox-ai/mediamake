@@ -16,6 +16,9 @@ import { slugOf, type CatalogKind, type ItemTier, type ItemUse, type ReadyProof,
 /** The skill that makes a launch video. */
 export const LAUNCH_VIDEO_SKILL = 'make-cwc-tutorial';
 
+/** The MediaMake project whose space holds that skill (it left the repo on 2026-11-18): `mm space join` sets it up. */
+export const LAUNCH_VIDEO_SPACE = 'Cook with Claude';
+
 /** The kinds that get a launch video: a tutorial or a course is a video already. */
 export const LAUNCH_VIDEO_KINDS: CatalogKind[] = ['skill', 'mcp', 'app'];
 
@@ -94,7 +97,7 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   const page = `${site}/app/releases/${id}`;
   const lines: string[] = [
     `Make the Cook with Claude launch video for ${facts.title} (${id}${version}) with the ${LAUNCH_VIDEO_SKILL} skill.`,
-    `If this computer lacks that skill, an MCP it needs or mm-release, set them up yourself: mm update, then mm items install --yes (mm login first when mm items says it is signed out). Don't ask me for a site address or an install prompt.`,
+    `If this computer lacks that skill, set it up yourself: it is in the ${LAUNCH_VIDEO_SPACE} project's space, so run mm space sync, or mm space join "${LAUNCH_VIDEO_SPACE}" when the space isn't on this computer yet (it says who invites me if I'm not on the project). For an MCP it needs or mm-release: mm update, then mm items install --yes (mm login first when mm items says it is signed out). Don't ask me for a site address or an install prompt.`,
     '',
     `These facts are from MediaMake's catalog${facts.asOf ? ` on ${facts.asOf}` : ''}. Check each one before it goes in the script, and ask me for anything missing instead of filling it in.`,
     '',

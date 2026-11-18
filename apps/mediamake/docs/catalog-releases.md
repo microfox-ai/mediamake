@@ -232,7 +232,10 @@ Video (its form is a dialog).
 
 A skill, MCP or app gets a launch video: a Cook with Claude episode made with
 the `make-cwc-tutorial` skill by an admin on their own computer (it renders
-there and is reviewed in rounds, so the site makes no video itself).
+there and is reviewed in rounds, so the site makes no video itself). The skill
+lives in the Cook with Claude project's space, not in this repo (since
+2026-11-18): an admin on that project gets it with `mm space sync`, or
+`mm space join "Cook with Claude"` on a computer without the space.
 
 - The item's release page has **Copy launch video prompt** under its
   Intro video panel. The prompt carries what the catalog knows about the item:
