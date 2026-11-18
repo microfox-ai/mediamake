@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AlertTriangleIcon, ArrowRightIcon } from 'lucide-react';
-import { detailsKey, usedLine, type ItemDetails } from '@/lib/app-shell/details';
+import { detailsKey, usedLine } from '@/lib/app-shell/details';
 import { KIND_LABEL, type LocalOnly, type MemberKind, type Mine, type MineItem } from '@/lib/app-shell/member';
 import type { BrandMarks } from '@/lib/brand-kit';
 import { deviceName } from '@/lib/space/space';
@@ -8,7 +8,7 @@ import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemCards } from './item-cards';
 import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
-import { DetailsButton, ItemDetailsProvider } from './item-details';
+import { DetailsButton } from './item-details';
 
 /**
  * Mine (lib/app-shell/member › mine), one tab each: what the member
@@ -16,7 +16,7 @@ import { DetailsButton, ItemDetailsProvider } from './item-details';
  * beside it), what is theirs (their personal space and the items they
  * shared from it), what their projects have (a tab per project), what
  * members shared with them by name, and the other skills on their
- * computers. Clicking an item anywhere opens its details (./item-details).
+ * computers. Clicking an item anywhere opens the item dialog (./item-details).
  */
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -81,9 +81,9 @@ function LocalRows({ rows, variant = false }: { rows: LocalOnly[]; variant?: boo
           {variant && row.variantOf && (
             <span className="text-xs text-muted-foreground">
               variant of{' '}
-              <Link href={`/skills/${row.variantOf}`} className="underline underline-offset-2">
+              <DetailsButton detailsKey={detailsKey.catalog(`skill/${row.variantOf}`)} className="underline underline-offset-2">
                 {row.variantOf}
-              </Link>
+              </DetailsButton>
             </span>
           )}
           <span className="ml-auto text-xs text-muted-foreground">{onLine(row.on)}</span>
@@ -125,15 +125,12 @@ export function MineView({
   mine,
   spaces = null,
   tab,
-  details = {},
   now,
 }: {
   mine: Mine;
   spaces?: MySpaces | null;
   /** The tab to open first. */
   tab?: MineTab;
-  /** What each item's dialog says (lib/app-shell/details › mineDetails). */
-  details?: Record<string, ItemDetails>;
   /** The time "used 3 days ago" counts from. */
   now: number;
 }) {
@@ -158,7 +155,7 @@ export function MineView({
   const installed = (kind: MemberKind) => mine.installed.filter(entry => entry.item.kind === kind);
   const inProject = (project: (typeof projects)[number]) => (project.space?.items.length ?? 0) + linkedTo(project.projectId).length;
   return (
-    <ItemDetailsProvider details={details}>
+    <>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-6 lg:px-6">
         {failed.length > 0 && (
           <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300" role="alert">
@@ -282,6 +279,6 @@ export function MineView({
           </TabsContent>
         </Tabs>
       </div>
-    </ItemDetailsProvider>
+    </>
   );
 }

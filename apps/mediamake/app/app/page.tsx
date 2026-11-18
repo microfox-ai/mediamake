@@ -21,7 +21,7 @@ export default async function AppHomePage() {
   return (
     <AppPage title="Home">
       <div className="flex flex-col gap-4 px-4 py-6 lg:px-6">
-        <p className="text-sm text-muted-foreground">What you use most, then what you installed lately. Each row opens the item, copies its install prompt, or copies the prompt that updates it.</p>
+        <p className="text-sm text-muted-foreground">What you use most, then what you installed lately. Click a name for its details.</p>
         <HomeColumns columns={homeColumns(items, activity, registry?.skills ?? [])} days={MOST_USED_DAYS} />
       </div>
     </AppPage>

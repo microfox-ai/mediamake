@@ -9,8 +9,10 @@ import { MadeByLine } from '@/components/catalog/uses';
 import { VideoThumb } from '@/components/catalog/video';
 import { Input } from '@/components/ui/input';
 import { EXPLORE_PARAMS, KIND_LABEL, MEMBER_KINDS, explore, type AppItem, type ExploreFilters, type MemberKind } from '@/lib/app-shell/member';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { cn } from '@/lib/utils';
 import { BetaBadge, FailedNote, ItemActions, RuleLine, TierBadge } from './item-bits';
+import { DetailsButton } from './item-details';
 
 function writeFilters(f: ExploreFilters) {
   const url = new URL(window.location.href);
@@ -29,7 +31,8 @@ function writeFilters(f: ExploreFilters) {
  * ones a higher membership would open, locked and saying which (the cohort's
  * never reach this page: lib/app-shell/member › appItems). Search, kind and
  * category; Beta and membership badges; failed items only behind their
- * filter, with the reason.
+ * filter, with the reason. A card's picture or name opens the item dialog
+ * (./item-details); Open goes to its page.
  */
 export function Explore({
   items,
@@ -182,9 +185,9 @@ function ExploreCard({ item }: { item: AppItem }) {
   return (
     <article className={cn('flex h-full flex-col overflow-hidden rounded-xl border bg-card', item.locked && 'border-dashed', item.failed && 'border-red-500/40')}>
       {thumb && (
-        <Link href={item.page} tabIndex={-1} aria-hidden>
+        <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} tabIndex={-1} aria-hidden className="block w-full">
           <VideoThumb id={item.id} title={item.video?.title || item.title} src={item.video?.thumbnail} className={cn('border-b', item.locked && 'opacity-60')} />
-        </Link>
+        </DetailsButton>
       )}
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -200,9 +203,9 @@ function ExploreCard({ item }: { item: AppItem }) {
 
         <div className={cn('flex flex-col gap-1', item.locked && 'opacity-70')}>
           <h3 className="font-semibold leading-snug">
-            <Link href={item.page} className="underline-offset-4 hover:underline">
+            <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page}>
               {item.title}
-            </Link>
+            </DetailsButton>
           </h3>
           <p className="line-clamp-3 text-sm text-muted-foreground">{item.summary}</p>
           {item.madeBy && <MadeByLine madeBy={item.madeBy} link={false} />}

@@ -74,7 +74,7 @@ export function ProofGallery({ itemId, tiles }: { itemId: string; tiles: Gallery
 }
 
 /** What the big stage shows for one tile. */
-function Stage({ itemId, tile, playing, onPlay }: { itemId: string; tile: GalleryTile; playing: boolean; onPlay: () => void }) {
+export function Stage({ itemId, tile, playing, onPlay }: { itemId: string; tile: GalleryTile; playing: boolean; onPlay: () => void }) {
   if (tile.kind === 'video' && tile.src) {
     return <video src={tile.src} poster={tile.poster} controls playsInline preload="metadata" className="absolute inset-0 size-full bg-black object-contain" />;
   }
@@ -130,7 +130,7 @@ function Stage({ itemId, tile, playing, onPlay }: { itemId: string; tile: Galler
 }
 
 /** A tile's picture, or its title on the item's colour when it has none. `whole` fits the picture instead of filling the frame. */
-function Poster({ itemId, tile, small, whole }: { itemId: string; tile: GalleryTile; small?: boolean; whole?: boolean }) {
+export function Poster({ itemId, tile, small, whole }: { itemId: string; tile: GalleryTile; small?: boolean; whole?: boolean }) {
   const img = useRef<HTMLImageElement>(null);
   const [broken, setBroken] = useState(false);
   // a server-rendered thumbnail can finish loading before hydration, so its onLoad never runs

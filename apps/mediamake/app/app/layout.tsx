@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ItemDetailsProvider } from '@/components/app-shell/item-details';
 import { AppShellSidebar } from '@/components/app-shell/app-shell-sidebar';
 import { SignInGate } from '@/components/app-shell/sign-in-gate';
 import { SessionProvider } from '@/components/session-provider';
@@ -31,7 +32,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }
       >
         <AppShellSidebar variant="inset" tier={viewer.tier} clientId={viewer.clientId} />
-        {children}
+        {/* the one item dialog: a skill, MCP or app clicked on any page opens it */}
+        <ItemDetailsProvider>{children}</ItemDetailsProvider>
       </SidebarProvider>
     </SessionProvider>
   );
