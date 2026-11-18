@@ -547,17 +547,85 @@ test('the first item makes your own space by itself: a private repo on your GitH
   assert.match(none.out, /needs gh signed in/);
 });
 
-test('share moves an item into the project\'s space: the repo is made, MediaMake is told, members are invited', async () => {
+/**
+ * Another project's space on Ann's computer, with changes waiting for her yes (as another session left the
+ * Doomcat space): no share or link may send them. It is gone again after the test.
+ */
+const otherSpace = t => {
+  const repo = 'ann/mediamake-doomcat';
+  const bare = path.join(hub, `${repo}.git`);
+  const dir = ann.projectDir('doomcat');
+  const configFile = path.join(ann.home, '.mediamake', 'config.json');
+  const git = (...args) => assert.equal(spawnSync('git', ['-c', 'user.name=Ann', '-c', 'user.email=ann@example.com', ...args], { cwd: dir }).status, 0, args.join(' '));
+  const head = () => spawnSync('git', ['rev-parse', 'main'], { cwd: bare, encoding: 'utf8' }).stdout.trim();
+  assert.equal(spawnSync('git', ['init', '-q', '--bare', '-b', 'main', bare]).status, 0);
+  fs.writeFileSync(path.join(hub, `${repo}.access.json`), JSON.stringify({ owner: 'ann', collaborators: [], invitations: [] }));
+  assert.equal(spawnSync('git', ['clone', '-q', bare, dir]).status, 0);
+  ann.write('skills/make-doomcat-bulletin/SKILL.md', skillMd('make-doomcat-bulletin'), dir);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'First');
+  git('push', '-q', '-u', 'origin', 'main');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  fs.writeFileSync(configFile, JSON.stringify({ ...config, projectSpaces: { ...config.projectSpaces, dddddddddddddddddddddddd: { repo, slug: 'doomcat', name: 'Doomcat' } } }));
+  // waiting: a change, a new skill, and a commit made only here
+  ann.write('skills/make-doomcat-bulletin/SKILL.md', skillMd('make-doomcat-bulletin', 'Changed, not sent.'), dir);
+  ann.write('skills/make-doomcat-ep/SKILL.md', skillMd('make-doomcat-ep'), dir);
+  ann.write('notes.md', 'Committed here only.\n', dir);
+  git('add', 'notes.md');
+  git('commit', '-q', '-m', 'Here only');
+  const before = head();
+  t.after(() => {
+    const now = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    delete now.projectSpaces.dddddddddddddddddddddddd;
+    fs.writeFileSync(configFile, JSON.stringify(now));
+    for (const gone of [dir, bare, path.join(hub, `${repo}.access.json`)]) fs.rmSync(gone, { recursive: true, force: true });
+  });
+  return {
+    /** Nothing of it reached GitHub, and what waited here still waits. */
+    untouched: () => {
+      assert.equal(head(), before, 'nothing reached the other space on GitHub');
+      assert.deepEqual(hubFiles(repo), ['skills/make-doomcat-bulletin/SKILL.md']);
+      const waiting = spawnSync('git', ['status', '--porcelain', '-uall'], { cwd: dir, encoding: 'utf8' }).stdout;
+      assert.match(waiting, /skills\/make-doomcat-bulletin\/SKILL\.md/);
+      assert.match(waiting, /skills\/make-doomcat-ep\/SKILL\.md/);
+    },
+  };
+};
+
+test('share moves an item into the project\'s space: the repo is made, MediaMake is told, members are invited', async t => {
+  const other = otherSpace(t);
+  // waiting in her own space beside the item: it goes up with the share, so the dry run says so
+  ann.write('skills/make-zone-outro/SKILL.md', skillMd('make-zone-outro'));
+  // a file that can't go up stops the share before anything moves
+  ann.write('skills/make-zone-intro/take.bin', Buffer.alloc(11 * 1024 * 1024));
+  const stopped = await ann.space(['share', 'make-zone-intro', '--project=Anime Music Zone', '--yes']);
+  assert.equal(stopped.status, 1, stopped.out);
+  assert.match(stopped.out, /✖ skills\/make-zone-intro\/take\.bin is 11\.0 MB: over 10 MB/);
+  assert.match(stopped.out, /Nothing was moved/);
+  assert.ok(!fs.existsSync(path.join(hub, 'ann', 'mediamake-anime-music-zone.git')));
+  assert.ok(fs.existsSync(path.join(ann.dir, 'skills', 'make-zone-intro', 'SKILL.md')));
+  fs.rmSync(path.join(ann.dir, 'skills', 'make-zone-intro', 'take.bin'));
+
   const dry = await ann.space(['share', 'make-zone-intro', '--project=Anime Music Zone']);
   assert.equal(dry.status, 0, dry.out);
   assert.match(dry.out, /make the private repo mediamake-anime-music-zone/);
   assert.match(dry.out, /Bob \(can push\)/);
   assert.match(dry.out, /Cy can't be invited yet/);
+  // exactly what --yes sends: the two spaces it touches, file by file, and no other
+  assert.match(dry.out, /Then it pushes these 2 spaces, and no other:/);
+  assert.match(dry.out, /Would push to mediamake-anime-music-zone \(project anime music zone\):\n  skills\/make-zone-intro  \d+ new\n/);
+  assert.match(dry.out, /Would push to ann\/mediamake-space \(your space\):\n/);
+  assert.match(dry.out, /  skills\/make-zone-intro  \d+ deleted\n/);
+  assert.match(dry.out, /  skills\/make-zone-outro  1 new  \(already waiting here: it goes up too\)/);
+  assert.doesNotMatch(dry.out, /doomcat/i);
   assert.match(dry.out, /A dry run/);
   assert.ok(!fs.existsSync(path.join(hub, 'ann', 'mediamake-anime-music-zone.git')));
 
   const done = await ann.space(['share', 'make-zone-intro', '--project=Anime Music Zone', '--yes']);
   assert.equal(done.status, 0, done.out);
+  assert.doesNotMatch(done.out, /doomcat/i);
+  other.untouched();
+  assert.ok(hubFiles('ann/mediamake-space').includes('skills/make-zone-outro/SKILL.md'), 'what the dry run listed went up');
   assert.equal(projectRepos[PROJECT], 'ann/mediamake-anime-music-zone');
   assert.match(done.out, /invited to Anime Music Zone's repo on GitHub: Bob/);
   assert.match(done.out, /Cy has no GitHub account linked to MediaMake/);
@@ -627,10 +695,11 @@ const thumbRepo = 'ann/mediamake-skill-make-thumb-style';
 const accessOf = repo => JSON.parse(fs.readFileSync(path.join(hub, `${repo}.access.json`), 'utf8'));
 const eve = computer('eve', 'eve');
 
-test('link gives an item its own repo, keeps it its owner\'s, and gives it to a project\'s people and a named editor', async () => {
+test('link gives an item its own repo, keeps it its owner\'s, and gives it to a project\'s people and a named editor', async t => {
   assert.equal((await ann.space(['new', 'skill', thumb])).status, 0);
   ann.write(`skills/${thumb}/SKILL.md`, skillMd(thumb));
   assert.equal((await ann.space(['sync', '--yes'])).status, 0);
+  const other = otherSpace(t);
 
   const nowhere = await ann.space(['link', thumb]);
   assert.equal(nowhere.status, 1);
@@ -643,12 +712,17 @@ test('link gives an item its own repo, keeps it its owner\'s, and gives it to a 
   assert.match(dry.out, /a private repo of its own on your GitHub, mediamake-skill-make-thumb-style/);
   assert.match(dry.out, /link it to Anime Music Zone: the 3 people on it get it/);
   assert.match(dry.out, /share it with eve@example\.com: can use it and change it/);
+  // exactly what --yes sends of her space, and no other space
+  assert.match(dry.out, /Then it pushes your space, which it leaves, and no other:\nWould push to ann\/mediamake-space \(your space\):\n  skills\/make-thumb-style  \d+ deleted\n/);
+  assert.doesNotMatch(dry.out, /doomcat/i);
   assert.match(dry.out, /A dry run/);
   assert.ok(!fs.existsSync(path.join(hub, `${thumbRepo}.git`)));
   assert.equal(links.length, 0);
 
   const done = await ann.space(['link', thumb, '--project=Anime Music Zone', '--editor=eve@example.com', '--yes']);
   assert.equal(done.status, 0, done.out);
+  assert.doesNotMatch(done.out, /doomcat/i);
+  other.untouched();
   assert.match(done.out, /made the private repo ann\/mediamake-skill-make-thumb-style/);
   assert.match(done.out, /is linked to Anime Music Zone/);
   assert.match(done.out, /is shared with eve@example\.com \(can change it\): they were told by mail/);

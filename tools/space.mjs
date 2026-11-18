@@ -11,7 +11,8 @@
  *   mm space new <skill|mcp|app> <name> [--project=<project>]   start an item (makes your space when you have none)
  *   mm space add <skill>           move one of your workspace skills into your space (a dry run; --yes)
  *   mm space share <item> --project=<project>   move an item into a project's space, so everyone on the
- *                                  project gets it (a dry run; --yes). --copy keeps yours too
+ *                                  project gets it (a dry run; --yes). --copy keeps yours too. It pushes only
+ *                                  those two spaces, and the dry run lists every file that goes up
  *   mm space link <item> --project=<project> [--project=…] [--to=<email>] [--editor=<email>]
  *                                  keep an item yours and give it to more people (a dry run; --yes): everyone
  *                                  on each linked project, and the members you name. Only you and the editors
@@ -229,13 +230,13 @@ export function outgoing(dir, state = gitState(dir)) {
   }
 }
 
-/** What must not go up: large files and media (always), keys and tokens (unless forced). */
+/** What must not go up: large files and media (always), keys and tokens (unless forced). A file with `from` is read there. */
 export function pushProblems(dir, files) {
   const large = [];
   const secrets = [];
   for (const file of files) {
     if (file.change === 'deleted') continue;
-    const abs = path.join(dir, file.path);
+    const abs = path.join(file.from ?? dir, file.path);
     const st = fs.statSync(abs, { throwIfNoEntry: false });
     if (!st?.isFile()) continue;
     const mb = `${(st.size / 1048576).toFixed(1)} MB`;
@@ -829,7 +830,7 @@ const mdLink = (label, target) => `[\`${label}\`](${target.split('/').map(encode
  * file's first words, a folder's own README.md, a package.json's description, or its file count), then
  * each skill, MCP and app with its summary. Built from the files, so it is never out of date.
  */
-export function contentsBlock(dir, files = spaceFiles(dir)) {
+export function contentsBlock(dir, files = spaceFiles(dir), items = spaceItems(dir)) {
   const top = new Map();
   for (const file of files) {
     const [first, ...rest] = file.split('/');
@@ -855,7 +856,6 @@ export function contentsBlock(dir, files = spaceFiles(dir)) {
     lines.push(`- ${mdLink(entry.folder ? `${entry.name}/` : entry.name, entry.name)}${about ? `: ${md(String(about))}` : ''}`);
   }
   if (!entries.length) lines.push('Nothing at the top yet. Guidance every production follows (a CLAUDE.md, prefs.md) and shared code go here, beside the folders below.');
-  const items = spaceItems(dir);
   for (const [kind, folder] of Object.entries(KINDS)) {
     const list = items.filter(item => item.kind === kind);
     if (!list.length) continue;
@@ -884,12 +884,13 @@ export function withContents(readme, block) {
   return `${before}\n\n${block}${after ? `\n${after}` : ''}`;
 }
 
-/** The README as it should be, or null when it already is. A space with none gets one. */
-export function readmeUpdate(space) {
+/** The README as it should be, or null when it already is. A space with none gets one. `without`: as it will be once that item has left. */
+export function readmeUpdate(space, { without } = {}) {
   if (space.item) return null;
   const file = readmeFile(space.dir) ?? path.join(space.dir, 'README.md');
   const now = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : README(space.repo, space.project);
-  const next = withContents(now, contentsBlock(space.dir));
+  const items = without ? spaceItems(space.dir).filter(item => item.path !== without) : undefined;
+  const next = withContents(now, contentsBlock(space.dir, undefined, items));
   return next === now && fs.existsSync(file) ? null : { file, text: next };
 }
 
@@ -1323,10 +1324,14 @@ async function pull(_args, flags, env) {
   return failed ? 1 : 0;
 }
 
-/** What one space would send, checked. */
-function pushPlan(space, flags) {
-  const state = gitState(space.dir);
-  const files = outgoing(space.dir, state);
+/**
+ * What one space would send, checked. `files` and `readme` can be given: what a share or a link will leave
+ * there, worked out before anything moves (a file with `from` is still in the space it leaves). `own` names
+ * the item the command moves, so the other lines show as already waiting here (null: every line was).
+ */
+function pushPlan(space, flags, { files, readme, own } = {}) {
+  const state = space.dir ? gitState(space.dir) : { upstream: false, behind: 0 };
+  files ??= outgoing(space.dir, state);
   const byItem = new Map();
   for (const file of files) {
     const parts = file.path.split('/');
@@ -1335,13 +1340,50 @@ function pushPlan(space, flags) {
   }
   const { large, secrets } = pushProblems(space.dir, files);
   const blocked = large.length > 0 || (secrets.length > 0 && !flags.includes('--force'));
+  // the items that go up (not only away), each read where its files are now
+  const where = key => byItem.get(key).find(f => f.from)?.from ?? space.dir;
+  const live = [...byItem.keys()].filter(k => !k.startsWith('(') && byItem.get(k).some(f => f.change !== 'deleted'));
   // a skill going up should carry its code: name what it uses that only this computer has
-  const code = [...byItem.keys()]
+  const code = live
     .filter(k => k.startsWith(`${KINDS.skill}/`))
-    .map(k => ({ name: k.split('/')[1], list: codeOutside(path.join(space.dir, k)) }))
+    .map(k => ({ name: k.split('/')[1], list: codeOutside(path.join(where(k), k)) }))
     .filter(c => c.list.length);
-  const sheets = spaceItems(space.dir).filter(item => item.sheetErrors && byItem.has(item.path));
-  return { state, files, byItem, large, secrets, blocked, code, sheets, readme: !!readmeUpdate(space) };
+  const itemsAt = new Map();
+  const itemOf = key => {
+    const dir = where(key);
+    if (!itemsAt.has(dir)) itemsAt.set(dir, spaceItems(dir));
+    return itemsAt.get(dir).find(item => item.path === key);
+  };
+  const sheets = live.map(itemOf).filter(item => item?.sheetErrors);
+  return { state, files, byItem, large, secrets, blocked, code, sheets, readme: readme ?? !!readmeUpdate(space), own };
+}
+
+const within = (file, rel) => file === rel || file.startsWith(`${rel}/`);
+/** git's order of paths (byte by byte), so a planned push lists them as the push itself will. */
+const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+
+/**
+ * What a space will send once the item at `rel` has left it: what GitHub has of the item goes as deleted,
+ * what of it was only here goes nowhere, and everything else waiting in the space goes too.
+ */
+function leavingPlan(space, rel, flags) {
+  const state = gitState(space.dir);
+  const onGithub = state.upstream ? must(space.dir, ['ls-tree', '-r', '-z', '--name-only', `origin/${state.branch}`, '--', rel]).split('\0').filter(Boolean) : [];
+  const files = [...outgoing(space.dir, state).filter(f => !within(f.path, rel)), ...onGithub.map(p => ({ path: p, change: 'deleted' }))].sort(byPath);
+  return pushPlan(space, flags, { files, readme: !!readmeUpdate(space, { without: rel }), own: rel });
+}
+
+/**
+ * What a space will send once the item at `rel` in `from` has joined it: the item's files as new, and
+ * everything else waiting in the space. `space.dir` is unset when the space isn't on this computer yet.
+ */
+function arrivingPlan(space, rel, from, flags) {
+  const waiting = space.dir ? outgoing(space.dir).filter(f => !within(f.path, rel)) : [];
+  const files = must(from, ['ls-files', '-co', '-z', '--exclude-standard', '--', rel])
+    .split('\0')
+    .filter(p => p && fs.existsSync(path.join(from, p)))
+    .map(p => ({ path: p, change: 'new', from }));
+  return pushPlan(space, flags, { files: [...waiting, ...files].sort(byPath), readme: true, own: rel });
 }
 
 /** Says that a skill's run sheet can't be read, row by row. It still goes up: the skill works, only its runs don't. */
@@ -1357,7 +1399,7 @@ function showPlan(space, plan, flags, yes) {
   for (const [item, list] of plan.byItem) {
     const count = change => list.filter(f => f.change === change).length;
     const parts = [count('new') && `${count('new')} new`, count('changed') && `${count('changed')} changed`, count('deleted') && `${count('deleted')} deleted`].filter(Boolean);
-    console.log(`  ${item}  ${parts.join(', ')}`);
+    console.log(`  ${item}  ${parts.join(', ')}${plan.own !== undefined && item !== plan.own ? '  (already waiting here: it goes up too)' : ''}`);
     if (flags.includes('--files')) for (const f of list) console.log(`      ${f.change.padEnd(7)} ${f.path}`);
   }
   if (plan.readme) console.log("  README.md  its list of what's here is brought up to date");
@@ -1402,8 +1444,11 @@ function pushOne(space, plan, env, message) {
   console.log(`✔ pushed to ${space.repo}: ${what}`);
 }
 
-async function push(_args, flags, env) {
-  const list = chosen(flags, env);
+/**
+ * Sends what is waiting in each space (every one here, or the one --project or --mine names; a command that
+ * moves an item passes its own `list`). `stop`: a space whose push fails keeps the ones after it here.
+ */
+async function push(_args, flags, env, list = chosen(flags, env), { stop = false } = {}) {
   if (!list.length) throw noSpaces();
   const yes = flags.includes('--yes');
   const dashM = process.argv.indexOf('-m');
@@ -1412,6 +1457,10 @@ async function push(_args, flags, env) {
   let any = false;
   const done = [];
   for (const space of list) {
+    if (stop && code) {
+      console.log(`⚠ ${space.label} isn't pushed either, so GitHub keeps it as it was. Once the push above works: ${space.id === 'mine' ? 'mm space push --mine --yes' : `mm space push --project="${space.project?.name ?? space.id}" --yes`}`);
+      continue;
+    }
     const reached = git(space.dir, ['fetch', '-q', '--prune', 'origin']);
     if (!reached.ok && yes) {
       console.error(`✖ ${space.label}: could not reach ${space.repo}: ${reached.err}`);
@@ -1630,17 +1679,40 @@ async function share(args, flags, env) {
   const yes = flags.includes('--yes');
   const have = localSpaces(env).find(s => s.id === entry.projectId);
   const others = (entry.members ?? []).filter(m => !m.you);
+  const taken = dir => `${entry.name}'s space already has ${item.path}. Change it there (${tilde(path.join(dir, item.path))}), or share yours under another name.`;
 
-  if (!yes) {
-    console.log(`Would ${copy ? 'copy' : 'move'} ${item.path} from your space into ${entry.name}'s, so everyone on the project gets it:`);
+  // the two spaces it touches, as they are on GitHub now: what goes up is worked out from them, before anything moves
+  for (const space of [have, mine].filter(Boolean)) {
+    const reached = git(space.dir, ['fetch', '-q', '--prune', 'origin']);
+    if (!reached.ok && yes) throw new Error(`Could not reach ${space.repo}: ${reached.err}\nNothing was moved.`);
+  }
+  if (have) {
+    const { upstream, branch } = gitState(have.dir);
+    if (fs.existsSync(path.join(have.dir, item.path)) || (upstream && git(have.dir, ['cat-file', '-e', `origin/${branch}:${item.path}`]).ok)) throw new Error(taken(have.dir));
+  }
+  const target = have ?? { id: entry.projectId, project: { id: entry.projectId, name: entry.name }, label: `Project ${entry.name}`, repo: entry.space?.repo ?? `mediamake-${slugify(entry.name)}` };
+  const plans = [
+    [target, arrivingPlan(target, item.path, mine.dir, flags)],
+    [mine, copy ? pushPlan(mine, flags, { own: null }) : leavingPlan(mine, item.path, flags)],
+  ].filter(([, plan]) => plan.files.length || plan.readme);
+  const blocked = plans.some(([, plan]) => plan.blocked);
+
+  if (!yes || blocked) {
+    console.log(`${yes ? "Can't" : 'Would'} ${copy ? 'copy' : 'move'} ${item.path} from your space into ${entry.name}'s, so everyone on the project gets it:`);
     if (!have && !entry.space?.repo) console.log(`  make the private repo mediamake-${slugify(entry.name)} on your GitHub and tell MediaMake it is ${entry.name}'s space`);
     else if (!have) console.log(`  connect ${entry.space.repo} here`);
     const invitable = others.filter(m => m.githubLogin);
     if (invitable.length) console.log(`  make sure these people are on the repo: ${invitable.map(m => `${m.name} (${m.role === 'viewer' ? 'can pull' : 'can push'})`).join(', ')}`);
     const without = others.filter(m => !m.githubLogin);
     if (without.length) console.log(`  ${without.map(m => m.name).join(', ')} can't be invited yet: no GitHub account linked to MediaMake`);
-    console.log(`  push both spaces${copy ? '' : `; ${item.path} leaves your own space`}`);
-    console.log(`A dry run. mm space share ${args[0]} --project="${entry.name}" --yes does it.`);
+    if (!copy) console.log(`  ${item.path} leaves your own space`);
+    console.log(`Then it pushes ${plans.length === 1 ? 'this space' : `these ${plans.length} spaces`}, and no other:`);
+    for (const [space, plan] of plans) showPlan(space, plan, flags, false);
+    if (blocked) {
+      console.log(`\nNothing was moved. Fix the ✖ lines first.`);
+      return 1;
+    }
+    console.log(`\nA dry run. mm space share ${args[0]} --project="${entry.name}"${copy ? ' --copy' : ''} --yes does it (--files lists every file).`);
     return 0;
   }
 
@@ -1648,7 +1720,7 @@ async function share(args, flags, env) {
   pullOne(space, env);
   const from = path.join(mine.dir, item.path);
   const to = path.join(space.dir, item.path);
-  if (fs.existsSync(to)) throw new Error(`${entry.name}'s space already has ${item.path}. Change it there (${tilde(to)}), or share yours under another name.`);
+  if (fs.existsSync(to)) throw new Error(taken(space.dir));
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.cpSync(from, to, { recursive: true });
   if (!copy) fs.rmSync(from, { recursive: true, force: true });
@@ -1656,7 +1728,8 @@ async function share(args, flags, env) {
   // the links of the space it left go first, so the name is free for the space it joined
   if (!copy) linkSkills(mine.dir);
   afterChange(space);
-  return push([], ['--yes', ...flags.filter(f => f === '--force' || f.startsWith('--message='))], env);
+  // only the two spaces it touched, the project's first: when that push fails, the item stays in yours on GitHub too
+  return push([], ['--yes', ...flags.filter(f => f === '--force' || f === '--files' || f.startsWith('--message='))], env, [space, mine], { stop: true });
 }
 
 const values = (flags, name) => flags.filter(f => f.startsWith(name)).flatMap(f => f.slice(name.length).split(',')).map(v => v.trim()).filter(Boolean);
@@ -1759,13 +1832,19 @@ async function link(args, flags, env) {
 
   if (!flags.includes('--yes')) {
     console.log(`Would link ${what}. It stays yours, one copy with one history, and only you and the editors you name can change it:`);
-    if (item) {
-      console.log(`  give it a private repo of its own on your GitHub, mediamake-${item.kind}-${item.name}, and move it there from your space`);
-      console.log('  push your space, which it leaves');
-    }
+    if (item) console.log(`  give it a private repo of its own on your GitHub, mediamake-${item.kind}-${item.name}, and move it there from your space`);
     for (const p of projects) console.log(`  link it to ${p.name}: ${p.people > 1 ? `the ${p.people} people on it get it` : 'everyone added to it gets it'} at their next mm space sync`);
     for (const p of people) console.log(`  share it with ${p.email}: ${p.editor ? 'can use it and change it' : 'can use it'}`);
-    console.log(`A dry run. Add --yes to do it.`);
+    if (item) {
+      // what your space sends once the item has left it, and no other space
+      git(mine.dir, ['fetch', '-q', '--prune', 'origin']);
+      const plan = leavingPlan(mine, item.path, flags);
+      if (plan.files.length || plan.readme) {
+        console.log('Then it pushes your space, which it leaves, and no other:');
+        showPlan(mine, plan, flags, false);
+      }
+    }
+    console.log(`\nA dry run. Add --yes to do it.`);
     return 0;
   }
 
@@ -1789,8 +1868,8 @@ async function link(args, flags, env) {
   for (const p of projects) await step({ action: 'link', project: p.projectId }, () => `${what} is linked to ${p.name}: its people get it at their next mm space sync (or mm space join ${p.projectId})`);
   for (const p of people) await step({ action: 'add', email: p.email, editor: p.editor }, a => `${what} is shared with ${p.email} (${p.editor ? 'can change it' : 'can use it'})${a?.mailed ? ': they were told by mail' : ''}`);
   settleRepoPeople(answer?.item ?? view, answer);
-  // the space it left goes up without it; the item's own repo is already there
-  const pushed = mine ? await push([], ['--yes', '--mine', ...flags.filter(f => f === '--force')], env) : 0;
+  // the space it left goes up without it, and no other space; the item's own repo is already there
+  const pushed = mine ? await push([], ['--yes', ...flags.filter(f => f === '--force' || f === '--files')], env, [mine]) : 0;
   await sendReports([space], env);
   return failed || pushed ? 1 : 0;
 }
