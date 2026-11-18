@@ -74,9 +74,12 @@ so those steps never run in a cloud session. `apps/mediamake/docs/cloud-device-r
   changes. `skills.mjs add`, `publish` and `mm submit` stop on a skill without one.
 - A need names a thing, never a secret: `key:elevenlabs`, never the key; `browser:youtube/<channel>`,
   never a password. Keys are set in the cloud environment or on the device, by the person.
-- In a cloud session, do the steps that can run there and stop at one that needs a device: say which
-  step, what it needs and what the sheet's "Without it" says, and post it as a to-do (below). Don't
-  work around it.
+- "Without it" says what a place that lacks the need does: "a to-do …" means the step waits for a
+  place that has it; anything else is what to do instead, there. A cell holds only its column's words
+  (a reason or a condition goes under the table): `mm space status` says which rows can't be read.
+- In a cloud session, do the steps that can run there, a step with another way that way, and stop at
+  one that waits: say which step, what it needs and what the sheet's "Without it" says, and post it
+  as a to-do (below). Don't work around it.
 
 ## The register: where a step can run
 
@@ -128,8 +131,10 @@ in another. `apps/mediamake/docs/cloud-device-runs.md` › The run record has th
   `mm run save <slug> <n> --production` (its code and renders go to the project's Productions),
   `--release` for a release kit, `--output="<the link>"` for what it made. A step isn't done until it
   is saved, and a saved step is never done again.
-- A step this place can't do: `mm run wait <slug> <n>` posts it as a to-do and lets go of the run. Then
-  end; don't post the to-do by hand as well.
+- A step this place lacks something for: when the run sheet says what to do without it, do that here
+  (`mm run step <slug> <n> --without`), so the run stays in one place. When it says "a to-do …",
+  `mm run wait <slug> <n>` posts it as a to-do and lets go of the run. Then end; don't post the to-do
+  by hand as well.
 - "Continue <slug> in <project>" is `mm run resume <slug> --project=<project>`: do what it prints, from
   the step it names. When it lists files here that differ from the saved ones, show the user and run
   `--take-saved` only when they say so.

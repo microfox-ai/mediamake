@@ -8,12 +8,13 @@
  *   has it and where. A hold nobody renewed ends by itself, so a session that died never blocks a run.
  * - A saved step is never redone. A step that was started and never saved is done again by whoever
  *   continues.
- * - A step this place can't do waits as a to-do (./todos); finishing the to-do saves the step.
+ * - A step this place can't do waits as a to-do (./todos); finishing the to-do saves the step. When
+ *   the run sheet says what a place does without the need, the place does that instead (`lacked`).
  *
  * Everyone on the project reads a run, so its words never hold a key or a password.
  */
 import type { ProjectRole } from '@/lib/editor/project-access';
-import { needList } from './places';
+import { needList, waitsWithout } from './places';
 import { accessView, placeHas, type PlaceRecord } from './register';
 import { projectId } from './space';
 import { looksSecret, needWords, type TodoState } from './todos';
@@ -34,6 +35,8 @@ export interface SheetStep {
   yes?: boolean;
   /** Running it twice does no harm. */
   repeat?: boolean;
+  /** The run sheet's "Without it": what a place that lacks a need does instead, or "a to-do …" when it waits. */
+  without?: string;
 }
 
 export interface RunStep extends SheetStep {
@@ -47,6 +50,8 @@ export interface RunStep extends SheetStep {
   output?: string;
   /** The to-do it waits for. */
   todo?: string;
+  /** The needs the place that did it lacked: it was done the run sheet's other way (`without`). */
+  lacked?: string[];
 }
 
 /** What the run saved to the project, by reference: enough for another place to fetch it. */
@@ -104,10 +109,14 @@ export function sheetSteps(value: unknown): SheetStep[] {
     const s = (raw ?? {}) as Record<string, unknown>;
     const step = line(s.step, 120);
     if (!step || steps.some(have => have.step === step)) continue;
-    steps.push({ step, needs: needList(s.needs ?? []), ...(s.yes === true && { yes: true }), ...(s.repeat === true && { repeat: true }) });
+    const without = line(s.without, 300);
+    steps.push({ step, needs: needList(s.needs ?? []), ...(s.yes === true && { yes: true }), ...(s.repeat === true && { repeat: true }), ...(without && !looksSecret(without) && { without }) });
   }
   return steps;
 }
+
+/** A step as its run sheet names it, with nothing of a run on it. */
+const sheetOf = (step: SheetStep): SheetStep => ({ step: step.step, needs: step.needs, ...(step.yes && { yes: true }), ...(step.repeat && { repeat: true }), ...(step.without && { without: step.without }) });
 
 /** The hold as it is now: null once it ran out, or its holder left the project. */
 export function holdNow(run: Pick<RunRecord, 'state' | 'hold'>, now = Date.now(), onProject?: Set<string>): RunRecord['hold'] | null {
@@ -130,7 +139,7 @@ export function runNow(run: Pick<RunRecord, 'state' | 'hold' | 'steps'>, now = D
 export type RunAsk =
   | { action: 'start'; project: string; slug: string; skill: string; title?: string; steps: SheetStep[]; place?: string; again?: boolean }
   | { action: 'resume'; project: string; slug: string; place?: string }
-  | { action: 'step'; project: string; slug: string; step: number; place?: string; hours?: number }
+  | { action: 'step'; project: string; slug: string; step: number; place?: string; hours?: number; lacked?: string[] }
   | { action: 'save'; project: string; slug: string; step: number; place?: string; output?: string; saved?: RunSaved }
   | { action: 'wait'; project: string; slug: string; step: number; title?: string; notes?: string }
   | { action: 'stop'; project: string; slug: string }
@@ -152,7 +161,7 @@ export function parseRunAsk(body: unknown): RunAsk | { error: string } {
       const skill = typeof b.skill === 'string' && /^[a-z0-9][a-z0-9._:-]{0,99}$/i.test(b.skill.trim()) ? b.skill.trim() : null;
       if (!skill) return { error: 'skill is the name of the skill the run follows' };
       const steps = sheetSteps(b.steps);
-      if (!steps.length) return { error: "steps are the skill's run sheet: [{ step, needs, yes?, repeat? }]" };
+      if (!steps.length) return { error: "steps are the skill's run sheet: [{ step, needs, yes?, repeat?, without? }]" };
       return { action: 'start', ...at, skill, ...(line(b.title, 140) && { title: line(b.title, 140) }), steps, ...(place && { place }), ...(b.again === true && { again: true }) };
     }
     case 'resume':
@@ -160,7 +169,8 @@ export function parseRunAsk(body: unknown): RunAsk | { error: string } {
     case 'step': {
       if (!stepNo) return { error: 'step is the number of the step, from 1' };
       const hours = typeof b.hours === 'number' && b.hours > 0 ? Math.min(MAX_HOLD_HOURS, b.hours) : undefined;
-      return { action: 'step', ...at, step: stepNo, ...(place && { place }), ...(hours && { hours }) };
+      const lacked = needList(b.lacked ?? []);
+      return { action: 'step', ...at, step: stepNo, ...(place && { place }), ...(hours && { hours }), ...(lacked.length && { lacked }) };
     }
     case 'save': {
       if (!stepNo) return { error: 'step is the number of the step, from 1' };
@@ -274,7 +284,11 @@ export function applyRunAsk(run: RunRecord, actor: RunActor, ask: Exclude<RunAsk
     });
 
   if (ask.action === 'step') {
-    return next({ steps: withStep({ state: 'started', by: actor.clientId, ...(place && { place }), startedAt: at }, place ? ['doneAt', 'output', 'todo'] : ['doneAt', 'output', 'todo', 'place']), hold: keep(ask.hours) });
+    // on a place that lacks a need, only the run sheet's other way: never when the sheet says it waits
+    const lacked = (ask.lacked ?? []).filter(need => step.needs.includes(need));
+    if (lacked.length && waitsWithout(step.without)) return { error: `${label(run, index)} waits for a place that has ${lacked.join(', ')}: its run sheet doesn't say what to do without (mm run wait ${run.slug} ${index + 1})` };
+    const drop: (keyof RunStep)[] = ['doneAt', 'output', 'todo', ...(place ? [] : ['place' as const]), ...(lacked.length ? [] : ['lacked' as const])];
+    return next({ steps: withStep({ state: 'started', by: actor.clientId, ...(place && { place }), startedAt: at, ...(lacked.length && { lacked }) }, drop), hold: keep(ask.hours) });
   }
   if (ask.action === 'save') {
     const steps = withStep({ state: 'done', by: actor.clientId, ...(place && { place }), doneAt: at, ...(ask.output && { output: ask.output }) }, ['todo']);
@@ -300,9 +314,9 @@ export function afterTodo(run: RunRecord, todo: { id: string; step?: string; sta
   const at = now.toISOString();
   let steps: RunStep[];
   if (todo.state === 'done') {
-    steps = run.steps.map((step, i) => (i === index ? { step: step.step, needs: step.needs, ...(step.yes && { yes: true }), ...(step.repeat && { repeat: true }), state: 'done' as const, ...(todo.doneBy && { by: todo.doneBy }), ...(todo.place && { place: todo.place }), doneAt: at, ...(todo.result && { output: todo.result }), todo: todo.id } : step));
+    steps = run.steps.map((step, i) => (i === index ? { ...sheetOf(step), state: 'done' as const, ...(todo.doneBy && { by: todo.doneBy }), ...(todo.place && { place: todo.place }), doneAt: at, ...(todo.result && { output: todo.result }), todo: todo.id } : step));
   } else if (todo.state === 'cancelled') {
-    steps = run.steps.map((step, i) => (i === index ? { step: step.step, needs: step.needs, ...(step.yes && { yes: true }), ...(step.repeat && { repeat: true }), state: 'todo' as const } : step));
+    steps = run.steps.map((step, i) => (i === index ? { ...sheetOf(step), state: 'todo' as const } : step));
   } else return null;
   if (!steps.every(step => step.state === 'done')) return { ...run, steps, rev: run.rev + 1, updatedAt: at };
   // its last step: the run is over, whoever had it
@@ -327,6 +341,10 @@ export interface RunStepView {
   output?: string;
   todo?: string;
   todoState?: TodoState;
+  /** What a place that lacks a need does instead (the run sheet's "Without it"), unless the step waits. */
+  without?: string;
+  /** It was done that way, on a place that lacked these. */
+  lacked?: { need: string; label: string }[];
 }
 
 export interface RunView {
@@ -342,7 +360,7 @@ export interface RunView {
   /** How many steps are saved. */
   done: number;
   /** What comes next, and the places that have what it needs. */
-  next?: { n: number; step: string; needs: string[]; places: string[]; yours: string[] };
+  next?: { n: number; step: string; needs: string[]; places: string[]; yours: string[]; without?: string };
   /** Who has it, on which place, since when. */
   heldBy?: string;
   heldOn?: string;
@@ -401,9 +419,11 @@ export function runsView(input: { project: string; name: string; role: ProjectRo
           ...((step.doneAt ?? step.startedAt) && { at: step.doneAt ?? step.startedAt }),
           ...(step.output && { output: step.output }),
           ...(step.todo && { todo: step.todo, ...(todos[step.todo] && { todoState: todos[step.todo] }) }),
+          ...(!waitsWithout(step.without) && { without: step.without }),
+          ...(step.lacked?.length && { lacked: step.lacked.map(need => ({ need, label: needWords(need) })) }),
         })),
         done: run.steps.filter(step => step.state === 'done').length,
-        ...(upcoming && { next: { n: index + 1, step: upcoming.step, needs: upcoming.needs, places: able.map(place => place.name), yours: able.filter(place => place.mine && place.kind === 'device').map(place => place.name) } }),
+        ...(upcoming && { next: { n: index + 1, step: upcoming.step, needs: upcoming.needs, places: able.map(place => place.name), yours: able.filter(place => place.mine && place.kind === 'device').map(place => place.name), ...(!waitsWithout(upcoming.without) && { without: upcoming.without }) } }),
         ...(hold && { heldBy: who(hold.by), ...(hold.place && { heldOn: hold.place }), heldSince: hold.at }),
         mine: !!hold && hold.by === me,
         ...(run.saved && { saved: run.saved }),

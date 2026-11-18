@@ -42,6 +42,7 @@ function Step({ step, next }: { step: RunStepView; next: boolean }) {
         {step.state === 'done' && (
           <span className="text-muted-foreground">
             {where && ` · ${where}`}
+            {step.lacked?.length ? ` · done without ${step.lacked.map(l => l.label).join(', ')}` : ''}
             {step.output && (
               <>
                 {' · '}
@@ -50,7 +51,13 @@ function Step({ step, next }: { step: RunStepView; next: boolean }) {
             )}
           </span>
         )}
-        {step.state === 'started' && <span className="text-muted-foreground"> · started{step.place ? ` on ${step.place}` : ''}</span>}
+        {step.state === 'started' && (
+          <span className="text-muted-foreground">
+            {' '}
+            · started{step.place ? ` on ${step.place}` : ''}
+            {step.lacked?.length ? `, without ${step.lacked.map(l => l.label).join(', ')}` : ''}
+          </span>
+        )}
         {step.state === 'unsaved' && <span className="text-amber-700 dark:text-amber-300"> · started{step.place ? ` on ${step.place}` : ''} and never saved: it is done again</span>}
         {step.state === 'waiting' && (
           <span className="text-muted-foreground">
@@ -95,6 +102,11 @@ function RunCard({ run, canWork, owner, waiting, onAsk }: { run: RunView; canWor
               <>
                 <CheckIcon className="mr-1 inline size-3.5 text-emerald-600" aria-hidden />
                 {list(run.next.places)} can do step {run.next.n}.
+              </>
+            ) : run.next.without ? (
+              <>
+                <CheckIcon className="mr-1 inline size-3.5 text-emerald-600" aria-hidden />
+                Any place can do step {run.next.n} another way: {run.next.without}
               </>
             ) : (
               <span className="text-amber-700 dark:text-amber-300">
