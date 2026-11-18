@@ -55,7 +55,7 @@ README.md                   what the space is, and "What's here": a list `mm spa
 
 **On the space's page** the tabs are Code, Skills (the skills, MCPs and apps, a card each), Brand
 (the brand kit: colours, fonts and a card per file; owners and editors change it in a dialog),
-Productions, Releases, Media, People and Set up. **Code** is the repo as GitHub shows it: the branch and
+Productions, Releases, Media, People, Where it runs (a project's space only) and Set up. **Code** is the repo as GitHub shows it: the branch and
 the latest commit over the file list (folders open in place, a file opens on GitHub), the README under
 it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
 and Devices (each computer that has the space, and how many updates it is behind the newest one or has
@@ -64,7 +64,10 @@ README and its last commits, never another file's contents. **Set up** has the l
 up on a computer and, for a Claude cloud session or a routine, what to add to the cloud environment: the
 repositories (MediaMake, the space's, each linked item's) and the keys its skills need, by the name of
 their environment variable, read from the skills' run sheets (`docs/cloud-device-runs.md`). Only names: a
-key's value is set in Claude and never comes to MediaMake.
+key's value is set in Claude and never comes to MediaMake. **Where it runs** is the project's register:
+what its skills need, and a card for each cloud environment and each computer open to the project, with
+what it can do (`mm access`, `docs/cloud-device-runs.md` › The register). A computer is closed to a
+project until its owner opens it.
 
 **Central files** are whatever sits at the top of the repo beside `skills/`, `mcps/` and `apps/`: the
 guidance, prefs and shared code that every production of the space follows. Static files (pictures,

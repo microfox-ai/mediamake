@@ -92,6 +92,21 @@ id for a project's space (`PUT /api/space`, stored in `spaces` and
 deletes it. Which repo is a project's space is told when someone makes it,
 whatever the switch says: the project's members need it to find the space.
 
+## The register
+
+A computer (`mm access`) and a Claude cloud session (`mm cloud`) also say what
+they can do, for the register of the projects that may use them
+(`docs/cloud-device-runs.md` › The register): the computer's random label, the
+name its owner gave it, a list of words (`render`, key names, MCPs, apps,
+sign-ins by site and account name, `media:library`), the spend limit its owner
+wrote beside a key, and for a cloud environment the names of the space repos
+it holds (`PUT /api/space/places`, stored in `places`). Never a key, a
+password, a path or a file. Only the owner sees a computer until they open it
+to a project; then that project's people see its name, its owner's name and
+those words. The same switch stops it (`mm usage off`), `mm access --dry`
+shows it, and `mm access forget` deletes it. `mm usage forget` does not: it
+deletes runs, skill lists and app opens.
+
 ## Feedback
 
 `POST /api/feedback` `{ text, itemId?, version? }` takes a member's feedback
