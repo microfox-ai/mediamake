@@ -17,7 +17,7 @@ thumbnails/
   spec.ts              the contract (JobSpec → resolveJob → layers); pure TS, also run by scripts/thumbs.ts in Node
   presets/             common.ts (grades, the headline stack, logos), cinematic.ts, graphic.ts, index.ts (registry)
   layers/              Photo.tsx (photo/cutout/image), Text.tsx (headlines), Graphics.tsx (fill/shape/fx/logo), filters.tsx
-  Thumbnail.tsx        one variant; Sheet.tsx: every variant labelled with its ID
+  Thumbnail.tsx        one variant (`solo` / `probe` for thumbs figcraft); Sheet.tsx: every variant tagged with its ID
   Root.tsx, index.ts   Studio entry: every jobs/<job>/thumbs.json → <job>-<ID>, <job>-sheet, <job>-sheet-small
   fonts.ts             loads the job's fonts/ (never the network)
   tools/cutout.py      local subject segmentation (rembg + BiRefNet, free)
@@ -35,6 +35,8 @@ mm thumbs render <job> [A1,B2] [--guides] [--png] [--no-sheet]  # → out/thumbn
 mm thumbs pick <job> B2            # the final → out/thumbnails/<job>/final/
 mm thumbs pick <job> A1,B2,D3      # three for YouTube's Test & Compare
 mm thumbs keep <job> B2            # lock one the user likes: kept/ snapshot, renders skip it, warns if its spec drifts
+mm thumbs figcraft <job> B2 [--open] [--fresh] [--no-fonts]   # rebuild it in Figcraft as editable layers → figcraft/B2.figcraft
+mm thumbs figcraft <job> B2 --export [--file=…]                # the user's saved edit → B2-edit.jpg (pick it like any ID)
 mm thumbs init <job> --poster [--brand=…] [--mood=…]   # a poster job (poster.json, no logo, treatments "auto")
 mm thumbs pick <poster-job> A3 [--to=<release folder>]   # the cover → final/ (+ cover.jpg there)
 mm thumbs-studio                       # Studio, every job (hot-reloads the specs)
@@ -225,17 +227,18 @@ subject drifting for depth, embers, pulsing light, grain; every motion periodic,
 `mm thumbs canvas <job>` → `out/posters/<job>/canvas/remotion.mp4`
 (H.264 yuv420p, silent). The `create-music-poster` skill covers the fal and Midjourney versions.
 
-## Review: /file-revision
+## Review: in the chat (thumbnails), /file-revision (posters)
 
-The user reviews a job in mediamake's **File Revisions** screen
-(`/file-revision?job=<job>`, the review screen for any image set; code and both file formats in
-`apps/mediamake/components/file-revisions/README.md`). It opens `out/thumbnails/<job>/`
-through `index.json`, lets them select thumbnails and pick finals (1, or up to 3 for an A/B
-test), keep, drop or comment, zoom in with a magnifier, and pin comments to a spot. It saves
-beside the renders:
+A thumbnail job is reviewed in the chat: `sheet.jpg` tags every tile's ID (A1, B3, …) in a yellow
+label at its top-right corner, so the user names their picks there (create-thumbnail, step 7).
+Posters and other image sets still open in mediamake's **File Revisions** screen
+(`/file-revision?job=<job>`; code and both file formats in
+`apps/mediamake/components/file-revisions/README.md`), which reads `out/<kind>/<job>/` through
+`index.json`: it lets the user pick finals, keep, drop or comment, zoom in with a magnifier, and pin
+comments to a spot, and saves beside the renders:
 
 ```
-out/thumbnails/<job>/<job>.revisions/
+out/posters/<job>/<job>.revisions/
   rev-001.json    status draft | ready | resolved; final, keep, drop; comments [{ id, thumbs, text, pin?, snapshot?, status, reply? }]
   rev-001.md      the same as Markdown (read this first)
   rev-001/        a 2× crop around each pinned spot (c02_F1.jpg)
@@ -243,3 +246,25 @@ out/thumbnails/<job>/<job>.revisions/
 
 Keep `index.json`'s shape stable: the screen reads its styles, variants, `kind`, `size`, `picked`
 and `kept`. Posters show square there, with one **Cover** to pick instead of up to three finals.
+
+## The final edit: Figcraft
+
+`mm thumbs figcraft <job> <ID>` rebuilds a finished variant in [Figcraft](https://github.com/storytold/figcraft)
+(an open-source design editor; its `figcraft-cli` is `mcp/figcraft` in MediaMake) so the user can
+change anything by hand. `scripts/figcraft.ts` decides how each layer goes over and writes the
+command script; `scripts/thumbs.ts` renders and runs it:
+
+| layer | in Figcraft |
+|-------|-------------|
+| `text` | live text, one text layer a line, in the job's fonts at the laid-out size, spacing and place (the render logs each line's box: `Thumbnail` `probe`); plates as rectangles, `stroke` as an outside stroke, `shadow`, `glow` and `extrude` as drop shadows, `*accent*` words as a fill over their characters, `rotate` as a turn about the layer's centre. Slanted text, knockout plates and pictures inside letters go in as their render, with the live text under it, hidden |
+| `fill` of one colour | a locked rectangle |
+| everything else | an image: the layer rendered alone on a transparent ground (`Thumbnail` `solo`), the treatment's grade included, trimmed to its pixels; pictures at 2×, fills and textures at 1×, locked, with their blend (grain `overlay`, light `screen`, …) |
+
+Everything lands in `out/<kind>/<job>/figcraft/`: `<ID>.figcraft`, and `<ID>/` with the layer PNGs,
+`script.json` (the recipe, `figcraft-cli run script.json --out …`), `render.png`, `check.png` (the
+file exported) and `compare.jpg` (render | Figcraft; the command prints how alike they are). It
+installs the fonts FigCraft lacks into `~/Library/Fonts`, and `--open` opens FigCraft (on control
+port 7979 when it starts it). `--export` exports the saved frame at the job's size to
+`<ID>-edit.jpg` beside the renders (every export also kept as `figcraft/<ID>-edit-v<N>.jpg`). A file
+that exists is never rebuilt over: `--fresh` makes `<ID>-2.figcraft`. `mm test:figcraft` tests the
+pure half.

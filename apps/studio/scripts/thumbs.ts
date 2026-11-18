@@ -11,6 +11,8 @@
  *        mm thumbs keep <job> B2            (lock thumbnails the user likes as they are)
  *        mm thumbs pick <poster-job> A3 [--to=<release folder>]   (the cover; --to also copies it there as cover.jpg)
  *        mm thumbs canvas <poster-job>      (the Spotify Canvas loop → out/posters/<job>/canvas/remotion.mp4)
+ *        mm thumbs figcraft <job> B2 [--open] [--fresh] [--no-fonts]   (rebuild it in Figcraft for the user to edit)
+ *        mm thumbs figcraft <job> B2 --export [--file=…]                (bring the edit back as B2-edit.jpg)
  *        mm thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]
  *        mm thumbs shot <job> <url> [--name=…] [--crop=x,y,w,h] [--width=1440 --height=900 --scale=2]
  *        mm thumbs logo <job> "<name> logo" [--pick=2] [--name=…]
@@ -32,6 +34,11 @@
  *            for a poster, the one cover (3000×3000 JPEG) to out/posters/<job>/final/
  *   keep     snapshots IDs into out/thumbnails/<job>/kept/ (image + resolved spec); render then
  *            leaves them alone and warns if their spec has changed since
+ *   figcraft rebuilds one variant as an editable Figcraft file (out/thumbnails/<job>/figcraft/<ID>.figcraft:
+ *            pictures, devices and textures as images, headline lines as live text in the job's fonts),
+ *            checks it against a fresh render (compare.jpg), installs fonts FigCraft lacks, --open opens
+ *            it; --export brings the saved edit back as <ID>-edit.jpg (pick it like any ID). Needs
+ *            figcraft-cli (scripts/figcraft.ts, the use-figcraft skill)
  *   inspire  references for a kind of channel or one video (thumbnails/tools/inspire.py): lists each
  *            channel's recent videos (yt-dlp, no key), scores them by views ÷ the channel's own
  *            median, and keeps its hits and misses' thumbnails: filed in the media library
@@ -53,10 +60,11 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { removeBundle, tempBundle } from './bundle.ts';
-import { getCompositions, renderMedia, renderStill } from '@remotion/renderer';
+import { getCompositions, openBrowser, renderMedia, renderStill } from '@remotion/renderer';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { type Box, type FontSpec, type JobSpec, KINDS, type ResolvedVariant, TIMESTAMP_ZONE, fontFile, jobKind, jobScale, jobSize, resolveJob, styleVariants } from '../thumbnails/spec.ts';
@@ -64,6 +72,7 @@ import { PRESETS } from '../thumbnails/presets/index.ts';
 import { TREATMENTS } from '../thumbnails/treatments.ts';
 import { features, pickTreatments, scoreTreatments } from '../thumbnails/look.ts';
 import { type ExposureFile, MOODS, type Mood, type Stats, fixFor, levelsFor, curve, summarize } from '../thumbnails/exposure.ts';
+import { type Baked, INSTALL_HINT, type Probe, buildScript, figcraftCli, planLayers, runResults } from './figcraft.ts';
 import { DIRS, repoPath, shown } from './paths.ts';
 import { hasConfig, loadConfig } from './library/config.ts';
 
@@ -729,9 +738,224 @@ const swapTool = () => {
   py(['numpy', 'scipy', 'pillow'], 'thumbnails/tools/kit.py', 'solid', `--dir=${jobDir(job)}`, `--name=${name}`);
 };
 
+// ── figcraft: the final edit, in an editor ──────────────────────────────────────────────────────
+
+/** The port FigCraft is started with (`--control`), so `figcraft-cli mcp --attach <port>` can drive the open window. */
+const FIGCRAFT_PORT = Number(process.env.FIGCRAFT_CONTROL_PORT ?? 7979);
+
+/** Runs a figcraft-cli script (saved beside the rebuild, so it can be read or run again); throws on a failed step. */
+const figcraftRun = (cli: string, steps: unknown[], file: string, extra: string[] = []) => {
+  fs.writeFileSync(file, JSON.stringify(steps, null, 2) + '\n');
+  const r = spawnSync(cli, ['run', file, ...extra], { encoding: 'utf8', maxBuffer: 1 << 28 });
+  if (r.status !== 0) throw new Error(`figcraft-cli run ${rel(file)} failed: ${`${r.stderr}\n${r.stdout}`.trim().split('\n').slice(-3).join(' · ')}`);
+  return runResults(r.stdout);
+};
+
+/** The box of a transparent PNG's opaque pixels (ffmpeg's bbox on its alpha), or null when it drew nothing. */
+const alphaBox = (file: string): Box | null => {
+  // a layer that covers every pixel comes out as a PNG with no alpha channel: all of it
+  const fmt = spawnSync(ffprobeInstaller.path, ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=pix_fmt', '-of', 'csv=p=0', file], { encoding: 'utf8' }).stdout.trim();
+  const dims = imageSize(file);
+  if (dims && !/a/.test(fmt.replace(/^gbr/, ''))) return [0, 0, dims[0], dims[1]];
+  const r = spawnSync(ffmpegInstaller.path, ['-hide_banner', '-i', file, '-vf', 'alphaextract,bbox=min_val=3', '-f', 'null', '-'], { encoding: 'utf8' });
+  const m = [...(r.stderr ?? '').matchAll(/x1:(\d+) x2:(\d+) y1:(\d+) y2:(\d+)/g)].pop();
+  if (!m) return null;
+  const [x1, x2, y1, y2] = m.slice(1).map(Number);
+  return x2 >= x1 && y2 >= y1 ? [x1, y1, x2 - x1 + 1, y2 - y1 + 1] : null;
+};
+
+/** The job's font files (render fetches missing Google fonts first). */
+const jobFontFiles = (spec: JobSpec) => [...new Set((spec.fonts ?? []).map(f => path.join(jobDir(job), 'fonts', fontFile(f))).filter(f => fs.existsSync(f)))];
+
+/** The rebuilds of one ID, newest last: <ID>.figcraft, <ID>-2.figcraft … */
+const figcraftDocs = (dir: string, id: string) =>
+  fs.existsSync(dir)
+    ? fs
+        .readdirSync(dir)
+        .filter(f => new RegExp(`^${id}(-\\d+)?\\.figcraft$`).test(f))
+        .map(f => path.join(dir, f))
+        .sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs)
+    : [];
+
+/** How close two pictures are, 0–100 (100 − mean difference per channel, at 320 px wide). */
+const likeness = (a: string, b: string) => {
+  const pa = pixels(a, 320).data;
+  const pb = pixels(b, 320).data;
+  if (pa.length !== pb.length) return 0;
+  let sum = 0;
+  for (let i = 0; i < pa.length; i++) sum += Math.abs(pa[i] - pb[i]);
+  return Math.round((1 - sum / pa.length / 255) * 1000) / 10;
+};
+
+/** FigCraft with the file; started with its control port when it isn't running yet. */
+const openInFigcraft = (doc: string) => {
+  if (process.platform !== 'darwin') return console.log(`Open ${doc} in FigCraft.`);
+  const running = spawnSync('pgrep', ['-x', 'FigCraft']).status === 0;
+  const r = spawnSync('open', running ? ['-a', 'FigCraft', doc] : ['-a', 'FigCraft', '--args', '--control', String(FIGCRAFT_PORT), doc]);
+  if (r.status !== 0) warn(`FigCraft isn't in /Applications: install the .dmg from https://github.com/storytold/figcraft/releases/latest, then open ${rel(doc)}`);
+  else console.log(`↗ opened in FigCraft${running ? ' (it was already open, so without its control port)' : ` (control port ${FIGCRAFT_PORT}: figcraft-cli mcp --attach ${FIGCRAFT_PORT} drives the window)`}`);
+};
+
+/** Installs the job's fonts that FigCraft doesn't have on this computer, so the file opens in them. */
+const installFigcraftFonts = (cli: string, doc: string, spec: JobSpec) => {
+  const info = spawnSync(cli, ['info', doc, '--json'], { encoding: 'utf8' });
+  const missing = info.status === 0 ? ((JSON.parse(info.stdout).missingFonts ?? []) as { family: string }[]).map(f => f.family) : [];
+  if (!missing.length) return;
+  const fontsDir = process.platform === 'darwin' ? path.join(os.homedir(), 'Library', 'Fonts') : path.join(os.homedir(), '.local', 'share', 'fonts');
+  fs.mkdirSync(fontsDir, { recursive: true });
+  for (const family of missing) {
+    const files = (spec.fonts ?? []).filter(f => f.family === family).map(f => path.join(jobDir(job), 'fonts', fontFile(f)));
+    if (!files.some(f => fs.existsSync(f))) warn(`${family} is not on this computer or in the job's fonts/: FigCraft shows its text in a fallback font`);
+    for (const file of files.filter(f => fs.existsSync(f))) {
+      const to = path.join(fontsDir, path.basename(file));
+      if (fs.existsSync(to)) continue;
+      fs.copyFileSync(file, to);
+      console.log(`✔ installed ${family} (${path.basename(file)}) in ${fontsDir.replace(os.homedir(), '~')}, so FigCraft shows it`);
+    }
+  }
+};
+
+/** A PNG as YouTube's JPEG (under 2 MB) or a poster's 3000 px cover. */
+const toJpeg = (from: string, to: string, poster: boolean) => {
+  for (const q of poster ? [2] : [2, 3, 5, 8]) {
+    spawnSync(ffmpegInstaller.path, ['-y', '-loglevel', 'error', '-i', from, '-q:v', String(q), to]);
+    if (poster || fs.statSync(to).size <= MAX_BYTES) break;
+  }
+};
+
+/**
+ * Rebuilds a finished variant in Figcraft as layers the user can edit: every picture, device and
+ * texture rendered alone (transparent, trimmed, pictures at 2×) and placed where it was, every
+ * headline line as live text in the job's fonts (plates as rectangles, strokes, shadows and glows as
+ * effects), plain fills as rectangles. Checks the file by exporting it and comparing with a fresh
+ * render, installs fonts FigCraft lacks, and opens it with --open. --export brings the edit back.
+ */
+const figcraft = async () => {
+  const id = third;
+  if (!id) throw new Error('Usage: thumbs figcraft <job> <ID> [--open] [--fresh] [--no-fonts]   ·   thumbs figcraft <job> <ID> --export [--file=<path>.figcraft]');
+  const cli = figcraftCli();
+  if (!cli) throw new Error(INSTALL_HINT);
+  const spec = readSpec(job);
+  const dir = path.join(outDir(job), 'figcraft');
+  if (flags.includes('--export')) return figcraftExport(cli, spec, id, dir);
+  const exposure = fs.existsSync(exposureFile()) ? (JSON.parse(fs.readFileSync(exposureFile(), 'utf8')) as ExposureFile) : undefined;
+  const variant = resolveJob(spec, exposure).find(v => v.id === id);
+  if (!variant) throw new Error(`No ${id} in ${rel(specFile(job))}`);
+  const docs = figcraftDocs(dir, id);
+  if (docs.length && !flags.includes('--fresh')) {
+    const latest = docs[docs.length - 1];
+    console.log(`${rel(latest)} is there already and may hold the user's edits: kept as it is (--fresh rebuilds ${id} from its spec as a new file).`);
+    if (flags.includes('--open')) openInFigcraft(latest);
+    return;
+  }
+  const doc = path.join(dir, docs.length ? `${id}-${docs.length + 1}.figcraft` : `${id}.figcraft`);
+  const work = path.join(dir, path.basename(doc, '.figcraft'));
+  fs.rmSync(work, { recursive: true, force: true });
+  fs.mkdirSync(path.join(work, 'layers'), { recursive: true });
+  const scale = jobScale(spec);
+  const size = jobSize(spec);
+  const plans = planLayers(variant, scale);
+  for (const f of spec.fonts ?? []) await fetchFont(job, f);
+  const fonts = jobFontFiles(spec);
+
+  const serveUrl = await tempBundle({ entryPoint: path.join(ROOT, 'thumbnails/index.ts'), publicDir: JOBS });
+  const composition = (await getCompositions(serveUrl)).find(c => c.id === `${job}-${id}`);
+  if (!composition) throw new Error(`No composition ${job}-${id}`);
+  const browser = await openBrowser('chrome', { logLevel: 'error' });
+  const probes = new Map<number, Probe>();
+  const baked = new Map<string, Baked>();
+  const render = path.join(work, 'render.png');
+  try {
+    const still = (props: Record<string, unknown>, output: string, s: number, onLog?: (text: string) => void) =>
+      renderStill({ serveUrl, composition: { ...composition, props: { ...composition.defaultProps, ...props } }, output, imageFormat: 'png', scale: s, puppeteerInstance: browser, logLevel: 'error', onBrowserLog: onLog && (log => onLog(log.text)) });
+    // the whole variant, logging where its text lines sit (Remotion echoes the line too)
+    await still({ probe: true }, render, scale, text => {
+      if (!text.startsWith('[figcraft-text] ')) return;
+      for (const p of JSON.parse(text.slice('[figcraft-text] '.length)) as Probe[]) probes.set(p.index, p);
+    });
+    for (const [n, plan] of plans.entries()) {
+      if (plan.how === 'rect' || (plan.how === 'text' && !plan.bake)) continue;
+      const file = path.join(work, 'layers', `${String(n).padStart(2, '0')}-${plan.name.replace(/\.(png|jpe?g|webp|svg)$/i, '').replace(/[^\w.-]+/g, '-').slice(0, 40)}.png`);
+      await still({ solo: plan.key }, file, plan.scale);
+      const box = alphaBox(file);
+      if (!box) {
+        fs.rmSync(file);
+        continue;
+      }
+      const dims = imageSize(file);
+      if (dims && (box[2] < dims[0] || box[3] < dims[1])) {
+        const cropped = file.replace(/\.png$/, '.crop.png');
+        spawnSync(ffmpegInstaller.path, ['-y', '-loglevel', 'error', '-i', file, '-vf', `crop=${box[2]}:${box[3]}:${box[0]}:${box[1]}`, cropped]);
+        fs.renameSync(cropped, file);
+      }
+      baked.set(plan.key, { file, box: box.map(v => v / plan.scale) as Box });
+    }
+  } finally {
+    await browser.close({ silent: true }).catch(() => undefined);
+    removeBundle(serveUrl);
+  }
+
+  // each family's faces as Figcraft names them, so a weight finds its face
+  const families = [...new Set([...(spec.fonts ?? []).map(f => f.family), ...[...probes.values()].flatMap(p => p.items.map(i => i.font))])];
+  const faces = figcraftRun(cli, [...fonts.map(f => ({ command: 'text.loadFont', params: { path: f } })), ...families.map(family => ({ command: 'text.fonts', params: { family } }))], path.join(work, 'fonts.json'));
+  const styles = Object.fromEntries(families.map((f, i) => [f, (faces[fonts.length + i]?.result as unknown as string[] | undefined) ?? []]));
+  const name = `${job} · ${id}`;
+  const { steps, notes } = buildScript({ name, size, fonts, styles, plans, probes, baked });
+  const results = figcraftRun(cli, steps, path.join(work, 'script.json'), ['--out', doc]);
+  const frame = results[0]?.result?.id;
+  fs.writeFileSync(path.join(work, 'manifest.json'), JSON.stringify({ job, id, doc, frame, name, size, scale, fonts }, null, 2) + '\n');
+  done(doc);
+
+  // check: the file exported as it stands, beside a fresh render of the variant
+  const check = path.join(work, 'check.png');
+  figcraftRun(cli, [...fonts.map(f => ({ command: 'text.loadFont', params: { path: f } })), { command: 'file.export', params: { ids: [frame], format: 'png', path: check, scale } }], path.join(work, 'check.json'), ['--in', doc]);
+  const compare = path.join(work, 'compare.jpg');
+  spawnSync(ffmpegInstaller.path, ['-y', '-loglevel', 'error', '-i', render, '-i', check, '-filter_complex', `[0]scale=${size[0]}:-2[a];[1]scale=${size[0]}:-2[b];[a][b]hstack`, '-q:v', '3', compare]);
+  const texts = plans.filter(p => p.how === 'text').length;
+  console.log(`${plans.length} layers: ${baked.size} as images, ${texts} headline${texts === 1 ? '' : 's'} as live text, ${plans.filter(p => p.how === 'rect').length} as rectangles`);
+  for (const note of notes) console.log(`  · ${note}`);
+  console.log(`Figcraft's export matches the render ${likeness(render, check)}% (100 = the same picture): render | Figcraft in ${rel(compare)}`);
+  if (variant.post) warn(`${id} has a treatment: its grade is in the image layers, but the live text keeps its own colours (compare the two)`);
+  if (!flags.includes('--no-fonts')) installFigcraftFonts(cli, doc, spec);
+  if (flags.includes('--open')) openInFigcraft(doc);
+  console.log(`When the user has saved their edit (⌘S): mm thumbs figcraft ${job} ${id} --export`);
+};
+
+/** The user's edit back from Figcraft: exported at the job's size, kept as <ID>-edit-v<N>.jpg, and as <ID>-edit.jpg beside the renders for pick. */
+const figcraftExport = (cli: string, spec: JobSpec, id: string, dir: string) => {
+  const docs = figcraftDocs(dir, id);
+  const doc = flag('file') ? path.resolve(flag('file')!) : docs[docs.length - 1];
+  if (!doc || !fs.existsSync(doc)) throw new Error(`No ${id}.figcraft in ${rel(dir)}: run thumbs figcraft ${job} ${id} first`);
+  const work = path.join(dir, path.basename(doc, '.figcraft'));
+  fs.mkdirSync(work, { recursive: true });
+  const manifestFile = path.join(work, 'manifest.json');
+  const manifest = fs.existsSync(manifestFile) ? (JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as { name?: string; fonts?: string[] }) : {};
+  const size = jobSize(spec);
+  const scale = jobScale(spec);
+  const info = spawnSync(cli, ['info', doc, '--json'], { encoding: 'utf8' });
+  if (info.status !== 0) throw new Error(`figcraft-cli info ${rel(doc)} failed: ${info.stderr.trim()}`);
+  const frames = (JSON.parse(info.stdout).pages as { frames: { id: number; name: string; width: number; height: number }[] }[]).flatMap(p => p.frames);
+  const frame = frames.find(f => f.name === manifest.name) ?? frames.find(f => Math.round(f.width) === size[0] && Math.round(f.height) === size[1]) ?? frames[0];
+  if (!frame) throw new Error(`${rel(doc)} has no frame to export`);
+  if (Math.round(frame.width) !== size[0] || Math.round(frame.height) !== size[1]) warn(`the frame "${frame.name}" is ${frame.width}×${frame.height}, not ${size.join('×')}: exported as it is`);
+  const fonts = (manifest.fonts ?? jobFontFiles(spec)).filter(f => fs.existsSync(f));
+  const png = path.join(work, 'edit.png');
+  figcraftRun(cli, [...fonts.map(f => ({ command: 'text.loadFont', params: { path: f } })), { command: 'file.export', params: { ids: [frame.id], format: 'png', path: png, scale } }], path.join(work, 'export.json'), ['--in', doc]);
+  const poster = jobKind(spec) === 'poster';
+  const n = fs.readdirSync(dir).filter(f => new RegExp(`^${id}-edit-v\\d+\\.jpg$`).test(f)).length + 1;
+  const versioned = path.join(dir, `${id}-edit-v${n}.jpg`);
+  toJpeg(png, versioned, poster);
+  const latest = path.join(outDir(job), `${id}-edit.jpg`);
+  fs.copyFileSync(versioned, latest);
+  done(versioned);
+  done(latest);
+  if (!poster && fs.statSync(latest).size > MAX_BYTES) warn(`${rel(latest)} is over YouTube's 2 MB`);
+  console.log(`Show it to the user; the final is then: mm thumbs pick ${job} ${id}-edit`);
+};
+
 const main = async () => {
   if (!cmd || !job) {
-    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|shot|logo|pic|globe|swap <job> … | mm thumbs inspire <set> @channel…');
+    console.error('Usage: mm thumbs init|cutout|look|render|pick|keep|canvas|figcraft|shot|logo|pic|globe|swap <job> … | mm thumbs inspire <set> @channel…');
     process.exit(1);
   }
   if (cmd === 'init') init();
@@ -741,6 +965,7 @@ const main = async () => {
   else if (cmd === 'pick') pick();
   else if (cmd === 'keep') keep();
   else if (cmd === 'canvas') await canvas();
+  else if (cmd === 'figcraft') await figcraft();
   else if (cmd === 'inspire') inspire();
   else if (cmd === 'shot' || cmd === 'logo') kitTool(cmd);
   else if (cmd === 'pic') picTool();

@@ -57,7 +57,7 @@ mm thumbs inspire <kind> @channel @channel …    # hits and misses → the libr
 mm media find "youtube-thumbnail <kind>" --kind=references --sheet
 ```
 
-`inspire` writes `out/thumbnail-inspiration/inspire-<kind>/` (`sheet.jpg`, `index.json` for
-`/file-revision?job=inspire-<kind>`, `research/picks.json`). Use it too when a video's kind has no
+`inspire` writes `out/thumbnail-inspiration/inspire-<kind>/` (`sheet.jpg` to send in the chat,
+`index.json`, `research/picks.json`). Use it too when a video's kind has no
 playbook, when the user names channels they admire, or when a board did not land (SKILL.md,
 "Inspiration on demand"). A new kind that comes back gets a playbook here, in a pull request.

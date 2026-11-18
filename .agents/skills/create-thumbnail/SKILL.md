@@ -1,6 +1,6 @@
 ---
 name: create-thumbnail
-description: Make YouTube thumbnails (1280×720) in Remotion for any kind of channel (tech reviews, tutorials, explainers, documentaries, finance, gaming, cooking, travel, podcasts, fitness, news, music and edits) from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript). It reads three things first (what the video is about, what kind of video it is, whose channel it is on), works from that kind's playbook of what its hit thumbnails share (researched from leading channels' hits and misses), and pulls fresh references for a video on demand (mm thumbs inspire) when a kind is new or a board did not land. It first shows a concept board of 6–8 genuinely different ideas (benchmarked at feed size beside real hits of the kind), then makes 3 variants of each concept picked, each labelled with an ID so the user picks one final or three for YouTube's A/B test (Test & Compare). Use when the user says "make a thumbnail", "thumbnail for this video / song / tutorial / podcast / review", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", "find thumbnail inspiration for <kind of channel>", or asks for a brand's or series' thumbnail template or more thumbnail options for a job under thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
+description: Make YouTube thumbnails (1280×720) in Remotion for any kind of channel (tech reviews, tutorials, explainers, documentaries, finance, gaming, cooking, travel, podcasts, fitness, news, music and edits) from the user's picture or a concept, plus the video's details (title, topic, optionally its transcript). It reads three things first (what the video is about, what kind of video it is, whose channel it is on), works from that kind's playbook of what its hit thumbnails share (researched from leading channels' hits and misses), and pulls fresh references for a video on demand (mm thumbs inspire) when a kind is new or a board did not land. It first shows a concept board of 6–8 genuinely different ideas (benchmarked at feed size beside real hits of the kind), then makes 3 variants of each concept picked, each tagged with its ID at its top-right corner so the user picks one final or three for YouTube's A/B test (Test & Compare) right in the chat. A picked thumbnail can then be rebuilt in Figcraft as editable layers (the pictures as images, every headline as live text) for the user's own final edit, and exported back. Use when the user says "make a thumbnail", "thumbnail for this video / song / tutorial / podcast / review", "/create-thumbnail", "thumbnail variants", "A/B test thumbnails", "find thumbnail inspiration for <kind of channel>", "let me edit the thumbnail myself", "open it in Figcraft", or asks for a brand's or series' thumbnail template or more thumbnail options for a job under thumbnails/jobs/. For a brand's video it reads the brand's thumbnail.json from pack-brand-kit; also the thumbnail step of a finished lyric video. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   depends-on: pack-brand-kit
 ---
@@ -100,6 +100,7 @@ playbook adds its kind's own.
 |---|---|---|---|
 | `mcp/browse-hack` | recommended | Frames from a YouTube link (`youtube_download`), and Midjourney concepts and outcrops in the user's Chrome (`midjourney-style-reference`, `midjourney-outcrop`) | Only the user's own picture or a video file they give, and no Midjourney concepts or outcrops |
 | `mcp/fal` | optional | Generated concept art when Midjourney isn't wanted (paid: ask first) | Concepts come from Midjourney or the user's own pictures |
+| `mcp/figcraft` | optional | The final edit: the picked thumbnail rebuilt as layers in Figcraft for the user to change by hand (`mm thumbs figcraft`, which runs its `figcraft-cli`) | No hand edit: every change goes through the spec and a re-render |
 
 Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
 Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
@@ -139,9 +140,9 @@ folder already answers and say what you assumed):
    name to mean. Their choice **overrides the brand's fonts** for this job (the logo stays).
 6. **Taste and references:** moods or colours they want or hate, anything from earlier thumbnails,
    and **channels whose thumbnails they admire or compete with** (then `mm thumbs inspire <job>
-   @channel…` shows those channels' hits and misses before the board). Point them at the kind's
-   review set (`/file-revision?job=inspire-<kind>`) or `thumbnails/inspiration/` when there is one,
-   and read what they marked.
+   @channel…` shows those channels' hits and misses before the board). When the kind has a
+   reference sheet (`out/thumbnail-inspiration/inspire-<kind>/sheet.jpg`) or `thumbnails/inspiration/`
+   has pictures, send the sheet in the chat and ask which ones they like.
 
 Questions 3a, 4 and 5 are asked even when everything else is already answered (put them in the
 same `AskUserQuestion` call as the rest). Write the answers into `jobs/<job>/brief.md` (`init` makes a
@@ -390,10 +391,20 @@ off its ground. If ours wouldn't be clicked over theirs, rework before showing �
 user the comparison to do. Fix and re-render those IDs. Match their standard, never their design:
 a thumbnail that could be mistaken for another channel's is a copy.
 
-Then send the user `sheet.jpg` (SendUserFile), list the IDs with one line each, and give them the
-`/file-revision?job=<job>` link (the `revise-image` skill). They pick **one
-final** or **three for an A/B test** (YouTube Studio → Details → Thumbnail → Test & Compare takes
-up to three) and comment there, or give feedback by ID in chat; both work.
+Then **review in the chat** (the user, 2026-11-18: "a simple thumbnail choice and reviewing can be
+done right here int he chat itself"; no File Revisions link for thumbnails):
+
+- Send `sheet.jpg` (SendUserFile). Every tile carries its ID in a yellow tag at its top-right
+  corner, so the user can name any thumbnail at a glance; a concept board (one variant a style)
+  lays out two to a row, so the whole board fits one look.
+- Under it, list the IDs with one line each (what the idea is, what differs), and your
+  recommendation.
+- Ask for the pick right there: **one final** or **three for an A/B test** (YouTube Studio →
+  Details → Thumbnail → Test & Compare takes up to three), and any notes by ID. With four
+  candidates or fewer, an `AskUserQuestion` (multi-select, your recommendation first) holds them;
+  with more, the user replies with the IDs.
+- A closer look at one: send its own render (`out/thumbnails/<job>/<ID>.jpg`), which also shows a
+  top-right logo the sheet's tag covers.
 
 ## 8. Iterate and deliver
 
@@ -405,12 +416,49 @@ up to three) and comment there, or give feedback by ID in chat; both work.
   it, and `render` warns if its spec ever changes. Build what they ask next as new variants.
 - Write what you learned into `brief.md` (this job) and your notes (general taste:
   `mm notes add create-thumbnail "…"`, see the feedback log below).
-- When they pick: `mm thumbs pick <job> B2` (or `A1,B2,D3`). The finals
+- When they pick, **offer the final edit** once ("Want to change anything yourself? I can open B2 in
+  Figcraft as layers"): see "The final edit in Figcraft". A yes rebuilds the pick there; a no goes
+  straight on.
+- Then `mm thumbs pick <job> B2` (or `A1,B2,D3`; an edited one is `B2-edit`). The finals
   land in `out/thumbnails/<job>/final/` as JPEGs under YouTube's 2 MB limit; tell them where, and
   for an A/B test that YouTube picks the winner by watch time.
 - **Three finals → three titles.** When they pick three for the A/B test, the video also gets three
   YouTube titles, one written for each thumbnail (it adds what that thumbnail doesn't say);
   `write-youtube-metadata` writes them (its step 3).
+
+## The final edit in Figcraft
+
+The user can finish a picked thumbnail by hand (the user, 2026-11-18: "provide user a final edit
+option to edit it, which reconstructs the final thumbnail in figcraft and let user edit whatever he
+wants"). Figcraft is an open-source design editor (`mcp/figcraft`; the `use-figcraft` skill, when
+listed, has its rules); `mm thumbs figcraft` drives its command line.
+
+1. **Rebuild**: `mm thumbs figcraft <job> <ID> --open`. Every picture, device and texture is rendered
+   alone (transparent, trimmed; pictures at 2× so they stay sharp when made bigger) and placed where
+   it was, every headline line becomes live text in the job's fonts (plates as rectangles, strokes,
+   shadows and glows as effects, accent words in their colour), plain fills become locked rectangles,
+   textures keep their blend. A text layer Figcraft can't draw (slanted, a knockout plate, a picture
+   inside the letters) goes in as its render with the live text under it, hidden ("(editable)").
+   The fonts FigCraft lacks are installed into `~/Library/Fonts` (`--no-fonts` skips it: say which).
+   The file is `out/thumbnails/<job>/figcraft/<ID>.figcraft`.
+2. **Check before handing it over**: the command exports the file and prints how closely it matches
+   a fresh render (98 % or more is right; under it, look for what moved) and writes
+   `figcraft/<ID>/compare.jpg` (render | Figcraft). Look at it.
+3. **Hand over**: FigCraft opens with the file. Tell the user what is live text and what is a
+   picture, that they can move, resize, retype, recolour or hide anything, and to save with ⌘S and
+   say when they're done. (Started fresh, FigCraft listens on port 7979, so a live session,
+   `figcraft-cli mcp --attach 7979`, can make a change they ask for in the open window.)
+4. **Bring it back**: `mm thumbs figcraft <job> <ID> --export` exports the saved frame as
+   `out/thumbnails/<job>/<ID>-edit.jpg` (under 2 MB) and keeps every export as
+   `figcraft/<ID>-edit-v<N>.jpg`. Send it in the chat; their yes makes it the final:
+   `mm thumbs pick <job> <ID>-edit` (or among three for an A/B test).
+5. **Their file is theirs**: a second `figcraft` run leaves an existing `<ID>.figcraft` alone (it may
+   hold their edits); `--fresh` rebuilds from the spec as `<ID>-2.figcraft`. What they changed by hand
+   is not in `thumbs.json`: when it should carry into new variants, write it into the spec too.
+
+No Figcraft on this computer (`mm thumbs figcraft` says so): offer to install it (`mcp/figcraft` in
+MediaMake, or the `use-figcraft` skill's steps; a download, so ask first), or take their changes in
+the chat as new variants.
 
 ## Series
 
@@ -451,9 +499,8 @@ labelled `sheet.jpg` and a review set. Then:
    (the user's suggestions first; a web search or `--search` for the rest).
 2. **Read the sheet yourself**: what do the hits show that the misses don't; what is the hero; how
    many words; which devices; what frame does each channel keep. Write five lines in `brief.md`.
-3. **Let the user mark it** when taste is the question: send the sheet and
-   `https://mediamake.microfox.app/file-revision?job=inspire-<set>` ("mark the ones you like"),
-   and build the next board from what they marked.
+3. **Let the user pick from it** when taste is the question: send the sheet in the chat and ask
+   which ones they like (by the labels on it), and build the next board from what they picked.
 4. For design ideas beyond YouTube (type treatments, poster layouts, colour), Pinterest and
    Dribbble through Browse Hack's bulk tabs, into the library the same way.
 5. A kind that comes back gets its own playbook (a pull request; `playbooks/README.md` says how).
@@ -479,11 +526,20 @@ generations), `examples/` (the round it was approved in) and a README with its r
 and `thumbs init --brand` clones those folders into the job's `input/host/`. Cook with Claude's is
 Chef Claude (2026-11-15).
 
-## Review in /file-revision
+## Where it runs
 
-Follow the **`revise-image`** skill: it gives the user the `/file-revision?job=<job>` link, reads
-their revision (finals, keeps, drops, pinned comments) and closes it with `thumbs keep`, re-renders
-and `thumbs pick`. Fix each comment the way this skill works (IDs never change once seen).
+| Step | Needs | A person's yes | Safe to repeat | Without it |
+|---|---|---|---|---|
+| 1. Intake | nothing | no | yes | - |
+| 2. The kit | `mcp:browse-hack` | no | yes | the user's own pictures, Commons and page shots only |
+| 3. Concept board | `render` | no | yes | - |
+| 4. Picks in the chat | nothing | yes | yes | - |
+| 5. Variants | `render` | no | yes | - |
+| 6. The final edit in Figcraft | `mcp:figcraft`, `app:figcraft` | yes | yes | skipped: changes go through the spec and a re-render |
+| 7. Pick the finals | nothing | yes | yes | - |
+
+Midjourney concepts in step 2 also need a browser signed in to Midjourney; fal art is paid (ask
+first). Step 6 runs only when the user wants to edit by hand.
 
 ## Feedback log
 
@@ -537,3 +593,4 @@ When the user wants them shared, `mm notes promote create-thumbnail` offers them
 - 2026-11-15 · iteration 4 (documentary essay, "Point Nemo: Where Spacecraft Go to Die", invented map-led channel) · board of seven on real NASA pictures, globes rendered with the new `thumbs globe`, Jules Verne as the host; "all look good" → approved straight from the board, no variants. What held is in `playbooks/documentary-essay.md` ("Approved in the rounds").
 - 2026-11-15 · iteration 5 (finance, "The Penny Is Dead", invented money-news channel) · board of six on the U.S. Mint's penny, Lincoln's 1863 portrait as the host and real coin photos, every figure checked first; "All look good" → approved straight from the board. What held is in `playbooks/finance-business.md` ("Approved in the rounds").
 - 2026-11-15 · iterations 6–10 · "do all the iterations autonomously" → gaming (Atari's buried E.T.), cooking (pizza Margherita), travel (Machu Picchu), podcast (Tesla's 1926 interview) and fitness (Eugen Sandow) ran end to end without picks: facts and quotes checked, a real kit from Commons for each (every CC credit in its `brief.md`), a host with a true relation on every faceless channel, a board of six, the feed benchmark against the kind's hits, own fixes. What the runs taught is in each playbook's "Tried in the rounds" and in two composition rules (rings land on what they mean; big lines end before the timestamp corner). The user approved all five ("All good, open PR", 2026-11-16).
+- 2026-11-18 · skill · "add figcraft as cli mcp setup, and provide user a final edit option … which reconstructs the final thumbnail in figcraft and let user edit whatever he wants" + "unplug the file revision from the thumbnail creation … choice and reviewing can be done right here in the chat … tag each thumbnail with a number at top right" (the ID, the user chose) → "The final edit in Figcraft" (`mm thumbs figcraft`: pictures, devices and textures as images, every headline line as live text, checked against a fresh render; `--export` brings it back as `<ID>-edit`), `mcp/figcraft` in the MCP table, and review in the chat: the sheet tags every tile's ID at its top-right corner and the picks come back in the chat, with no File Revisions link. First tried on finished thumbnails (test rebuilds): Scouter Can't Read Me A21 at 99.3 % of its render, Hollow Soul C1 and G1 (a turned word) at 99.2–99.3 %.
