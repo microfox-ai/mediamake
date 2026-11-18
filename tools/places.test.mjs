@@ -12,7 +12,7 @@ test('a need is one of the known words, and only some exist on a device alone', 
   assert.deepEqual(parseNeeds('`mcp:browse-hack`, `browser:youtube/atomic-rap` and key:elevenlabs'), { needs: ['mcp:browse-hack', 'browser:youtube/atomic-rap', 'key:elevenlabs'], bad: [] });
   for (const none of ['', '-', 'nothing', 'None']) assert.deepEqual(parseNeeds(none), { needs: [], bad: [] });
   assert.deepEqual(parseNeeds('render, a mac, key:ELEVEN').bad, ['a mac', 'key:ELEVEN']);
-  assert.deepEqual(['render', 'key:fal', 'mcp:elevenlabs', 'mcp:browse-hack', 'browser:midjourney', 'app:reaper', 'media:library'].filter(deviceOnly), ['mcp:browse-hack', 'browser:midjourney', 'app:reaper', 'media:library']);
+  assert.deepEqual(['render', 'key:fal', 'mcp:elevenlabs', 'mcp:browse-hack', 'mcp:mac-recorder', 'browser:midjourney', 'app:reaper', 'media:library'].filter(deviceOnly), ['mcp:browse-hack', 'mcp:mac-recorder', 'browser:midjourney', 'app:reaper', 'media:library']);
 });
 
 test('a key is carried by its environment variable, and a list of needs keeps only the known words', () => {

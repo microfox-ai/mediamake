@@ -1,5 +1,5 @@
 {
-  "deviceMcps": ["browse-hack"],
+  "deviceMcps": ["browse-hack", "mac-recorder"],
   "keys": {
     "elevenlabs": {
       "env": "ELEVENLABS_API_KEY",

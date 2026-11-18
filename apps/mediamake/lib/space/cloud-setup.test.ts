@@ -7,7 +7,7 @@ import { applyReport, parseSpaceReport, spaceView, type SpaceReport } from './sp
 test('a need is a known word, and a key is named by the variable that carries it', () => {
   assert.deepEqual(needList(['key:elevenlabs', 'key:elevenlabs', 'sk-live-1234', 'browser:youtube/atomic-rap', 7]), ['key:elevenlabs', 'browser:youtube/atomic-rap']);
   assert.deepEqual(needList('key:elevenlabs'), []);
-  assert.deepEqual(['render', 'key:fal', 'mcp:elevenlabs', 'mcp:browse-hack', 'browser:midjourney', 'app:reaper', 'media:library'].filter(deviceOnly), ['mcp:browse-hack', 'browser:midjourney', 'app:reaper', 'media:library']);
+  assert.deepEqual(['render', 'key:fal', 'mcp:elevenlabs', 'mcp:browse-hack', 'mcp:mac-recorder', 'browser:midjourney', 'app:reaper', 'media:library'].filter(deviceOnly), ['mcp:browse-hack', 'mcp:mac-recorder', 'browser:midjourney', 'app:reaper', 'media:library']);
   assert.equal(keyInfo('elevenlabs').env, 'ELEVENLABS_API_KEY');
   assert.equal(keyInfo('elevenlabs').host, 'api.elevenlabs.io');
   assert.deepEqual(keyInfo('open-weather'), { name: 'open-weather', env: 'OPEN_WEATHER_API_KEY', title: 'open-weather' });
