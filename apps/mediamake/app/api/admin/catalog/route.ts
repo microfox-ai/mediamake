@@ -342,7 +342,8 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *  { type: 'set_listing',     itemId, tags?: string[], media?: [{ kind: 'image' | 'video', url, title? }] }
  *                             (its store listing, any item: the tags an admin adds beside its own, and its
  *                             screenshots, pictures and videos by https link, a YouTube link or an MP4 for a
- *                             video. Each one given replaces what was there; left out, it stays)
+ *                             video. Each one given replaces what was there; left out, it stays.
+ *                             `editorsPick: true | false` puts it in, or takes it out of, Explore's Editors' picks)
  *  { type: 'create_video_item', kind: 'tutorial' | 'course', slug, video, visibility? }
  *                             (a new tutorial or course with its video; it starts in development)
  *  { type: 'create_thumbnail_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
@@ -548,7 +549,8 @@ export async function POST(req: NextRequest) {
       const item = itemId ? (staticRecord(itemId) ?? (await catalogItemsDB.get(itemId))) : null;
       if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
       const TEXTS = ['description', 'headshot', 'icon', 'readme'] as const;
-      if (body.tags === undefined && body.media === undefined && TEXTS.every(key => body[key] === undefined)) return bad('Give tags, media, description, headshot, icon or readme');
+      if (body.tags === undefined && body.media === undefined && body.editorsPick === undefined && TEXTS.every(key => body[key] === undefined)) return bad('Give tags, media, description, headshot, icon, readme or editorsPick');
+      if (body.editorsPick !== undefined && typeof body.editorsPick !== 'boolean') return bad('editorsPick must be true or false');
       const current = await catalogListingDB.get(item.id);
       let tags = current?.tags ?? [];
       if (body.tags !== undefined) {
@@ -576,11 +578,12 @@ export async function POST(req: NextRequest) {
         if (texts[key] && !/^https:\/\/\S{1,1000}$/.test(texts[key]!)) return bad(`${key} must be an https link to a picture`);
       }
       if (texts.icon && item.kind === 'skill') return bad('Only an MCP or an app has an icon');
-      const listing = await catalogListingDB.set(item.id, { tags, media, ...texts }, adminId);
+      const editorsPick = body.editorsPick === undefined ? !!current?.editorsPick : body.editorsPick;
+      const listing = await catalogListingDB.set(item.id, { tags, media, ...texts, editorsPick }, adminId);
       revalidatePath('/');
       refreshSkillPages([item.id]);
       return NextResponse.json({
-        listing: { tags: listing?.tags ?? [], media: listing?.media ?? [], description: listing?.description, headshot: listing?.headshot, icon: listing?.icon, readme: listing?.readme },
+        listing: { tags: listing?.tags ?? [], media: listing?.media ?? [], description: listing?.description, headshot: listing?.headshot, icon: listing?.icon, readme: listing?.readme, editorsPick: !!listing?.editorsPick },
       });
     }
 

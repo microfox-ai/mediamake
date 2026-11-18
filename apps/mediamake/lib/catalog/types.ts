@@ -203,6 +203,10 @@ export interface CatalogItem {
   headshot?: string;
   /** An MCP's or an app's icon, a square picture by https link (see ItemListing). */
   icon?: string;
+  /** An editors' pick (see ItemListing): an admin's choice for the top of Explore. */
+  editorsPick?: boolean;
+  /** When it first came out (ISO date), where that differs from `releasedAt`: a repo skill's first commit (./skill-dates.json). Explore's New row goes by it. */
+  launchedAt?: string;
   /** How big it is: a skill's folder, or the latest package of an MCP or an app. */
   size?: { bytes: number; files?: number };
   /** How many other items it works with or runs: a skill's MCPs and the skills it depends on, an MCP's or app's uses. */

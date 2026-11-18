@@ -214,7 +214,15 @@ screenshot or video each open a dialog, and every change saves at once.
   of its own): each a text, empty to clear it. The panel's "Headshot and description" and "README"
   buttons set them. `docs/item-readme.md` has the README's format.
 
-From Claude, mm-release's `catalog_set_listing` does the same.
+- `{ type: 'set_listing', itemId, editorsPick: true | false }`: an editors' pick, the button on the
+  Store listing panel. Picks show at the top of the app's Explore: the first with a picture large,
+  the others in the Editors' picks row (`storefront` in `lib/app-shell/member.ts`).
+
+Explore's New row goes by the day an item first came out. A released item has its release date; a
+skill from the repo has the day of its first commit, in `lib/catalog/skill-dates.json`: a pull
+request that adds a skill adds its line there (without one, the skill sorts with the oldest).
+
+From Claude, mm-release's `catalog_set_listing` does the same, except the editors' pick.
 
 ### The release page
 

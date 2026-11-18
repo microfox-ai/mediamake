@@ -30,7 +30,7 @@ const NOT_A_CATEGORY = new Set(['variant', 'internal', 'mcp', 'claude', 'admin',
 export type AppItem = CatalogEntry & {
   kind: MemberKind;
   tier: ItemTier;
-  /** What it is for: a skill's registry category (make, create, pack…), an MCP's or app's tags. */
+  /** What it is for: a skill's registry category (make, create, pack…) and its listing's tags, an MCP's or app's tags. */
   categories: string[];
   /** A sub-skill or housekeeping skill: behind Explore's Internal filter. */
   internal?: boolean;
@@ -67,7 +67,9 @@ export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], 
     const shown = shownOn('explore', { tier, readiness: entry.readiness, health: entry.health, archivedAt: entry.archivedAt, access: entry.access });
     if (!shown.show) continue;
     const skill = registry.get(entry.id);
-    const categories = skill ? [skill.category] : (entry.tags ?? []).filter(tag => !NOT_A_CATEGORY.has(tag));
+    // a skill's category first, then the tags its listing adds
+    const tags = (entry.tags ?? []).filter(tag => !NOT_A_CATEGORY.has(tag));
+    const categories = skill ? [...new Set([skill.category, ...tags])] : tags;
     const page = itemPagePath(entry.id);
     const locked = !!shown.locked;
     const isInternal = skill ? (skill.internal ?? internal.has(skill.category)) : false;
@@ -107,9 +109,11 @@ export interface ExploreFilters {
   archived: boolean;
   /** Off hides what the member's membership doesn't open. */
   locked: boolean;
+  /** The store front (editors' picks, new, rows by tag) or the list. A search, a kind or a category is always the list. */
+  view: 'store' | 'list';
 }
 
-export const EXPLORE_PARAMS = ['q', 'kind', 'category', 'show', 'locked'] as const;
+export const EXPLORE_PARAMS = ['q', 'kind', 'category', 'show', 'locked', 'view'] as const;
 
 export function exploreFiltersFrom(params: Record<string, string | string[] | undefined>): ExploreFilters {
   const one = (key: string) => {
@@ -118,7 +122,7 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
   };
   const show = new Set((one('show') ?? '').split(','));
   const kind = one('kind');
-  return {
+  const filters = {
     q: one('q') ?? '',
     kind: kind && isMemberKind(kind) ? kind : null,
     category: one('category'),
@@ -127,6 +131,8 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     archived: show.has('archived'),
     locked: one('locked') !== '0',
   };
+  const asked = !!(filters.q.trim() || filters.kind || filters.category || filters.failed || filters.internal || filters.archived || !filters.locked);
+  return { ...filters, view: asked || one('view') === 'all' ? 'list' : 'store' };
 }
 
 export interface ExploreResult {
@@ -194,6 +200,77 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
       .sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999) || b.count - a.count || a.id.localeCompare(b.id)),
     kinds,
     hidden,
+  };
+}
+
+/* ---------- Explore's store front ---------- */
+
+/** One row of the store front: a title, a few items, and how many there are behind See all. */
+export interface StoreRow {
+  /** The tag, for a row by tag: See all opens the list on it. */
+  tag: string;
+  title: string;
+  /** What the tag is, in a line (the skill registry's words). */
+  about?: string;
+  items: AppItem[];
+  total: number;
+}
+
+export interface Storefront {
+  /** The editors' pick shown large at the top; none when nothing is picked. */
+  hero: AppItem | null;
+  /** The other editors' picks. */
+  picks: AppItem[];
+  /** The newest, by the day each first came out. */
+  fresh: AppItem[];
+  /** A row a tag, the registry's categories first, then the tags with the most items. */
+  tags: StoreRow[];
+}
+
+/** The day an item first came out: what New goes by. */
+export const launchedAt = (item: Pick<AppItem, 'launchedAt' | 'releasedAt'>) => item.launchedAt ?? item.releasedAt;
+
+/** `lyric-video` as a row's title: `Lyric video`. */
+export function tagTitle(tag: string): string {
+  const words = tag.replace(/-/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * Explore's store front, like an app store's: the editors' picks (an
+ * admin's flag on the item's listing), what is new, and a row a tag. Failed,
+ * internal and archived items stay out, as they do in the list; a locked one
+ * shows, after the ones the member can open.
+ */
+export function storefront(
+  items: AppItem[],
+  categories: { id: string; about?: string }[] = [],
+  { rowSize = 10, maxTagRows = 6, minTagItems = 3 }: { rowSize?: number; maxTagRows?: number; minTagItems?: number } = {},
+): Storefront {
+  const shown = items.filter(item => !item.failed && !item.internal && !item.archivedAt);
+  const newest = (a: AppItem, b: AppItem) => launchedAt(b).localeCompare(launchedAt(a)) || a.id.localeCompare(b.id);
+  // what the member can open first, then Ready before Beta, then the newest
+  const best = (a: AppItem, b: AppItem) => Number(a.locked) - Number(b.locked) || Number(a.beta) - Number(b.beta) || newest(a, b);
+
+  const picked = shown.filter(item => item.editorsPick).sort(best);
+  // the large one needs a picture of its own, when any pick has one
+  const hero = picked.find(item => !item.locked && (item.headshot || item.video?.thumbnail)) ?? picked[0] ?? null;
+
+  const order = new Map(categories.map((category, index) => [category.id, index]));
+  const about = new Map(categories.map(category => [category.id, category.about]));
+  const byTag = new Map<string, AppItem[]>();
+  for (const item of shown) for (const tag of item.categories) byTag.set(tag, [...(byTag.get(tag) ?? []), item]);
+  const tags = [...byTag.entries()]
+    .filter(([, tagged]) => tagged.length >= minTagItems)
+    .sort(([a, ofA], [b, ofB]) => (order.get(a) ?? 999) - (order.get(b) ?? 999) || ofB.length - ofA.length || a.localeCompare(b))
+    .slice(0, maxTagRows)
+    .map(([tag, tagged]) => ({ tag, title: tagTitle(tag), ...(about.get(tag) && { about: about.get(tag) }), items: [...tagged].sort(best).slice(0, rowSize), total: tagged.length }));
+
+  return {
+    hero,
+    picks: picked.filter(item => item !== hero).slice(0, rowSize),
+    fresh: [...shown].sort(newest).slice(0, rowSize),
+    tags,
   };
 }
 

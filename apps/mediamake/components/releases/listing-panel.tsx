@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, FileText, ImagePlus, Loader2, Pencil, Play, Tag, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileText, ImagePlus, Loader2, Pencil, Play, Star, Tag, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,7 @@ import { adminCall, type ItemDetail } from './model';
  * (the 16:9 picture its cards show), its description, an MCP's or app's
  * icon, its README, its tags (its own, such as a skill's category, and the
  * ones an admin adds) and its screenshots, pictures and videos added by
- * link, like an app store listing's. Each change is saved at once (`set_listing`); the item's own
+ * link, like an app store listing's, and whether it is an editors' pick (the top of Explore). Each change is saved at once (`set_listing`); the item's own
  * page shows them. Adding is a dialog from the buttons under the panel.
  */
 export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: () => void }) {
@@ -30,10 +30,11 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
   const own = (item.tags ?? []).filter(tag => !added.includes(tag));
   const [dialog, setDialog] = useState<'tags' | 'media' | 'words' | 'readme' | null>(null);
   const listing = detail.listing;
+  const picked = !!listing?.editorsPick;
   const hasIcon = item.kind === 'mcp' || item.kind === 'app';
   const [busy, setBusy] = useState(false);
 
-  async function save(change: { tags?: string[]; media?: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string }, done: string) {
+  async function save(change: { tags?: string[]; media?: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string; editorsPick?: boolean }, done: string) {
     setBusy(true);
     try {
       await adminCall({ type: 'set_listing', itemId: item.id, ...change });
@@ -60,6 +61,16 @@ export function ListingPanel({ detail, onSaved }: { detail: ItemDetail; onSaved:
       description={`Shown on its page, ${itemPagePath(item.id)}.`}
       footer={
         <>
+          <Button
+            size="sm"
+            variant={picked ? 'secondary' : 'outline'}
+            disabled={busy}
+            aria-pressed={picked}
+            title="Editors' picks show at the top of Explore"
+            onClick={() => save({ editorsPick: !picked }, picked ? "Taken out of the editors' picks" : "Added to the editors' picks")}
+          >
+            <Star className={picked ? 'fill-amber-400 text-amber-400' : undefined} /> {picked ? "Editors' pick" : "Make it an editors' pick"}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setDialog('words')}>
             <Pencil /> Headshot and description
           </Button>

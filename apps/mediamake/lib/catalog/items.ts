@@ -1,6 +1,7 @@
 import { registry } from '@/lib/skills/registry';
 import type { RegistrySkill } from '@/lib/library/types';
 import { CANONICAL_SITE, siteUrl } from './install-prompt';
+import skillDates from './skill-dates.json';
 import thirdPartyJson from './third-party.json';
 import {
   parseCatalogItemId,
@@ -204,6 +205,9 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
  */
 const SKILLS_LISTED_AT = '2026-10-24';
 
+/** The day each repo skill was first committed: what Explore's New row goes by. A new skill's pull request adds its line. */
+const SKILL_DATES: Record<string, string> = skillDates;
+
 /** The repository the registry's skills are committed in. */
 export const SKILLS_REPO = 'microfox-ai/mediamake';
 
@@ -241,6 +245,7 @@ function skillCard(skill: RegistrySkill): CatalogItem {
     ...(skill.bytes !== undefined && { size: { bytes: skill.bytes, ...(skill.files !== undefined && { files: skill.files }) } }),
     deps: (skill.dependsOn?.length ?? 0) + (skill.mcps?.length ?? 0),
     releasedAt: SKILLS_LISTED_AT,
+    ...(SKILL_DATES[skill.name] && { launchedAt: SKILL_DATES[skill.name] }),
   };
 }
 
