@@ -165,7 +165,7 @@ without one it is YouTube's, `https://img.youtube.com/vi/<id>/maxresdefault.jpg`
 - **Tutorials** (`tutorial/<slug>`): one YouTube video each, added with **New
   tutorial** on `/app/releases`. A tutorial is its video: its card takes the
   video's title and the first paragraph of its description. It plays on
-  `/access?item=tutorial/<slug>`.
+  `/tutorials/<slug>`.
 - **Courses** (`course/<slug>`): tutorials played in order, added with **New
   course**, their lessons picked and ordered on the course's release page. The
   course page, `/courses/<slug>`, plays each lesson and moves to the next when
@@ -582,10 +582,11 @@ Every skill, MCP and app has its own page, the link to share and the one the
 Releases admin page links as **Item page**: `/skills/<slug>`, `/mcps/<slug>`,
 `/apps/<slug>` (`itemPagePath` in `lib/catalog/paths.ts`; e.g.
 https://mediamake.microfox.app/skills/create-thumbnail). Tutorials play on
-`/access?item=<id>` and courses on `/courses/<slug>` (`watchPath`). An old
-`/access?item=<id>` link to a skill, MCP or app the viewer can open redirects
-to its page; `/access` still serves locked items (asking for access) and
-skills with no page of their own.
+`/tutorials/<slug>` and courses on `/courses/<slug>` (`watchPath`). There is
+no `/access` page: a locked item's own page says which membership opens it,
+and a skill that is not in the repo (third-party, released by hand) has the
+same `/skills/<slug>` page from its catalog record. An old `/access?item=<id>`
+link redirects to the item's page (`oldAccessPath`).
 
 Who installs what follows the membership (Public, Plus, Pro, Cohort): there
 are no per-release or per-install codes. Anyone with access on a computer
@@ -739,9 +740,9 @@ const skills = await listCatalog(viewer, 'skill');
   `plan.test.ts`); `lib/catalog/install.ts` hands it the database, storage
   and the viewer's access.
 - `/skills/<slug>`, `/mcps/<slug>` and `/apps/<slug>` show an item you can
-  open with its install prompt and a download; `/access?item=<id>` keeps
-  tutorials, locked items and skills without a page; `/access` with no item
-  (an old invite link) goes to `/app/subscription`.
+  open with its install prompt and a download, and a locked one with the
+  membership that opens it; an old `/access?item=<id>` link redirects there,
+  and `/access` with no item (an old invite link) to `/app/subscription`.
 
 HTTP endpoints (`/api/catalog/*` skip the API-key middleware and resolve the
 session cookie or Bearer key themselves):

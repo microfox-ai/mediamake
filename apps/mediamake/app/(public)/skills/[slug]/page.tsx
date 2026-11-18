@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
 import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
 import { AboutCard, README_PROSE, ReadmeView } from '@/components/catalog/item-listing';
+import { CatalogItemPage } from '@/components/catalog/item-page';
 import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
@@ -65,8 +66,8 @@ export default async function SkillPage({ params }: Props) {
   const { slug } = await params;
   const skill = skillNamed(slug);
   if (!skill) {
-    // a skill listed in third-party.json or released by hand has its item page instead
-    if (await getCatalogRecord(`skill/${slug}`).catch(() => null)) redirect(`/access?item=skill/${encodeURIComponent(slug)}`);
+    // a skill listed in third-party.json or released by hand: the same page, from its catalog record
+    if (await getCatalogRecord(`skill/${slug}`).catch(() => null)) return <CatalogItemPage kind="skill" slug={slug} />;
     notFound();
   }
 

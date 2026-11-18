@@ -203,7 +203,7 @@ function stepLine(step: PlanStep): string {
 export function registerCatalogTools(server: McpServer, client: MediamakeClient, options: ToolOptions = { localFiles: true }) {
   /** The item's release page on the admin dashboard: give it to the user after any change. */
   const page = (id: string) => client.url(`/core/releases/${id}`);
-  /** The item's own page for viewers, where its video plays: /skills/<slug>, /mcps/<slug>, /apps/<slug>, /courses/<slug>. */
+  /** The item's own page for viewers, where its video plays: /skills/<slug>, /mcps/<slug>, /apps/<slug>, /courses/<slug>, /tutorials/<slug>. */
   const itemPage = (id: string) => {
     const { path, query } = itemPagePath(id);
     return client.url(path, query);
@@ -515,7 +515,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Add a tutorial or course (admins)',
       description:
-        "Admins only. Add a tutorial (one YouTube video, played on its page) or a course (tutorials played in order on its own page, /courses/<slug>) to the catalog. Its card takes the video's title and the first paragraph of its description. It starts with the cohort (the cohort and admins): move it on with catalog_set_stage once the user says so. Its id is <kind>/<slug>, the slug made from the title unless given. Change it later with catalog_set_video (a course's lessons too). Answers with the release page and where it plays: give the user both.",
+        "Admins only. Add a tutorial (one YouTube video, played on its own page, /tutorials/<slug>) or a course (tutorials played in order on its own page, /courses/<slug>) to the catalog. Its card takes the video's title and the first paragraph of its description. It starts with the cohort (the cohort and admins): move it on with catalog_set_stage once the user says so. Its id is <kind>/<slug>, the slug made from the title unless given. Change it later with catalog_set_video (a course's lessons too). Answers with the release page and where it plays: give the user both.",
       inputSchema: withoutLocalArgs(
         {
           kind: z.enum(['tutorial', 'course']),

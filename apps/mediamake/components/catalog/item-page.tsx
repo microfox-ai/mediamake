@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
-import { ArrowUpRightIcon, BookOpenIcon } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { ArrowUpRightIcon, BookOpenIcon, LockIcon } from 'lucide-react';
 import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
 import { detailsKey } from '@/lib/app-shell/details-key';
-import { AccessActions } from '@/app/(public)/access/access-actions';
+import { AccessActions } from '@/components/catalog/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
@@ -14,7 +14,7 @@ import { ItemRating } from '@/components/ratings/item-rating';
 import { listingBadges } from '@/lib/catalog/listing';
 import { itemReadme } from '@/lib/catalog/readme-data';
 import { isFailed, proofOf } from '@/lib/catalog/types';
-import { tierLabel } from '@/lib/memberships/tiers';
+import { tierLabel, type MemberTier } from '@/lib/memberships/tiers';
 import { ratingsDB } from '@/lib/ratings/store';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
@@ -29,8 +29,9 @@ import { accessRequestsDB, catalogArchiveDB, catalogListingDB, catalogReadinessD
 import type { CatalogKind } from '@/lib/catalog/types';
 import { registry } from '@/lib/skills/registry';
 
-const KIND_LABEL: Partial<Record<CatalogKind, string>> = { mcp: 'MCP', app: 'App' };
+const KIND_LABEL: Partial<Record<CatalogKind, string>> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
 const LIST_TAB: Partial<Record<CatalogKind, { href: string; label: string }>> = {
+  skill: { href: '/?tab=skills', label: 'All skills' },
   mcp: { href: '/?tab=mcps', label: 'All MCPs' },
   app: { href: '/?tab=apps', label: 'All apps' },
 };
@@ -46,20 +47,28 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
 }
 
 /**
- * An MCP's or an app's own page, the link to share, laid out like a skill's (/skills/<name>) as GitHub
+ * An MCP's or an app's own page (and a skill's that is not in this repo: third-party, or released by
+ * hand), the link to share, laid out like a skill's (/skills/<name>) as GitHub
  * lays out a repo: on the left its README (a video first, its icon and title, its badges, how to use it)
  * with tabs for what was made with it, its release notes and feedback; on the right a narrow column
  * with what it is, its tags, its rating, how to install or open it, what it works with and the skills
- * that use it, inside the app's sidebar (ItemShell). Who can see it follows the catalog: a locked item goes to its request-access page,
- * and one hidden from the viewer is not found.
+ * that use it, inside the app's sidebar (ItemShell). Who can see it follows the catalog: a locked item
+ * shows only what its card shows and which membership opens it, and one hidden from the viewer is not found.
  */
-export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slug: string }) {
+export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 'app'; slug: string }) {
   const found = await viewableItem(kind, slug);
   if (!found) notFound();
   const { record, viewer, entitlements, entry: item } = found;
+  const back = LIST_TAB[kind]!;
+  // the frame's sidebar: the app's own when signed in, a Sign in button when not
+  const shellViewer = viewer.clientId ? { clientId: viewer.clientId, tier: viewerTier(entitlements), isAdmin: entitlements.isAdmin } : null;
   if (item.access === 'locked') {
     if (record.listed === false) notFound();
-    redirect(`/access?item=${encodeURIComponent(item.id)}`);
+    return (
+      <ItemShell viewer={shellViewer} back={back}>
+        <LockedItem kind={kind} slug={slug} title={item.title} summary={item.summary} tier={item.tier} signedIn={!!viewer.clientId} />
+      </ItemShell>
+    );
   }
 
   const [video, archived, readiness, listing, rating, pendingIds] = await Promise.all([
@@ -86,9 +95,6 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
   );
   // the repo's skills that work with this MCP
   const usedBy = kind === 'mcp' ? (registry?.skills ?? []).flatMap(skill => skill.mcps?.filter(m => m.id === item.id).map(m => ({ skill, use: m })) ?? []) : [];
-  const back = LIST_TAB[kind]!;
-  // the frame's sidebar: the app's own when signed in, a Sign in button when not
-  const shellViewer = viewer.clientId ? { clientId: viewer.clientId, tier: viewerTier(entitlements), isAdmin: entitlements.isAdmin } : null;
 
   const proof = proofOf(readiness);
   const ready = proof.length > 0;
@@ -251,5 +257,37 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
         </aside>
       </main>
     </ItemShell>
+  );
+}
+
+/** A locked item's page: what its card shows, and which membership opens it. Nothing else of it is sent. */
+function LockedItem({ kind, slug, title, summary, tier, signedIn }: { kind: CatalogKind; slug: string; title: string; summary?: string; tier?: MemberTier; signedIn: boolean }) {
+  const opensWith = tier && tier !== 'public' ? `a ${tierLabel(tier)} membership` : 'a membership';
+  const here = itemPagePath(`${kind}/${slug}`);
+  return (
+    <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-8">
+      <p className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
+        <span>{KIND_LABEL[kind]}</span>
+        <span aria-hidden>/</span>
+        <span className="font-semibold text-foreground">{slug}</span>
+      </p>
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      {summary && <p className="text-muted-foreground">{summary}</p>}
+      <p className="flex items-center gap-1.5 rounded-xl border bg-card p-4 text-sm">
+        <LockIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span>
+          Opens with <span className="font-medium">{opensWith}</span>.{' '}
+          {signedIn ? (
+            <Link href="/app/subscription" className="underline underline-offset-4">
+              How to get it
+            </Link>
+          ) : (
+            <Link href={`/login?redirectTo=${encodeURIComponent(here)}`} className="underline underline-offset-4">
+              Sign in
+            </Link>
+          )}
+        </span>
+      </p>
+    </main>
   );
 }

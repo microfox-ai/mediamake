@@ -51,7 +51,7 @@ The site has a public side and a signed-in side.
   browser), `/video-revision` and `/file-revision` (comment on renders and image sets, track
   revisions), `/skill-library` (browse the skills on your computer with their variants and the
   projects that used them) and `/skills` (the public skills index).
-- **`/access`** handles invites and access requests for catalog items.
+- **`/skills/<name>`, `/mcps/<name>`, `/apps/<name>`**: every catalog item's own page, the only page it has.
 
 ### Rendering: Lambda or local
 
@@ -87,7 +87,7 @@ below it, and a gated item can be set to turn public after a date. People hold a
 membership record that says how they got it (a contribution lasts 3 months). Every item is also **Beta**
 or **Ready** (proven by a finished production) and has a health (a failed one says why).
 
-- **Install an item**: open its card on the homepage (or `/access?item=<kind>/<name>`), copy the install
+- **Install an item**: open its page (`/skills/<name>`, `/mcps/<name>` or `/apps/<name>`), copy the install
   prompt and paste it into Claude. Claude follows [install.md](install.md).
 - **Release and share** (admins): `/app/releases` shows a board per tier (skills always sit in Public), the release timeline,
   people per tier and per-item access. From the terminal: `npm run catalog` in `apps/mediamake`.

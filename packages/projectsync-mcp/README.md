@@ -32,8 +32,8 @@ or Claude Code.
 1. **Get your API key.** Open [MediaMake → API keys](https://mediamake.microfox.app/core/api-keys) and
    create a key (or copy one you have). It is a password: don't paste it into a chat or a repo.
 2. **Install it**, one of these ways (with `mm login` done, `mm items install --yes` does it by itself):
-   - **One prompt (easiest).** On its MediaMake card
-     ([/access?item=mcp/projectsync](https://mediamake.microfox.app/access?item=mcp/projectsync)) click
+   - **One prompt (easiest).** On its MediaMake page
+     ([/mcps/projectsync](https://mediamake.microfox.app/mcps/projectsync)) click
      **Copy install prompt** and paste it into Claude Code or Claude Desktop. Claude downloads the
      `.mcpb` and walks you through the rest.
    - **Claude Desktop, by hand.** Download `projectsync.mcpb` from the same page, double-click it (or
