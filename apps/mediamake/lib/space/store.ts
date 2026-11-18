@@ -93,7 +93,7 @@ export async function projectsOf(db: Db, clientId: string): Promise<MemberProjec
 }
 
 /** Names and GitHub logins of some accounts. One without a user record is absent. */
-async function peopleOf(db: Db, clientIds: string[]): Promise<Map<string, { name: string; githubLogin?: string }>> {
+export async function peopleOf(db: Db, clientIds: string[]): Promise<Map<string, { name: string; githubLogin?: string }>> {
   const ids = [...new Set(clientIds)];
   if (!ids.length) return new Map();
   const users = await db.collection<User>('users').find({ clientId: { $in: ids } }, { projection: { _id: 0, clientId: 1, name: 1, githubLogin: 1, email: 1 } }).toArray();

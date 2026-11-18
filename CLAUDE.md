@@ -75,7 +75,8 @@ so those steps never run in a cloud session. `apps/mediamake/docs/cloud-device-r
 - A need names a thing, never a secret: `key:elevenlabs`, never the key; `browser:youtube/<channel>`,
   never a password. Keys are set in the cloud environment or on the device, by the person.
 - In a cloud session, do the steps that can run there and stop at one that needs a device: say which
-  step, what it needs and what the sheet's "Without it" says. Don't work around it.
+  step, what it needs and what the sheet's "Without it" says, and post it as a to-do (below). Don't
+  work around it.
 
 ## The register: where a step can run
 
@@ -91,6 +92,28 @@ projects whose space repos it holds. `apps/mediamake/docs/cloud-device-runs.md` 
   `key:`). Add one only when it is true on that computer; never a secret.
 - A spend limit is the owner's words beside a key (`mm access limit <key> "<text>"`, or
   `<KEY VARIABLE>_LIMIT` in a cloud environment). Never write one for them.
+
+## To-dos: a step waits for a place that can do it
+
+A step one place can't do goes in the project's to-do queue for a place that can (`mm todo`, the
+space's page › To do, the Spaces MCP's `post_todo` / `claim_todo` / `finish_todo`).
+`apps/mediamake/docs/cloud-device-runs.md` › The to-do queue has the rules.
+
+- Posting: first save the work to the project (the release or production, `mm space sync --yes` for
+  code), then `mm todo post <project> "<what to do>" --needs=<the step's needs> --skill=<skill>
+  --step="<step>" --release=<slug> --version=<v>`, with `--yes` when the run sheet or the routine says
+  the step waits for a person's yes. Then end: a session never waits for a to-do. Tell the user its id
+  and which place can do it.
+- "Pick up to-do td-… in <project>" is `mm todo pick <id>`: do what it prints, with that skill, that
+  step only. Finish with `mm todo done <id> --result="<the link>"`; when it can't be done,
+  `mm todo fail <id> --reason="…"` (or `release` when nothing was tried). Never leave one claimed.
+- The session-start line says when this computer can do something that waits. Tell the user; pick one
+  up only when they say so.
+- A step that must not happen twice: check it didn't already, as the pick-up says, before doing it.
+- `mm todo yes <id>` and a choice's answer are the user's: only on their word, in this session.
+- Everyone on the project reads a to-do. Never a key, a password or anything private in its words.
+- With the Portal MCP connected, a to-do you post is also a task there for the people who can do it,
+  and the work of one you finish is logged there.
 
 ## Git: main stays a clean copy of GitHub
 

@@ -67,6 +67,7 @@ const ABOUT = {
   usage: "what this computer tells MediaMake about the skills you run (names and times only); mm usage off stops it",
   cloud: 'sets up a Claude Code cloud session to build and render there (workspace, browser, your spaces); mm cloud deliver <slug> hands the files over',
   access: "what this computer can do, for your projects' register; mm access open <project> lets a project's runs use it (closed until you do)",
+  todo: "your projects' to-do queue: steps a cloud session could not do, waiting for a computer that can; mm todo pick <id> picks one up",
   doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
 };
 
@@ -168,7 +169,7 @@ const main = () => {
   }
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
-  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud', 'access'].includes(script)) ensurePresets(APP, { soft: true });
+  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud', 'access', 'todo'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)

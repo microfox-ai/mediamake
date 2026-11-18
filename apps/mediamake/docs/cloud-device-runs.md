@@ -16,9 +16,11 @@ another place) is in the Claude Doc "Cloud and device runs: plan"; this page say
 | The space page: what a cloud environment needs | Set up › Run it in the cloud (`lib/space/cloud-setup.ts`, `components/projects/space-cloud.tsx`) |
 | The same check inside a cloud session | `mm cloud` (`tools/cloud.mjs`, `needsOf`) |
 | The register: what each computer and cloud environment can do | `mm access` (`tools/access.mjs`), `/api/space/places` (`lib/space/register.ts`, `register-store.ts`), the project's page › Where it runs (`components/projects/space-places.tsx`) |
+| The to-do queue: a step one place could not do, waiting for a place that can | `mm todo` (`tools/todo.mjs`), `/api/space/todos` (`lib/space/todos.ts`, `todo-store.ts`), the space's page › To do (`components/projects/space-todos.tsx`), the Spaces MCP's `list_todos`, `post_todo`, `claim_todo`, `finish_todo`, `where_it_runs` |
 
-Not built yet: the to-do queue and the run record. Until then the register only shows where a step
-could run; a step that needs a device is still done by a person on that device.
+Not built yet: the run record (a run that stops in one place and resumes in another by itself), and the
+planner that picks a place. Until then a person carries each hand-over: a session posts the to-do, and
+someone pastes its line into Claude on a computer that can do it.
 
 ## The words
 
@@ -142,3 +144,88 @@ What MediaMake is told is the computer's random label, the name its owner gave i
 limits, and for a cloud environment the names of its space repos. Never a key, a password, a path or a
 file. `mm access --dry` shows the exact report, `mm usage off` stops it, and `mm access forget` takes
 the computer out of the register (`mm usage forget` deletes usage, not the register).
+
+## The to-do queue
+
+A to-do is a step one place could not do, posted for a place that can. A cloud session that reaches the
+upload (it needs a browser signed in to the channel) saves its work to the project, posts a to-do and
+ends. It never waits. Someone on the project with a computer that has what the step needs picks it up.
+To-dos live in MediaMake with the project, not in git, so one shows at once and two people never
+conflict over it. A personal space has a queue too: a cloud session of yours, then your own computer.
+
+A to-do holds:
+
+- what to do, in a line, and notes for whoever picks it up
+- the skill and the step, as the skill's run sheet names them
+- what the step needs, in the words above, so only a place that has them all is offered it
+- what it works on, by reference: a release or a production of the project (its slug), which version,
+  and the commit of the space's code
+- whether it waits for a person's yes, and whether doing it twice does harm
+- what comes after it, when the work continues somewhere else
+- its state, who posted it and from where, who has it and on which computer, and what came of it
+
+Everyone on the project reads a to-do, so it never holds a key, a password or anything private. A post
+or a result that looks like one is refused.
+
+| State | Means |
+| --- | --- |
+| open | It waits for a place that has what it needs |
+| claimed | One person picked it up, on one computer |
+| done | Finished, with its result (the video's link) |
+| failed | It failed 3 times and waits for a person to look |
+| cancelled | No longer wanted: a newer version replaced it, or someone cancelled it |
+
+The rules, each with one answer:
+
+- **Only one pick-up succeeds.** Every change is saved over the version it read; the second person is
+  told who has it and on which computer.
+- **A claim nobody finished ends after 2 hours** (the computer slept, the session died), and so does
+  the claim of someone who left the project. The to-do is open again.
+- **A failure opens it again with the reason.** The third stops it until a person opens it again.
+  Giving one back (`release`) is not a failure.
+- **A step that must not happen twice** (`Safe to repeat: no` on the run sheet) is checked first by
+  whoever picks it up: a link on the release, the video on the channel. If it happened, they only
+  record the result.
+- **The same step of the same work and version is posted once**: posting it again gives back the one
+  that waits. A newer version cancels the older one that still waits, and posts its own.
+- **A step that waits for a person's yes** is not finished before it has one, recorded with their name
+  (`mm todo yes <id>`, or Say yes on the page). A session says yes only when the user said so in it.
+- **A choice only a person can make** (which thumbnail) uses the same queue, with its options. It is
+  answered on the page, or by a session with the user's answer; it is never picked up.
+- **Owners and editors** post and work a project's to-dos; viewers read them.
+
+Where people and sessions meet it:
+
+| Where | What |
+| --- | --- |
+| The space's page › To do | A card per to-do: what it needs, which place can do it, the line to paste with a copy button, who has it, what came of it. Cancel, Open it again, Say yes, and the buttons of a choice |
+| `mm todo` | What waits in your projects and which of it this computer can do. `mm todo <project>`, `show <id>`, `post`, `pick`, `done`, `fail`, `release`, `yes`, `cancel`, `reopen` |
+| The line, pasted into Claude | "Pick up to-do td-… in <project>" is `mm todo pick <id>` |
+| The start of a session | One line when something waits that this computer can do (`tools/todo.mjs --hook`). It is quiet otherwise, and Claude picks one up only when the user says so |
+| The MediaMake Spaces MCP | `list_todos`, `post_todo`, `claim_todo`, `finish_todo`, and `where_it_runs` for the register, for a Claude with no MediaMake repo |
+| Portal | Where the Portal MCP is connected, the session that posts a to-do adds it as a task for the people who can do it, and the one that finishes it logs the work there |
+
+`mm todo post <project> "<what to do>" --needs=<need,need>` posts one, with `--skill`, `--step`,
+`--release` or `--production`, `--version`, `--commit`, `--notes`, `--then`, `--yes` (it waits for a
+person's yes), `--repeat` (doing it twice does no harm) and `--options="A|B|C"` (a choice).
+
+`mm todo pick <id>` picks one up:
+
+1. It checks this computer has everything the to-do needs (what `mm access` shows). If not, it says what
+   is missing and which place can do it, and claims nothing.
+2. It claims the to-do, in this computer's name.
+3. It brings the project's space up to GitHub and checks the space has the commit the to-do names. If
+   the space can't be brought up to date (edits here that conflict), or its skill isn't on this
+   computer, the to-do is given back and it says what to do.
+4. It prints what to do: the skill and step, what it works on and how to get it, the check before a
+   step that must not happen twice, the yes it waits for, and the lines that finish it
+   (`mm todo done <id> --result="<link>"`, `mm todo fail <id> --reason="…"`, `mm todo release <id>`).
+
+| Call | What |
+| --- | --- |
+| `GET /api/space/todos?project=<id>` | That project's to-dos, each with the places that can do it. `?id=<td-…>` is one; with neither, what waits in every project the account works on |
+| `POST /api/space/todos` | `{ action: "post", project, title, needs, … }`, or `{ action: "claim" \| "done" \| "fail" \| "release" \| "yes" \| "cancel" \| "reopen", id, … }`. A claim that loses is answered 409 with who has it |
+
+Not in the queue yet: a notice sent to the people who can do a to-do (today it is the count on the tab,
+the session-start line and the Portal task), a device's line when two runs want it, and starting the
+next part by itself when a to-do is done. Those come with the run record and the planner.

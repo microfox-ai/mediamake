@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "projectsync",
   "display_name": "MediaMake Spaces",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Keep your MediaMake spaces in the cloud: your personal space and each project space's brand kits, productions, release kits, media and shared assets, under each space's permissions. Was ProjectSync.",
   "long_description": "Connects Claude to your MediaMake account with a MediaMake API key, and reads and writes files on this computer. Every production (a video's code and outputs), release kit (a YouTube upload pack, a DistroKid release) and media file belongs to one space (your personal space, or a project's), and your role there decides: anyone it is shared with reads, owners and editors upload and change, only the owner deletes. Claude asks you each time whether files go up as a production, a release or media, and to which project. Media is never analysed on the way in.",
   "icon": "icon.png",
@@ -142,6 +142,26 @@
     {
       "name": "set_shared_limit",
       "description": "How much a project's team may share in files, in all (owner only)."
+    },
+    {
+      "name": "list_todos",
+      "description": "A project's to-do queue: steps waiting for a place that can do them."
+    },
+    {
+      "name": "post_todo",
+      "description": "Post a step this place cannot do, for a place that can."
+    },
+    {
+      "name": "claim_todo",
+      "description": "Pick a to-do up: only one pick-up succeeds."
+    },
+    {
+      "name": "finish_todo",
+      "description": "Say what came of a to-do: done, failed, released or cancelled."
+    },
+    {
+      "name": "where_it_runs",
+      "description": "A project's register: which cloud environment and computer can do what."
     }
   ],
   "keywords": [
@@ -164,7 +184,7 @@
     "api_key": {
       "type": "string",
       "title": "MediaMake API key",
-      "description": "From MediaMake \u2192 API keys (https://mediamake.microfox.app/core/api-keys). Kept in your system keychain.",
+      "description": "From MediaMake → API keys (https://mediamake.microfox.app/core/api-keys). Kept in your system keychain.",
       "sensitive": true,
       "required": true
     },

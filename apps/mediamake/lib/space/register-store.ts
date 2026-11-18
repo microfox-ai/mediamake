@@ -60,6 +60,13 @@ export const registerDB = {
     return next;
   },
 
+  /** The places a project's page may show one of its people: the project's, and the viewer's own computers. Never a place of someone who left. */
+  async placesFor(projects: string[], clientId: string, onIt: Set<string>): Promise<PlaceRecord[]> {
+    const { col } = await places();
+    const list = (await col.find({ $or: [{ projects: { $in: projects } }, { clientId, kind: 'device' }] }, noId).toArray()) as PlaceRecord[];
+    return list.filter(place => place.clientId === clientId || onIt.has(place.clientId));
+  },
+
   /** A project's register for one of its people. The caller checked they are on the project. */
   async forProject(project: string, clientId: string): Promise<AccessView> {
     const { db, col } = await places();
