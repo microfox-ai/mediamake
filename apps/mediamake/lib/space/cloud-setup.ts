@@ -108,3 +108,42 @@ export function cloudSetup(input: {
     unknown,
   };
 }
+
+/** The line every cloud session starts with: it connects the space, links its skills and says what is missing. */
+export const CLOUD_LINE = 'npm run mm -- cloud';
+
+/** A name for the environment (`MEDIAMAKE_PLACE`), from the space's repo: `ana/mediamake-doomcat` → `doomcat-cloud`. */
+export function placeName(repo?: string): string {
+  const base = (repo?.split('/').pop() ?? '')
+    .toLowerCase()
+    .replace(/^mediamake-/, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${base && base !== 'space' ? base.slice(0, 40) : 'my'}-cloud`;
+}
+
+/**
+ * The environment's variables as .env lines: every key by its name with nothing after the `=`, then
+ * the environment's name. Pasted into the environment's variables, where each value is filled in: a
+ * value is never known here.
+ */
+export function envLines(setup: Pick<CloudSetup, 'keys'>, place?: string): string {
+  return [...setup.keys.map(key => `${key.env}=`), ...(place ? [`MEDIAMAKE_PLACE=${place}`] : [])].join('\n');
+}
+
+/**
+ * The whole setup as plain text, in the order it is done: for a note, a teammate, or Claude. The
+ * variables are clean .env lines (a note about one is a `#` line above it, never after the `=`).
+ */
+export function setupText(setup: CloudSetup, input: { name?: string; place?: string } = {}): string {
+  const { name, place } = input;
+  const lines = [`Set up a Claude cloud environment for ${name ?? 'this space'} (MediaMake)`, '', '1. Add these repositories to the environment:', ...setup.repos.map(repo => `${repo.repo}`)];
+  lines.push('', "2. Set these as the environment's variables. Fill in each value there, never in a chat or a file:");
+  for (const key of setup.keys) lines.push(`# ${key.title} key${key.from ? `: ${key.from}` : ''}`, `${key.env}=`);
+  if (place) lines.push('# A name for this environment, any you like', `MEDIAMAKE_PLACE=${place}`);
+  if (setup.unknown.length) lines.push(`# ${setup.unknown.join(', ')}: no run sheet yet, so a key may be missing from this list`);
+  lines.push('', `3. Network access: Full${setup.hosts.length ? ', or Limited with these domains allowed:' : '.'}`, ...setup.hosts);
+  lines.push('', "4. Start each session, or a routine's instructions, with this line:", CLOUD_LINE);
+  if (setup.device.length) lines.push('', 'Stays on a computer (a cloud session stops at these steps and posts each as a to-do for a computer that has it):', ...setup.device.map(d => `${d.label} (${d.usedBy.join(', ')})`));
+  return lines.join('\n');
+}
