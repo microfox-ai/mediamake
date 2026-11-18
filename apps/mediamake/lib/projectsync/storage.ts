@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { LINK_TTL_SECONDS, type BundleKind } from '.';
 
@@ -67,4 +67,47 @@ export async function storedSize(key: string): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+/** Everything a project's productions and releases stored: all of it sits under this, and nothing else does. */
+export const projectPrefix = (projectId: string) => `projectsync-private/${projectId}/`;
+
+async function removeKeys(from: string, keys: string[]): Promise<number> {
+  let removed = 0;
+  for (let i = 0; i < keys.length; i += 1000) {
+    const batch = keys.slice(i, i + 1000);
+    const result = await s3Client.send(new DeleteObjectsCommand({ Bucket: from, Delete: { Objects: batch.map(Key => ({ Key })), Quiet: true } }));
+    removed += batch.length - (result.Errors?.length ?? 0);
+  }
+  return removed;
+}
+
+/**
+ * Deletes a deleted project's stored files (lib/projects/delete): its productions and releases, and
+ * the public files named by `publicKeys` (its media and brand kit, in SPACES_BUCKET). How many went.
+ * Best effort: the records are gone already, so a file left behind is only an orphan in the bucket.
+ */
+export async function deleteProjectFiles(projectId: string, publicKeys: string[]): Promise<{ removed: number; failed: boolean }> {
+  if (!/^[0-9a-f]{24}$/.test(projectId) || !process.env.SPACES_ENDPOINT) return { removed: 0, failed: false };
+  let removed = 0;
+  let failed = false;
+  try {
+    let token: string | undefined;
+    do {
+      const page = await s3Client.send(new ListObjectsV2Command({ Bucket: bucket(), Prefix: projectPrefix(projectId), ContinuationToken: token }));
+      const keys = (page.Contents ?? []).flatMap(object => (object.Key ? [object.Key] : []));
+      if (keys.length) removed += await removeKeys(bucket(), keys);
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+  } catch (error) {
+    failed = true;
+    console.error('[projects] Could not delete stored productions and releases:', error instanceof Error ? error.message : 'error');
+  }
+  try {
+    if (publicKeys.length && process.env.SPACES_BUCKET) removed += await removeKeys(process.env.SPACES_BUCKET, publicKeys);
+  } catch (error) {
+    failed = true;
+    console.error('[projects] Could not delete stored media:', error instanceof Error ? error.message : 'error');
+  }
+  return { removed, failed };
 }

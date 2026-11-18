@@ -339,6 +339,37 @@ they sign up: the owner runs `mm space invite` then.
 | `GET /api/space/github` | Whether you connected it, and as whom |
 | `DELETE /api/space/github` | Disconnect: revoked at GitHub, deleted here |
 
+## Deleting a space
+
+A project space's owner deletes it on its page: **Settings › Danger zone ›
+Delete this space**, then its name, typed. Nobody else sees the tab, and a
+personal space is never deleted. It is for good and there is no trash.
+
+| What | What happens to it |
+| --- | --- |
+| The space's page, its people and their invites | Gone: everyone on it loses access |
+| Its brand kit, productions, releases and media | The records are deleted, then the stored files (the project's own folders only) |
+| Its runs and to-dos | Deleted |
+| What its computers reported (the Code and Skills tabs) | Deleted |
+| Items linked to it | They stay their owners'. They are unlinked from it, and its people come off those repos unless they have the item another way |
+| Computers and cloud environments open to it | No longer listed for it |
+| Its GitHub repo | **Kept, with the people on it**, unless the owner ticks "Also delete the repo" |
+
+The repo holds the only copy of the space's code besides its people's
+clones, and it is under a person's GitHub account, so it stays by default.
+The tick box is offered only when the repo is under the GitHub account the
+owner connected ([Connect GitHub](#inviting-from-the-site-connect-github)):
+then the App deletes it with its Administration permission. The repo goes
+first: when GitHub refuses, nothing else is deleted and the dialog says why.
+A repo under someone else's account is theirs to delete on GitHub.
+
+The clones on people's computers (`spaces/<project>/` in the workspace) are
+not touched: they are theirs to remove.
+
+`DELETE /api/project` `{ id, name, repo?: 'keep' | 'delete' }` does it
+(`lib/projects/delete.ts` says who may, `lib/projects/delete-store.ts` does
+it). Before this it removed the project's document only, without a name.
+
 ## Large media
 
 Large media does not go in git. `push` refuses any file over 10 MB, media included

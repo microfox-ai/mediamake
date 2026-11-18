@@ -257,6 +257,27 @@ export async function removeCollaborator(token: string, repo: string, login: str
 
 const APP_SETTINGS = 'github.com/settings/installations';
 
+export type RepoDeleted = { state: 'deleted' | 'gone'; repo: string } | { state: 'other-owner'; repo: string; owner: string } | { state: 'failed'; repo: string; reason: string };
+
+/**
+ * Deletes a space's repo on GitHub, for good, when its space is deleted and its owner asked for
+ * that too (lib/projects/delete). Only a repo under the account that connected GitHub; one already
+ * gone counts as done.
+ */
+export async function deleteRepo(grant: { login: string; token: string }, repo: string, fetcher: Fetch = fetch): Promise<RepoDeleted> {
+  if (!REPO.test(repo)) return { state: 'failed', repo, reason: 'That is not a repo name' };
+  const owner = repo.split('/')[0];
+  if (owner.toLowerCase() !== grant.login.toLowerCase()) return { state: 'other-owner', repo, owner };
+  const answer = await github(grant.token, fetcher)('DELETE', `/repos/${repo}`);
+  if (answer.status === 204) return { state: 'deleted', repo };
+  if (answer.status === 404) return { state: 'gone', repo };
+  const reason =
+    answer.status === 401
+      ? 'GitHub no longer accepts the connection: connect GitHub again.'
+      : `GitHub did not delete ${repo}. Check that the MediaMake app on GitHub can reach it (${APP_SETTINGS}), or delete it on GitHub yourself.`;
+  return { state: 'failed', repo, reason };
+}
+
 /** How it went on GitHub when someone was added to a project, for the page to say. */
 export type GithubShare =
   | { state: 'invited' | 'already'; repo: string; login: string; madeRepo?: boolean }
