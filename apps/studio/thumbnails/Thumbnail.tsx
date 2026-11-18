@@ -7,7 +7,7 @@ import { AbsoluteFill } from 'remotion';
 import { useFonts } from './fonts.ts';
 import { Fill, Fx, Logo, Shape } from './layers/Graphics.tsx';
 import { Photo } from './layers/Photo.tsx';
-import { Text } from './layers/Text.tsx';
+import { Text, layout } from './layers/Text.tsx';
 import { CanvasContext } from './canvas.tsx';
 import { Defs, gradeFilter, safeId } from './layers/filters.tsx';
 import { CANVAS, type CustomLayer, type FontSpec, type Layer, type ResolvedVariant, TIMESTAMP_ZONE } from './spec.ts';
@@ -137,32 +137,51 @@ const PostFilter: React.FC<{ id: string; post: Post }> = ({ id, post }) => {
   );
 };
 
-export type ThumbnailProps = { job: string; variant: ResolvedVariant; fonts: FontSpec[]; guides?: boolean; size?: [number, number] };
+export type ThumbnailProps = {
+  job: string;
+  variant: ResolvedVariant;
+  fonts: FontSpec[];
+  guides?: boolean;
+  size?: [number, number];
+  /**
+   * `thumbs figcraft` only: draw this one layer alone on a transparent ground, as it shows in the
+   * thumbnail (the treatment's grade included): its index in `variant.layers`, or `over-<n>` for a
+   * treatment's texture layer.
+   */
+  solo?: string;
+  /** `thumbs figcraft` only: log every text layer's laid-out lines, as one `[figcraft-text] [{…}]` console line. */
+  probe?: boolean;
+};
 
-export const Thumbnail: React.FC<ThumbnailProps> = ({ job, variant, fonts, guides, size }) => {
+/** Each text layer's lines as they are laid out here, for `thumbs figcraft` to rebuild as editable text. */
+const Probe: React.FC<{ layers: Layer[]; size: [number, number] }> = ({ layers, size }) => {
+  const probes = layers.flatMap((layer, index) => (layer.type === 'text' ? [{ index, ...layout(layer, layers, 0, [0, 0, size[0], size[1]]) }] : []));
+  console.debug(`[figcraft-text] ${JSON.stringify(probes)}`);
+  return null;
+};
+
+export const Thumbnail: React.FC<ThumbnailProps> = ({ job, variant, fonts, guides, size, solo, probe }) => {
   const ready = useFonts(job, fonts);
   const id = safeId(useId());
   const [w, h] = size ?? [CANVAS.w, CANVAS.h];
   const post = variant.post;
   const svg = post && (post.posterize || post.duotone || post.curves || post.chroma || post.bloom);
   const filter = post ? [gradeFilter(post.grade), svg && `url(#${id}-post)`].filter(Boolean).join(' ') : '';
+  const shown = (key: string) => solo === undefined || solo === key;
   return (
     <CanvasContext.Provider value={{ w, h }}>
-      <AbsoluteFill style={{ width: w, height: h, background: '#000', overflow: 'hidden' }}>
+      <AbsoluteFill style={{ width: w, height: h, background: solo === undefined ? '#000' : 'transparent', overflow: 'hidden' }}>
         {post && svg && (
           <Defs>
             <PostFilter id={`${id}-post`} post={post} />
           </Defs>
         )}
         <div style={{ position: 'absolute', inset: 0, filter: filter || undefined }}>
-          {variant.layers.map((layer, i) => (
-            <LayerView key={layer.id ?? i} job={job} layer={layer} layers={variant.layers} ready={ready} />
-          ))}
+          {variant.layers.map((layer, i) => shown(String(i)) && <LayerView key={layer.id ?? i} job={job} layer={layer} layers={variant.layers} ready={ready} />)}
         </div>
-        {post?.over.map((layer, i) => (
-          <LayerView key={layer.id ?? `post-${i}`} job={job} layer={layer} layers={variant.layers} ready={ready} />
-        ))}
-        {guides && <Guides />}
+        {post?.over.map((layer, i) => shown(`over-${i}`) && <LayerView key={layer.id ?? `post-${i}`} job={job} layer={layer} layers={variant.layers} ready={ready} />)}
+        {guides && solo === undefined && <Guides />}
+        {probe && ready && <Probe layers={variant.layers} size={[w, h]} />}
       </AbsoluteFill>
     </CanvasContext.Provider>
   );

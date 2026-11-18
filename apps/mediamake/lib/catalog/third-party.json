@@ -153,6 +153,29 @@
         },
         "notes": "Needs Node 18 or newer (npx comes with it) and a Google AI Studio API key; the free tier works but is rate-limited (429s: set GEMINI_MODEL=gemini-3-flash-preview or move to a paid plan). Images, video, speech and research spend your Google API quota. Also installs the gcli command (npm install -g @rlabs-inc/gemini-mcp) for the same tools from a terminal."
       }
+    },
+    {
+      "id": "mcp/figcraft",
+      "title": "Figcraft",
+      "summary": "An open-source design editor (frames, text, images, auto layout, components) that Claude drives from its MCP server and command line: it builds and edits simple layouts such as banners, thumbnails, social posts and pitch decks as .figcraft files, exports them as PNG, JPG, SVG or PDF, and opens them in the FigCraft app for you to change anything by hand. MediaMake's thumbnails use it for their final edit. Free, local, no account.",
+      "status": "live",
+      "tags": ["mcp", "design", "images"],
+      "releasedAt": "2026-11-18",
+      "madeBy": { "name": "Storyteller (ArtCraft)", "repo": "storytold/figcraft", "license": "MIT OR Apache-2.0", "homepage": "https://getartcraft.com/apps/figcraft" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "figcraft",
+          "local": { "command": "figcraft-cli", "args": ["mcp"] },
+          "setup": [
+            "Download the command line for this computer from the latest release at https://github.com/storytold/figcraft/releases/latest (on a Mac figcraft-cli-<version>-macos-universal.zip, signed and notarized; on Linux the AppImage runs it as `FigCraft.AppImage cli`), unzip it and put figcraft-cli in ~/.local/bin. Check: `figcraft-cli --version`.",
+            "Add the server to Claude Code with the full path, since the Claude app may not have ~/.local/bin on its PATH: `claude mcp add --scope user figcraft -- ~/.local/bin/figcraft-cli mcp`. Its tools show up in the next session.",
+            "For editing by hand, install the FigCraft app from the same release (on a Mac figcraft-<version>-macos-universal.dmg). Started as `figcraft --control 7979`, a second server, `figcraft-cli mcp --attach 7979`, lets Claude change the open window while you watch."
+          ],
+          "guide": "https://github.com/storytold/figcraft/blob/main/docs/mcp.md"
+        },
+        "notes": "Early alpha, by its makers' own account. Runs on your computer and needs no account or key; it reaches the network only when you share a file from the app. Text uses the fonts installed on the computer plus ones a session loads (text.loadFont), so install a design's fonts before opening it in the app. The use-figcraft skill says how Claude builds, checks and exports a layout with it."
+      }
     }
   ]
 }

@@ -113,7 +113,7 @@ file, the channel, the pack folder as the output folder, the thumbnail's words, 
 
 ## 4. Show the pack, then finish it
 
-Show the user, in one message: the thumbnail sheet (already sent) with its IDs and review link,
+Show the user, in one message: the thumbnail sheet (already sent, each ID tagged on its tile),
 the title and its two alternatives, and the description in a code block, plus the pack path. Ask
 for the thumbnail pick (one final, or three for an A/B test) and any changes to the words.
 
