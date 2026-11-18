@@ -5,7 +5,8 @@ import { getDatabase } from '../mongodb';
 import { syncCollaborators, type GithubLinkSync } from './github';
 import { githubGrants } from './github-store';
 import { collaboratorsOf, linkSpaceId, roleOn, takeLinkInvite, type LinkedItemView, type LinkRecord, type LinkRole } from './links';
-import { spaceView, type SpaceItemRecord, type SpaceKind, type SpaceRecord } from './space';
+import { getProjectRole } from '@/lib/editor/project-access';
+import { spaceView, userSpaceId, type SpaceItemRecord, type SpaceKind, type SpaceRecord } from './space';
 import { projectsOf, spaceDB, type MemberProject, type MySpaces } from './store';
 
 /**
@@ -136,7 +137,8 @@ export const linkDB = {
     const [projects, spaces, items] = await Promise.all([
       projectsById(db, found.flatMap(link => link.projects.map(project => project.id))),
       db.collection<SpaceRecord>('spaces').find({ id: { $in: spaceIds } }, noId).toArray(),
-      db.collection<SpaceItemRecord>('space_items').find({ space: { $in: spaceIds } }, noId).toArray(),
+      // a README's text and pictures are read when its dialog opens, not with every list
+      db.collection<SpaceItemRecord>('space_items').find({ space: { $in: spaceIds } }, { projection: { _id: 0, 'readme.text': 0, 'readme.pictures': 0 } }).toArray(),
     ]);
     const owned = found.filter(link => link.owner === clientId);
     const users = await usersOf(db, [
@@ -238,4 +240,21 @@ export async function githubAfterProjectChange(projectId: string): Promise<void>
   } catch (error) {
     console.error('[spaces] GitHub sync after a project change failed:', error instanceof Error ? error.message : 'error');
   }
+}
+
+/**
+ * True when `clientId` may see what a space holds: their own space, a project's space when they are on the
+ * project, a linked item when it is theirs or shared with them. What a README of the space shows follows this.
+ */
+export async function canSeeSpace(spaceId: string, clientId: string): Promise<boolean> {
+  if (spaceId === userSpaceId(clientId)) return true;
+  if (spaceId.startsWith('project:')) {
+    const project = spaceId.slice('project:'.length);
+    return !!(await getProjectRole(await getDatabase(), project, clientId).catch(() => null));
+  }
+  if (spaceId.startsWith('item:')) {
+    const link = await linkDB.byId(spaceId.slice('item:'.length));
+    return !!link && !!(await linkDB.roleOf(link, clientId));
+  }
+  return false;
 }

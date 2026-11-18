@@ -104,6 +104,11 @@ export const submissionsDB = {
     return (await collection()).countDocuments({ clientId, updatedAt: { $gte: since } });
   },
 
+  /** The newest live submission of an item: the version its store package was released from, or null. */
+  async releasedOf(itemId: string): Promise<Submission | null> {
+    return (await collection()).find({ itemId, status: 'live' }, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(1).next();
+  },
+
   /** One account's, newest first. */
   async listFor(clientId: string, limit = 100): Promise<Submission[]> {
     return (await collection()).find({ clientId }, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(limit).toArray();

@@ -64,8 +64,23 @@ is dropped. Keep large media out of the folder: link it (the media library carri
 | Item | Its README | Its headshot, description, tags | Its icon |
 | --- | --- | --- | --- |
 | A skill in this repo | `README.md` in its folder, beside `SKILL.md` | The README's frontmatter | None |
-| An MCP or an app | Its release page, Store listing › README (`catalog_set_listing`'s `readme`) | The same panel (`description`, `headshot`, `tags`) | The same panel (`icon`): a square picture |
+| A skill, MCP or app in a space (a member's own, a project's, a linked item) | `README.md` in its folder, sent with the space's report (below) | The README's frontmatter | None |
+| A member's item released from a submission (a Plus, Pro or Cohort package) | The `README.md` of the version released, from its submission's files | The README's frontmatter | The release page |
+| An MCP or an app made here | Its release page, Store listing › README (`catalog_set_listing`'s `readme`) | The same panel (`description`, `headshot`, `tags`) | The same panel (`icon`): a square picture |
 | Any item, by an admin | What is set on the release page wins over the file | The same | |
+
+**In a space, the README goes with the item.** Every report a computer sends (`mm space sync`, `mm space
+report`) carries each item's README.md (at most 32 KB) and names the pictures it shows from its own
+folder: its `headshot` and every `![…](relative/path.png)`, PNG, JPEG, GIF, WebP or AVIF, at most 2 MB a
+picture, 16 pictures and 8 MB an item. MediaMake keeps the pictures privately, once per space by their
+content's SHA-256: the answer to a report asks for the ones it doesn't have, and the computer sends those
+straight to storage. The item's dialog (Mine, the space's page) shows the README to everyone who may see
+the space, its pictures through `/api/space/readme-file/…`, which checks again; relative links to other
+files are dropped, since the repo is private. Change the README, sync, and the dialog shows the new one.
+
+**Released from a space.** When an admin approves a member's item as a store package, its page shows the
+README.md that was submitted with that version, pictures included (`/api/catalog/readme-file/…`, for
+whoever may open the item). Each approved version brings its own.
 
 An item with no README gets the default one, written from what MediaMake knows: its intro video, its
 title, its summary and how to use it. `tools/skills.mjs index` reads each skill's README into

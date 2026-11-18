@@ -17,9 +17,10 @@
  *
  * MediaMake never holds a repo's contents, and a GitHub token only for an owner who connected GitHub (./github). A computer
  * reports names, versions, titles, one-line summaries and what each item needs to run (key names, MCPs,
- * apps, sign-ins by site and account: never a key), and for the Code tab the repo's file paths, its
- * README.md and its last commits (short id, time, author's name, subject); git moves the files with each
- * member's own sign-in.
+ * apps, sign-ins by site and account: never a key), each item's README.md (its store listing, docs/item-readme.md)
+ * with the pictures it shows (./readme-files keeps those, privately), and for the Code tab the repo's file
+ * paths, its README.md and its last commits (short id, time, author's name, subject); git moves the files
+ * with each member's own sign-in.
  */
 
 import type { BrandMarks } from '@/lib/brand-kit';
@@ -65,7 +66,33 @@ export interface ReportedItem {
    * item.json). Empty: it needs nothing. Left out: it doesn't say (a skill with no run sheet yet).
    */
   needs?: string[];
+  /** Its README.md, its store listing: shown wherever the item is, to whoever can see it. */
+  readme?: ItemReadmeText;
 }
+
+/** A picture an item's README shows from its own folder: by its path there and its content's SHA-256. */
+export interface ReadmePicture {
+  /** `shots/steps.png`: relative to the item's folder. */
+  path: string;
+  sha256: string;
+  type: ReadmePictureType;
+  bytes: number;
+}
+
+/** An item's README.md as a computer reports it: its Markdown, and the pictures beside it that it shows. */
+export interface ItemReadmeText {
+  text: string;
+  pictures?: ReadmePicture[];
+}
+
+/** The pictures a README may show from its folder, as the CLI sends them (tools/space.mjs README_PICTURE_TYPES). */
+export const README_PICTURE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif'] as const;
+export type ReadmePictureType = (typeof README_PICTURE_TYPES)[number];
+/** At most this big a picture, this many pictures and this many bytes in all, for one item's README. */
+export const MAX_README_PICTURE = 2 * 1024 * 1024;
+export const MAX_README_PICTURES = 16;
+export const MAX_README_PICTURE_BYTES = 8 * 1024 * 1024;
+const SHA256 = /^[0-9a-f]{64}$/;
 
 /** One commit as a computer reports it: its short id, when, who (the git author's name) and its subject. */
 export interface CommitInfo {
@@ -96,6 +123,28 @@ const filePath = (value: unknown): string | null =>
   value.split('/').every(part => part && part !== '.' && part !== '..')
     ? value
     : null;
+
+/** A report's README of an item, or undefined: its text (trimmed to MAX_README), and the pictures it may show. */
+export function parseItemReadme(value: unknown): ItemReadmeText | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const { text, pictures } = value as Record<string, unknown>;
+  if (typeof text !== 'string' || !text.trim()) return undefined;
+  const kept: ReadmePicture[] = [];
+  const seen = new Set<string>();
+  let total = 0;
+  for (const entry of Array.isArray(pictures) ? pictures : []) {
+    if (kept.length >= MAX_README_PICTURES) break;
+    const { path, sha256, type, bytes } = (entry ?? {}) as Record<string, unknown>;
+    const at = filePath(path);
+    if (!at || seen.has(at) || typeof sha256 !== 'string' || !SHA256.test(sha256)) continue;
+    if (typeof type !== 'string' || !(README_PICTURE_TYPES as readonly string[]).includes(type)) continue;
+    if (typeof bytes !== 'number' || !Number.isInteger(bytes) || bytes <= 0 || bytes > MAX_README_PICTURE || total + bytes > MAX_README_PICTURE_BYTES) continue;
+    seen.add(at);
+    total += bytes;
+    kept.push({ path: at, sha256, type: type as ReadmePictureType, bytes });
+  }
+  return { text: text.replace(/\u0000/g, '').slice(0, MAX_README), ...(kept.length && { pictures: kept }) };
+}
 
 /** A report's Code part, or undefined when it sent none (a computer from before it was reported). */
 export function parseCode(value: unknown): SpaceCode | undefined {
@@ -202,6 +251,8 @@ export interface SpaceItemRecord {
   media?: number;
   /** What it needs to run, as the computer furthest along reports it. */
   needs?: string[];
+  /** Its README.md, as the computer furthest along reports it. */
+  readme?: ItemReadmeText;
   devices: ItemOnDevice[];
   createdAt: string;
   updatedAt: string;
@@ -236,7 +287,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
   if (items.length > MAX_SPACE_ITEMS) return { error: `Send ${MAX_SPACE_ITEMS} items at most` };
   const byKey = new Map<string, ReportedItem>();
   for (const entry of items) {
-    const { kind, name: itemName, version, title, summary, changed, media, needs } = (entry ?? {}) as Record<string, unknown>;
+    const { kind, name: itemName, version, title, summary, changed, media, needs, readme } = (entry ?? {}) as Record<string, unknown>;
     if (typeof kind !== 'string' || !(SPACE_KINDS as readonly string[]).includes(kind)) continue;
     if (typeof itemName !== 'string' || itemName.length > 100 || !ITEM_NAME.test(itemName)) continue;
     const v = typeof version === 'string' && VERSION.test(version.trim()) ? version.trim() : undefined;
@@ -250,6 +301,7 @@ export function parseSpaceReport(body: unknown): SpaceReport | { error: string }
       ...(changed === true && { changed: true }),
       ...(count && { media: count }),
       ...(Array.isArray(needs) && { needs: needList(needs) }),
+      ...(parseItemReadme(readme) && { readme: parseItemReadme(readme) }),
     };
     byKey.set(spaceItemKey(item), item);
   }
@@ -345,6 +397,8 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
       else delete next.media;
       if (item.needs) next.needs = item.needs;
       else delete next.needs;
+      if (item.readme) next.readme = item.readme;
+      else delete next.readme;
     }
     if (version) next.version = version;
     else delete next.version;
@@ -361,6 +415,7 @@ export function applyReport(state: SpaceState, spaceId: string, clientId: string
       ...(item.version && { version: item.version }),
       ...(item.media && { media: item.media }),
       ...(item.needs && { needs: item.needs }),
+      ...(item.readme && { readme: item.readme }),
       devices: [{ device: key, ...(item.version && { version: item.version }), ...(item.changed && { changed: true }) }],
       createdAt: now,
       updatedAt: now,
@@ -422,6 +477,8 @@ export interface SpaceItemView {
   media?: number;
   /** What it needs to run: `key:elevenlabs`, `browser:youtube`. Left out when it doesn't say. */
   needs?: string[];
+  /** It has a README.md: its dialog shows it (the text itself is read when the dialog opens). */
+  readme?: true;
   sync: ItemSync;
   /** The computers with edits that were not pushed. */
   unsentOn: DeviceView[];
@@ -489,6 +546,7 @@ export function spaceView(state: SpaceState, me: string, names: Record<string, s
         ...(version && { version }),
         ...(item.media && { media: item.media }),
         ...(item.needs && { needs: item.needs }),
+        ...(item.readme && { readme: true as const }),
         sync: unsentOn.length ? 'unsent' : behindOn.length ? 'behind' : 'synced',
         unsentOn,
         behindOn,
