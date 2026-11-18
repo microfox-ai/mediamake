@@ -227,3 +227,24 @@ test("a skill's README.md gives its store listing: description, tags, headshot a
   fs.writeFileSync(path.join(dir, 'README.md'), '---\nheadshot: ../../etc/passwd\n---\n\n# Make my intro\n\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ\n');
   assert.deepEqual(readmeListing(dir), { headshot: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg', video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
 });
+
+test("folderPaths lists a folder's files, and codeUsed the engine and setup a SKILL.md names", async () => {
+  const { folderPaths, codeUsed } = await import('./skills.mjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-skill-code-'));
+  const write = (file, text = 'x') => (fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true }), fs.writeFileSync(path.join(root, file), text));
+  write('apps/studio/engine.json', JSON.stringify({ names: { amv: 'src/amv', catalog: 'catalog', remix: 'src/remix' } }));
+  write('apps/studio/src/amv/index.ts');
+  write('apps/studio/src/amv/fx/glitch.tsx');
+  write('apps/studio/src/remix/index.ts');
+  write('apps/studio/catalog/a.json');
+  write('apps/studio/scripts/amv.ts');
+  write('skill/SKILL.md', 'Builds with src/amv and `mm amv` (scripts/amv.ts, scripts/gone.ts). The catalog page lists it. See myscripts/amv.ts.');
+  write('skill/shots/a.png');
+  write('skill/.hidden');
+  assert.deepEqual(folderPaths(path.join(root, 'skill')), ['SKILL.md', 'shots/a.png']);
+  assert.deepEqual(codeUsed(path.join(root, 'skill'), root), [
+    { kind: 'engine', label: 'src/amv', path: 'apps/studio/src/amv', files: ['index.ts', 'fx/glitch.tsx'] },
+    { kind: 'setup', label: 'scripts/amv.ts', path: 'apps/studio/scripts/amv.ts' },
+  ]);
+  fs.rmSync(root, { recursive: true, force: true });
+});

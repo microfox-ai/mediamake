@@ -30,6 +30,7 @@ import {
   type Visibility,
 } from './types';
 import { isEmptyListing, type ItemListing, type ListingFields } from './listing';
+import type { ProfileChange, SkillProfile } from './skill-profile';
 
 const COL = {
   items: 'catalog_items',
@@ -38,6 +39,7 @@ const COL = {
   health: 'catalog_health',
   readiness: 'catalog_readiness',
   listing: 'catalog_listing',
+  profiles: 'skill_profiles',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
   groups: 'access_groups',
@@ -61,6 +63,7 @@ function newId(prefix: string) {
 export async function ensureCatalogIndexes() {
   const db = await getDatabase();
   await db.collection(COL.items).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.profiles).createIndex({ key: 1 }, { unique: true });
   await db.collection(COL.items).createIndex({ kind: 1, visibility: 1 });
   await db.collection(COL.items).createIndex({ publicAt: 1 }, { sparse: true });
   await db.collection(COL.grants).createIndex({ grantId: 1 }, { unique: true });
@@ -524,6 +527,25 @@ export const catalogListingDB = {
   async remove(id: string) {
     const db = await getDatabase();
     await db.collection(COL.listing).deleteOne({ id });
+  },
+};
+
+// ── Skill details ────────────────────────────────────────────────────────────
+
+/** A skill's details (./skill-profile): its nature, its type and a private skill's tags, by the item's details key. */
+export const skillProfilesDB = {
+  async get(key: string): Promise<SkillProfile | null> {
+    const db = await getDatabase();
+    return db.collection<SkillProfile>(COL.profiles).findOne({ key }, { projection: { _id: 0 } });
+  },
+
+  /** Sets what the change gives and keeps the rest; `type: null` clears the type. */
+  async set(change: ProfileChange, actor?: string): Promise<SkillProfile> {
+    const db = await getDatabase();
+    const { key, type, ...rest } = change;
+    const set = withoutUndefined({ ...rest, ...(type && { type }), updatedAt: nowISO(), updatedBy: actor });
+    await db.collection<SkillProfile>(COL.profiles).updateOne({ key }, { $set: set, ...(type === null && { $unset: { type: '' } }) }, { upsert: true });
+    return (await this.get(key))!;
   },
 };
 

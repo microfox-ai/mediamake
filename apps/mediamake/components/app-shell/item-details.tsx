@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon, CheckIcon, ChevronRightIcon, CloudIcon, CopyIcon, ExternalLinkIcon, ImagesIcon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
+import { DependsOn, SkillFilesCard, SkillOwnerTools } from '@/components/catalog/skill-details';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { Poster } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import type { DetailsDevice, ItemDetails } from '@/lib/app-shell/details';
 import { itemPageHref, type Crumb } from '@/lib/app-shell/item-page';
 import type { GalleryTile } from '@/lib/catalog/gallery';
 import type { ListingBadge } from '@/lib/catalog/listing';
+import { natureInfo, typeInfo } from '@/lib/catalog/skill-profile';
 import { youtubeEmbedUrl } from '@/lib/catalog/video';
 
 /**
@@ -269,7 +271,8 @@ function badgesOf(item: ItemDetails): ListingBadge[] {
  */
 export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: ItemDetails; crumbs: Crumb[] }) {
   const notes = item.status.filter(status => status.note && status.tone !== 'good' && status.tone !== 'plain');
-  const made = item.outputs.length;
+  // a private-use skill needs no production to prove it: its page has no "Made with it"
+  const made = item.skill?.nature === 'private-use' ? 0 : item.outputs.length;
   const readme = item.readme ?? { html: '', written: false };
   const back = [...crumbs].reverse().find(crumb => crumb.href);
   return (
@@ -308,6 +311,7 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
               <Install key={itemKey} item={item} />
             </div>
           )}
+          {item.files && <SkillFilesCard key={`files-${itemKey}`} files={item.files} />}
           <section id="readme" className="overflow-hidden rounded-xl border bg-card">
             <div className="flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold">
               <BookOpenIcon className="size-4 text-muted-foreground" aria-hidden /> README
@@ -334,9 +338,14 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
             <AboutCard
               kind={item.kind}
               description={item.summary}
-              tags={item.listing?.tags}
+              tags={item.skill ? [...item.skill.ownTags, ...item.skill.tags] : item.listing?.tags}
               rating={item.itemId ? <ItemRating itemId={item.itemId} title={item.title} version={item.version} initial={item.listing?.rating} /> : undefined}
-              facts={{ version: item.version, people: item.people, size: item.listing?.size, deps: item.listing?.deps }}
+              facts={{
+                version: item.version,
+                people: item.people,
+                size: item.listing?.size,
+                ...(item.skill ? { nature: natureInfo(item.skill.nature), ...(item.skill.type && { type: typeInfo(item.skill.type) }) } : { deps: item.listing?.deps }),
+              }}
             >
               {notes.length > 0 && (
                 <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -347,8 +356,11 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
                   ))}
                 </ul>
               )}
+              {item.skill && item.canEdit && <SkillOwnerTools itemKey={itemKey} title={item.title} view={item.skill} checks={item.readmeChecks} canEdit />}
             </AboutCard>
           </section>
+
+          {item.depends && item.depends.length > 0 && <DependsOn depends={item.depends} />}
 
           {item.manage && (
             <section>
