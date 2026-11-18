@@ -4,6 +4,8 @@ import { getDatabase } from '@/lib/mongodb';
 import { summarizeBrandKit, type BrandKit } from '@/lib/brand-kit';
 import { canWrite, getProjectRole } from '@/lib/editor/project-access';
 import { claimInvites } from '@/lib/projects/access-store';
+import { repoChoice } from '@/lib/projects/delete';
+import { deleteSpace } from '@/lib/projects/delete-store';
 import { PERSONAL_ONLY_YOURS } from '@/lib/projects/personal';
 
 interface ProjectDocument {
@@ -287,63 +289,23 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/project - Delete project
+/**
+ * DELETE /api/project   { id, name, repo?: 'keep' | 'delete' }
+ * Deletes a project space for good (lib/projects/delete): its owner only, with its name typed,
+ * never a personal space. `repo: 'delete'` also deletes its GitHub repo, which otherwise stays.
+ */
 export async function DELETE(request: NextRequest) {
+  const clientId = request.headers.get('x-client-id');
+  if (!clientId) return NextResponse.json({ error: 'Sign in first' }, { status: 401 });
+  const body = (await request.json().catch(() => null)) as { id?: unknown; name?: unknown; repo?: unknown } | null;
+  const id = typeof body?.id === 'string' ? body.id : new URL(request.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Send { id, name }: the space and its name, typed' }, { status: 400 });
   try {
-    const clientId = request.headers.get('x-client-id') || undefined;
-    const db = await getDatabase();
-    const collection = db.collection<ProjectDocument>('projects');
-    const timelinesCollection = db.collection('timelines');
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Project ID is required' },
-        { status: 400 },
-      );
-    }
-
-    try {
-      const objectId = new ObjectId(id);
-      if ((await collection.findOne({ _id: objectId }, { projection: { personal: 1 } }))?.personal) {
-        return NextResponse.json({ error: PERSONAL_ONLY_YOURS }, { status: 400 });
-      }
-      const query: any = { projectId: id };
-      if (clientId) {
-        query.clientId = clientId;
-      }
-      
-      // Delete all timelines associated with this project
-      await timelinesCollection.deleteMany(query);
-      
-      // Delete the project
-      const projectQuery: any = { _id: objectId };
-      if (clientId) {
-        projectQuery.clientId = clientId;
-      }
-      const deleteResult = await collection.deleteOne(projectQuery);
-
-      if (deleteResult.deletedCount === 0) {
-        return NextResponse.json(
-          { error: 'Project not found' },
-          { status: 404 },
-        );
-      }
-
-      return NextResponse.json({ message: 'Project deleted successfully' });
-    } catch {
-      return NextResponse.json(
-        { error: 'Invalid project ID' },
-        { status: 400 },
-      );
-    }
+    const result = await deleteSpace(id, clientId, body?.name, repoChoice(body?.repo));
+    if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error deleting project:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete project' },
-      { status: 500 },
-    );
+    console.error('Error deleting project:', error instanceof Error ? error.message : 'error');
+    return NextResponse.json({ error: 'Could not delete the space' }, { status: 500 });
   }
 }

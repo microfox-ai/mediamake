@@ -19,6 +19,7 @@ import { CloudSetupCard } from './space-cloud';
 import { PlacesTab } from './space-places';
 import { RunsTab } from './space-runs';
 import { TodosTab } from './space-todos';
+import { SettingsTab } from './space-settings';
 import type { RunsView } from '@/lib/space/runs';
 import type { TodosView } from '@/lib/space/todos';
 import { ItemCards } from '@/components/app-shell/item-cards';
@@ -125,7 +126,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
  * changes here, its to-dos (the steps a session could not do where it ran, waiting
  * for a place that can), where its steps can run (its cloud environments and the
  * computers open to it), and how to set it up: the line for a computer, and for a Claude cloud
- * environment the repos to add and the keys to set. A personal space is
+ * environment the repos to add and the keys to set, and for its owner its
+ * settings: its name, and deleting it. A personal space is
  * only its owner's, so it has no access panel. The files are reading only:
  * they are added and changed from Claude with the MediaMake Spaces MCP, or
  * `mm media sync`.
@@ -304,6 +306,7 @@ export function ProjectDetail({
             <Tab value="todos" label="To do" count={todos?.todos.filter(todo => todo.state !== 'done' && todo.state !== 'cancelled').length || undefined} />
             {!personal && <Tab value="places" label="Where it runs" />}
             <Tab value="setup" label="Set up" />
+            {(personal || role === 'owner') && <Tab value="settings" label="Settings" />}
           </TabsList>
         </div>
 
@@ -408,6 +411,19 @@ export function ProjectDetail({
             <span className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">mm media sync</span>).
           </p>
         </TabsContent>
+
+        {project && (personal || role === 'owner') && (
+          <TabsContent value="settings">
+            <SettingsTab
+              projectId={projectId}
+              name={project.displayName}
+              personal={personal}
+              repo={space?.repo}
+              people={(project.sharedWith?.length ?? 0) + 1}
+              onRenamed={displayName => setProject(current => (current ? { ...current, displayName } : current))}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

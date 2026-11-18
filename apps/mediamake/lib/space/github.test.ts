@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { appAuthorizeUrl, appGrantFromCode, appInstallUrl, ensurePrivateRepo, githubConfigured, inviteCollaborator, needsRefresh, permissionOf, projectRepoName, refreshTokens, removeCollaborator, seal, shareOnGithub, stateMatches, unseal } from './github';
+import { appAuthorizeUrl, appGrantFromCode, appInstallUrl, deleteRepo, ensurePrivateRepo, githubConfigured, inviteCollaborator, needsRefresh, permissionOf, projectRepoName, refreshTokens, removeCollaborator, seal, shareOnGithub, stateMatches, unseal } from './github';
 
 const env = { GITHUB_APP_SLUG: 'mediamake-spaces', GITHUB_APP_CLIENT_ID: 'Iv1.id', GITHUB_APP_CLIENT_SECRET: 'secret' } as unknown as NodeJS.ProcessEnv;
 const NOW = Date.parse('2026-11-17T06:00:00.000Z');
@@ -30,6 +30,7 @@ function hub(start: Record<string, { private: boolean; collaborators?: string[];
       return answer(201, { full_name: `asha/${name}` });
     }
     let m: RegExpMatchArray | null;
+    if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)$/)) && method === 'DELETE') return m[1].endsWith('/locked') ? answer(403, {}) : repos.delete(m[1]) ? answer(204) : answer(404);
     if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)$/))) return repos.has(m[1]) ? answer(200, { private: repos.get(m[1])!.private }) : answer(404);
     if ((m = path.match(/^\/repos\/([^/]+\/[^/]+)\/collaborators\/([^/]+)$/))) {
       const repo = repos.get(m[1]);
@@ -128,6 +129,20 @@ describe('repos and collaborators', () => {
     assert.equal(await removeCollaborator('gho_ok', 'asha/zone', 'meera', h.fetcher), true);
     assert.deepEqual(h.repos.get('asha/zone'), { private: true, collaborators: [], invitations: [] });
     assert.equal(await removeCollaborator('gho_ok', 'asha/zone', 'nobody', h.fetcher), false);
+  });
+
+  it('deletes a repo of the connected account only, and takes one already gone as done', async () => {
+    const h = hub({ 'asha/zone': { private: true }, 'ravi/zone': { private: true }, 'asha/locked': { private: true } });
+    const grant = { login: 'Asha', token: 'gho_ok' };
+    assert.deepEqual(await deleteRepo(grant, 'asha/zone', h.fetcher), { state: 'deleted', repo: 'asha/zone' });
+    assert.equal(h.repos.has('asha/zone'), false);
+    assert.deepEqual(await deleteRepo(grant, 'asha/zone', h.fetcher), { state: 'gone', repo: 'asha/zone' });
+    assert.deepEqual(await deleteRepo(grant, 'ravi/zone', h.fetcher), { state: 'other-owner', repo: 'ravi/zone', owner: 'ravi' });
+    assert.equal(h.repos.has('ravi/zone'), true);
+    assert.equal((await deleteRepo(grant, 'asha/locked', h.fetcher)).state, 'failed');
+    assert.equal((await deleteRepo({ login: 'asha', token: 'gho_bad' }, 'asha/locked', h.fetcher)).state, 'failed');
+    assert.equal((await deleteRepo(grant, 'asha/../x', h.fetcher)).state, 'failed');
+    assert.ok(!h.calls.some(call => call.includes('..')));
   });
 });
 
