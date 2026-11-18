@@ -3,8 +3,9 @@ import { parseYouTubeId, youtubeThumbnail, youtubeUrl } from './video';
 
 /**
  * The "Made with this" gallery on an item's page, like a store listing's
- * screenshots: the item's trailer first (its intro video), then every
- * production recorded as its proof (see ReadyProof). Pure, so the page, the
+ * screenshots: every production recorded as its proof (see ReadyProof), and
+ * nothing else. The item's trailer (its intro video) is not something made
+ * with it, so it is never a tile: it plays above the README. Pure, so the page, the
  * admin editor's preview and the tests share it.
  */
 
@@ -14,8 +15,6 @@ export interface GalleryTile {
   kind: 'youtube' | 'video' | 'image' | 'link';
   title: string;
   description?: string;
-  /** The item's own trailer, shown first and labelled so. */
-  trailer?: boolean;
   youtubeId?: string;
   /** The clip (video) or the picture (image). */
   src?: string;
@@ -35,24 +34,7 @@ export function proofTile(entry: ReadyProof, key: string): GalleryTile {
   return { ...base, kind: 'link' };
 }
 
-/** The trailer (when the item has a video that plays), then the productions in the order they were recorded. */
-export function galleryTiles(
-  video: { youtubeId?: string; title: string; description?: string; thumbnail?: string } | null | undefined,
-  proof: ReadyProof[],
-): GalleryTile[] {
-  const tiles: GalleryTile[] = [];
-  if (video?.youtubeId) {
-    tiles.push({
-      key: 'trailer',
-      kind: 'youtube',
-      trailer: true,
-      title: video.title,
-      ...(video.description && { description: video.description }),
-      youtubeId: video.youtubeId,
-      poster: video.thumbnail || youtubeThumbnail(video.youtubeId),
-      href: youtubeUrl(video.youtubeId),
-    });
-  }
-  proof.forEach((entry, i) => tiles.push(proofTile(entry, `proof-${i}`)));
-  return tiles;
+/** The productions as tiles, in the order they were recorded. The item's trailer is never one: it plays above its README. */
+export function galleryTiles(proof: ReadyProof[]): GalleryTile[] {
+  return proof.map((entry, i) => proofTile(entry, `proof-${i}`));
 }

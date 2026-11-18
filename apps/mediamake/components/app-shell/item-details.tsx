@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { ArrowUpRightIcon, CheckIcon, CloudIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
 import { ItemRating } from '@/components/ratings/item-rating';
-import { Poster, Stage } from '@/components/catalog/proof-gallery';
+import { Poster } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -181,32 +181,14 @@ function OutputTile({ itemId, tile }: { itemId: string; tile: GalleryTile }) {
   );
 }
 
-/** What was made with the item: the trailer on top when it has one, then a grid of the rest. */
+/** What was made with the item, as a grid. Its trailer is not here: it plays above the README. */
 function Outputs({ itemId, tiles }: { itemId: string; tiles: GalleryTile[] }) {
-  const [playing, setPlaying] = React.useState(false);
-  const trailer = tiles.find(tile => tile.trailer);
-  const rest = tiles.filter(tile => tile !== trailer);
   return (
-    <div className="flex flex-col gap-3">
-      {trailer && (
-        <div>
-          <div className="relative aspect-video overflow-hidden rounded-lg border bg-black">
-            <Stage itemId={itemId} tile={trailer} playing={playing} onPlay={() => setPlaying(true)} />
-          </div>
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs">
-            <span className="rounded bg-foreground px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-background">Trailer</span>
-            <span className="truncate font-medium">{trailer.title}</span>
-          </p>
-        </div>
-      )}
-      {rest.length > 0 && (
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
-          {rest.map(tile => (
-            <OutputTile key={tile.key} itemId={itemId} tile={tile} />
-          ))}
-        </ul>
-      )}
-    </div>
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
+      {tiles.map(tile => (
+        <OutputTile key={tile.key} itemId={itemId} tile={tile} />
+      ))}
+    </ul>
   );
 }
 

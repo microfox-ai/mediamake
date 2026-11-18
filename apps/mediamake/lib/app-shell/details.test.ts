@@ -219,16 +219,16 @@ describe("an item's details", () => {
     assert.deepEqual(details[detailsKey.space('user:me', 'skill/my-notes')].manage, { label: 'See its submission', href: '/app/subscription', note: 'Waiting for an admin to review it' });
   });
 
-  it('shows what was made with it: the trailer, the proof, then what the projects made', () => {
+  it('shows what was made with it, the proof then what the projects made, and keeps the trailer apart', () => {
     const lyrics = details[detailsKey.catalog('skill/make-lyrics-video')];
     assert.deepEqual(
-      lyrics.outputs.map(tile => [tile.kind, tile.title, !!tile.trailer]),
+      lyrics.outputs.map(tile => [tile.kind, tile.title]),
       [
-        ['youtube', 'The trailer', true],
-        ['link', 'Nakama!', false],
-        ['image', 'other', false],
+        ['link', 'Nakama!'],
+        ['image', 'other'],
       ],
     );
+    assert.deepEqual(lyrics.video, { youtubeId: 'abcdefghijk', title: 'The trailer' });
     const intro = details[detailsKey.space('project:p1', 'skill/kids-intro')];
     assert.deepEqual(
       intro.outputs.map(tile => [tile.kind, tile.title, tile.href]),

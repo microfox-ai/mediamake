@@ -141,7 +141,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'mcp' | 'app'; slu
                 count: made,
                 content: (
                   <div className="flex flex-col gap-6">
-                    <MadeWithThis itemId={item.id} mark={readiness} video={video} />
+                    <MadeWithThis itemId={item.id} mark={readiness} />
                     <ListingScreenshots itemId={item.id} media={listing?.media} />
                   </div>
                 ),

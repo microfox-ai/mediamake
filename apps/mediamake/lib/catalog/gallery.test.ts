@@ -5,23 +5,16 @@ import { galleryTiles, proofTile } from './gallery';
 const ID = 'dQw4w9WgXcQ';
 
 describe('galleryTiles', () => {
-  it('puts the trailer first, then the productions in order', () => {
-    const tiles = galleryTiles({ youtubeId: ID, title: 'Intro', description: 'What it does' }, [{ title: 'A' }, { title: 'B', image: 'https://cdn.test/b.png' }]);
+  it('shows the productions in order, and never a trailer', () => {
+    const tiles = galleryTiles([{ title: 'A' }, { title: 'B', image: 'https://cdn.test/b.png' }]);
     assert.deepEqual(
       tiles.map(t => [t.key, t.kind, t.title]),
       [
-        ['trailer', 'youtube', 'Intro'],
         ['proof-0', 'link', 'A'],
         ['proof-1', 'image', 'B'],
       ],
     );
-    assert.equal(tiles[0].trailer, true);
-    assert.match(tiles[0].poster!, new RegExp(ID));
-  });
-
-  it('has no trailer for an item without a video that plays', () => {
-    assert.deepEqual(galleryTiles(null, []), []);
-    assert.equal(galleryTiles({ title: 'A course' }, [{ title: 'A' }])[0].key, 'proof-0');
+    assert.deepEqual(galleryTiles([]), []);
   });
 });
 
