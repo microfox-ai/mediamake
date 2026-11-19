@@ -37,19 +37,21 @@ export interface ItemListing {
   icon?: string;
   /** Its README in Markdown, for an item without a README.md of its own. */
   readme?: string;
+  /** An editors' pick: an admin's choice for the top of Explore. */
+  editorsPick?: boolean;
   updatedAt: string;
   updatedBy?: string;
 }
 
 /** The parts of a listing an admin sets. */
-export type ListingFields = Pick<ItemListing, 'tags' | 'media' | 'description' | 'headshot' | 'icon' | 'readme'>;
+export type ListingFields = Pick<ItemListing, 'tags' | 'media' | 'description' | 'headshot' | 'icon' | 'readme' | 'editorsPick'>;
 
 export const MAX_LISTING_DESCRIPTION = 300;
 export const MAX_LISTING_README = 32 * 1024;
 
 /** True when nothing is left in a listing: its record goes. */
 export function isEmptyListing(listing: ListingFields): boolean {
-  return !listing.tags.length && !listing.media.length && !listing.description && !listing.headshot && !listing.icon && !listing.readme;
+  return !listing.tags.length && !listing.media.length && !listing.description && !listing.headshot && !listing.icon && !listing.readme && !listing.editorsPick;
 }
 
 export const MAX_LISTING_TAGS = 12;
@@ -82,11 +84,11 @@ export function mediaKindOf(url: string): ListingMedia['kind'] {
 
 /**
  * Each item as its listing shows it: the listing's tags after its own (each once), its description
- * in place of the summary, its headshot and its icon.
+ * in place of the summary, its headshot, its icon and whether it is an editors' pick.
  */
-export function withListing<T extends { id: string; tags?: string[]; summary?: string; headshot?: string; icon?: string }>(
+export function withListing<T extends { id: string; tags?: string[]; summary?: string; headshot?: string; icon?: string; editorsPick?: boolean }>(
   items: T[],
-  listings: Pick<ItemListing, 'id' | 'tags' | 'description' | 'headshot' | 'icon'>[],
+  listings: Pick<ItemListing, 'id' | 'tags' | 'description' | 'headshot' | 'icon' | 'editorsPick'>[],
 ): T[] {
   const byId = new Map(listings.map(listing => [listing.id, listing]));
   return items.map(item => {
@@ -98,6 +100,7 @@ export function withListing<T extends { id: string; tags?: string[]; summary?: s
       ...(listing.description && { summary: listing.description }),
       ...(listing.headshot && { headshot: listing.headshot }),
       ...(listing.icon && { icon: listing.icon }),
+      ...(listing.editorsPick && { editorsPick: true }),
     };
   });
 }

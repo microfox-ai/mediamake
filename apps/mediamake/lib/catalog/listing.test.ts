@@ -67,6 +67,8 @@ describe('a listing', () => {
     assert.equal(isEmptyListing({ tags: [], media: [], description: '' }), true);
     assert.equal(isEmptyListing({ tags: [], media: [], readme: '# T' }), false);
     assert.equal(isEmptyListing({ tags: [], media: [], icon: 'https://cdn.test/i.png' }), false);
+    assert.equal(isEmptyListing({ tags: [], media: [], editorsPick: true }), false);
+    assert.equal(isEmptyListing({ tags: [], media: [], editorsPick: false }), true);
   });
 
   it("takes its headshot from the listing, else from its video's thumbnail", () => {

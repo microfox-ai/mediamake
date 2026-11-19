@@ -517,6 +517,7 @@ export const catalogListingDB = {
       headshot: listing.headshot || undefined,
       icon: listing.icon || undefined,
       readme: listing.readme || undefined,
+      editorsPick: listing.editorsPick || undefined,
       updatedAt: nowISO(),
       updatedBy: actor,
     }) as ItemListing;

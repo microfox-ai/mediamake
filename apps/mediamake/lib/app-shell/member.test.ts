@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatalogEntry } from '../catalog/types';
 import type { RegistrySkill } from '../library/types';
-import { appItems, explore, exploreFiltersFrom, homeColumns, mcpUsage, mine, variantBase, type ExploreFilters } from './member';
+import { appItems, explore, exploreFiltersFrom, homeColumns, mcpUsage, mine, storefront, tagTitle, variantBase, type ExploreFilters } from './member';
 
 const entry = (id: string, more: Partial<CatalogEntry> = {}): CatalogEntry => ({
   id,
@@ -49,7 +49,7 @@ const ENTRIES = [
 ];
 
 const items = appItems(ENTRIES, SKILLS, ['cleanup']);
-const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, locked: true };
+const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, locked: true, view: 'list' };
 const ids = (list: { id: string }[]) => list.map(item => item.id).sort();
 
 describe('the items the app lists', () => {
@@ -123,8 +123,60 @@ describe('Explore', () => {
       internal: false,
       archived: true,
       locked: false,
+      view: 'list',
     });
     assert.equal(exploreFiltersFrom({ kind: 'tutorial' }).kind, null);
+  });
+
+  it('opens on the store front, and on the list when the address asks for something', () => {
+    assert.equal(exploreFiltersFrom({}).view, 'store');
+    assert.equal(exploreFiltersFrom({ view: 'all' }).view, 'list');
+    assert.equal(exploreFiltersFrom({ category: 'make' }).view, 'list');
+    assert.equal(exploreFiltersFrom({ show: 'failed' }).view, 'list');
+  });
+});
+
+describe("Explore's store front", () => {
+  const store = (more: Parameters<typeof entry>[1][] = []) => {
+    const entries = [
+      entry('skill/make-lyrics-video', { launchedAt: '2026-10-26', tags: ['make', 'lyric-video'], headshot: 'https://cdn.test/l.png', editorsPick: true }),
+      entry('skill/make-amv', { launchedAt: '2026-11-08', tags: ['make', 'lyric-video'], editorsPick: true }),
+      entry('skill/make-short', { launchedAt: '2026-11-01', tags: ['make', 'lyric-video'] }),
+      entry('skill/pack-brand-kit', { readiness: 'ready', launchedAt: '2026-10-27' }),
+      entry('skill/cleanup-out', { launchedAt: '2026-11-17' }),
+      entry('mcp/browse-hack', { tier: 'pro', access: 'locked', releasedAt: '2026-11-15', tags: ['mcp', 'lyric-video'] }),
+      entry('mcp/broken', { health: 'failed', healthNote: 'down', releasedAt: '2026-11-18', editorsPick: true }),
+      entry('app/old', { archivedAt: '2026-11-01', releasedAt: '2026-11-18' }),
+      ...more.map((one, i) => entry(`app/extra-${i}`, one)),
+    ];
+    const skills = [skill('make-lyrics-video'), skill('make-amv'), skill('make-short'), skill('pack-brand-kit'), skill('cleanup-out', { internal: true })];
+    return storefront(appItems(entries, skills), [{ id: 'make', about: 'Makes a video' }, { id: 'pack', about: 'Packs things' }]);
+  };
+
+  it('shows the pick with a picture large, and the other picks in their row', () => {
+    const front = store();
+    assert.equal(front.hero?.id, 'skill/make-lyrics-video');
+    assert.deepEqual(ids(front.picks), ['skill/make-amv']);
+  });
+
+  it('has no picks until an admin picks one', () => {
+    const front = storefront(appItems([entry('skill/pack-brand-kit')], [skill('pack-brand-kit')]));
+    assert.equal(front.hero, null);
+    assert.deepEqual(front.picks, []);
+  });
+
+  it('lists the newest first by the day each came out, without failed, internal or archived items', () => {
+    assert.deepEqual(store().fresh.map(item => item.id), ['mcp/browse-hack', 'skill/make-amv', 'skill/make-short', 'skill/pack-brand-kit', 'skill/make-lyrics-video']);
+  });
+
+  it('makes a row for a tag with enough items: categories first, open items before locked ones', () => {
+    const rows = store().tags;
+    assert.deepEqual(rows.map(row => row.tag), ['make', 'lyric-video']);
+    assert.equal(rows[0].about, 'Makes a video');
+    assert.equal(rows[1].title, 'Lyric video');
+    assert.equal(rows[1].total, 4);
+    assert.equal(rows[1].items.at(-1)!.id, 'mcp/browse-hack');
+    assert.equal(tagTitle('make'), 'Make');
   });
 });
 
