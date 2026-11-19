@@ -50,6 +50,11 @@ apps/mediamake/docs/random/*
 !.claude/skills/
 !.claude/settings.json
 
+# MCP servers are added on each computer (`mm items install`, install.md), never in a shared
+# .mcp.json: a command there is one computer's (a Mac's /opt/homebrew/bin/uvx isn't on Windows, where
+# npx needs `cmd /c`). One a developer makes for their own checkout stays theirs.
+.mcp.json
+
 # Unreleased MCPs and apps live here, never in git. Release them to private
 # storage with `npm run catalog -- release private/mcps/<name>.mcpb`.
 /private/*

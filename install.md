@@ -45,7 +45,12 @@ membership (Public, Plus, Pro, Cohort); there are no codes to copy.
    `chrome://extensions`, **Developer mode**, **Load unpacked**, that folder).
    The others are yours: an item's own `INSTALL.md` (its setup and its check),
    an app, an item made by someone else (`mm items plan <id>` is its plan;
-   step 4's `type: "source"` says how).
+   step 4's `type: "source"` says how). An MCP server someone else makes that
+   runs on the computer (Blender, Figcraft) is added by the install itself,
+   with its command as this computer finds it; its own setup comes back here,
+   and so do the steps to get its command when the computer hasn't it (then
+   run the install again), and a key it needs that the environment doesn't have
+   (ask for it as step 4's `type: "source"` says, then run the line it gives).
 4. `failed` names what couldn't be installed and why. An item their membership
    doesn't open: say which membership opens it (`mm items` lists those) and
    stop; don't look for a way around it.
@@ -309,9 +314,21 @@ maker); name the maker when you tell them about it, and show `notes` if set.
     open that page, add it there and sign in, instead of a custom connector.
     A connector added there also reaches Claude Code signed in with the same
     Claude account, so offer it in Claude Code too when there is no `local`.
-  - Claude Code: `local` when there is one. Check its command runs first
-    (`uvx` comes with uv: https://docs.astral.sh/uv/getting-started/installation/),
-    then `claude mcp add --scope user <name> -e KEY=value … -- <command> <args…>`.
+  - Claude Code: `local` when there is one. With `mm` on the computer,
+    `mm items install <item id> --yes` adds it (see
+    [Signed in on this computer](#signed-in-on-this-computer)). Otherwise check
+    its command runs first (`uvx` comes with uv:
+    https://docs.astral.sh/uv/getting-started/installation/; a command of its
+    own, as `local.install` says for this computer's system), then add it with
+    the command as this computer finds it: by its full path (`command -v uvx`
+    on macOS and Linux, `where.exe uvx` on Windows, its `.exe`; off the PATH,
+    in ~/.local/bin or a folder `local.find` names), since the
+    Claude app may start servers without the terminal's PATH; on Windows a
+    command that is a `.cmd` there (`npx`) goes through `cmd /c`
+    (`-- cmd /c npx -y <package>`). Then
+    `claude mcp add --scope user <name> -e KEY=value … -- <command> <args…>`.
+    Never put it in a repository's `.mcp.json`: that file is everyone's who
+    pulls, and a command in it is one computer's.
     Otherwise `remote`:
     `claude mcp add --scope user --transport http <name> <url> --header "<Header>: <value>"`.
     Remove a server already registered under `<name>` first, as for `mcpb`.
@@ -322,7 +339,8 @@ maker); name the maker when you tell them about it, and show `notes` if set.
     Connectors → Add custom connector** with that URL and sign in. Otherwise
     `local`: add `"<name>": { "command", "args", "env" }` to `mcpServers` in
     `claude_desktop_config.json` (macOS `~/Library/Application Support/Claude/`,
-    Windows `%APPDATA%\Claude\`; keep what is there), then _Ask_ them to quit
+    Windows `%APPDATA%\Claude\`; keep what is there), with the command as this
+    computer finds it (as for Claude Code just above), then _Ask_ them to quit
     and reopen Claude Desktop.
   - The Claude app on the web or a phone: only `remote` (its `connectorUrl`,
     else `url`) as a custom connector.

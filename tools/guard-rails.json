@@ -70,7 +70,7 @@
     },
     {
       "name": "repo setup file",
-      "paths": [".claude/", ".github/", "tools/", "scripts/", "CLAUDE.md", "install.md", "README.md", "package.json", ".gitignore", ".mcp.json"],
+      "paths": [".claude/", ".github/", "tools/", "scripts/", "CLAUDE.md", "install.md", "README.md", "package.json", ".gitignore"],
       "branch": "chore/<what>",
       "where": "Repo setup, CI and rules for every session go on a branch and a PR."
     }

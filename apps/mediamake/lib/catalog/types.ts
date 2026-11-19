@@ -320,8 +320,22 @@ export type InstallSource =
       type: 'mcp-server';
       /** The name to add it under: its tools show up as `mcp__<name>__<tool>` in Claude Code. */
       name: string;
-      /** Runs on the person's machine, e.g. `uvx` with `["elevenlabs-mcp"]`. */
-      local?: { command: string; args?: string[]; env?: McpSetting[] };
+      /**
+       * Runs on the person's machine, e.g. `uvx` with `["elevenlabs-mcp"]`. Each computer adds it with
+       * the command as it finds it there (its full path; `cmd /c` for an npm one on Windows).
+       */
+      local?: {
+        command: string;
+        args?: string[];
+        env?: McpSetting[];
+        /** How to put the command on a computer that hasn't it (a download per system), in order. */
+        install?: string[];
+        /**
+         * Folders its maker's installer puts the command in when that isn't on the PATH, e.g.
+         * `%LOCALAPPDATA%/Programs/<App>` (`~` and `%VAR%` are filled in). ~/.local/bin is always looked in.
+         */
+        find?: string[];
+      };
       /** Hosted by its maker (Streamable HTTP). */
       remote?: {
         url: string;

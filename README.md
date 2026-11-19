@@ -104,7 +104,8 @@ transcription, workers and agents, brand kits, song takes and renders. Two ways 
   files, so media comes in by URL.
 - **Local** (`.mcpb` for Claude Desktop, or stdio): runs on your machine with an API key and can read
   and write local files. Build with `npm run build:mcpb --workspace @microfox/mediamake-mcp`. The
-  repo's `.mcp.json` registers it for Claude Code sessions opened here.
+  repo registers no MCP for you (no `.mcp.json`): each computer adds its own, with the line in the
+  package's README.
 
 Full tool list and setup: [packages/mediamake-mcp/README.md](packages/mediamake-mcp/README.md).
 

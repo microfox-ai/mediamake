@@ -351,6 +351,10 @@ to a connector is the user's step: `/mcp`, pick it, Allow in the browser.
   stdin) is only for a computer with no browser. `mm login status` says who is signed in,
   `mm logout` signs out (`tools/login.mjs`).
 - The install prompt (`install.md`, no code in it) is for computers without the repo or a sign-in.
+- Every MCP is added on its computer, for every project, with its command as that computer finds it
+  (`mm items install <id> --yes`, or install.md), so the same item works on a Mac and on Windows. The
+  repo has no `.mcp.json` and git ignores one: a command in a shared file is one computer's. Never
+  add a server to one.
 
 ## READMEs: every item's store listing
 

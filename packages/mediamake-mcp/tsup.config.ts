@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig([
-  // The stdio CLI (`mediamake-mcp`, `.mcp.json`).
+  // The stdio CLI (`mediamake-mcp`, or `claude mcp add … -- node dist/index.js <server>`).
   {
     entry: ['src/index.ts'],
     format: ['esm'],
