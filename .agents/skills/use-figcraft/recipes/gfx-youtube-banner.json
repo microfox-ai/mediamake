@@ -1,0 +1,723 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-600.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:InstrumentSerif-400italic.ttf}}"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#0D0F2B"
+    ],
+    "clip": true,
+    "effects": [
+     {
+      "type": "noise",
+      "mode": "mono",
+      "color": "#FFFFFF14",
+      "density": 0.4,
+      "size": 0.5
+     }
+    ]
+   },
+   "width": 2560,
+   "height": 1440,
+   "name": "lumen YouTube banner"
+  },
+  "as": "banner"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -150.0,
+   "y": -70.0,
+   "props": {
+    "fills": [
+     "#5B3CF5"
+    ],
+    "opacity": 0.55,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 220
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 900,
+   "height": 900,
+   "name": "blob0"
+  },
+  "as": "blob0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 400.0,
+   "y": 260.0,
+   "props": {
+    "fills": [
+     "#FF3D77"
+    ],
+    "opacity": 0.55,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 220
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 1000,
+   "height": 1000,
+   "name": "blob1"
+  },
+  "as": "blob1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 1150.0,
+   "y": -250.0,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ],
+    "opacity": 0.55,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 220
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 900,
+   "height": 900,
+   "name": "blob2"
+  },
+  "as": "blob2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 1400.0,
+   "y": 280.0,
+   "props": {
+    "fills": [
+     "#8C5CFF"
+    ],
+    "opacity": 0.55,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 220
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 1000,
+   "height": 1000,
+   "name": "blob3"
+  },
+  "as": "blob3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 1900.0,
+   "y": -90.0,
+   "props": {
+    "fills": [
+     "#FFB13B"
+    ],
+    "opacity": 0.55,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 220
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 700,
+   "height": 700,
+   "name": "blob4"
+  },
+  "as": "blob4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -260,
+   "y": 360,
+   "props": {
+    "fills": [],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 2,
+    "opacity": 0.18
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 760,
+   "height": 760,
+   "name": "ornL"
+  },
+  "as": "ornL"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -120,
+   "y": 500,
+   "props": {
+    "fills": [],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 2,
+    "dashes": [
+     4,
+     14
+    ],
+    "strokeCap": "round",
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 480,
+   "height": 480,
+   "name": "ornL2"
+  },
+  "as": "ornL2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "star",
+   "x": 2160,
+   "y": 520,
+   "props": {
+    "pointCount": 4,
+    "innerRadius": 0.12,
+    "fills": [],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 2,
+    "opacity": 0.22
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 400,
+   "height": 400,
+   "name": "ornR"
+  },
+  "as": "ornR"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -100,
+   "y": -100,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ]
+   },
+   "width": 6,
+   "height": 6,
+   "name": "pattern dot (source)"
+  },
+  "as": "dot"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 2120,
+   "y": 980,
+   "props": {
+    "fills": [
+     "#00000000"
+    ],
+    "opacity": 0.22
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 380,
+   "height": 380,
+   "name": "Dot grid"
+  },
+  "as": "dots"
+ },
+ {
+  "command": "fill.pattern",
+  "params": {
+   "source": {
+    "$ref": "dot"
+   },
+   "ids": [
+    {
+     "$ref": "dots"
+    }
+   ],
+   "tile": "grid",
+   "spacing": [
+    22,
+    22
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 60,
+   "y": 60,
+   "props": {
+    "fills": [
+     "#00000000"
+    ],
+    "opacity": 0.22
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 380,
+   "height": 300,
+   "name": "Dot grid 2"
+  },
+  "as": "dots2"
+ },
+ {
+  "command": "fill.pattern",
+  "params": {
+   "source": {
+    "$ref": "dot"
+   },
+   "ids": [
+    {
+     "$ref": "dots2"
+    }
+   ],
+   "tile": "grid",
+   "spacing": [
+    22,
+    22
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 507.0,
+   "y": 508.5,
+   "props": {
+    "cornerRadius": 56,
+    "cornerSmoothing": 0.6,
+    "fills": [
+     "#FFFFFF0F"
+    ],
+    "strokes": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#FFFFFF66",
+       "#FFFFFF10",
+       "#FFFFFF40"
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1,
+       1
+      ]
+     }
+    ],
+    "strokeWeight": 1.5,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#05061A66",
+      "offset": [
+       0,
+       40
+      ],
+      "radius": 90,
+      "spread": -20
+     },
+     {
+      "type": "backgroundBlur",
+      "radius": 40
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 1546,
+   "height": 423,
+   "name": "Safe-area glass"
+  },
+  "as": "panel"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 916,
+   "y": 630.5,
+   "props": {
+    "arcInner": 0.6,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "ring"
+  },
+  "as": "ring"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "star",
+   "x": 934.0,
+   "y": 648.5,
+   "props": {
+    "pointCount": 4,
+    "innerRadius": 0.22,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 144.0,
+   "height": 144.0,
+   "name": "spark"
+  },
+  "as": "spark"
+ },
+ {
+  "command": "bool.exclude",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ring"
+    },
+    {
+     "$ref": "spark"
+    }
+   ]
+  },
+  "as": "mark"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "mark"
+   },
+   "name": "Lumen mark",
+   "fills": [
+    {
+     "type": "linearGradient",
+     "stops": [
+      {
+       "color": "#8C5CFF",
+       "position": 0
+      },
+      {
+       "color": "#FF3D77",
+       "position": 0.38
+      },
+      {
+       "color": "#FF6B4A",
+       "position": 0.68
+      },
+      {
+       "color": "#FFB13B",
+       "position": 1
+      }
+     ],
+     "from": [
+      0.1,
+      0.05
+     ],
+     "to": [
+      0.9,
+      0.95
+     ]
+    }
+   ],
+   "effects": [
+    {
+     "type": "dropShadow",
+     "color": "#FF3D7799",
+     "offset": [
+      0,
+      0
+     ],
+     "radius": 50,
+     "showBehind": true
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "banner"
+   },
+   "x": 1132,
+   "y": 622.5,
+   "text": "lumen",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "ExtraBold",
+    "fontSize": 160,
+    "letterSpacing": "-5%",
+    "fills": [
+     "#FFF3E6"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "word"
+  },
+  "as": "word"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 1030,
+   "y": 552.5,
+   "props": {
+    "cornerRadius": 25,
+    "fills": [
+     "#FFF3E6"
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 499,
+   "height": 50,
+   "name": "pill"
+  },
+  "as": "pill"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "banner"
+   },
+   "x": 1058,
+   "y": 565.5,
+   "text": "NEW VIDEO EVERY TUESDAY",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "letterSpacing": "32%",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "pilltxt"
+  },
+  "as": "pilltxt"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "banner"
+   },
+   "x": 507.0,
+   "y": 826.5,
+   "text": "Design tutorials for makers  ·  youtube.com/@lumen",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Italic",
+    "fontSize": 50,
+    "textAlign": "center",
+    "fills": [
+     "#FFF3E6"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "tag",
+   "width": 1546
+  },
+  "as": "tag"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 507.0,
+   "y": 508.5,
+   "props": {
+    "fills": [],
+    "strokes": [
+     "#00FF88"
+    ],
+    "strokeWeight": 3,
+    "dashes": [
+     12,
+     8
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 1546,
+   "height": 423,
+   "name": "guide: safe area"
+  },
+  "as": "g_safe"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 508.5,
+   "props": {
+    "fills": [],
+    "strokes": [
+     "#FFEE00"
+    ],
+    "strokeWeight": 3,
+    "dashes": [
+     12,
+     8
+    ]
+   },
+   "parent": {
+    "$ref": "banner"
+   },
+   "width": 2560,
+   "height": 423,
+   "name": "guide: desktop crop"
+  },
+  "as": "g_desk"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "banner"
+    }
+   ],
+   "format": "png",
+   "scale": 0.5,
+   "path": "{{out}}/t/banner-guides.png"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "g_safe"
+   },
+   "visible": false
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "g_desk"
+   },
+   "visible": false
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "banner"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-banner.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "banner"
+    }
+   ],
+   "format": "png",
+   "scale": 0.5,
+   "path": "{{out}}/recipe-banner-preview.png"
+  }
+ }
+]

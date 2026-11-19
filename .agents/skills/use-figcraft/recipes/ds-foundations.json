@@ -1,0 +1,10762 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:JetBrainsMono-400.ttf}}"
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Primitives",
+   "modes": [
+    "Value"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/50",
+   "type": "color",
+   "value": "#EEF2FF"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/100",
+   "type": "color",
+   "value": "#E0E7FF"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/200",
+   "type": "color",
+   "value": "#C7D2FE"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/300",
+   "type": "color",
+   "value": "#A5B4FC"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/400",
+   "type": "color",
+   "value": "#818CF8"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/500",
+   "type": "color",
+   "value": "#6366F1"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/600",
+   "type": "color",
+   "value": "#4F46E5"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/700",
+   "type": "color",
+   "value": "#4338CA"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/800",
+   "type": "color",
+   "value": "#3730A3"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "indigo/900",
+   "type": "color",
+   "value": "#312E81"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/50",
+   "type": "color",
+   "value": "#F8FAFC"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/100",
+   "type": "color",
+   "value": "#F1F5F9"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/200",
+   "type": "color",
+   "value": "#E2E8F0"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/300",
+   "type": "color",
+   "value": "#CBD5E1"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/400",
+   "type": "color",
+   "value": "#94A3B8"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/500",
+   "type": "color",
+   "value": "#64748B"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/600",
+   "type": "color",
+   "value": "#475569"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/700",
+   "type": "color",
+   "value": "#334155"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/800",
+   "type": "color",
+   "value": "#1E293B"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "slate/900",
+   "type": "color",
+   "value": "#0F172A"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/50",
+   "type": "color",
+   "value": "#ECFDF5"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/100",
+   "type": "color",
+   "value": "#D1FAE5"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/200",
+   "type": "color",
+   "value": "#A7F3D0"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/300",
+   "type": "color",
+   "value": "#6EE7B7"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/400",
+   "type": "color",
+   "value": "#34D399"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/500",
+   "type": "color",
+   "value": "#10B981"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/600",
+   "type": "color",
+   "value": "#059669"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/700",
+   "type": "color",
+   "value": "#047857"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/800",
+   "type": "color",
+   "value": "#065F46"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "emerald/900",
+   "type": "color",
+   "value": "#064E3B"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/50",
+   "type": "color",
+   "value": "#FFF1F2"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/100",
+   "type": "color",
+   "value": "#FFE4E6"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/200",
+   "type": "color",
+   "value": "#FECDD3"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/300",
+   "type": "color",
+   "value": "#FDA4AF"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/400",
+   "type": "color",
+   "value": "#FB7185"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/500",
+   "type": "color",
+   "value": "#F43F5E"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/600",
+   "type": "color",
+   "value": "#E11D48"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/700",
+   "type": "color",
+   "value": "#BE123C"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/800",
+   "type": "color",
+   "value": "#9F1239"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "rose/900",
+   "type": "color",
+   "value": "#881337"
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Primitives",
+   "name": "white",
+   "type": "color",
+   "value": "#FFFFFF"
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Semantic",
+   "modes": [
+    "Light"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "bg/canvas",
+   "type": "color",
+   "value": {
+    "alias": "slate/50"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "bg/surface",
+   "type": "color",
+   "value": {
+    "alias": "white"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "text/primary",
+   "type": "color",
+   "value": {
+    "alias": "slate/900"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "text/secondary",
+   "type": "color",
+   "value": {
+    "alias": "slate/500"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "border/default",
+   "type": "color",
+   "value": {
+    "alias": "slate/200"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "action/primary",
+   "type": "color",
+   "value": {
+    "alias": "indigo/600"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "feedback/success",
+   "type": "color",
+   "value": {
+    "alias": "emerald/600"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Semantic",
+   "name": "feedback/danger",
+   "type": "color",
+   "value": {
+    "alias": "rose/600"
+   }
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Dimensions",
+   "modes": [
+    "Default"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/1",
+   "type": "number",
+   "value": 4
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/2",
+   "type": "number",
+   "value": 8
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/3",
+   "type": "number",
+   "value": 12
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/4",
+   "type": "number",
+   "value": 16
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/6",
+   "type": "number",
+   "value": 24
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/8",
+   "type": "number",
+   "value": 32
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/12",
+   "type": "number",
+   "value": 48
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/16",
+   "type": "number",
+   "value": 64
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "space/24",
+   "type": "number",
+   "value": 96
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/none",
+   "type": "number",
+   "value": 0
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/sm",
+   "type": "number",
+   "value": 4
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/md",
+   "type": "number",
+   "value": 8
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/lg",
+   "type": "number",
+   "value": 12
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/xl",
+   "type": "number",
+   "value": 16
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/2xl",
+   "type": "number",
+   "value": 24
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Dimensions",
+   "name": "radius/full",
+   "type": "number",
+   "value": 999
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Display",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 56,
+    "lineHeight": "64px",
+    "letterSpacing": "-2%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Heading 1",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 40,
+    "lineHeight": "48px",
+    "letterSpacing": "-2%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Heading 2",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "lineHeight": "36px",
+    "letterSpacing": "-1%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Heading 3",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 20,
+    "lineHeight": "28px",
+    "letterSpacing": "-0.5%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Body large",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "lineHeight": "28px",
+    "letterSpacing": "0%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Body",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 16,
+    "lineHeight": "24px",
+    "letterSpacing": "0%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Label",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "lineHeight": "20px",
+    "letterSpacing": "0%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Caption",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "lineHeight": "16px",
+    "letterSpacing": "0%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Type/Overline",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "lineHeight": "16px",
+    "letterSpacing": "8%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Elevation/1",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#0F172A14",
+     "offset": [
+      0,
+      1
+     ],
+     "radius": 3
+    }
+   ]
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Elevation/2",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#0F172A0F",
+     "offset": [
+      0,
+      4
+     ],
+     "radius": 12
+    },
+    {
+     "type": "dropShadow",
+     "color": "#0F172A0A",
+     "offset": [
+      0,
+      1
+     ],
+     "radius": 3
+    }
+   ]
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Elevation/3",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#0F172A1F",
+     "offset": [
+      0,
+      16
+     ],
+     "radius": 40
+    },
+    {
+     "type": "dropShadow",
+     "color": "#0F172A0D",
+     "offset": [
+      0,
+      2
+     ],
+     "radius": 6
+    }
+   ]
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 3000,
+   "name": "Foundations — Lumen UI",
+   "props": {
+    "fill": {
+     "$var": "bg/canvas"
+    },
+    "layout": "vertical",
+    "gap": 72,
+    "padding": [
+     80,
+     80,
+     96,
+     80
+    ],
+    "sizingV": "hug"
+   }
+  },
+  "as": "page"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "f1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "LUMEN UI  ·  FOUNDATIONS  ·  v1.2",
+   "name": "LUMEN UI  ·  FOUNDATIONS",
+   "props": {
+    "textStyle": "Type/Overline",
+    "fill": {
+     "$var": "action/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Foundations",
+   "name": "Foundations",
+   "props": {
+    "textStyle": "Type/Display",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "The tokens every Lumen component is built from. Each swatch is filled by its colour variable, each specimen uses its text style, and every spacing bar and corner below is bound to its number variable — change a token and this page updates.",
+   "name": "The tokens every Lumen c",
+   "props": {
+    "textStyle": "Type/Body large",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 820
+  },
+  "as": "t4"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Colour",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "col"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Section header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 6,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     0,
+     16,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f5"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Colour",
+   "name": "Colour",
+   "props": {
+    "textStyle": "Type/Heading 2",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f5"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Four primitive ramps, 50–900. Components never use them directly: they use the semantic tokens below.",
+   "name": "Four primitive ramps, 50",
+   "props": {
+    "textStyle": "Type/Body",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t7"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Indigo",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f8"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 150,
+   "height": 10,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f9"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f9"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Indigo",
+   "name": "Indigo",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t10"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f9"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Brand, links, focus",
+   "name": "Brand, links, focus",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t11"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 50",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f12"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "f13"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "f14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f14"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "50",
+   "name": "50",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t15"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f14"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#EEF2FF",
+   "name": "#EEF2FF",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t16"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 100",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f17"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/100"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f17"
+   }
+  },
+  "as": "f18"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f17"
+   }
+  },
+  "as": "f19"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f19"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "100",
+   "name": "100",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t20"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f19"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#E0E7FF",
+   "name": "#E0E7FF",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t21"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 200",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f22"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/200"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f22"
+   }
+  },
+  "as": "f23"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f22"
+   }
+  },
+  "as": "f24"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f24"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "200",
+   "name": "200",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t25"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f24"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#C7D2FE",
+   "name": "#C7D2FE",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t26"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 300",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f27"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/300"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f27"
+   }
+  },
+  "as": "f28"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f27"
+   }
+  },
+  "as": "f29"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "300",
+   "name": "300",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t30"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#A5B4FC",
+   "name": "#A5B4FC",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t31"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 400",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f32"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f32"
+   }
+  },
+  "as": "f33"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f32"
+   }
+  },
+  "as": "f34"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f34"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "400",
+   "name": "400",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t35"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f34"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#818CF8",
+   "name": "#818CF8",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t36"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 500",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f37"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/500"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f38"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f39"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f39"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "500",
+   "name": "500",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t40"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f39"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#6366F1",
+   "name": "#6366F1",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t41"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 600",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f42"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/600"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f42"
+   }
+  },
+  "as": "f43"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f42"
+   }
+  },
+  "as": "f44"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f44"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "600",
+   "name": "600",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t45"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f44"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#4F46E5",
+   "name": "#4F46E5",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t46"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 700",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f47"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/700"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f47"
+   }
+  },
+  "as": "f48"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f47"
+   }
+  },
+  "as": "f49"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f49"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "700",
+   "name": "700",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t50"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f49"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#4338CA",
+   "name": "#4338CA",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t51"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 800",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f52"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/800"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f52"
+   }
+  },
+  "as": "f53"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f52"
+   }
+  },
+  "as": "f54"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f54"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "800",
+   "name": "800",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t55"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f54"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#3730A3",
+   "name": "#3730A3",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t56"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Indigo 900",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f57"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "indigo/900"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f57"
+   }
+  },
+  "as": "f58"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f57"
+   }
+  },
+  "as": "f59"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f59"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "900",
+   "name": "900",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t60"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f59"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#312E81",
+   "name": "#312E81",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t61"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Slate",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f62"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 150,
+   "height": 10,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f63"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f63"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Slate",
+   "name": "Slate",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t64"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f63"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Text, surfaces, lines",
+   "name": "Text, surfaces, lines",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t65"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 50",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f66"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/50"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f66"
+   }
+  },
+  "as": "f67"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f66"
+   }
+  },
+  "as": "f68"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f68"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "50",
+   "name": "50",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t69"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f68"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#F8FAFC",
+   "name": "#F8FAFC",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t70"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 100",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f71"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/100"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f71"
+   }
+  },
+  "as": "f72"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f71"
+   }
+  },
+  "as": "f73"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f73"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "100",
+   "name": "100",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t74"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f73"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#F1F5F9",
+   "name": "#F1F5F9",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t75"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 200",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f76"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/200"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f76"
+   }
+  },
+  "as": "f77"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f76"
+   }
+  },
+  "as": "f78"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f78"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "200",
+   "name": "200",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t79"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f78"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#E2E8F0",
+   "name": "#E2E8F0",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t80"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 300",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f81"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/300"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f81"
+   }
+  },
+  "as": "f82"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f81"
+   }
+  },
+  "as": "f83"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f83"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "300",
+   "name": "300",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t84"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f83"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#CBD5E1",
+   "name": "#CBD5E1",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t85"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 400",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f86"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/400"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f86"
+   }
+  },
+  "as": "f87"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f86"
+   }
+  },
+  "as": "f88"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f88"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "400",
+   "name": "400",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t89"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f88"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#94A3B8",
+   "name": "#94A3B8",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t90"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 500",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f91"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/500"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f91"
+   }
+  },
+  "as": "f92"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f91"
+   }
+  },
+  "as": "f93"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f93"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "500",
+   "name": "500",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t94"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f93"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#64748B",
+   "name": "#64748B",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t95"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 600",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f96"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/600"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f96"
+   }
+  },
+  "as": "f97"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f96"
+   }
+  },
+  "as": "f98"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f98"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "600",
+   "name": "600",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t99"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f98"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#475569",
+   "name": "#475569",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t100"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 700",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f101"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/700"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f101"
+   }
+  },
+  "as": "f102"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f101"
+   }
+  },
+  "as": "f103"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f103"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "700",
+   "name": "700",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t104"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f103"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#334155",
+   "name": "#334155",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t105"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 800",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f106"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/800"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f106"
+   }
+  },
+  "as": "f107"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f106"
+   }
+  },
+  "as": "f108"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f108"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "800",
+   "name": "800",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t109"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f108"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#1E293B",
+   "name": "#1E293B",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t110"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Slate 900",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f111"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "slate/900"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f111"
+   }
+  },
+  "as": "f112"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f111"
+   }
+  },
+  "as": "f113"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f113"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "900",
+   "name": "900",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t114"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f113"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#0F172A",
+   "name": "#0F172A",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t115"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Emerald",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f116"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 150,
+   "height": 10,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f117"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f117"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Emerald",
+   "name": "Emerald",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t118"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f117"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Success, positive change",
+   "name": "Success, positive change",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t119"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 50",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f120"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/50"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f120"
+   }
+  },
+  "as": "f121"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f120"
+   }
+  },
+  "as": "f122"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "50",
+   "name": "50",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t123"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#ECFDF5",
+   "name": "#ECFDF5",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t124"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 100",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f125"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/100"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f125"
+   }
+  },
+  "as": "f126"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f125"
+   }
+  },
+  "as": "f127"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f127"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "100",
+   "name": "100",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t128"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f127"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#D1FAE5",
+   "name": "#D1FAE5",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t129"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 200",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f130"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/200"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f130"
+   }
+  },
+  "as": "f131"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f130"
+   }
+  },
+  "as": "f132"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f132"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "200",
+   "name": "200",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t133"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f132"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#A7F3D0",
+   "name": "#A7F3D0",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t134"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 300",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f135"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/300"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f135"
+   }
+  },
+  "as": "f136"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f135"
+   }
+  },
+  "as": "f137"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f137"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "300",
+   "name": "300",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t138"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f137"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#6EE7B7",
+   "name": "#6EE7B7",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t139"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 400",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f140"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/400"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f140"
+   }
+  },
+  "as": "f141"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f140"
+   }
+  },
+  "as": "f142"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f142"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "400",
+   "name": "400",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t143"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f142"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#34D399",
+   "name": "#34D399",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t144"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 500",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f145"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/500"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f145"
+   }
+  },
+  "as": "f146"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f145"
+   }
+  },
+  "as": "f147"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f147"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "500",
+   "name": "500",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t148"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f147"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#10B981",
+   "name": "#10B981",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t149"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 600",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f150"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/600"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f150"
+   }
+  },
+  "as": "f151"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f150"
+   }
+  },
+  "as": "f152"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f152"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "600",
+   "name": "600",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t153"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f152"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#059669",
+   "name": "#059669",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t154"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 700",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f155"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/700"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f155"
+   }
+  },
+  "as": "f156"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f155"
+   }
+  },
+  "as": "f157"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f157"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "700",
+   "name": "700",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t158"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f157"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#047857",
+   "name": "#047857",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t159"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 800",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f160"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/800"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f160"
+   }
+  },
+  "as": "f161"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f160"
+   }
+  },
+  "as": "f162"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f162"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "800",
+   "name": "800",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t163"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f162"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#065F46",
+   "name": "#065F46",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t164"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Emerald 900",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f116"
+   }
+  },
+  "as": "f165"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "emerald/900"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f165"
+   }
+  },
+  "as": "f166"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f165"
+   }
+  },
+  "as": "f167"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f167"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "900",
+   "name": "900",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t168"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f167"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#064E3B",
+   "name": "#064E3B",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t169"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Rose",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f170"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 150,
+   "height": 10,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f171"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f171"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Rose",
+   "name": "Rose",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t172"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f171"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Errors, destructive",
+   "name": "Errors, destructive",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t173"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 50",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f174"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/50"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f174"
+   }
+  },
+  "as": "f175"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f174"
+   }
+  },
+  "as": "f176"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f176"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "50",
+   "name": "50",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t177"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f176"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FFF1F2",
+   "name": "#FFF1F2",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t178"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 100",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f179"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/100"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill",
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f179"
+   }
+  },
+  "as": "f180"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f179"
+   }
+  },
+  "as": "f181"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f181"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "100",
+   "name": "100",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t182"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f181"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FFE4E6",
+   "name": "#FFE4E6",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t183"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 200",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f184"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/200"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f184"
+   }
+  },
+  "as": "f185"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f184"
+   }
+  },
+  "as": "f186"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f186"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "200",
+   "name": "200",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t187"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f186"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FECDD3",
+   "name": "#FECDD3",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t188"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 300",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f189"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/300"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f189"
+   }
+  },
+  "as": "f190"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f189"
+   }
+  },
+  "as": "f191"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f191"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "300",
+   "name": "300",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t192"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f191"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FDA4AF",
+   "name": "#FDA4AF",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t193"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 400",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f194"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/400"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f194"
+   }
+  },
+  "as": "f195"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f194"
+   }
+  },
+  "as": "f196"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f196"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "400",
+   "name": "400",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t197"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f196"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FB7185",
+   "name": "#FB7185",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t198"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 500",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f199"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/500"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f199"
+   }
+  },
+  "as": "f200"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f199"
+   }
+  },
+  "as": "f201"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "500",
+   "name": "500",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t202"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#F43F5E",
+   "name": "#F43F5E",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t203"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 600",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f204"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/600"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f204"
+   }
+  },
+  "as": "f205"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f204"
+   }
+  },
+  "as": "f206"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f206"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "600",
+   "name": "600",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t207"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f206"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#E11D48",
+   "name": "#E11D48",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t208"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 700",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f209"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/700"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f209"
+   }
+  },
+  "as": "f210"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f209"
+   }
+  },
+  "as": "f211"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f211"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "700",
+   "name": "700",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t212"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f211"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#BE123C",
+   "name": "#BE123C",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t213"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 800",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f214"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/800"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f214"
+   }
+  },
+  "as": "f215"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f214"
+   }
+  },
+  "as": "f216"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f216"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "800",
+   "name": "800",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t217"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f216"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#9F1239",
+   "name": "#9F1239",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t218"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Rose 900",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f170"
+   }
+  },
+  "as": "f219"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 76,
+   "name": "Swatch",
+   "props": {
+    "fill": {
+     "$var": "rose/900"
+    },
+    "cornerRadius": 12,
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f219"
+   }
+  },
+  "as": "f220"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f219"
+   }
+  },
+  "as": "f221"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f221"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "900",
+   "name": "900",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t222"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f221"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#881337",
+   "name": "#881337",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t223"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Semantic",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 20,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 16,
+    "padding": [
+     24,
+     24,
+     24,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "col"
+   }
+  },
+  "as": "f224"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f224"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Semantic tokens  ·  aliases of the primitives",
+   "name": "Semantic tokens  ·  alia",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t225"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1232,
+   "height": 10,
+   "name": "Semantic grid",
+   "props": {
+    "fill": "none",
+    "layout": "grid",
+    "gridColumns": 4,
+    "gridRows": 2,
+    "columnTracks": [
+     "1fr",
+     "1fr",
+     "1fr",
+     "1fr"
+    ],
+    "rowTracks": [
+     "auto",
+     "auto"
+    ],
+    "gap": 16,
+    "crossGap": 16,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f224"
+   }
+  },
+  "as": "f226"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "bg/canvas",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f227"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f227"
+    }
+   ],
+   "props": {
+    "gridColumn": 0,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "bg/canvas"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f227"
+   }
+  },
+  "as": "f228"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f227"
+   }
+  },
+  "as": "f229"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f229"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "bg/canvas",
+   "name": "bg/canvas",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t230"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f229"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ slate/50",
+   "name": "→ slate/50",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t231"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f229"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#F8FAFC",
+   "name": "#F8FAFC",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t232"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "bg/surface",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f233"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f233"
+    }
+   ],
+   "props": {
+    "gridColumn": 1,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f233"
+   }
+  },
+  "as": "f234"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f233"
+   }
+  },
+  "as": "f235"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "bg/surface",
+   "name": "bg/surface",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t236"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ white",
+   "name": "→ white",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t237"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#FFFFFF",
+   "name": "#FFFFFF",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t238"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "text/primary",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f239"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f239"
+    }
+   ],
+   "props": {
+    "gridColumn": 2,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "text/primary"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f239"
+   }
+  },
+  "as": "f240"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f239"
+   }
+  },
+  "as": "f241"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f241"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text/primary",
+   "name": "text/primary",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t242"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f241"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ slate/900",
+   "name": "→ slate/900",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t243"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f241"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#0F172A",
+   "name": "#0F172A",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t244"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "text/secondary",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f245"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f245"
+    }
+   ],
+   "props": {
+    "gridColumn": 3,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f245"
+   }
+  },
+  "as": "f246"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f245"
+   }
+  },
+  "as": "f247"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f247"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text/secondary",
+   "name": "text/secondary",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t248"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f247"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ slate/500",
+   "name": "→ slate/500",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t249"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f247"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#64748B",
+   "name": "#64748B",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t250"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "border/default",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f251"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f251"
+    }
+   ],
+   "props": {
+    "gridColumn": 0,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "border/default"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f251"
+   }
+  },
+  "as": "f252"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f251"
+   }
+  },
+  "as": "f253"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f253"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "border/default",
+   "name": "border/default",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t254"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f253"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ slate/200",
+   "name": "→ slate/200",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t255"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f253"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#E2E8F0",
+   "name": "#E2E8F0",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t256"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "action/primary",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f257"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f257"
+    }
+   ],
+   "props": {
+    "gridColumn": 1,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "action/primary"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f257"
+   }
+  },
+  "as": "f258"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f257"
+   }
+  },
+  "as": "f259"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f259"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "action/primary",
+   "name": "action/primary",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t260"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f259"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ indigo/600",
+   "name": "→ indigo/600",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t261"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f259"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#4F46E5",
+   "name": "#4F46E5",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t262"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "feedback/success",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f263"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f263"
+    }
+   ],
+   "props": {
+    "gridColumn": 2,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "feedback/success"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f263"
+   }
+  },
+  "as": "f264"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f263"
+   }
+  },
+  "as": "f265"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f265"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "feedback/success",
+   "name": "feedback/success",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t266"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f265"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ emerald/600",
+   "name": "→ emerald/600",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t267"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f265"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#059669",
+   "name": "#059669",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t268"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 290,
+   "height": 10,
+   "name": "feedback/danger",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f226"
+   }
+  },
+  "as": "f269"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f269"
+    }
+   ],
+   "props": {
+    "gridColumn": 3,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 48,
+   "height": 48,
+   "name": "Chip",
+   "props": {
+    "fill": {
+     "$var": "feedback/danger"
+    },
+    "cornerRadius": 12,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f269"
+   }
+  },
+  "as": "f270"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f269"
+   }
+  },
+  "as": "f271"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f271"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "feedback/danger",
+   "name": "feedback/danger",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t272"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f271"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "→ rose/600",
+   "name": "→ rose/600",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "action/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t273"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f271"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "#E11D48",
+   "name": "#E11D48",
+   "props": {
+    "fontSize": 11,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t274"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Typography",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "ty"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Section header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 6,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     0,
+     16,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "ty"
+   }
+  },
+  "as": "f275"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f275"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Typography",
+   "name": "Typography",
+   "props": {
+    "textStyle": "Type/Heading 2",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t276"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f275"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Plus Jakarta Sans for display and headings, Inter for interface text. Each specimen is set in its text style.",
+   "name": "Plus Jakarta Sans for di",
+   "props": {
+    "textStyle": "Type/Body",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t277"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Type scale",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 20,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     8,
+     28,
+     8,
+     28
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "ty"
+   }
+  },
+  "as": "f278"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Display",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f279"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f279"
+   }
+  },
+  "as": "f280"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f280"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Display",
+   "name": "Display",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t281"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f280"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "56 / 64  ·  ExtraBold",
+   "name": "56 / 64  ·  ExtraBold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t282"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f280"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Plus Jakarta Sans",
+   "name": "Plus Jakarta Sans",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t283"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f279"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Design at the speed of thought",
+   "name": "Design at the speed of t",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Display",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t284"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Heading 1",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f285"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f285"
+   }
+  },
+  "as": "f286"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f286"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Heading 1",
+   "name": "Heading 1",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t287"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f286"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "40 / 48  ·  ExtraBold",
+   "name": "40 / 48  ·  ExtraBold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t288"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f286"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Plus Jakarta Sans",
+   "name": "Plus Jakarta Sans",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t289"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f285"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Ship the system, not the screens",
+   "name": "Ship the system, not the",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Heading 1",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t290"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Heading 2",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f291"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f291"
+   }
+  },
+  "as": "f292"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f292"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Heading 2",
+   "name": "Heading 2",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t293"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f292"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "28 / 36  ·  ExtraBold",
+   "name": "28 / 36  ·  ExtraBold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t294"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f292"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Plus Jakarta Sans",
+   "name": "Plus Jakarta Sans",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t295"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f291"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Tokens keep every team in step",
+   "name": "Tokens keep every team i",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Heading 2",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t296"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Heading 3",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f297"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f297"
+   }
+  },
+  "as": "f298"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f298"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Heading 3",
+   "name": "Heading 3",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t299"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f298"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "20 / 28  ·  Bold",
+   "name": "20 / 28  ·  Bold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t300"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f298"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t301"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f297"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Colour, type, space and shape",
+   "name": "Colour, type, space and ",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t302"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Body large",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f303"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f303"
+   }
+  },
+  "as": "f304"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f304"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Body large",
+   "name": "Body large",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t305"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f304"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "18 / 28  ·  Regular",
+   "name": "18 / 28  ·  Regular",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t306"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f304"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t307"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f303"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "A design system is a product that serves other products.",
+   "name": "A design system is a pro",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Body large",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t308"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Body",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f309"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f309"
+   }
+  },
+  "as": "f310"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f310"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Body",
+   "name": "Body",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t311"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f310"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "16 / 24  ·  Regular",
+   "name": "16 / 24  ·  Regular",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t312"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f310"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t313"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f309"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Use body text for paragraphs, descriptions and long-form reading.",
+   "name": "Use body text for paragr",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Body",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t314"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f315"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f315"
+   }
+  },
+  "as": "f316"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f316"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Label",
+   "name": "Label",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t317"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f316"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "14 / 20  ·  SemiBold",
+   "name": "14 / 20  ·  SemiBold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t318"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f316"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t319"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f315"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Buttons, tabs, form labels and table headers",
+   "name": "Buttons, tabs, form labe",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t320"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Caption",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f321"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f321"
+   }
+  },
+  "as": "f322"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f322"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Caption",
+   "name": "Caption",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t323"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f322"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "12 / 16  ·  Regular",
+   "name": "12 / 16  ·  Regular",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t324"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f322"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t325"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f321"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Helper text, timestamps and footnotes",
+   "name": "Helper text, timestamps ",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t326"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1224,
+   "height": 10,
+   "name": "Overline",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     18,
+     0,
+     18,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f278"
+   }
+  },
+  "as": "f327"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 220,
+   "height": 10,
+   "name": "Spec",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 3,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f327"
+   }
+  },
+  "as": "f328"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f328"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Overline",
+   "name": "Overline",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t329"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f328"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "11 / 16  ·  SemiBold",
+   "name": "11 / 16  ·  SemiBold",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t330"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f328"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Inter",
+   "name": "Inter",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t331"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f327"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "SECTION LABELS AND EYEBROWS",
+   "name": "SECTION LABELS AND EYEBR",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Type/Overline",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "height"
+   },
+   "width": 960
+  },
+  "as": "t332"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Space and shape",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "sr"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Section header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 6,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     0,
+     16,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "sr"
+   }
+  },
+  "as": "f333"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f333"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Space and shape",
+   "name": "Space and shape",
+   "props": {
+    "textStyle": "Type/Heading 2",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t334"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f333"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "A 4-point spacing scale and seven radii. Bar widths and corners are bound to the Dimensions variables.",
+   "name": "A 4-point spacing scale ",
+   "props": {
+    "textStyle": "Type/Body",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t335"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Two cards",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "sr"
+   }
+  },
+  "as": "f336"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 628,
+   "height": 10,
+   "name": "Spacing",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 20,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 14,
+    "padding": 28,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f336"
+   }
+  },
+  "as": "f337"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f337"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Spacing",
+   "name": "Spacing",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t338"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/1",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f339"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f339"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/1",
+   "name": "space/1",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t340"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f339"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "4px",
+   "name": "4px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t341"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f339"
+   }
+  },
+  "as": "r342"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r342"
+    }
+   ],
+   "field": "width",
+   "variable": "space/1"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/2",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f343"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f343"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/2",
+   "name": "space/2",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t344"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f343"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "8px",
+   "name": "8px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t345"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f343"
+   }
+  },
+  "as": "r346"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r346"
+    }
+   ],
+   "field": "width",
+   "variable": "space/2"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/3",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f347"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f347"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/3",
+   "name": "space/3",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t348"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f347"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "12px",
+   "name": "12px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t349"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f347"
+   }
+  },
+  "as": "r350"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r350"
+    }
+   ],
+   "field": "width",
+   "variable": "space/3"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/4",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f351"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f351"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/4",
+   "name": "space/4",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t352"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f351"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "16px",
+   "name": "16px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t353"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f351"
+   }
+  },
+  "as": "r354"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r354"
+    }
+   ],
+   "field": "width",
+   "variable": "space/4"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/6",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f355"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f355"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/6",
+   "name": "space/6",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t356"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f355"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "24px",
+   "name": "24px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t357"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f355"
+   }
+  },
+  "as": "r358"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r358"
+    }
+   ],
+   "field": "width",
+   "variable": "space/6"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/8",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f359"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f359"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/8",
+   "name": "space/8",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t360"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f359"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "32px",
+   "name": "32px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t361"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f359"
+   }
+  },
+  "as": "r362"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r362"
+    }
+   ],
+   "field": "width",
+   "variable": "space/8"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/12",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f363"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f363"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/12",
+   "name": "space/12",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t364"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f363"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "48px",
+   "name": "48px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t365"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f363"
+   }
+  },
+  "as": "r366"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r366"
+    }
+   ],
+   "field": "width",
+   "variable": "space/12"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/16",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f367"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f367"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/16",
+   "name": "space/16",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t368"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f367"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "64px",
+   "name": "64px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t369"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f367"
+   }
+  },
+  "as": "r370"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r370"
+    }
+   ],
+   "field": "width",
+   "variable": "space/16"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 560,
+   "height": 28,
+   "name": "space/24",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f337"
+   }
+  },
+  "as": "f371"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f371"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "space/24",
+   "name": "space/24",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/primary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 110
+  },
+  "as": "t372"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f371"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "96px",
+   "name": "96px",
+   "props": {
+    "fontSize": 13,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "height"
+   },
+   "width": 50
+  },
+  "as": "t373"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Bar",
+   "props": {
+    "fill": {
+     "$var": "indigo/400"
+    },
+    "cornerRadius": 4
+   },
+   "parent": {
+    "$ref": "f371"
+   }
+  },
+  "as": "r374"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r374"
+    }
+   ],
+   "field": "width",
+   "variable": "space/24"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 628,
+   "height": 10,
+   "name": "Radius",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 20,
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 20,
+    "padding": 28,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f336"
+   }
+  },
+  "as": "f375"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f375"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Radius",
+   "name": "Radius",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t376"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 572,
+   "height": 10,
+   "name": "Radius grid",
+   "props": {
+    "fill": "none",
+    "layout": "grid",
+    "gridColumns": 4,
+    "gridRows": 2,
+    "columnTracks": [
+     "1fr",
+     "1fr",
+     "1fr",
+     "1fr"
+    ],
+    "rowTracks": [
+     "auto",
+     "auto"
+    ],
+    "gap": 20,
+    "crossGap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f375"
+   }
+  },
+  "as": "f377"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/none",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f378"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f378"
+    }
+   ],
+   "props": {
+    "gridColumn": 0,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f378"
+   }
+  },
+  "as": "r379"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r379"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/none"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f378"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "none",
+   "name": "none",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t380"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f378"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "0px",
+   "name": "0px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t381"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/sm",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f382"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f382"
+    }
+   ],
+   "props": {
+    "gridColumn": 1,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f382"
+   }
+  },
+  "as": "r383"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r383"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/sm"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f382"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "sm",
+   "name": "sm",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t384"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f382"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "4px",
+   "name": "4px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t385"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/md",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f386"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f386"
+    }
+   ],
+   "props": {
+    "gridColumn": 2,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f386"
+   }
+  },
+  "as": "r387"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r387"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/md"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f386"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "md",
+   "name": "md",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t388"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f386"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "8px",
+   "name": "8px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t389"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/lg",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f390"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f390"
+    }
+   ],
+   "props": {
+    "gridColumn": 3,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f390"
+   }
+  },
+  "as": "r391"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r391"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/lg"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f390"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "lg",
+   "name": "lg",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t392"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f390"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "12px",
+   "name": "12px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t393"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/xl",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f394"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f394"
+    }
+   ],
+   "props": {
+    "gridColumn": 0,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f394"
+   }
+  },
+  "as": "r395"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r395"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/xl"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f394"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "xl",
+   "name": "xl",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t396"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f394"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "16px",
+   "name": "16px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t397"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/2xl",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f398"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f398"
+    }
+   ],
+   "props": {
+    "gridColumn": 1,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f398"
+   }
+  },
+  "as": "r399"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r399"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/2xl"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f398"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "2xl",
+   "name": "2xl",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t400"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f398"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "24px",
+   "name": "24px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t401"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 120,
+   "height": 10,
+   "name": "radius/full",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f377"
+   }
+  },
+  "as": "f402"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f402"
+    }
+   ],
+   "props": {
+    "gridColumn": 2,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 88,
+   "height": 88,
+   "name": "Shape",
+   "props": {
+    "fill": {
+     "$var": "indigo/50"
+    },
+    "stroke": {
+     "$var": "indigo/300"
+    },
+    "strokeWeight": 1.5
+   },
+   "parent": {
+    "$ref": "f402"
+   }
+  },
+  "as": "r403"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "r403"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/full"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f402"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "full",
+   "name": "full",
+   "props": {
+    "textStyle": "Type/Label",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t404"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f402"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "999px",
+   "name": "999px",
+   "props": {
+    "fontSize": 12,
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t405"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Elevation",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "el"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Section header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 6,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     0,
+     16,
+     0
+    ],
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border/default"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "el"
+   }
+  },
+  "as": "f406"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f406"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Elevation",
+   "name": "Elevation",
+   "props": {
+    "textStyle": "Type/Heading 2",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t407"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f406"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Three effect styles: rest, raised and overlay.",
+   "name": "Three effect styles: res",
+   "props": {
+    "textStyle": "Type/Body",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t408"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Elevation row",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 32,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     24,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "el"
+   }
+  },
+  "as": "f409"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 140,
+   "name": "Elevation/1",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 16,
+    "effectStyle": "Elevation/1",
+    "layout": "vertical",
+    "gap": 6,
+    "padding": 24,
+    "mainAlign": "max",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f409"
+   }
+  },
+  "as": "f410"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f410"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Elevation 1",
+   "name": "Elevation 1",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t411"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f410"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Cards at rest, list rows",
+   "name": "Cards at rest, list rows",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t412"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 140,
+   "name": "Elevation/2",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 16,
+    "effectStyle": "Elevation/2",
+    "layout": "vertical",
+    "gap": 6,
+    "padding": 24,
+    "mainAlign": "max",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f409"
+   }
+  },
+  "as": "f413"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f413"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Elevation 2",
+   "name": "Elevation 2",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t414"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f413"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Raised cards, dropdowns",
+   "name": "Raised cards, dropdowns",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t415"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 140,
+   "name": "Elevation/3",
+   "props": {
+    "fill": {
+     "$var": "bg/surface"
+    },
+    "cornerRadius": 16,
+    "effectStyle": "Elevation/3",
+    "layout": "vertical",
+    "gap": 6,
+    "padding": 24,
+    "mainAlign": "max",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f409"
+   }
+  },
+  "as": "f416"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f416"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Elevation 3",
+   "name": "Elevation 3",
+   "props": {
+    "textStyle": "Type/Heading 3",
+    "fill": {
+     "$var": "text/primary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t417"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f416"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Dialogs, popovers, sheets",
+   "name": "Dialogs, popovers, sheet",
+   "props": {
+    "textStyle": "Type/Caption",
+    "fill": {
+     "$var": "text/secondary"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t418"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "page"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-foundations.png"
+  }
+ }
+]

@@ -1,0 +1,541 @@
+[
+ {
+  "command": "file.newBoard",
+  "params": {
+   "name": "Checkout user flow"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "section",
+   "x": 0,
+   "y": 0,
+   "width": 520,
+   "height": 760,
+   "name": "1 · Entry"
+  },
+  "as": "sa"
+ },
+ {
+  "command": "text.create",
+  "params": {
+   "text": "1 · Entry",
+   "parent": {
+    "$ref": "sa"
+   },
+   "x": 32,
+   "y": 28,
+   "name": "Heading",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 22,
+    "fill": "#1E1E1E",
+    "textAutoResize": "widthAndHeight"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "section",
+   "x": 600,
+   "y": 0,
+   "width": 1040,
+   "height": 760,
+   "name": "2 · Checkout"
+  },
+  "as": "sb"
+ },
+ {
+  "command": "text.create",
+  "params": {
+   "text": "2 · Checkout",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 32,
+   "y": 28,
+   "name": "Heading",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 22,
+    "fill": "#1E1E1E",
+    "textAutoResize": "widthAndHeight"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "section",
+   "x": 1720,
+   "y": 0,
+   "width": 560,
+   "height": 760,
+   "name": "3 · Outcome"
+  },
+  "as": "sc"
+ },
+ {
+  "command": "text.create",
+  "params": {
+   "text": "3 · Outcome",
+   "parent": {
+    "$ref": "sc"
+   },
+   "x": 32,
+   "y": 28,
+   "name": "Heading",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 22,
+    "fill": "#1E1E1E",
+    "textAutoResize": "widthAndHeight"
+   }
+  }
+ },
+ {
+  "command": "text.create",
+  "params": {
+   "text": "Checkout — user flow",
+   "x": 0,
+   "y": -150,
+   "name": "Title",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 48,
+    "fill": "#1E1E1E",
+    "textAutoResize": "widthAndHeight"
+   }
+  }
+ },
+ {
+  "command": "text.create",
+  "params": {
+   "text": "Mobile app · happy path and failure branches · v1, 18 Nov 2026",
+   "x": 0,
+   "y": -84,
+   "name": "Subtitle",
+   "props": {
+    "fontFamily": "Inter",
+    "fontSize": 20,
+    "fill": "#6B6B6B",
+    "textAutoResize": "widthAndHeight"
+   }
+  }
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "ellipse",
+   "parent": {
+    "$ref": "sa"
+   },
+   "x": 40,
+   "y": 110,
+   "width": 200,
+   "height": 110,
+   "text": "Cart\n3 items",
+   "color": "green"
+  },
+  "as": "start"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "roundedRectangle",
+   "parent": {
+    "$ref": "sa"
+   },
+   "x": 280,
+   "y": 115,
+   "width": 200,
+   "height": 110,
+   "text": "Tap Checkout",
+   "color": "blue"
+  },
+  "as": "tap"
+ },
+ {
+  "command": "board.sticky",
+  "params": {
+   "parent": {
+    "$ref": "sa"
+   },
+   "x": 280,
+   "y": 300,
+   "text": "38% of sessions end here. Show total incl. shipping in the cart.",
+   "color": "yellow",
+   "author": "Research"
+  },
+  "as": "n1"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "diamond",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 40,
+   "y": 90,
+   "width": 200,
+   "height": 160,
+   "text": "Signed in?",
+   "color": "violet"
+  },
+  "as": "signed"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "roundedRectangle",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 40,
+   "y": 380,
+   "width": 200,
+   "height": 110,
+   "text": "Sign in or\ncontinue as guest",
+   "color": "blue"
+  },
+  "as": "guest"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "roundedRectangle",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 300,
+   "y": 115,
+   "width": 200,
+   "height": 110,
+   "text": "Shipping address",
+   "color": "blue"
+  },
+  "as": "ship"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "roundedRectangle",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 560,
+   "y": 115,
+   "width": 200,
+   "height": 110,
+   "text": "Payment\nApple Pay · card",
+   "color": "blue"
+  },
+  "as": "pay"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "diamond",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 800,
+   "y": 90,
+   "width": 200,
+   "height": 160,
+   "text": "Payment\napproved?",
+   "color": "violet"
+  },
+  "as": "ok"
+ },
+ {
+  "command": "board.sticky",
+  "params": {
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 300,
+   "y": 520,
+   "text": "Autofill the address from the last order.",
+   "color": "yellow",
+   "author": "Design"
+  },
+  "as": "n2"
+ },
+ {
+  "command": "board.sticky",
+  "params": {
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 560,
+   "y": 520,
+   "text": "Q: do we keep the card on file by default?",
+   "color": "pink",
+   "author": "PM"
+  },
+  "as": "n3"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "ellipse",
+   "parent": {
+    "$ref": "sc"
+   },
+   "x": 60,
+   "y": 115,
+   "width": 200,
+   "height": 110,
+   "text": "Order confirmed",
+   "color": "green"
+  },
+  "as": "done"
+ },
+ {
+  "command": "board.shape",
+  "params": {
+   "shape": "roundedRectangle",
+   "parent": {
+    "$ref": "sb"
+   },
+   "x": 800,
+   "y": 380,
+   "width": 200,
+   "height": 110,
+   "text": "Payment failed\nshow reason",
+   "color": "red"
+  },
+  "as": "err"
+ },
+ {
+  "command": "board.sticky",
+  "params": {
+   "parent": {
+    "$ref": "sc"
+   },
+   "x": 300,
+   "y": 70,
+   "text": "Send receipt + live tracking link.",
+   "color": "green",
+   "author": "Ops"
+  },
+  "as": "n4"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "start"
+   },
+   "to": {
+    "$ref": "tap"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow"
+  },
+  "as": "c_start_tap"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "tap"
+   },
+   "to": {
+    "$ref": "signed"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow"
+  },
+  "as": "c_tap_signed"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "signed"
+   },
+   "to": {
+    "$ref": "ship"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow",
+   "label": "Yes"
+  },
+  "as": "c_signed_ship"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "signed"
+   },
+   "to": {
+    "$ref": "guest"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow",
+   "label": "No"
+  },
+  "as": "c_signed_guest"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "guest"
+   },
+   "to": {
+    "$ref": "ship"
+   },
+   "style": "elbow",
+   "endCap": "triangleArrow",
+   "fromSide": "right",
+   "toSide": "bottom"
+  },
+  "as": "c_guest_ship"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "ship"
+   },
+   "to": {
+    "$ref": "pay"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow"
+  },
+  "as": "c_ship_pay"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "pay"
+   },
+   "to": {
+    "$ref": "ok"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow"
+  },
+  "as": "c_pay_ok"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "ok"
+   },
+   "to": {
+    "$ref": "done"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow",
+   "label": "Yes"
+  },
+  "as": "c_ok_done"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "ok"
+   },
+   "to": {
+    "$ref": "err"
+   },
+   "style": "straight",
+   "endCap": "triangleArrow",
+   "label": "No"
+  },
+  "as": "c_ok_err"
+ },
+ {
+  "command": "board.connector",
+  "params": {
+   "from": {
+    "$ref": "err"
+   },
+   "to": {
+    "$ref": "pay"
+   },
+   "style": "elbow",
+   "endCap": "triangleArrow",
+   "label": "Retry",
+   "fromSide": "left",
+   "toSide": "bottom"
+  },
+  "as": "c_err_pay"
+ },
+ {
+  "command": "board.stamp",
+  "params": {
+   "x": 1350,
+   "y": 532,
+   "stamp": "question"
+  }
+ },
+ {
+  "command": "board.stamp",
+  "params": {
+   "x": 2200,
+   "y": 82,
+   "stamp": "thumbsUp"
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "c_signed_guest"
+   },
+   "fields": [
+    "name",
+    "board"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "n1"
+   },
+   "fields": [
+    "name",
+    "board",
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "select.none",
+  "params": {}
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/userflow.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "format": "pdf",
+   "path": "{{out}}/userflow.pdf"
+  }
+ }
+]

@@ -1,0 +1,1209 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Anton-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:BebasNeue-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:CormorantGaramond-600italic.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-600.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-800.ttf}}"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#05060A",
+     {
+      "type": "radialGradient",
+      "stops": [
+       {
+        "color": "#22304F",
+        "position": 0
+       },
+       {
+        "color": "#0B0F1A",
+        "position": 0.55
+       },
+       {
+        "color": "#05060A00",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.62,
+       0.28
+      ],
+      "to": [
+       0.62,
+       0.95
+      ]
+     }
+    ],
+    "clip": true,
+    "effects": [
+     {
+      "type": "noise",
+      "mode": "mono",
+      "color": "#FFFFFF1A",
+      "density": 0.45,
+      "size": 0.5
+     }
+    ]
+   },
+   "width": 1080,
+   "height": 1350,
+   "name": "Nocturne poster"
+  },
+  "as": "poster"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 330,
+   "y": -40,
+   "props": {
+    "fills": [
+     {
+      "type": "radialGradient",
+      "stops": [
+       {
+        "color": "#FFE9C766",
+        "position": 0
+       },
+       {
+        "color": "#FFE9C700",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0.5
+      ],
+      "to": [
+       0.5,
+       1
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 760,
+   "height": 760,
+   "name": "halo"
+  },
+  "as": "halo"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 520,
+   "y": 150,
+   "props": {
+    "fills": [
+     "#F3E7D3"
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 420,
+   "height": 420,
+   "name": "moonA"
+  },
+  "as": "moonA"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 455,
+   "y": 95,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 400,
+   "height": 400,
+   "name": "moonB"
+  },
+  "as": "moonB"
+ },
+ {
+  "command": "bool.subtract",
+  "params": {
+   "ids": [
+    {
+     "$ref": "moonA"
+    },
+    {
+     "$ref": "moonB"
+    }
+   ]
+  },
+  "as": "moon"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "moon"
+   },
+   "name": "Crescent",
+   "fills": [
+    {
+     "type": "linearGradient",
+     "stops": [
+      "#FFF7E8",
+      "#F2C98A"
+     ],
+     "from": [
+      0.8,
+      0.1
+     ],
+     "to": [
+      0.3,
+      1
+     ]
+    }
+   ],
+   "effects": [
+    {
+     "type": "dropShadow",
+     "color": "#FFD9A0B3",
+     "offset": [
+      0,
+      0
+     ],
+     "radius": 48,
+     "spread": 2,
+     "showBehind": true
+    },
+    {
+     "type": "dropShadow",
+     "color": "#FFB86A55",
+     "offset": [
+      0,
+      0
+     ],
+     "radius": 140,
+     "spread": 10,
+     "showBehind": true
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 0,
+   "y": 70,
+   "text": "NOCTURNE",
+   "props": {
+    "fontFamily": "Anton",
+    "fontSize": 272,
+    "letterSpacing": "1%",
+    "textAlign": "center",
+    "lineHeight": "100%",
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       {
+        "color": "#FFF4E2",
+        "position": 0
+       },
+       {
+        "color": "#E9B97A",
+        "position": 0.75
+       },
+       {
+        "color": "#B87543",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0.15
+      ],
+      "to": [
+       0.5,
+       1
+      ]
+     }
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "title",
+   "width": 1080
+  },
+  "as": "title"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 44,
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 17,
+    "letterSpacing": "42%",
+    "textAlign": "center",
+    "textAutoResize": "height",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "opacity": 0.8
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "name": "kicker",
+   "text": "MOONLIT RECORDS PRESENTS",
+   "width": 1080
+  },
+  "as": "kicker"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 200,
+   "y": 232,
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       {
+        "color": "#00000000",
+        "position": 0
+       },
+       {
+        "color": "#000000",
+        "position": 0.2
+       }
+      ],
+      "from": [
+       0,
+       0.5
+      ],
+      "to": [
+       1,
+       0.5
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 880,
+   "height": 1118,
+   "name": "Edge fade"
+  },
+  "as": "fade"
+ },
+ {
+  "command": "image.place",
+  "params": {
+   "path": "{{image:subject.png}}",
+   "x": 200,
+   "y": 232,
+   "width": 820,
+   "height": 1463,
+   "parent": {
+    "$ref": "poster"
+   },
+   "name": "Subject"
+  },
+  "as": "subj"
+ },
+ {
+  "command": "object.mask",
+  "params": {
+   "ids": [
+    {
+     "$ref": "fade"
+    },
+    {
+     "$ref": "subj"
+    }
+   ]
+  },
+  "as": "subjmask"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 0,
+   "y": 70,
+   "text": "NOCTURNE",
+   "props": {
+    "fontFamily": "Anton",
+    "fontSize": 272,
+    "letterSpacing": "1%",
+    "textAlign": "center",
+    "lineHeight": "100%",
+    "fills": [],
+    "strokes": [
+     "#F3E7D3"
+    ],
+    "strokeWeight": 1.5,
+    "strokeAlign": "center",
+    "opacity": 0.45,
+    "textAutoResize": "height"
+   },
+   "name": "echo",
+   "width": 1080
+  },
+  "as": "echo"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 340,
+   "y": 485,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.9,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 4,
+   "height": 4,
+   "name": "ember0"
+  },
+  "as": "ember0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 520,
+   "y": 538,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 6,
+   "height": 6,
+   "name": "ember1"
+  },
+  "as": "ember1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 50,
+   "y": 791,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.9,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 3,
+   "height": 3,
+   "name": "ember2"
+  },
+  "as": "ember2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 849,
+   "y": 440,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 5,
+   "height": 5,
+   "name": "ember3"
+  },
+  "as": "ember3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 579,
+   "y": 748,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.7,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 8,
+   "height": 8,
+   "name": "ember4"
+  },
+  "as": "ember4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 876,
+   "y": 488,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.7,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 4,
+   "height": 4,
+   "name": "ember5"
+  },
+  "as": "ember5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 995,
+   "y": 406,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.9,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 4,
+   "height": 4,
+   "name": "ember6"
+  },
+  "as": "ember6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 849,
+   "y": 658,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 5,
+   "height": 5,
+   "name": "ember7"
+  },
+  "as": "ember7"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 347,
+   "y": 676,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.9,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 4,
+   "height": 4,
+   "name": "ember8"
+  },
+  "as": "ember8"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 118,
+   "y": 1000,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.7,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 5,
+   "height": 5,
+   "name": "ember9"
+  },
+  "as": "ember9"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 548,
+   "y": 634,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 6,
+   "height": 6,
+   "name": "ember10"
+  },
+  "as": "ember10"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 514,
+   "y": 666,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 4,
+   "height": 4,
+   "name": "ember11"
+  },
+  "as": "ember11"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 890,
+   "y": 687,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 8,
+   "height": 8,
+   "name": "ember12"
+  },
+  "as": "ember12"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 616,
+   "y": 699,
+   "props": {
+    "fills": [
+     "#FFC98A"
+    ],
+    "opacity": 0.9,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF9E4ACC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1,
+      "showBehind": true
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 5,
+   "height": 5,
+   "name": "ember13"
+  },
+  "as": "ember13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 760,
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       {
+        "color": "#05060A00",
+        "position": 0
+       },
+       {
+        "color": "#05060AE6",
+        "position": 0.55
+       },
+       {
+        "color": "#05060A",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0
+      ],
+      "to": [
+       0.5,
+       1
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 1080,
+   "height": 590,
+   "name": "scrim"
+  },
+  "as": "scrim"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 0,
+   "y": 1000,
+   "text": "an evening of dark synth & moonlit noise",
+   "props": {
+    "fontFamily": "Cormorant Garamond",
+    "fontStyle": "SemiBold Italic",
+    "fontSize": 50,
+    "textAlign": "center",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "tag",
+   "width": 1080
+  },
+  "as": "tag"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 60,
+   "y": 1090,
+   "props": {
+    "fills": [
+     "#F3E7D3"
+    ],
+    "opacity": 0.35
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 960,
+   "height": 1,
+   "name": "rule1"
+  },
+  "as": "rule1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1112,
+   "text": "DATE",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "letterSpacing": "38%",
+    "textAlign": "left",
+    "fills": [
+     "#E9B97A"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab0",
+   "width": 960
+  },
+  "as": "lab0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1134,
+   "text": "FRI 12 DEC 2026",
+   "props": {
+    "fontFamily": "Bebas Neue",
+    "fontSize": 50,
+    "letterSpacing": "3%",
+    "textAlign": "left",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "val0",
+   "width": 960
+  },
+  "as": "val0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1112,
+   "text": "VENUE",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "letterSpacing": "38%",
+    "textAlign": "center",
+    "fills": [
+     "#E9B97A"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab1",
+   "width": 960
+  },
+  "as": "lab1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1134,
+   "text": "THE VAULT · BERLIN",
+   "props": {
+    "fontFamily": "Bebas Neue",
+    "fontSize": 50,
+    "letterSpacing": "3%",
+    "textAlign": "center",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "val1",
+   "width": 960
+  },
+  "as": "val1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1112,
+   "text": "DOORS",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "letterSpacing": "38%",
+    "textAlign": "right",
+    "fills": [
+     "#E9B97A"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab2",
+   "width": 960
+  },
+  "as": "lab2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1134,
+   "text": "21:00 — LATE",
+   "props": {
+    "fontFamily": "Bebas Neue",
+    "fontSize": 50,
+    "letterSpacing": "3%",
+    "textAlign": "right",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "val2",
+   "width": 960
+  },
+  "as": "val2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 60,
+   "y": 1206,
+   "props": {
+    "fills": [
+     "#F3E7D3"
+    ],
+    "opacity": 0.35
+   },
+   "parent": {
+    "$ref": "poster"
+   },
+   "width": 960,
+   "height": 1,
+   "name": "rule2"
+  },
+  "as": "rule2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1228,
+   "text": "WITH  HEXA  ·  VELVET RUIN  ·  SAINT AMBER  ·  NOX",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "ExtraBold",
+    "fontSize": 19,
+    "letterSpacing": "22%",
+    "textAlign": "center",
+    "fills": [
+     "#F3E7D3"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lineup",
+   "width": 960
+  },
+  "as": "lineup"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "poster"
+   },
+   "x": 60,
+   "y": 1278,
+   "text": "TICKETS  NOCTURNE.LIVE",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "letterSpacing": "40%",
+    "textAlign": "center",
+    "fills": [
+     "#E9B97A"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "url",
+   "width": 960
+  },
+  "as": "url"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "poster"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-poster.png"
+  }
+ }
+]

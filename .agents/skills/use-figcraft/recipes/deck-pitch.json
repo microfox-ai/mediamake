@@ -1,0 +1,2107 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Jost-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Jost-600.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:InstrumentSerif-400.ttf}}"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "01 Title",
+   "x": 0,
+   "y": 0,
+   "width": 1920,
+   "height": 1080,
+   "props": {
+    "fill": "#16152A",
+    "clip": true
+   }
+  },
+  "as": "sl1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 1060,
+   "y": 140,
+   "width": 900,
+   "height": 900,
+   "name": "Orb glow",
+   "props": {
+    "fill": "#3D3A8C",
+    "opacity": 0.35
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 1180,
+   "y": 260,
+   "width": 660,
+   "height": 660,
+   "name": "Orb",
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#8B7CF6",
+       "#F2A6C0"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 120,
+   "y": 300,
+   "text": "CALMLY",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight",
+    "letterSpacing": "12%"
+   },
+   "name": "Kicker"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 120,
+   "y": 350,
+   "text": "Five minutes of calm, built into the day you already have.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 112,
+    "fill": "#F5F2EC",
+    "textAutoResize": "height",
+    "lineHeight": "102%"
+   },
+   "width": 1000,
+   "name": "Headline"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 120,
+   "y": 820,
+   "text": "Seed round  ·  November 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 26,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Meta"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "02 Problem",
+   "x": 2040,
+   "y": 0,
+   "width": 1920,
+   "height": 1080,
+   "props": {
+    "fill": "#F5F2EC",
+    "clip": true
+   }
+  },
+  "as": "sl2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 120,
+   "y": 140,
+   "text": "THE PROBLEM",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight",
+    "letterSpacing": "12%"
+   },
+   "name": "Kicker"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 120,
+   "y": 190,
+   "text": "Stress apps ask for an hour.\nPeople have five minutes.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 96,
+    "fill": "#1C1B29",
+    "textAutoResize": "height",
+    "lineHeight": "104%"
+   },
+   "width": 1500,
+   "name": "Headline"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 120,
+   "y": 560,
+   "width": 510,
+   "height": 330,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 32
+   },
+   "name": "Stat 1"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 168,
+   "y": 600,
+   "text": "6 in 10",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 104,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 168,
+   "y": 760,
+   "text": "adults say stress shows up\nin their day, every day",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 26,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 420,
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 690,
+   "y": 560,
+   "width": 510,
+   "height": 330,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 32
+   },
+   "name": "Stat 2"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 738,
+   "y": 600,
+   "text": "18 min",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 104,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 738,
+   "y": 760,
+   "text": "typical length of a session in\nthe apps they try first",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 26,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 420,
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 1260,
+   "y": 560,
+   "width": 510,
+   "height": 330,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 32
+   },
+   "name": "Stat 3"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 1308,
+   "y": 600,
+   "text": "1 in 4",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 104,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 1308,
+   "y": 760,
+   "text": "still opens the app\n30 days after installing",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 26,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 420,
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 1180,
+   "y": 920,
+   "text": "Illustrative figures for this sample deck",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 16,
+    "fill": "#A19DAD",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 620,
+   "name": "Note"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "03 Product",
+   "x": 4080,
+   "y": 0,
+   "width": 1920,
+   "height": 1080,
+   "props": {
+    "fill": "#F5F2EC",
+    "clip": true
+   }
+  },
+  "as": "sl3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 1120,
+   "y": 0,
+   "width": 800,
+   "height": 1080,
+   "props": {
+    "fill": "#E8E5F8",
+    "cornerRadius": 0
+   },
+   "name": "Panel"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 1330,
+   "y": 100,
+   "width": 380,
+   "height": 820,
+   "name": "Phone",
+   "props": {
+    "fill": "#16152A",
+    "cornerRadius": 64,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1C1B2933",
+      "offset": [
+       0,
+       40
+      ],
+      "radius": 80
+     }
+    ]
+   }
+  },
+  "as": "phone"
+ },
+ {
+  "command": "file.placeImage",
+  "params": {
+   "path": "{{image:2 Goals.png}}",
+   "parent": {
+    "$ref": "phone"
+   },
+   "x": 12,
+   "y": 12,
+   "width": 356,
+   "height": 796,
+   "name": "Screen",
+   "mode": "fill"
+  },
+  "as": "screen"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "screen"
+    }
+   ],
+   "props": {
+    "cornerRadius": 52
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 140,
+   "text": "THE PRODUCT",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight",
+    "letterSpacing": "12%"
+   },
+   "name": "Kicker"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 190,
+   "text": "A daily nudge, a five-minute session, done.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 88,
+    "fill": "#1C1B29",
+    "textAutoResize": "height",
+    "lineHeight": "104%"
+   },
+   "width": 900,
+   "name": "Headline"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 526,
+   "width": 44,
+   "height": 44,
+   "name": "Bullet 1",
+   "props": {
+    "fill": "#3D3A8C"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 533,
+   "text": "1",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#FFFFFF",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 44,
+   "name": "Index"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 520,
+   "text": "Starts where you are",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 34,
+    "fill": "#1C1B29",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Feature"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 570,
+   "text": "Pick what you want help with; the first week is built around it.",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 760,
+   "name": "Detail"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 676,
+   "width": 44,
+   "height": 44,
+   "name": "Bullet 2",
+   "props": {
+    "fill": "#3D3A8C"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 683,
+   "text": "2",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#FFFFFF",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 44,
+   "name": "Index"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 670,
+   "text": "Fits between meetings",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 34,
+    "fill": "#1C1B29",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Feature"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 720,
+   "text": "Every session is under five minutes, audio first, eyes optional.",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 760,
+   "name": "Detail"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 826,
+   "width": 44,
+   "height": 44,
+   "name": "Bullet 3",
+   "props": {
+    "fill": "#3D3A8C"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 833,
+   "text": "3",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#FFFFFF",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 44,
+   "name": "Index"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 820,
+   "text": "Nothing to keep up with",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 34,
+    "fill": "#1C1B29",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Feature"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 200,
+   "y": 870,
+   "text": "No streaks, no guilt. One gentle reminder at the time you choose.",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "lineHeight": "140%"
+   },
+   "width": 760,
+   "name": "Detail"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "04 Traction",
+   "x": 6120,
+   "y": 0,
+   "width": 1920,
+   "height": 1080,
+   "props": {
+    "fill": "#F5F2EC",
+    "clip": true
+   }
+  },
+  "as": "sl4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 140,
+   "text": "TRACTION",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight",
+    "letterSpacing": "12%"
+   },
+   "name": "Kicker"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 190,
+   "text": "Growing on word of mouth alone.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 88,
+    "fill": "#1C1B29",
+    "textAutoResize": "height"
+   },
+   "width": 1500,
+   "name": "Headline"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 380,
+   "text": "48k",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 96,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 492,
+   "text": "monthly active users",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 560,
+   "text": "31%",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 96,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 672,
+   "text": "still active on day 30",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 740,
+   "text": "$4.20",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 96,
+    "fill": "#3D3A8C",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 852,
+   "text": "revenue per paying user / mo",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 760,
+   "y": 380,
+   "width": 1040,
+   "height": 540,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 32
+   },
+   "name": "Chart card"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 820,
+   "y": 420,
+   "text": "Monthly active users (thousands)",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 24,
+    "fill": "#1C1B29",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Chart title"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 830,
+   "y": 816.8,
+   "width": 72,
+   "height": 43.2,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 1"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 830,
+   "y": 786.8,
+   "text": "6",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 830,
+   "y": 872,
+   "text": "Apr",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 948,
+   "y": 795.2,
+   "width": 72,
+   "height": 64.8,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 2"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 948,
+   "y": 765.2,
+   "text": "9",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 948,
+   "y": 872,
+   "text": "May",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1066,
+   "y": 766.4,
+   "width": 72,
+   "height": 93.60000000000001,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 3"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1066,
+   "y": 736.4,
+   "text": "13",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1066,
+   "y": 872,
+   "text": "Jun",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1184,
+   "y": 730.4,
+   "width": 72,
+   "height": 129.6,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 4"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1184,
+   "y": 700.4,
+   "text": "18",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1184,
+   "y": 872,
+   "text": "Jul",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1302,
+   "y": 687.2,
+   "width": 72,
+   "height": 172.8,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 5"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1302,
+   "y": 657.2,
+   "text": "24",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1302,
+   "y": 872,
+   "text": "Aug",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1420,
+   "y": 636.8,
+   "width": 72,
+   "height": 223.20000000000002,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 6"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1420,
+   "y": 606.8,
+   "text": "31",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1420,
+   "y": 872,
+   "text": "Sep",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1538,
+   "y": 579.2,
+   "width": 72,
+   "height": 280.8,
+   "props": {
+    "fill": "#C9C3EC",
+    "cornerRadius": 12
+   },
+   "name": "Bar 7"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1538,
+   "y": 549.2,
+   "text": "39",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1538,
+   "y": 872,
+   "text": "Oct",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1656,
+   "y": 514.4,
+   "width": 72,
+   "height": 345.6,
+   "props": {
+    "fill": "#3D3A8C",
+    "cornerRadius": 12
+   },
+   "name": "Bar 8"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1656,
+   "y": 484.4,
+   "text": "48",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#3D3A8C",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Value"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1656,
+   "y": 872,
+   "text": "Nov",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 18,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "center"
+   },
+   "width": 72,
+   "name": "Month"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "05 The ask",
+   "x": 8160,
+   "y": 0,
+   "width": 1920,
+   "height": 1080,
+   "props": {
+    "fill": "#16152A",
+    "clip": true
+   }
+  },
+  "as": "sl5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 140,
+   "text": "THE ASK",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight",
+    "letterSpacing": "12%"
+   },
+   "name": "Kicker"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 190,
+   "text": "Raising $2.5M to reach one million calm minutes a day.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 88,
+    "fill": "#F5F2EC",
+    "textAutoResize": "height",
+    "lineHeight": "104%"
+   },
+   "width": 1200,
+   "name": "Headline"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 560,
+   "text": "Product & content",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Use"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 1700,
+   "y": 560,
+   "text": "45%",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 100,
+   "name": "Share"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 612,
+   "width": 1680,
+   "height": 14,
+   "props": {
+    "fill": "#2C2A48",
+    "cornerRadius": 7
+   },
+   "name": "Track"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 612,
+   "width": 756.0,
+   "height": 14,
+   "props": {
+    "fill": "#8B7CF6",
+    "cornerRadius": 7
+   },
+   "name": "Fill"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 680,
+   "text": "Growth",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Use"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 1700,
+   "y": 680,
+   "text": "35%",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 100,
+   "name": "Share"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 732,
+   "width": 1680,
+   "height": 14,
+   "props": {
+    "fill": "#2C2A48",
+    "cornerRadius": 7
+   },
+   "name": "Track"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 732,
+   "width": 588.0,
+   "height": 14,
+   "props": {
+    "fill": "#F2A6C0",
+    "cornerRadius": 7
+   },
+   "name": "Fill"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 800,
+   "text": "Operations",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Use"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 1700,
+   "y": 800,
+   "text": "20%",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "fontSize": 28,
+    "fill": "#F5F2EC",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 100,
+   "name": "Share"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 852,
+   "width": 1680,
+   "height": 14,
+   "props": {
+    "fill": "#2C2A48",
+    "cornerRadius": 7
+   },
+   "name": "Track"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 852,
+   "width": 336.0,
+   "height": 14,
+   "props": {
+    "fill": "#5E5AB8",
+    "cornerRadius": 7
+   },
+   "name": "Fill"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 920,
+   "text": "hello@calmly.example  ·  calmly.example/deck",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 24,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Contact"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 120,
+   "y": 990,
+   "text": "Calmly  ·  Seed round 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Footer"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl1"
+   },
+   "x": 1680,
+   "y": 990,
+   "text": "01 / 05",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 120,
+   "name": "Page number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 120,
+   "y": 990,
+   "text": "Calmly  ·  Seed round 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Footer"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl2"
+   },
+   "x": 1680,
+   "y": 990,
+   "text": "02 / 05",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 120,
+   "name": "Page number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 120,
+   "y": 990,
+   "text": "Calmly  ·  Seed round 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Footer"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl3"
+   },
+   "x": 1680,
+   "y": 990,
+   "text": "03 / 05",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 120,
+   "name": "Page number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 120,
+   "y": 990,
+   "text": "Calmly  ·  Seed round 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Footer"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl4"
+   },
+   "x": 1680,
+   "y": 990,
+   "text": "04 / 05",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#6B6878",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 120,
+   "name": "Page number"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 120,
+   "y": 990,
+   "text": "Calmly  ·  Seed round 2026",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "Footer"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sl5"
+   },
+   "x": 1680,
+   "y": 990,
+   "text": "05 / 05",
+   "props": {
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "fontSize": 20,
+    "fill": "#B9B4D6",
+    "textAutoResize": "height",
+    "textAlign": "right"
+   },
+   "width": 120,
+   "name": "Page number"
+  }
+ },
+ {
+  "command": "file.exportFramesPdf",
+  "params": {
+   "path": "{{out}}/calmly-deck.pdf"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl1"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/slide-01.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl2"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/slide-02.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl3"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/slide-03.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl4"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/slide-04.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl5"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/slide-05.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sl1"
+    },
+    {
+     "$ref": "sl2"
+    },
+    {
+     "$ref": "sl3"
+    },
+    {
+     "$ref": "sl4"
+    },
+    {
+     "$ref": "sl5"
+    }
+   ],
+   "format": "pdf",
+   "path": "{{out}}/calmly-deck-via-export.pdf"
+  }
+ }
+]

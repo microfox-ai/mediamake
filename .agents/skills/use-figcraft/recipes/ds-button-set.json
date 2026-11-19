@@ -1,0 +1,5130 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:JetBrainsMono-400.ttf}}"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Indigo/50",
+   "value": "#EEF2FF"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Indigo/100",
+   "value": "#E0E7FF"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Indigo/500",
+   "value": "#6366F1"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Indigo/600",
+   "value": "#4F46E5"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Indigo/700",
+   "value": "#4338CA"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/50",
+   "value": "#F8FAFC"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/100",
+   "value": "#F1F5F9"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/200",
+   "value": "#E2E8F0"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/300",
+   "value": "#CBD5E1"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/400",
+   "value": "#94A3B8"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/500",
+   "value": "#64748B"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/700",
+   "value": "#334155"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "Slate/900",
+   "value": "#0F172A"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "paint",
+   "name": "White",
+   "value": "#FFFFFF"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Button/sm",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "lineHeight": "16px"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Button/md",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "lineHeight": "20px"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Focus/hover lift",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#4F46E559",
+     "offset": [
+      0,
+      4
+     ],
+     "radius": 12
+    }
+   ]
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Card/sm",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#0F172A0F",
+     "offset": [
+      0,
+      1
+     ],
+     "radius": 3
+    }
+   ]
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 1600,
+   "name": "Button — Lumen UI",
+   "props": {
+    "fill": "#F8FAFC",
+    "layout": "vertical",
+    "gap": 48,
+    "padding": [
+     72,
+     80,
+     80,
+     80
+    ],
+    "sizingV": "hug"
+   }
+  },
+  "as": "page"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Header",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "hdr"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "hdr"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "LUMEN UI  ·  COMPONENTS  ·  v1.2",
+   "name": "LUMEN UI  ·  COMPONENTS ",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "letterSpacing": "8%",
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "hdr"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Button",
+   "name": "Button",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 56,
+    "letterSpacing": "-2%",
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "hdr"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Buttons start an action. One component set holds every look: Variant (Primary, Secondary, Ghost) × State (Default, Hover, Disabled) × Size (sm, md). Label and Show icon are component properties, so instances never detach.",
+   "name": "Buttons start an action.",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 17,
+    "lineHeight": "150%",
+    "fill": "#64748B",
+    "textAutoResize": "height"
+   },
+   "width": 760
+  },
+  "as": "t3"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Variants",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 16,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "secV"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "secV"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Variants",
+   "name": "Variants",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 24,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t4"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 392,
+   "name": "Matrix",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "effectStyle": "Card/sm",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "secV"
+   }
+  },
+  "as": "matrix"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 20,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Primary, State=Default, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/600"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Default_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Default_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "White",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Default_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Default_sm"
+   }
+  },
+  "as": "b_Primary_Default_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Default_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "White",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Default_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Default_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 24,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Primary, State=Hover, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/700",
+    "effectStyle": "Focus/hover lift"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Hover_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Hover_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "White",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Hover_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Hover_sm"
+   }
+  },
+  "as": "b_Primary_Hover_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Hover_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "White",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Hover_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Hover_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 28,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Primary, State=Disabled, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Slate/200"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Disabled_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Disabled_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Slate/400",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Disabled_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Disabled_sm"
+   }
+  },
+  "as": "b_Primary_Disabled_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Disabled_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/400",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Disabled_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Disabled_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 32,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Primary, State=Default, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/600"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Default_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Default_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "White",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Default_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Default_md"
+   }
+  },
+  "as": "b_Primary_Default_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Default_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "White",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Default_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 36,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Primary, State=Hover, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/700",
+    "effectStyle": "Focus/hover lift"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Hover_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Hover_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "White",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Hover_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Hover_md"
+   }
+  },
+  "as": "b_Primary_Hover_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Hover_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "White",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Hover_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 40,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Primary, State=Disabled, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Slate/200"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Primary_Disabled_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Primary_Disabled_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Slate/400",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Primary_Disabled_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Primary_Disabled_md"
+   }
+  },
+  "as": "b_Primary_Disabled_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Primary_Disabled_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/400",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Primary_Disabled_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 44,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Secondary, State=Default, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "White",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Default_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Default_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Slate/900",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Default_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Default_sm"
+   }
+  },
+  "as": "b_Secondary_Default_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Default_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/900",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Default_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Default_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 48,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Secondary, State=Hover, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Slate/50",
+    "strokeStyle": "Slate/400",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Hover_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Hover_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Slate/900",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Hover_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Hover_sm"
+   }
+  },
+  "as": "b_Secondary_Hover_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Hover_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/900",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Hover_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Hover_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 52,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Secondary, State=Disabled, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "White",
+    "strokeStyle": "Slate/200",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Disabled_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Disabled_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Slate/300",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Disabled_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Disabled_sm"
+   }
+  },
+  "as": "b_Secondary_Disabled_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Disabled_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Disabled_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Disabled_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 56,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Secondary, State=Default, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "White",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Default_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Default_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Slate/900",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Default_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Default_md"
+   }
+  },
+  "as": "b_Secondary_Default_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Default_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/900",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Default_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 60,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Secondary, State=Hover, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Slate/50",
+    "strokeStyle": "Slate/400",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Hover_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Hover_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Slate/900",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Hover_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Hover_md"
+   }
+  },
+  "as": "b_Secondary_Hover_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Hover_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/900",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Hover_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 64,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Secondary, State=Disabled, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "White",
+    "strokeStyle": "Slate/200",
+    "strokeWeight": 1,
+    "strokeAlign": "inside"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Secondary_Disabled_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Secondary_Disabled_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Slate/300",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Secondary_Disabled_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Secondary_Disabled_md"
+   }
+  },
+  "as": "b_Secondary_Disabled_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Secondary_Disabled_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Secondary_Disabled_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 68,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Ghost, State=Default, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Default_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Default_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Indigo/600",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Default_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Default_sm"
+   }
+  },
+  "as": "b_Ghost_Default_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Default_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Indigo/600",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Default_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Default_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 72,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Ghost, State=Hover, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/50"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Hover_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Hover_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Indigo/700",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Hover_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Hover_sm"
+   }
+  },
+  "as": "b_Ghost_Hover_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Hover_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Indigo/700",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Hover_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Hover_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 76,
+   "y": 20,
+   "width": 100,
+   "height": 32,
+   "name": "Variant=Ghost, State=Disabled, Size=sm",
+   "props": {
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "gap": 6,
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Disabled_sm"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Disabled_sm"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/sm",
+    "fillStyle": "Slate/300",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Disabled_sm_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 14,
+   "height": 14,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Disabled_sm"
+   }
+  },
+  "as": "b_Ghost_Disabled_sm_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Disabled_sm_i"
+   },
+   "x": 2.19,
+   "y": 2.62,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Disabled_sm_v"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Disabled_sm_v"
+    }
+   ],
+   "props": {
+    "width": 9.62,
+    "height": 7.0
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 80,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Ghost, State=Default, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Default_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Default_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Indigo/600",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Default_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Default_md"
+   }
+  },
+  "as": "b_Ghost_Default_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Default_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Indigo/600",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Default_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 84,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Ghost, State=Hover, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fillStyle": "Indigo/50"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Hover_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Hover_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Indigo/700",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Hover_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Hover_md"
+   }
+  },
+  "as": "b_Ghost_Hover_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Hover_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Indigo/700",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Hover_md_v"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 88,
+   "y": 20,
+   "width": 100,
+   "height": 40,
+   "name": "Variant=Ghost, State=Disabled, Size=md",
+   "props": {
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "clip": false,
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "b_Ghost_Disabled_md"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "b_Ghost_Disabled_md"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Continue",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fillStyle": "Slate/300",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "b_Ghost_Disabled_md_l"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 16,
+   "height": 16,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "b_Ghost_Disabled_md"
+   }
+  },
+  "as": "b_Ghost_Disabled_md_i"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "b_Ghost_Disabled_md_i"
+   },
+   "x": 2.5,
+   "y": 3.0,
+   "path": "M0 5H11M7 1L11 5L7 9",
+   "name": "Arrow",
+   "props": {
+    "fill": "none",
+    "strokeStyle": "Slate/300",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "b_Ghost_Disabled_md_v"
+ },
+ {
+  "command": "component.createMultiple",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Default_sm"
+    },
+    {
+     "$ref": "b_Primary_Hover_sm"
+    },
+    {
+     "$ref": "b_Primary_Disabled_sm"
+    },
+    {
+     "$ref": "b_Primary_Default_md"
+    },
+    {
+     "$ref": "b_Primary_Hover_md"
+    },
+    {
+     "$ref": "b_Primary_Disabled_md"
+    },
+    {
+     "$ref": "b_Secondary_Default_sm"
+    },
+    {
+     "$ref": "b_Secondary_Hover_sm"
+    },
+    {
+     "$ref": "b_Secondary_Disabled_sm"
+    },
+    {
+     "$ref": "b_Secondary_Default_md"
+    },
+    {
+     "$ref": "b_Secondary_Hover_md"
+    },
+    {
+     "$ref": "b_Secondary_Disabled_md"
+    },
+    {
+     "$ref": "b_Ghost_Default_sm"
+    },
+    {
+     "$ref": "b_Ghost_Hover_sm"
+    },
+    {
+     "$ref": "b_Ghost_Disabled_sm"
+    },
+    {
+     "$ref": "b_Ghost_Default_md"
+    },
+    {
+     "$ref": "b_Ghost_Hover_md"
+    },
+    {
+     "$ref": "b_Ghost_Disabled_md"
+    }
+   ]
+  }
+ },
+ {
+  "command": "component.combineVariants",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Default_sm"
+    },
+    {
+     "$ref": "b_Primary_Hover_sm"
+    },
+    {
+     "$ref": "b_Primary_Disabled_sm"
+    },
+    {
+     "$ref": "b_Primary_Default_md"
+    },
+    {
+     "$ref": "b_Primary_Hover_md"
+    },
+    {
+     "$ref": "b_Primary_Disabled_md"
+    },
+    {
+     "$ref": "b_Secondary_Default_sm"
+    },
+    {
+     "$ref": "b_Secondary_Hover_sm"
+    },
+    {
+     "$ref": "b_Secondary_Disabled_sm"
+    },
+    {
+     "$ref": "b_Secondary_Default_md"
+    },
+    {
+     "$ref": "b_Secondary_Hover_md"
+    },
+    {
+     "$ref": "b_Secondary_Disabled_md"
+    },
+    {
+     "$ref": "b_Ghost_Default_sm"
+    },
+    {
+     "$ref": "b_Ghost_Hover_sm"
+    },
+    {
+     "$ref": "b_Ghost_Disabled_sm"
+    },
+    {
+     "$ref": "b_Ghost_Default_md"
+    },
+    {
+     "$ref": "b_Ghost_Hover_md"
+    },
+    {
+     "$ref": "b_Ghost_Disabled_md"
+    }
+   ]
+  },
+  "as": "set"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "set"
+    }
+   ],
+   "props": {
+    "name": "Button",
+    "x": 208,
+    "y": 96,
+    "layout": "grid",
+    "gridColumns": 6,
+    "gridRows": 3,
+    "columnTracks": [
+     164,
+     164,
+     164,
+     164,
+     164,
+     164
+    ],
+    "rowTracks": [
+     76,
+     76,
+     76
+    ],
+    "gap": 0,
+    "crossGap": 0,
+    "padding": 20,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "#FFFFFF",
+    "cornerRadius": 12
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Default_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Hover_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Disabled_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Default_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Hover_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Primary_Disabled_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Default_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Hover_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Disabled_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Default_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Hover_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Secondary_Disabled_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Default_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Hover_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Disabled_sm"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Default_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Hover_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "b_Ghost_Disabled_md"
+    }
+   ],
+   "props": {
+    "gridAlignH": "center",
+    "gridAlignV": "center"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "b_Primary_Default_sm_l"
+   },
+   "name": "Label",
+   "type": "text"
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "b_Primary_Default_sm_i"
+   },
+   "name": "Show icon",
+   "type": "boolean",
+   "default": true
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Hover_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Disabled_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Default_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Hover_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Disabled_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Default_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Hover_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Disabled_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Default_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Hover_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Disabled_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Default_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Hover_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Disabled_sm_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Default_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Hover_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Disabled_md_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Hover_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Disabled_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Default_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Hover_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Primary_Disabled_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Default_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Hover_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Disabled_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Default_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Hover_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Secondary_Disabled_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Default_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Hover_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Disabled_sm_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Default_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Hover_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "b_Ghost_Disabled_md_i"
+   },
+   "property": "Show icon",
+   "field": "visible"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 240,
+   "y": 28,
+   "text": "Small · 32",
+   "name": "Small · 32",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 240,
+   "y": 52,
+   "width": 468,
+   "height": 1,
+   "name": "Rule",
+   "props": {
+    "fill": "#E2E8F0"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "r6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 240,
+   "y": 64,
+   "text": "DEFAULT",
+   "name": "DEFAULT",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t7"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 404,
+   "y": 64,
+   "text": "HOVER",
+   "name": "HOVER",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t8"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 568,
+   "y": 64,
+   "text": "DISABLED",
+   "name": "DISABLED",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t9"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 732,
+   "y": 28,
+   "text": "Medium · 40",
+   "name": "Medium · 40",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t10"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 732,
+   "y": 52,
+   "width": 468,
+   "height": 1,
+   "name": "Rule",
+   "props": {
+    "fill": "#E2E8F0"
+   },
+   "parent": {
+    "$ref": "matrix"
+   }
+  },
+  "as": "r11"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 732,
+   "y": 64,
+   "text": "DEFAULT",
+   "name": "DEFAULT",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t12"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 896,
+   "y": 64,
+   "text": "HOVER",
+   "name": "HOVER",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 1060,
+   "y": 64,
+   "text": "DISABLED",
+   "name": "DISABLED",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "6%",
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 134,
+   "text": "Primary",
+   "name": "Primary",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t15"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 156,
+   "text": "The main action",
+   "name": "The main action",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#64748B",
+    "textAutoResize": "height"
+   },
+   "width": 160
+  },
+  "as": "t16"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 210,
+   "text": "Secondary",
+   "name": "Secondary",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t17"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 232,
+   "text": "Alternatives, cancel",
+   "name": "Alternatives, cancel",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#64748B",
+    "textAutoResize": "height"
+   },
+   "width": 160
+  },
+  "as": "t18"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 286,
+   "text": "Ghost",
+   "name": "Ghost",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t19"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "matrix"
+   },
+   "x": 32,
+   "y": 308,
+   "text": "Toolbars, low emphasis",
+   "name": "Toolbars, low emphasis",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#64748B",
+    "textAutoResize": "height"
+   },
+   "width": 160
+  },
+  "as": "t20"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Specs row",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "specs"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 10,
+   "name": "Properties",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     24,
+     24,
+     16,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "effectStyle": "Card/sm"
+   },
+   "parent": {
+    "$ref": "specs"
+   }
+  },
+  "as": "cProps"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "cProps"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Properties",
+   "name": "Properties",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 18,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t21"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 12,
+   "name": "Spacer",
+   "props": {
+    "fill": "none",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f22"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Variant",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f23"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f23"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Variant",
+   "name": "Variant",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t24"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f23"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Primary · Secondary · Ghost",
+   "name": "Primary · Secondary · Gh",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t25"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "State",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f26"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f26"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "State",
+   "name": "State",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t27"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f26"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Default · Hover · Disabled",
+   "name": "Default · Hover · Disabl",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t28"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Size",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f29"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Size",
+   "name": "Size",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t30"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "sm · md",
+   "name": "sm · md",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t31"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Label",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f32"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Label",
+   "name": "Label",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t33"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text  \"Continue\"",
+   "name": "text  \"Continue\"",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t34"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Show icon",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cProps"
+   }
+  },
+  "as": "f35"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f35"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Show icon",
+   "name": "Show icon",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t36"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f35"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "boolean  true",
+   "name": "boolean  true",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t37"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 10,
+   "name": "Sizes",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     24,
+     24,
+     16,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "effectStyle": "Card/sm"
+   },
+   "parent": {
+    "$ref": "specs"
+   }
+  },
+  "as": "cSizes"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "cSizes"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Sizes",
+   "name": "Sizes",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 18,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t38"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 12,
+   "name": "Spacer",
+   "props": {
+    "fill": "none",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f39"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Height",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f40"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f40"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Height",
+   "name": "Height",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t41"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f40"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "32 / 40",
+   "name": "32 / 40",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t42"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Padding x",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f43"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f43"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Padding x",
+   "name": "Padding x",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t44"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f43"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "12 / 16",
+   "name": "12 / 16",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t45"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Radius",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f46"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f46"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Radius",
+   "name": "Radius",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t47"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f46"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "8 / 10",
+   "name": "8 / 10",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t48"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Gap",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f49"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f49"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Gap",
+   "name": "Gap",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t50"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f49"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "6 / 8",
+   "name": "6 / 8",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t51"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Type",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cSizes"
+   }
+  },
+  "as": "f52"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f52"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Type",
+   "name": "Type",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t53"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f52"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "13 / 15 SemiBold",
+   "name": "13 / 15 SemiBold",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t54"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 10,
+   "name": "Tokens",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     24,
+     24,
+     16,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "effectStyle": "Card/sm"
+   },
+   "parent": {
+    "$ref": "specs"
+   }
+  },
+  "as": "cTok"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "cTok"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Tokens",
+   "name": "Tokens",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 18,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t55"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 12,
+   "name": "Spacer",
+   "props": {
+    "fill": "none",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f56"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Fill",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f57"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f57"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Fill",
+   "name": "Fill",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t58"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f57"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Indigo/600 → 700",
+   "name": "Indigo/600 → 700",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t59"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Border",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f60"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f60"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Border",
+   "name": "Border",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t61"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f60"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Slate/300",
+   "name": "Slate/300",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t62"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Disabled",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f63"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f63"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Disabled",
+   "name": "Disabled",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t64"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f63"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Slate/200 + 400",
+   "name": "Slate/200 + 400",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t65"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Hover lift",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f66"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f66"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Hover lift",
+   "name": "Hover lift",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t67"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f66"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Focus/hover lift",
+   "name": "Focus/hover lift",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t68"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 40,
+   "name": "Text",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "cTok"
+   }
+  },
+  "as": "f69"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f69"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Text",
+   "name": "Text",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t70"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f69"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Button/sm · Button/md",
+   "name": "Button/sm · Button/md",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t71"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "In use",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 16,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "use"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "use"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "In use",
+   "name": "In use",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 24,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t72"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 184,
+   "name": "Examples",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 24,
+    "sizingH": "fill",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "use"
+   }
+  },
+  "as": "ur"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 420,
+   "height": 10,
+   "name": "Dialog",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 8,
+    "padding": 24,
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "effectStyle": "Card/sm"
+   },
+   "parent": {
+    "$ref": "ur"
+   }
+  },
+  "as": "dlg"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "dlg"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Delete project?",
+   "name": "Delete project?",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 18,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t73"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "dlg"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "“Aurora” and its 24 files will be removed for everyone. This can’t be undone.",
+   "name": "“Aurora” and its 24 file",
+   "props": {
+    "sizingH": "fill",
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "lineHeight": "150%",
+    "fill": "#64748B",
+    "textAutoResize": "height"
+   },
+   "width": 360
+  },
+  "as": "t74"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 360,
+   "height": 10,
+   "name": "Footer",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "mainAlign": "max",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     16,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "dlg"
+   }
+  },
+  "as": "foot"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "foot"
+   }
+  },
+  "as": "u1"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "u1"
+    }
+   ],
+   "properties": {
+    "Variant": "Secondary",
+    "Size": "md",
+    "Label": "Cancel",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "foot"
+   }
+  },
+  "as": "u2"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "u2"
+    }
+   ],
+   "properties": {
+    "Variant": "Primary",
+    "Size": "md",
+    "Label": "Delete project",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "u2"
+    }
+   ],
+   "props": {
+    "fill": "#DC2626"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 420,
+   "height": 10,
+   "name": "Toolbar",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 16,
+    "padding": 24,
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "effectStyle": "Card/sm"
+   },
+   "parent": {
+    "$ref": "ur"
+   }
+  },
+  "as": "tb"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "tb"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Toolbar",
+   "name": "Toolbar",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 18,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t75"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 360,
+   "height": 10,
+   "name": "Bar",
+   "props": {
+    "fill": "#F8FAFC",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 4,
+    "padding": 6,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "tb"
+   }
+  },
+  "as": "bar"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "bar"
+   }
+  },
+  "as": "tb0"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "tb0"
+    }
+   ],
+   "properties": {
+    "Variant": "Ghost",
+    "Size": "sm",
+    "State": "Default",
+    "Label": "Share",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "bar"
+   }
+  },
+  "as": "tb1"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "tb1"
+    }
+   ],
+   "properties": {
+    "Variant": "Ghost",
+    "Size": "sm",
+    "State": "Hover",
+    "Label": "Duplicate",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "bar"
+   }
+  },
+  "as": "tb2"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "tb2"
+    }
+   ],
+   "properties": {
+    "Variant": "Ghost",
+    "Size": "sm",
+    "State": "Default",
+    "Label": "Archive",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "bar"
+   }
+  },
+  "as": "tb3"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "tb3"
+    }
+   ],
+   "properties": {
+    "Variant": "Ghost",
+    "Size": "sm",
+    "State": "Disabled",
+    "Label": "Export",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "tb"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Ghost · sm, one instance per action; Export shows State=Disabled.",
+   "name": "Ghost · sm, one instance",
+   "props": {
+    "sizingH": "fill",
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#94A3B8",
+    "textAutoResize": "height"
+   },
+   "width": 360
+  },
+  "as": "t76"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 420,
+   "height": 10,
+   "name": "Hero",
+   "props": {
+    "fill": "#0F172A",
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 12,
+    "padding": 28,
+    "sizingH": "fill",
+    "sizingV": "fill"
+   },
+   "parent": {
+    "$ref": "ur"
+   }
+  },
+  "as": "hero"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "hero"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Ship your design system",
+   "name": "Ship your design system",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 22,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t77"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "hero"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Tokens, components and docs in one file.",
+   "name": "Tokens, components and d",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t78"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 360,
+   "height": 10,
+   "name": "Actions",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 10,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     8,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "hero"
+   }
+  },
+  "as": "hb"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "hb"
+   }
+  },
+  "as": "h1"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "h1"
+    }
+   ],
+   "properties": {
+    "Variant": "Primary",
+    "Size": "md",
+    "State": "Hover",
+    "Label": "Get started"
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "set"
+   },
+   "parent": {
+    "$ref": "hb"
+   }
+  },
+  "as": "h2"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "h2"
+    }
+   ],
+   "properties": {
+    "Variant": "Ghost",
+    "Size": "md",
+    "Label": "Read the docs",
+    "Show icon": false
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "h2"
+   },
+   "name": "Label",
+   "type": "TEXT"
+  },
+  "as": "h2l"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "h2l",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#C7D2FE"
+   }
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "page"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-buttons.png"
+  }
+ }
+]

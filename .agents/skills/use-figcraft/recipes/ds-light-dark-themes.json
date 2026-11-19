@@ -1,0 +1,3048 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:JetBrainsMono-400.ttf}}"
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Theme",
+   "modes": [
+    "Light",
+    "Dark"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "stage",
+   "type": "color",
+   "values": {
+    "Light": "#E8EBF1",
+    "Dark": "#04060B"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "bg",
+   "type": "color",
+   "values": {
+    "Light": "#F5F6F8",
+    "Dark": "#0B0F17"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "surface",
+   "type": "color",
+   "values": {
+    "Light": "#FFFFFF",
+    "Dark": "#141B27"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "surface-2",
+   "type": "color",
+   "values": {
+    "Light": "#EEF0F4",
+    "Dark": "#1B2433"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "text",
+   "type": "color",
+   "values": {
+    "Light": "#0B1020",
+    "Dark": "#F3F4F6"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "text-muted",
+   "type": "color",
+   "values": {
+    "Light": "#6B7280",
+    "Dark": "#94A3B8"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "border",
+   "type": "color",
+   "values": {
+    "Light": "#E5E7EB",
+    "Dark": "#232D3D"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "brand",
+   "type": "color",
+   "values": {
+    "Light": "#059669",
+    "Dark": "#34D399"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "brand-soft",
+   "type": "color",
+   "values": {
+    "Light": "#D1FAE5",
+    "Dark": "#0B3B2E"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "on-brand",
+   "type": "color",
+   "values": {
+    "Light": "#FFFFFF",
+    "Dark": "#04261C"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "ring-track",
+   "type": "color",
+   "values": {
+    "Light": "#E5E7EB",
+    "Dark": "#222C3B"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/amber",
+   "type": "color",
+   "values": {
+    "Light": "#FEF3C7",
+    "Dark": "#3A2A06"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/amber-ink",
+   "type": "color",
+   "values": {
+    "Light": "#B45309",
+    "Dark": "#FCD34D"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/indigo",
+   "type": "color",
+   "values": {
+    "Light": "#E0E7FF",
+    "Dark": "#1E1B4B"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/indigo-ink",
+   "type": "color",
+   "values": {
+    "Light": "#4338CA",
+    "Dark": "#A5B4FC"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/rose",
+   "type": "color",
+   "values": {
+    "Light": "#FFE4E6",
+    "Dark": "#3F0A16"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/rose-ink",
+   "type": "color",
+   "values": {
+    "Light": "#E11D48",
+    "Dark": "#FDA4AF"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/sky",
+   "type": "color",
+   "values": {
+    "Light": "#E0F2FE",
+    "Dark": "#082F49"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "tile/sky-ink",
+   "type": "color",
+   "values": {
+    "Light": "#0369A1",
+    "Dark": "#7DD3FC"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "greeting",
+   "type": "string",
+   "values": {
+    "Light": "Good morning, Maya",
+    "Dark": "Good evening, Maya"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "mode-label",
+   "type": "string",
+   "values": {
+    "Light": "Light",
+    "Dark": "Dark"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 1120,
+   "name": "Light and Dark — Pulse",
+   "props": {
+    "fill": "#FFFFFF",
+    "layout": "vertical",
+    "gap": 0,
+    "sizingV": "hug"
+   }
+  },
+  "as": "board"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 10,
+   "name": "Title bar",
+   "props": {
+    "fill": "#FFFFFF",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "max",
+    "padding": [
+     48,
+     72,
+     36,
+     72
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "board"
+   }
+  },
+  "as": "f1"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 800,
+   "height": 10,
+   "name": "Title",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f1"
+   }
+  },
+  "as": "f2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "PULSE  ·  THEMING",
+   "name": "PULSE  ·  THEMING",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "letterSpacing": "10%",
+    "fill": "#059669",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "One screen, two modes",
+   "name": "One screen, two modes",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 44,
+    "letterSpacing": "-2%",
+    "fill": "#0B1020",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Both phones are the same layers bound to 19 colour variables and a string. The right stage is a duplicate with its Theme mode set to Dark — no layer was recoloured by hand.",
+   "name": "Both phones are the same",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 16,
+    "lineHeight": "150%",
+    "fill": "#6B7280",
+    "textAutoResize": "height"
+   },
+   "width": 720
+  },
+  "as": "t5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "variable.setMode {collection:\"Theme\", mode:\"Dark\"}",
+   "name": "variable.setMode {collec",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#6B7280",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t6"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 10,
+   "name": "Stages",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 0,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "board"
+   }
+  },
+  "as": "row"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 720,
+   "height": 10,
+   "name": "Stage",
+   "props": {
+    "fill": {
+     "$var": "stage"
+    },
+    "layout": "vertical",
+    "gap": 28,
+    "mainAlign": "min",
+    "crossAlign": "center",
+    "padding": [
+     56,
+     0,
+     64,
+     0
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "row"
+   }
+  },
+  "as": "stage"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 300,
+   "height": 10,
+   "name": "Caption",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "stage"
+   }
+  },
+  "as": "f7"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 10,
+   "name": "Dot",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    }
+   },
+   "parent": {
+    "$ref": "f7"
+   }
+  },
+  "as": "r8"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f7"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Light",
+   "name": "Mode",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "modeLabel"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "modeLabel"
+    }
+   ],
+   "field": "characters",
+   "variable": "mode-label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f7"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "mode",
+   "name": "mode",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t9"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 390,
+   "height": 844,
+   "name": "Phone",
+   "props": {
+    "fill": {
+     "$var": "bg"
+    },
+    "cornerRadius": 48,
+    "clip": true,
+    "layout": "vertical",
+    "gap": 0,
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0B102024",
+      "offset": [
+       0,
+       30
+      ],
+      "radius": 60
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "stage"
+   }
+  },
+  "as": "phone"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 390,
+   "height": 48,
+   "name": "Status bar",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "padding": [
+     8,
+     30,
+     0,
+     34
+    ],
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "phone"
+   }
+  },
+  "as": "f10"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f10"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "9:41",
+   "name": "9:41",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t11"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 12,
+   "name": "Icons",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "sizingH": "hug"
+   },
+   "parent": {
+    "$ref": "f10"
+   }
+  },
+  "as": "f12"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 3,
+   "height": 4,
+   "name": "Bar0",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "r13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 3,
+   "height": 6,
+   "name": "Bar1",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "r14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 3,
+   "height": 8,
+   "name": "Bar2",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "r15"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 3,
+   "height": 10,
+   "name": "Bar3",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "r16"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 24,
+   "height": 12,
+   "name": "Battery",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 3,
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f12"
+   }
+  },
+  "as": "f17"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 2,
+   "y": 2,
+   "width": 17,
+   "height": 8,
+   "name": "Level",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1.5
+   },
+   "parent": {
+    "$ref": "f17"
+   }
+  },
+  "as": "r18"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 390,
+   "height": 10,
+   "name": "Content",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 20,
+    "padding": [
+     12,
+     20,
+     0,
+     20
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "phone"
+   }
+  },
+  "as": "f19"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 350,
+   "height": 10,
+   "name": "Header",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f20"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 260,
+   "height": 10,
+   "name": "Greeting",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f20"
+   }
+  },
+  "as": "f21"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f21"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Good morning, Maya",
+   "name": "Good morning, Maya",
+   "props": {
+    "fontSize": 14,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "greet"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "greet"
+    }
+   ],
+   "field": "characters",
+   "variable": "greeting"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f21"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Today",
+   "name": "Today",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 30,
+    "letterSpacing": "-2%",
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t22"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Avatar",
+   "props": {
+    "fill": {
+     "$var": "brand-soft"
+    },
+    "cornerRadius": 20,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f20"
+   }
+  },
+  "as": "f23"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f23"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "MK",
+   "name": "MK",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t24"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 350,
+   "height": 150,
+   "name": "Progress card",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 24,
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1,
+    "layout": "horizontal",
+    "gap": 20,
+    "crossAlign": "center",
+    "padding": [
+     0,
+     22,
+     0,
+     22
+    ],
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f25"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 104,
+   "height": 104,
+   "name": "Ring",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f25"
+   }
+  },
+  "as": "f26"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 0,
+   "width": 104,
+   "height": 104,
+   "name": "Track",
+   "props": {
+    "fill": {
+     "$var": "ring-track"
+    },
+    "arcInner": 0.82
+   },
+   "parent": {
+    "$ref": "f26"
+   }
+  },
+  "as": "r27"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 0,
+   "width": 104,
+   "height": 104,
+   "name": "Progress",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "arcInner": 0.82,
+    "arcStart": -90,
+    "arcSweep": 240
+   },
+   "parent": {
+    "$ref": "f26"
+   }
+  },
+  "as": "r28"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 104,
+   "height": 104,
+   "name": "Pct",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "gap": 0
+   },
+   "parent": {
+    "$ref": "f26"
+   }
+  },
+  "as": "f29"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "67%",
+   "name": "67%",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 24,
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t30"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "done",
+   "name": "done",
+   "props": {
+    "fontSize": 11,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t31"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 180,
+   "height": 10,
+   "name": "Copy",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 6,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f25"
+   }
+  },
+  "as": "f32"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "4 of 6 habits",
+   "name": "4 of 6 habits",
+   "props": {
+    "fontSize": 18,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t33"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Two to go. You're on a 12-day streak — keep it alive.",
+   "name": "Two to go. You're on a 1",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "sizingH": "fill",
+    "lineHeight": "145%",
+    "textAutoResize": "height"
+   },
+   "width": 180
+  },
+  "as": "t34"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 24,
+   "name": "Streak",
+   "props": {
+    "fill": {
+     "$var": "brand-soft"
+    },
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "padding": [
+     4,
+     10,
+     4,
+     10
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f32"
+   }
+  },
+  "as": "f35"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f35"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "12-day streak",
+   "name": "12-day streak",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t36"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 350,
+   "height": 64,
+   "name": "Week",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f37"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 0",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f38"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f38"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "M",
+   "name": "M",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t39"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f38"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "14",
+   "name": "14",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t40"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 1",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f41"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f41"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "T",
+   "name": "T",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t42"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f41"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "15",
+   "name": "15",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t43"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 2",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f44"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f44"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "W",
+   "name": "W",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t45"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f44"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "16",
+   "name": "16",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t46"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 3",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f47"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f47"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "T",
+   "name": "T",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "on-brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t48"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f47"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "17",
+   "name": "17",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "on-brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t49"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 4",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f50"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f50"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "F",
+   "name": "F",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t51"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f50"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "18",
+   "name": "18",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t52"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 5",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f53"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f53"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "S",
+   "name": "S",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t54"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f53"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "19",
+   "name": "19",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t55"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 44,
+   "height": 64,
+   "name": "Day 6",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 16,
+    "layout": "vertical",
+    "gap": 4,
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f56"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f56"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "S",
+   "name": "S",
+   "props": {
+    "fontSize": 12,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t57"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f56"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "20",
+   "name": "20",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t58"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 350,
+   "height": 10,
+   "name": "List header",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     4,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f59"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f59"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Habits",
+   "name": "Habits",
+   "props": {
+    "fontSize": 17,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t60"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f59"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "See all",
+   "name": "See all",
+   "props": {
+    "fontSize": 14,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t61"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 350,
+   "height": 10,
+   "name": "Habit list",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "cornerRadius": 24,
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     6,
+     16,
+     6,
+     16
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f62"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 318,
+   "height": 64,
+   "name": "Morning run",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f63"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Tile",
+   "props": {
+    "fill": {
+     "$var": "tile/amber"
+    },
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f63"
+   }
+  },
+  "as": "f64"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f64"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "R",
+   "name": "R",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "tile/amber-ink"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t65"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Text",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f63"
+   }
+  },
+  "as": "f66"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f66"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Morning run",
+   "name": "Morning run",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t67"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f66"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "5 km · 07:00",
+   "name": "5 km · 07:00",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t68"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 26,
+   "height": 26,
+   "name": "Check",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "cornerRadius": 13,
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f63"
+   }
+  },
+  "as": "f69"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f69"
+   },
+   "x": 8,
+   "y": 9,
+   "path": "M0 4.5L3.5 8L10 0",
+   "name": "Tick",
+   "props": {
+    "fill": "none",
+    "stroke": {
+     "$var": "on-brand"
+    },
+    "strokeWeight": 2,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "v70"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 318,
+   "height": 64,
+   "name": "Read 20 pages",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f71"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Tile",
+   "props": {
+    "fill": {
+     "$var": "tile/indigo"
+    },
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f71"
+   }
+  },
+  "as": "f72"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f72"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "B",
+   "name": "B",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "tile/indigo-ink"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t73"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Text",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f71"
+   }
+  },
+  "as": "f74"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f74"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Read 20 pages",
+   "name": "Read 20 pages",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t75"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f74"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Atomic Habits",
+   "name": "Atomic Habits",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t76"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 26,
+   "height": 26,
+   "name": "Check",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "cornerRadius": 13,
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f71"
+   }
+  },
+  "as": "f77"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f77"
+   },
+   "x": 8,
+   "y": 9,
+   "path": "M0 4.5L3.5 8L10 0",
+   "name": "Tick",
+   "props": {
+    "fill": "none",
+    "stroke": {
+     "$var": "on-brand"
+    },
+    "strokeWeight": 2,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  },
+  "as": "v78"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 318,
+   "height": 64,
+   "name": "Drink water",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f79"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Tile",
+   "props": {
+    "fill": {
+     "$var": "tile/sky"
+    },
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f79"
+   }
+  },
+  "as": "f80"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f80"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "W",
+   "name": "W",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "tile/sky-ink"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t81"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Text",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f79"
+   }
+  },
+  "as": "f82"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f82"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Drink water",
+   "name": "Drink water",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t83"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f82"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "6 of 8 glasses",
+   "name": "6 of 8 glasses",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t84"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 26,
+   "height": 26,
+   "name": "Check",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 13,
+    "stroke": {
+     "$var": "ring-track"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f79"
+   }
+  },
+  "as": "f85"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 318,
+   "height": 64,
+   "name": "Stretch",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 14,
+    "crossAlign": "center",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "f62"
+   }
+  },
+  "as": "f86"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Tile",
+   "props": {
+    "fill": {
+     "$var": "tile/rose"
+    },
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f86"
+   }
+  },
+  "as": "f87"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f87"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "S",
+   "name": "S",
+   "props": {
+    "fontSize": 16,
+    "fontStyle": "Bold",
+    "fill": {
+     "$var": "tile/rose-ink"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t88"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Text",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f86"
+   }
+  },
+  "as": "f89"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f89"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Stretch",
+   "name": "Stretch",
+   "props": {
+    "fontSize": 15,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t90"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f89"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "10 min · evening",
+   "name": "10 min · evening",
+   "props": {
+    "fontSize": 13,
+    "fontStyle": "Regular",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t91"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 26,
+   "height": 26,
+   "name": "Check",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 13,
+    "stroke": {
+     "$var": "ring-track"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f86"
+   }
+  },
+  "as": "f92"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 390,
+   "height": 84,
+   "name": "Tab bar",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "layout": "horizontal",
+    "mainAlign": "spaceAround",
+    "crossAlign": "min",
+    "padding": [
+     12,
+     8,
+     0,
+     8
+    ],
+    "stroke": {
+     "$var": "border"
+    },
+    "strokeWeight": 1,
+    "strokeSides": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "phone"
+   }
+  },
+  "as": "tabbar"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "tabbar"
+    }
+   ],
+   "props": {
+    "absolute": true,
+    "x": 0,
+    "y": 760
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 44,
+   "name": "Today",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "crossAlign": "center",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "tabbar"
+   }
+  },
+  "as": "f93"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 22,
+   "height": 22,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 11,
+    "stroke": {
+     "$var": "brand"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f93"
+   }
+  },
+  "as": "f94"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f94"
+    }
+   ],
+   "props": {
+    "fill": {
+     "$var": "brand-soft"
+    }
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f93"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Today",
+   "name": "Today",
+   "props": {
+    "fontSize": 11,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "brand"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t95"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 44,
+   "name": "Habits",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "crossAlign": "center",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "tabbar"
+   }
+  },
+  "as": "f96"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 22,
+   "height": 22,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 6,
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f96"
+   }
+  },
+  "as": "f97"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f96"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Habits",
+   "name": "Habits",
+   "props": {
+    "fontSize": 11,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t98"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 44,
+   "name": "Stats",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "crossAlign": "center",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "tabbar"
+   }
+  },
+  "as": "f99"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 22,
+   "height": 22,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 6,
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f99"
+   }
+  },
+  "as": "f100"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f99"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Stats",
+   "name": "Stats",
+   "props": {
+    "fontSize": 11,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t101"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 44,
+   "name": "Profile",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 4,
+    "crossAlign": "center",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "tabbar"
+   }
+  },
+  "as": "f102"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 22,
+   "height": 22,
+   "name": "Icon",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 11,
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 2
+   },
+   "parent": {
+    "$ref": "f102"
+   }
+  },
+  "as": "f103"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f102"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Profile",
+   "name": "Profile",
+   "props": {
+    "fontSize": 11,
+    "fontStyle": "SemiBold",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "fontFamily": "Inter",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t104"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "width": 134,
+   "height": 5,
+   "name": "Home indicator",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 3
+   },
+   "parent": {
+    "$ref": "tabbar"
+   }
+  },
+  "as": "homeind"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "homeind"
+    }
+   ],
+   "props": {
+    "absolute": true,
+    "x": 128.0,
+    "y": 70
+   }
+  }
+ },
+ {
+  "command": "edit.duplicate",
+  "params": {
+   "ids": [
+    {
+     "$ref": "stage"
+    }
+   ]
+  },
+  "as": "dup"
+ },
+ {
+  "command": "variable.setMode",
+  "params": {
+   "ids": [
+    {
+     "$ref": "dup",
+     "field": "ids/0"
+    }
+   ],
+   "collection": "Theme",
+   "mode": "Dark"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "dup",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "name": "Stage — Dark"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "stage"
+    }
+   ],
+   "props": {
+    "name": "Stage — Light"
+   }
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "board"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-themes.png"
+  }
+ }
+]
