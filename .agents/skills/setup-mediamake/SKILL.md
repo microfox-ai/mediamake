@@ -127,7 +127,8 @@ have.
 
 1. `mm items --json`.
    - `signedIn: true`: it lists the account, its membership (`tier`) and each item it opens as
-     `installed`, `behind` or `missing`. Go to 2.
+     `installed`, `behind` or `missing`, and under `connectors` MediaMake's hosted connectors it
+     opens (mm-use for every member, mm-release for admins) as `added` or `missing`. Go to 2.
    - `signedIn: false`: **Ask** once whether they have a MediaMake account. Yes: run `mm login`
      yourself (allow it 5 minutes: it waits for the browser) and tell them a browser tab is opening
      where they sign in if asked and click **Allow**. Nothing is copied or pasted: never ask for an
@@ -138,10 +139,15 @@ have.
    is the yes. It downloads and checks each package, unpacks the MCPs into `~/.mediamake/mcp/`, adds
    them to Claude Code for every project, unzips a Chrome extension into `~/Extensions/`, and saves
    `installed.json` and the update token. A working copy that didn't come from MediaMake is kept.
+   It also adds the hosted connectors it opens (mm-use, and mm-release for an admin) to Claude Code
+   by their address (`claude mcp add --transport http --scope user`).
 3. Do what it lists under `left`, in order:
    - `needsPerson` (a new Chrome extension): **Ask** them to open `chrome://extensions`, turn on
      **Developer mode**, click **Load unpacked** and pick the folder it names. Chrome has no command
      for this; it is the only click an install needs.
+   - `needsPerson` (a hosted connector: mm-use, mm-release): **Ask** them to run `/mcp` in Claude
+     Code, pick it, sign in to MediaMake in the browser window that opens and click **Allow**. It
+     signs in with their account; no key is pasted. A new connector shows up in the next session.
    - an item's own `INSTALL.md` (Browse Hack: sign in from its popup, then its check): follow it.
    - anything else as https://github.com/microfox-ai/mediamake/blob/main/install.md says.
 4. `failed`: say what and why. Items a higher membership opens are listed by `mm items`; mention them
