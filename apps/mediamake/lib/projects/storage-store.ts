@@ -39,7 +39,7 @@ export const storageRaisesDB = {
 /**
  * The bytes stored for each project `ownerId` owns: its productions and
  * releases (a file several versions share is stored, and counted, once),
- * its project media and its brand kit's files. What is in a project's trash
+ * its project media, its brand kit's files and its Cloud Library's files. What is in a project's trash
  * isn't counted.
  */
 export async function storageUsedBy(db: Db, ownerId: string): Promise<{ total: number; byProject: Record<string, number> }> {
@@ -55,7 +55,7 @@ export async function storageUsedBy(db: Db, ownerId: string): Promise<{ total: n
   const ids = Object.keys(byProject);
   if (!ids.length) return { total: 0, byProject };
 
-  const [bundles, media] = await Promise.all([
+  const [bundles, media, library] = await Promise.all([
     Promise.all(
       Object.values(BUNDLE_COLLECTION).map(name =>
         db
@@ -68,13 +68,18 @@ export async function storageUsedBy(db: Db, ownerId: string): Promise<{ total: n
       .collection('mediaFiles')
       .aggregate<{ _id: string; bytes: number }>([{ $match: { projectId: { $in: ids }, ...LIVE } }, { $group: { _id: '$projectId', bytes: { $sum: '$fileSize' } } }])
       .toArray(),
+    // the Cloud Library's files (lib/cloud-library): each content once per space
+    db
+      .collection('library_files')
+      .aggregate<{ _id: string; bytes: number }>([{ $match: { space: { $in: ids }, state: 'stored' } }, { $group: { _id: '$space', bytes: { $sum: '$size' } } }])
+      .toArray(),
   ]);
   for (const doc of bundles.flat()) {
     const stored = new Map<string, number>();
     for (const version of doc.versions ?? []) for (const file of version.files ?? []) stored.set(file.key, Number(file.size) || 0);
     byProject[doc.projectId] = (byProject[doc.projectId] ?? 0) + [...stored.values()].reduce((a, b) => a + b, 0);
   }
-  for (const row of media) byProject[row._id] = (byProject[row._id] ?? 0) + (Number(row.bytes) || 0);
+  for (const row of [...media, ...library]) byProject[row._id] = (byProject[row._id] ?? 0) + (Number(row.bytes) || 0);
   return { total: Object.values(byProject).reduce((a, b) => a + b, 0), byProject };
 }
 

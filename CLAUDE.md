@@ -254,6 +254,26 @@ media library and reused by every production. Where it is on this machine is in
 - A channel's team shares its brand kit, skill variants, productions and media through `media sync` (a dry run, then `--yes`); files go up only after the user says so (`media share`).
 - Any project can hold shared assets (overlays and other files every team uses): `media share <id…> --project=<projectId> --yes`, and `media sync pull --project=<id> --what=media` brings a project's assets here. Teammates with only the MediaMake Spaces MCP (it was ProjectSync) use its `list_shared_assets`, `download_shared_assets` and `share_assets`.
 
+## The Cloud Library: read first, ask before saving
+
+The Cloud Library keeps what a space reuses (a channel's songs with their masters, words, release
+details and links) as collections of entries, the same on every computer and in a cloud session
+(`mm library help`, `apps/mediamake/docs/library.md`). It is open to Cohort members for now, and every
+upload, download and search is counted. The media library above stays the computer's own store.
+
+- Before filling a collection, read its guide: `mm library guide <collection>` (where each field comes
+  from, what is never guessed, the owner's preferences, the spellings its lists already use).
+- Read before fetching: `mm library search` answers with cards, `get` and `read` give fields and text
+  with no download, and only `fetch` moves a file.
+- Never save without the person's yes. `mm library save …` without `--yes` saves nothing and prints the
+  one sentence to ask ("Add the new song "…" to the Songs collection of the … space (cloud)?"): show it
+  with what would change, and add `--yes` only after they agree. The same for `new`, `trash` and `prefs`.
+- Never guess an ISRC, a release date or a link, and never a credit you were not given. Nothing in a
+  template is required: leave a field empty.
+- When a save stops on private details in a file, tell the user what was found. `--private-ok` only on
+  their word. Never a key or a password in a field or a file.
+- A song has one master, one lyrics and one transcript. Replacing one is the owner's decision.
+
 ## Transcription: the ElevenLabs MCP first
 
 Every skill gets a song's timed words the same way: ElevenLabs Scribe on the vocal stem, around
