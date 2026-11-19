@@ -344,7 +344,7 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
                 version: item.version,
                 people: item.people,
                 size: item.listing?.size,
-                ...(item.skill ? { nature: natureInfo(item.skill.nature), ...(item.skill.type && { type: typeInfo(item.skill.type) }) } : { deps: item.listing?.deps }),
+                ...(item.skill ? { nature: natureInfo(item.skill.nature), ...(item.skill.type && { type: { ...typeInfo(item.skill.type), of: item.skill.superset, ofHref: item.skill.supersetHref } }) } : { deps: item.listing?.deps }),
               }}
             >
               {notes.length > 0 && (

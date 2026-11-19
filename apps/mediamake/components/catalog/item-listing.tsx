@@ -153,7 +153,8 @@ export function AboutCard({
     people?: string;
     /** A skill's nature and type (lib/catalog/skill-profile): the word, and what it means. */
     nature?: { label: string; about: string };
-    type?: { label: string; about: string };
+    /** `of`: a subset's superset skill, and its page when it has one. */
+    type?: { label: string; about: string; of?: string; ofHref?: string };
   };
   children?: React.ReactNode;
 }) {
@@ -185,7 +186,20 @@ export function AboutCard({
         {facts.type && (
           <AboutRow icon={ShapesIcon} label="Type">
             <span title={facts.type.about}>{facts.type.label}</span>
-            <span className="text-muted-foreground"> · {facts.type.about}</span>
+            {facts.type.of ? (
+              <>
+                {' of '}
+                {facts.type.ofHref ? (
+                  <a href={facts.type.ofHref} className="font-mono text-[13px] font-medium underline-offset-4 hover:underline">
+                    {facts.type.of}
+                  </a>
+                ) : (
+                  <span className="font-mono text-[13px] font-medium">{facts.type.of}</span>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground"> · {facts.type.about}</span>
+            )}
           </AboutRow>
         )}
         {facts.ready !== undefined && (

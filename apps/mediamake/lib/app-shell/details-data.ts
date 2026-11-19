@@ -68,11 +68,13 @@ async function skillParts(viewer: { clientId: string | null }, key: string, deta
     key,
     profile,
     stated: { nature: natureOf(skill?.listing?.nature), type: typeOf(skill?.listing?.type), ...readmeProfile(markdown) },
-    suggested: suggestedType(skill),
+    suggested: suggestedType(skill, !!skill && (registry?.skills ?? []).some(other => other.variantOf === skill.name)),
+    variantOf: skill?.variantOf,
     tags: details.listing?.tags,
     ownTags: own,
   });
   const files = skill ? registrySkillFiles(skill, SKILLS_GITHUB) : code && inSpace ? spaceItemFiles(code, 'skill', inSpace.name) : null;
+  if (view.superset && skillNamed(view.superset)) view.supersetHref = `/skills/${view.superset}`;
   return {
     skill: view,
     depends,

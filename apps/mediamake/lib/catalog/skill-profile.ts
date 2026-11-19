@@ -25,8 +25,8 @@ export type SkillNature = (typeof SKILL_NATURES)[number]['id'];
 /** How a skill sits among other skills. Add a line here for a new type: the page, the dialog and the route read this list. */
 export const SKILL_TYPES = [
   { id: 'internal', label: 'Internal', about: 'Other skills run it as a step, or it looks after the computer. People rarely start it themselves.' },
-  { id: 'superset', label: 'Superset', about: 'A whole workflow: it runs other skills as its steps.' },
-  { id: 'subset', label: 'Subset', about: 'One part or one style of a bigger skill.' },
+  { id: 'superset', label: 'Superset', about: 'The main skill of a family: its subset skills are narrower takes on it.' },
+  { id: 'subset', label: 'Subset', about: 'One style or one part of a superset skill. Every subset names its superset.' },
   { id: 'mcp-use', label: 'MCP use', about: 'Mostly drives one MCP or app, and says how to use it well.' },
 ] as const;
 export type SkillType = (typeof SKILL_TYPES)[number]['id'];
@@ -42,6 +42,8 @@ export interface SkillProfile {
   key: string;
   nature?: SkillNature;
   type?: SkillType;
+  /** A subset skill's superset: that skill's name, e.g. `make-kinetictype`. */
+  superset?: string;
   /** A private skill's tags. A store skill's are on its listing (`catalog_listing`). */
   tags?: string[];
   updatedAt: string;
@@ -54,6 +56,10 @@ export interface SkillDetailsView {
   /** A store skill is shared use, always: its nature can't be changed. */
   natureFixed: boolean;
   type?: SkillType;
+  /** The superset a subset skill belongs to. Only with type `subset`. */
+  superset?: string;
+  /** The superset's page, when it has one in the store. */
+  supersetHref?: string;
   /** The tags that can be changed here. */
   tags: string[];
   /** Tags that come with the skill (its category, its README's): shown, not changed here. */
@@ -63,41 +69,49 @@ export interface SkillDetailsView {
 export const inStore = (key: string) => key.startsWith('catalog:');
 
 /** The type a registry skill most likely is, until someone sets it. */
-export function suggestedType(skill: Pick<RegistrySkill, 'internal' | 'variantOf' | 'dependsOn'> | null | undefined): SkillType | undefined {
+export function suggestedType(skill: Pick<RegistrySkill, 'internal' | 'variantOf'> | null | undefined, hasSubsets = false): SkillType | undefined {
   if (!skill) return undefined;
   if (skill.internal) return 'internal';
   if (skill.variantOf) return 'subset';
-  if (skill.dependsOn?.length) return 'superset';
+  if (hasSubsets) return 'superset';
   return undefined;
 }
 
+/** A skill's name as a superset is named: lower-case words joined by hyphens, or undefined. */
+export const skillNameOf = (value: unknown): string | undefined => (typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(value.trim()) ? value.trim() : undefined);
+
 /** `nature` and `type` as a README.md's frontmatter states them: the skill's own word, until someone sets them in the app. */
-export function readmeProfile(markdown: string | null | undefined): { nature?: SkillNature; type?: SkillType } {
+export function readmeProfile(markdown: string | null | undefined): { nature?: SkillNature; type?: SkillType; superset?: string } {
   const front = markdown?.replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---/)?.[1] ?? '';
   const value = (key: string) => front.match(new RegExp(`^${key}:\\s*["']?([\\w-]+)["']?\\s*$`, 'm'))?.[1];
   const nature = natureOf(value('nature'));
   const type = typeOf(value('type'));
-  return { ...(nature && { nature }), ...(type && { type }) };
+  const superset = skillNameOf(value('superset'));
+  return { ...(nature && { nature }), ...(type && { type }), ...(superset && { superset }) };
 }
 
 export function skillDetailsView(input: {
   key: string;
-  profile?: Pick<SkillProfile, 'nature' | 'type' | 'tags'> | null;
+  profile?: Pick<SkillProfile, 'nature' | 'type' | 'superset' | 'tags'> | null;
   /** What its README.md's frontmatter says. */
-  stated?: { nature?: SkillNature; type?: SkillType };
+  stated?: { nature?: SkillNature; type?: SkillType; superset?: string };
   suggested?: SkillType;
+  /** The skill a registry variant was forked from: its superset, until someone names another. */
+  variantOf?: string;
   /** The tags set where they are kept: a store skill's listing tags. */
   tags?: string[];
   ownTags?: string[];
 }): SkillDetailsView {
   const store = inStore(input.key);
   const type = input.profile?.type ?? input.stated?.type ?? input.suggested;
+  const superset = input.profile?.superset ?? input.stated?.superset ?? input.variantOf;
   const nature = input.profile?.nature ?? input.stated?.nature ?? 'private-use';
   const ownTags = input.ownTags ?? [];
   return {
     nature: store ? 'shared-use' : nature,
     natureFixed: store,
     ...(type && { type }),
+    ...(type === 'subset' && superset && { superset }),
     tags: (store ? (input.tags ?? []) : (input.profile?.tags ?? [])).filter(tag => !ownTags.includes(tag)),
     ownTags,
   };
@@ -108,13 +122,15 @@ export interface ProfileChange {
   key: string;
   nature?: SkillNature;
   type?: SkillType | null;
+  /** A subset's superset; null clears it. */
+  superset?: string | null;
   tags?: string[];
 }
 
 const KEY = /^(catalog:skill\/[a-z0-9][a-z0-9-]{0,63}|space:[\w:./@ -]{1,200}:skill\/[\w.-]{1,100}|linked:[\w-]{1,100})$/;
 
 export function parseProfileChange(body: unknown): ProfileChange | { error: string } {
-  const { key, nature, type, tags } = (body ?? {}) as Record<string, unknown>;
+  const { key, nature, type, superset, tags } = (body ?? {}) as Record<string, unknown>;
   if (typeof key !== 'string' || !KEY.test(key)) return { error: 'key names a skill' };
   const change: ProfileChange = { key };
   if (nature !== undefined) {
@@ -131,13 +147,24 @@ export function parseProfileChange(body: unknown): ProfileChange | { error: stri
       change.type = parsed;
     }
   }
+  if (superset !== undefined) {
+    if (superset === null || superset === '') change.superset = null;
+    else {
+      const parsed = skillNameOf(superset);
+      if (!parsed) return { error: "superset is a skill's name, like make-kinetictype" };
+      change.superset = parsed;
+    }
+  }
+  if (change.type === 'subset' && !change.superset) return { error: 'A subset skill names its superset skill' };
+  // only a subset has a superset
+  if (change.type !== undefined && change.type !== 'subset') change.superset = null;
   if (tags !== undefined) {
     if (!Array.isArray(tags)) return { error: 'tags is a list of words' };
     const parsed = parseTags(tags);
     if (parsed.length > MAX_LISTING_TAGS) return { error: `at most ${MAX_LISTING_TAGS} tags` };
     change.tags = parsed;
   }
-  if (change.nature === undefined && change.type === undefined && change.tags === undefined) return { error: 'Give nature, type or tags' };
+  if (change.nature === undefined && change.type === undefined && change.superset === undefined && change.tags === undefined) return { error: 'Give nature, type, superset or tags' };
   return change;
 }
 
@@ -181,17 +208,23 @@ export function spaceItemFiles(code: { files: string[]; repoUrl?: string; branch
   };
 }
 
+const SCRIPTS = 'apps/studio/scripts/';
+
 /** A registry skill's files: its folder, then the engine folders and setup scripts its SKILL.md names (tools/skills.mjs lists them). */
 export function registrySkillFiles(skill: Pick<RegistrySkill, 'name' | 'path' | 'paths' | 'uses'>, github: string): SkillFiles | null {
   if (!skill.paths?.length) return null;
   const blob = `${github}/blob/main`;
+  const uses = skill.uses ?? [];
+  const engine = uses.filter(used => used.files);
+  const scripts = uses.filter(used => !used.files && used.path.startsWith(SCRIPTS));
+  const others = uses.filter(used => !used.files && !used.path.startsWith(SCRIPTS));
   return {
     roots: [
       { label: skill.name, kind: 'skill', files: skill.paths, url: `${blob}/${skill.path}` },
-      ...(skill.uses ?? []).map(
-        (used): SkillFileRoot =>
-          used.files ? { label: used.label, kind: used.kind, files: used.files, url: `${blob}/${used.path}` } : { label: used.label, kind: used.kind, files: [], file: `${blob}/${used.path}` },
-      ),
+      ...engine.map((used): SkillFileRoot => ({ label: used.label, kind: 'engine', files: used.files ?? [], url: `${blob}/${used.path}` })),
+      // its scripts are one folder: opening it lists the ones this skill uses
+      ...(scripts.length ? [{ label: 'scripts', kind: 'setup' as const, files: scripts.map(used => used.path.slice(SCRIPTS.length)), url: `${blob}/${SCRIPTS.slice(0, -1)}` }] : []),
+      ...others.map((used): SkillFileRoot => ({ label: used.label, kind: 'setup', files: [], file: `${blob}/${used.path}` })),
     ],
   };
 }

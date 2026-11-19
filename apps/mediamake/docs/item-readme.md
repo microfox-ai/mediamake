@@ -71,9 +71,18 @@ A skill's **nature** says who it is for (`nature` in the frontmatter, or Edit de
 | `private-use` | You or your team. The default for a skill in a space. | Loose: write what helps you. The parts above are only suggestions. | Not needed, and its page shows none |
 
 Its **type** says how it sits among other skills (`type` in the frontmatter, or Edit details):
-`internal` (other skills run it, or it looks after the computer), `superset` (a whole workflow that
-runs other skills), `subset` (one part or one style of a bigger skill) and `mcp-use` (mostly drives
-one MCP or app). More types are added in `lib/catalog/skill-profile.ts` (`SKILL_TYPES`).
+`internal` (other skills run it, or it looks after the computer), `superset` (the main skill of a
+family), `subset` (one style or one part of a superset skill) and `mcp-use` (mostly drives one MCP or
+app). More types are added in `lib/catalog/skill-profile.ts` (`SKILL_TYPES`).
+
+Every subset names its superset (`superset: make-kinetictype` in the frontmatter, or Edit details):
+`make-kinetictype-like-screamingtowin` is a subset of `make-kinetictype`. Its page says "Subset of"
+with a link, and the superset's page lists its subset skills. A variant made with `skills.mjs fork`
+is a subset of the skill it was forked from until someone says otherwise.
+
+Collect these when a skill is made or released (ask its maker, never guess): its nature, its type,
+a subset's superset, its tags and description, and for a shared-use skill the production that proves
+it. `mm space new skill` starts the README with them.
 
 Whoever may change the skill (an admin for a store skill; the owner or an editor of its space for a
 private one) sees two buttons on its page: **Edit details** (tags, nature, type) and **README
@@ -93,14 +102,15 @@ Badges are never written in the README: they come from what MediaMake knows, so 
 | `headshot` | Its 16:9 picture, the one its cards show: a file in the item's folder, or an https link. | The thumbnail of the video the README opens with, else of its intro video, else its title on a colour |
 | `video` | The video, when it isn't the README's first line. | The video on the first line |
 | `nature` | `shared-use` or `private-use` (above). | A store skill is shared use; a skill in a space is private use |
-| `type` | `internal`, `superset`, `subset` or `mcp-use` (above). | What the registry suggests: internal for an internal skill, subset for a variant, superset for one that runs other skills |
+| `type` | `internal`, `superset`, `subset` or `mcp-use` (above). | What the registry suggests: internal for an internal skill, subset for a variant, superset for a skill with variants |
+| `superset` | A subset's superset: that skill's name. | The skill a variant was forked from |
 
 ## Its files and what it depends on
 
 Above the README, a skill's page lists its files as GitHub lists a folder: folders open in place, a
 file opens on GitHub. A repo skill's are its folder (`paths` in `skills.json`), then the engine
-folders and studio scripts its SKILL.md names (`uses`: `@mediamake/engine/<name>` or `src/<folder>`,
-and `scripts/<file>`). A skill in a space lists its folder from the space's file list, its own
+folders its SKILL.md names (`uses`: `@mediamake/engine/<name>` or `src/<folder>`) and one `scripts`
+folder, which opens onto the studio scripts the skill names (`scripts/<file>`). A skill in a space lists its folder from the space's file list, its own
 `engine/` with it.
 
 In the right column, **Depends on** lists the MCPs, apps and skills it needs: five, then "+N more".

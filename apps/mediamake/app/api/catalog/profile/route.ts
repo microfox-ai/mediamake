@@ -13,7 +13,7 @@ import { catalogListingDB, skillProfilesDB } from '@/lib/catalog/store';
  *
  * GET  ?key=<details key>          { canEdit }: whether the caller may change them. A store skill's page
  *                                  is the same for everyone, so its Edit button asks here.
- * POST { key, tags?, nature?, type? }
+ * POST { key, tags?, nature?, type?, superset? }
  *                                  each one given replaces what was there; `type: null` clears it. An
  *                                  admin for a store skill (`catalog:skill/<name>`: its tags go on its
  *                                  listing, and it is always shared use); the owner or an editor of its
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           clientId,
         );
       }
-      if (rest.type !== undefined) await skillProfilesDB.set({ key: change.key, type: rest.type }, clientId);
+      if (rest.type !== undefined || rest.superset !== undefined) await skillProfilesDB.set({ key: change.key, type: rest.type, superset: rest.superset }, clientId);
       revalidatePath(itemPagePath(id));
       revalidatePath('/');
     } else {

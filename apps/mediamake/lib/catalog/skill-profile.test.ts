@@ -27,10 +27,20 @@ describe('skillDetailsView', () => {
   });
 
   it('suggests a type from what the registry knows', () => {
-    assert.equal(suggestedType({ internal: true, dependsOn: ['a'] }), 'internal');
+    assert.equal(suggestedType({ internal: true }, true), 'internal');
     assert.equal(suggestedType({ variantOf: 'make-x' }), 'subset');
-    assert.equal(suggestedType({ dependsOn: ['revise-video'] }), 'superset');
+    assert.equal(suggestedType({}, true), 'superset');
     assert.equal(suggestedType({}), undefined);
+  });
+
+  it('a subset names its superset: what was set, else its README, else what it was forked from', () => {
+    const view = (input: object) => skillDetailsView({ key: 'catalog:skill/make-x-like-y', ...input }).superset;
+    assert.equal(view({ suggested: 'subset', variantOf: 'make-x' }), 'make-x');
+    assert.equal(view({ suggested: 'subset', variantOf: 'make-x', stated: { superset: 'make-z' } }), 'make-z');
+    assert.equal(view({ profile: { type: 'subset', superset: 'make-w' }, variantOf: 'make-x' }), 'make-w');
+    // only a subset has one
+    assert.equal(view({ profile: { type: 'internal', superset: 'make-w' } }), undefined);
+    assert.deepEqual(readmeProfile('---\ntype: subset\nsuperset: make-kinetictype\n---\n'), { type: 'subset', superset: 'make-kinetictype' });
   });
 
   it('reads nature and type from a README frontmatter', () => {
@@ -47,6 +57,7 @@ describe('parseProfileChange', () => {
       tags: ['lyric-video'],
       nature: 'shared-use',
       type: null,
+      superset: null,
     });
   });
 
@@ -56,6 +67,10 @@ describe('parseProfileChange', () => {
     assert.ok('error' in parseProfileChange({ key: 'linked:abc', nature: 'public' }));
     assert.ok('error' in parseProfileChange({ key: 'linked:abc', type: 'huge' }));
     assert.ok('error' in parseProfileChange({ key: 'linked:abc' }));
+    assert.ok('error' in parseProfileChange({ key: 'linked:abc', type: 'subset' }));
+    assert.ok('error' in parseProfileChange({ key: 'linked:abc', type: 'subset', superset: 'Not A Name' }));
+    assert.deepEqual(parseProfileChange({ key: 'linked:abc', type: 'subset', superset: 'make-kinetictype' }), { key: 'linked:abc', type: 'subset', superset: 'make-kinetictype' });
+    assert.deepEqual(parseProfileChange({ key: 'linked:abc', type: 'superset', superset: 'make-kinetictype' }), { key: 'linked:abc', type: 'superset', superset: null });
     assert.ok('error' in parseProfileChange({ key: 'catalog:skill/x', nature: 'private-use' }));
     assert.ok('error' in parseProfileChange({ key: 'linked:abc', tags: Array.from({ length: 13 }, (_, i) => `tag-${i}`) }));
   });
@@ -91,7 +106,7 @@ describe('files', () => {
     assert.deepEqual(files?.roots, [
       { label: 'make-amv', kind: 'skill', files: ['SKILL.md'], url: 'https://github.com/o/r/blob/main/.agents/skills/make-amv' },
       { label: 'src/amv', kind: 'engine', files: ['index.ts'], url: 'https://github.com/o/r/blob/main/apps/studio/src/amv' },
-      { label: 'scripts/amv.ts', kind: 'setup', files: [], file: 'https://github.com/o/r/blob/main/apps/studio/scripts/amv.ts' },
+      { label: 'scripts', kind: 'setup', files: ['amv.ts'], url: 'https://github.com/o/r/blob/main/apps/studio/scripts' },
     ]);
     assert.equal(registrySkillFiles({ name: 'x', path: 'p' }, 'https://github.com/o/r'), null);
   });

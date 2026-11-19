@@ -19,6 +19,7 @@ import {
   SKILL_NATURES,
   SKILL_TYPES,
   readmeTemplate,
+  skillNameOf,
   type ReadmeCheck,
   type SkillDependency,
   type SkillDetailsView,
@@ -154,7 +155,7 @@ export function SkillFilesCard({ files, className }: { files: SkillFiles; classN
 }
 
 function ExtraRow({ root, className, onOpen, folderIcon, fileIcon }: { root: SkillFileRoot; className: string; onOpen: () => void; folderIcon: React.ReactNode; fileIcon: React.ReactNode }) {
-  const kind = <span className="ml-auto shrink-0 text-xs text-muted-foreground">{root.kind === 'engine' ? `Engine · ${plural(root.files.length, 'file')}` : 'Setup'}</span>;
+  const kind = <span className="ml-auto shrink-0 text-xs text-muted-foreground">{root.file ? 'Setup' : `${root.kind === 'engine' ? 'Engine' : 'Scripts'} · ${plural(root.files.length, 'file')}`}</span>;
   if (root.file) {
     return (
       <a href={root.file} target="_blank" rel="noopener noreferrer" className={cn(className, 'hover:bg-muted/40')}>
@@ -267,20 +268,24 @@ function EditDialog({ itemKey, view, onClose }: { itemKey: string; view: SkillDe
   const [tagText, setTagText] = React.useState(view.tags.join(', '));
   const [nature, setNature] = React.useState<SkillNature>(view.nature);
   const [type, setType] = React.useState<SkillType | typeof NOT_SET>(view.type ?? NOT_SET);
+  const [superset, setSuperset] = React.useState(view.superset ?? '');
   const [busy, setBusy] = React.useState(false);
+  const subset = type === 'subset';
+  const supersetName = skillNameOf(superset);
+  const noSuperset = subset && !supersetName;
   const tags = parseTags(tagText.split(',')).filter(tag => !view.ownTags.includes(tag));
   const tooMany = tags.length > MAX_LISTING_TAGS;
   const about = SKILL_TYPES.find(entry => entry.id === type)?.about;
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (busy || tooMany) return;
+    if (busy || tooMany || noSuperset) return;
     setBusy(true);
     try {
       const res = await fetch('/api/catalog/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: itemKey, tags, type: type === NOT_SET ? null : type, ...(!view.natureFixed && { nature }) }),
+        body: JSON.stringify({ key: itemKey, tags, type: type === NOT_SET ? null : type, ...(subset && { superset: supersetName }), ...(!view.natureFixed && { nature }) }),
       });
       const answer = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(answer.error ?? 'Could not save the details');
@@ -361,11 +366,19 @@ function EditDialog({ itemKey, view, onClose }: { itemKey: string; view: SkillDe
             {about && <p className="text-xs text-muted-foreground">{about}</p>}
           </div>
 
+          {subset && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="skill-superset">Its superset skill</Label>
+              <Input id="skill-superset" value={superset} onChange={event => setSuperset(event.target.value)} placeholder="make-kinetictype" className="font-mono" aria-invalid={!!superset && !supersetName} />
+              <p className="text-xs text-muted-foreground">The name of the skill this one is a style or a part of.</p>
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy || tooMany}>
+            <Button type="submit" disabled={busy || tooMany || noSuperset}>
               {busy && <Loader2Icon className="animate-spin" />}
               Save
             </Button>

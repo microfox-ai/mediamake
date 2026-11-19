@@ -540,12 +540,20 @@ export const skillProfilesDB = {
     return db.collection<SkillProfile>(COL.profiles).findOne({ key }, { projection: { _id: 0 } });
   },
 
+  /** The store skills that name `name` as their superset. */
+  async subsetsOf(name: string): Promise<string[]> {
+    const db = await getDatabase();
+    const found = await db.collection<SkillProfile>(COL.profiles).find({ superset: name, type: 'subset', key: { $regex: '^catalog:skill/' } }, { projection: { _id: 0, key: 1 } }).limit(50).toArray();
+    return found.map(profile => profile.key.slice('catalog:skill/'.length));
+  },
+
   /** Sets what the change gives and keeps the rest; `type: null` clears the type. */
   async set(change: ProfileChange, actor?: string): Promise<SkillProfile> {
     const db = await getDatabase();
-    const { key, type, ...rest } = change;
-    const set = withoutUndefined({ ...rest, ...(type && { type }), updatedAt: nowISO(), updatedBy: actor });
-    await db.collection<SkillProfile>(COL.profiles).updateOne({ key }, { $set: set, ...(type === null && { $unset: { type: '' } }) }, { upsert: true });
+    const { key, type, superset, ...rest } = change;
+    const set = withoutUndefined({ ...rest, ...(type && { type }), ...(superset && { superset }), updatedAt: nowISO(), updatedBy: actor });
+    const unset = { ...(type === null && { type: '' as const }), ...(superset === null && { superset: '' as const }) };
+    await db.collection<SkillProfile>(COL.profiles).updateOne({ key }, { $set: set, ...(Object.keys(unset).length && { $unset: unset }) }, { upsert: true });
     return (await this.get(key))!;
   },
 };

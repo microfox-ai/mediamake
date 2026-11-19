@@ -329,7 +329,8 @@ the format.
 - That order is strict for a shared-use skill (one that can be listed in the store). A private-use
   skill's README can be loose, and it needs no "Made with this". A skill's nature (`private-use`,
   `shared-use`) and type (`internal`, `superset`, `subset`, `mcp-use`) are set on its page (Edit details)
-  or in its README's frontmatter.
+  or in its README's frontmatter. Every subset names its `superset` (the skill it is a style or a part
+  of). Ask the user for these when a skill is made or released; never guess them.
 - A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
   release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`).

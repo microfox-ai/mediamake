@@ -74,7 +74,8 @@ export default async function SkillPage({ params }: Props) {
 
   const id = `skill/${skill.name}`;
   const key = detailsKey.catalog(id);
-  const [video, archived, readiness, listing, markdown, rating, profile, readmeText] = await Promise.all([
+  const { variants: forks, usedBy } = skillRelations(skill);
+  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named] = await Promise.all([
     catalogVideosDB.get(id).catch(() => null),
     catalogArchiveDB.get(id).catch(() => null),
     catalogReadinessDB.get(id).catch(() => null),
@@ -83,8 +84,10 @@ export default async function SkillPage({ params }: Props) {
     ratingsDB.summary(id).catch(() => null),
     skillProfilesDB.get(key).catch(() => null),
     skillReadmeText(skill),
+    skillProfilesDB.subsetsOf(skill.name).catch(() => []),
   ]);
-  const { variants, usedBy } = skillRelations(skill);
+  // its subset skills: its variants, and the store skills that name it as their superset
+  const variants = [...forks, ...named.map(skillNamed).filter((found): found is RegistrySkill => !!found && !forks.includes(found))];
   const category = registry?.categories.find(c => c.id === skill.category);
   const [owner] = skill.upstream?.split('/') ?? [];
   const proof = proofOf(readiness);
@@ -100,10 +103,12 @@ export default async function SkillPage({ params }: Props) {
     key,
     profile,
     stated: { nature: natureOf(skill.listing?.nature), type: typeOf(skill.listing?.type), ...readmeProfile(readmeText) },
-    suggested: suggestedType(skill),
+    suggested: suggestedType(skill, variants.length > 0),
+    variantOf: skill?.variantOf,
     tags: listing?.tags,
     ownTags,
   });
+  if (details.superset && skillNamed(details.superset)) details.supersetHref = `/skills/${details.superset}`;
   const depends = registryDependencies(skill, name => skillNamed(name)?.summary);
   const files = registrySkillFiles(skill, SKILLS_GITHUB);
   const size = skill.bytes !== undefined ? { bytes: skill.bytes, files: skill.files } : undefined;
@@ -187,7 +192,7 @@ export default async function SkillPage({ params }: Props) {
             description={description}
             tags={tags}
             rating={<ItemRating itemId={id} title={skill.name} version={skill.version} initial={rating} />}
-            facts={{ ready, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: typeInfo(details.type) }) }}
+            facts={{ ready, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: { ...typeInfo(details.type), of: details.superset, ofHref: details.supersetHref } }) }}
           >
             {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
             {skill.variantOf && (
@@ -216,7 +221,7 @@ export default async function SkillPage({ params }: Props) {
             </div>
           )}
           {usedBy.length > 0 && <SkillList title="Used by" names={usedBy.map(s => s.name)} skills={usedBy} />}
-          {variants.length > 0 && <SkillList title="Variants" names={variants.map(s => s.name)} skills={variants} />}
+          {variants.length > 0 && <SkillList title="Subset skills" names={variants.map(s => s.name)} skills={variants} />}
         </aside>
       </main>
     </ItemShell>
