@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, beforeEach, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { compareVersions, mcpConfig } from './items.mjs';
+import { compareVersions, desktopClaude, mcpConfig } from './items.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mm-items-test-')));
@@ -19,6 +19,8 @@ const config = path.join(home, '.mediamake', 'config.json');
 const claudeLog = path.join(tmp, 'claude.log');
 const claudeState = path.join(tmp, 'claude-servers.json');
 const claudeBin = path.join(tmp, 'claude');
+/** The checkout whose .mcp.json is looked at (MEDIAMAKE_CHECKOUT): none unless a test writes one. */
+const top = path.join(tmp, 'checkout');
 const KEY = 'test-key';
 
 /** Every request the fake site got. */
@@ -65,19 +67,36 @@ let plans;
 
 before(async () => {
   fs.mkdirSync(path.dirname(config), { recursive: true });
-  // `claude mcp get|add|remove`, keeping its servers in a file and every call in a log
+  fs.mkdirSync(top, { recursive: true });
+  // `claude mcp get|add|remove`, keeping its servers in a file and every call in a log. Like Claude
+  // Code, a session in a folder gets its local server first, then the folder's .mcp.json (as though
+  // approved: the real one leaves it out until then), then the user's: user servers are kept by name,
+  // local ones as "local:<folder>:<name>".
   fs.writeFileSync(
     claudeBin,
     `#!/usr/bin/env node
 const fs = require('fs');
+const path = require('path');
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(claudeLog)}, JSON.stringify(args) + '\\n');
 let servers = {};
 try { servers = JSON.parse(fs.readFileSync(${JSON.stringify(claudeState)}, 'utf8')); } catch {}
 const save = () => fs.writeFileSync(${JSON.stringify(claudeState)}, JSON.stringify(servers));
-if (args[1] === 'get') process.exit(servers[args[2]] ? 0 : 1);
-if (args[1] === 'remove') { const had = !!servers[args[2]]; delete servers[args[2]]; save(); process.exit(had ? 0 : 1); }
-if (args[1] === 'add') { const rest = args.slice(2); let i = 0; while (rest[i] && rest[i].startsWith('--')) i += 2; servers[rest[i]] = rest.slice(i + 1); save(); process.exit(0); }
+const cwd = process.cwd();
+const keyOf = name => (args.includes('--scope') && args[args.indexOf('--scope') + 1] === 'local' ? 'local:' + cwd + ':' + name : name);
+if (args[1] === 'get') {
+  const name = args[2];
+  let project;
+  try { project = JSON.parse(fs.readFileSync(path.join(cwd, '.mcp.json'), 'utf8')).mcpServers[name]; } catch {}
+  const local = servers['local:' + cwd + ':' + name];
+  const [scope, it] = local ? ['Local config (private to you in this project)', local] : project ? ['Project config (shared via .mcp.json)', [project.command, ...(project.args || [])]] : servers[name] ? ['User config (available in all your projects)', servers[name]] : [];
+  if (!it) { console.log('No MCP server named "' + name + '".'); process.exit(1); }
+  const url = it.find(a => /^https?:/.test(a));
+  console.log(name + ':\\n  Scope: ' + scope + '\\n' + (url ? '  Type: http\\n  URL: ' + url : '  Type: stdio\\n  Command: ' + it.join(' ')));
+  process.exit(0);
+}
+if (args[1] === 'remove') { const key = keyOf(args[2]); const had = !!servers[key]; delete servers[key]; save(); process.exit(had ? 0 : 1); }
+if (args[1] === 'add') { const rest = args.slice(2); let i = 0; while (rest[i] && rest[i].startsWith('--')) i += 2; servers[keyOf(rest[i])] = rest.slice(i + 1); save(); process.exit(0); }
 process.exit(1);
 `,
     { mode: 0o755 },
@@ -186,7 +205,7 @@ beforeEach(() => {
 });
 
 const env = (over = {}) => {
-  const e = { ...process.env, HOME: home, USERPROFILE: home, MEDIAMAKE_CONFIG: config, MEDIAMAKE_API_URL: url, MEDIAMAKE_API_KEY: KEY, MEDIAMAKE_CLAUDE_BIN: claudeBin, MEDIAMAKE_EXTENSIONS: path.join(home, 'Extensions'), ...over };
+  const e = { ...process.env, HOME: home, USERPROFILE: home, MEDIAMAKE_CONFIG: config, MEDIAMAKE_API_URL: url, MEDIAMAKE_API_KEY: KEY, MEDIAMAKE_CLAUDE_BIN: claudeBin, MEDIAMAKE_EXTENSIONS: path.join(home, 'Extensions'), MEDIAMAKE_CHECKOUT: top, ...over };
   for (const [k, v] of Object.entries(e)) if (v === undefined) delete e[k];
   return e;
 };
@@ -391,4 +410,66 @@ test('a hosted connector already in Claude Code is left alone, and without Claud
 
   const without = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'], { MEDIAMAKE_CLAUDE_BIN: '' })).stdout);
   assert.match(without.left[0].what, /In Claude Desktop, add a custom connector with https:\/\/mediamake\.microfox\.app\/mcp\/use/);
+});
+
+test("a checkout whose .mcp.json has an unbuilt server of the connector's name gets the hosted one too; a built one is the developer's", async () => {
+  const hosted = 'https://mediamake.microfox.app/mcp/use';
+  const script = path.join(top, 'packages', 'mediamake-mcp', 'dist', 'index.js');
+  fs.writeFileSync(path.join(top, '.mcp.json'), JSON.stringify({ mcpServers: { 'mm-use': { command: 'node', args: ['packages/mediamake-mcp/dist/index.js', 'use'] } } }));
+  try {
+    // in Claude Code for every project, but sessions in the checkout would get its .mcp.json's
+    fs.writeFileSync(claudeState, JSON.stringify({ 'mm-use': [hosted] }));
+    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['hidden']);
+    const text = await items([]);
+    assert.match(text.stdout, /mcp\/mm-use +in Claude Code, but this checkout's \.mcp\.json hides it/);
+    assert.match(text.stdout, /3 to install or update/);
+
+    const r = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'])).stdout);
+    assert.deepEqual(r.failed, []);
+    assert.ok(r.done.includes('mm-use is already in Claude Code'));
+    assert.ok(r.done.some(line => /added for sessions opened in .+ too: its \.mcp\.json has a mm-use that can't start here \(packages\/mediamake-mcp\/dist\/index\.js isn't built\)/.test(line)));
+    // added for the checkout (local beats project), the one for every project left as it was
+    const servers = readJson(claudeState);
+    assert.deepEqual(servers[`local:${top}:mm-use`], [hosted]);
+    assert.deepEqual(servers['mm-use'], [hosted]);
+    assert.match(r.left[0].what, /run \/mcp, pick mm-use/);
+    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['added']);
+
+    // not in Claude Code at all: both are added in one go
+    fs.writeFileSync(claudeState, '{}');
+    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['missing']);
+    await items(['install', 'mcp/mm-use', '--yes']);
+    assert.deepEqual(readJson(claudeState), { 'mm-use': [hosted], [`local:${top}:mm-use`]: [hosted] });
+
+    // a developer who built the server keeps theirs in the checkout
+    fs.writeFileSync(claudeState, JSON.stringify({ 'mm-use': [hosted] }));
+    fs.mkdirSync(path.dirname(script), { recursive: true });
+    fs.writeFileSync(script, '// built\n');
+    fs.rmSync(claudeLog, { force: true });
+    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['added']);
+    const built = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'])).stdout);
+    assert.deepEqual(built.left, []);
+    assert.ok(!claudeCalls().some(args => args[1] === 'add' || args[1] === 'remove'));
+  } finally {
+    fs.rmSync(path.join(top, '.mcp.json'), { force: true });
+    fs.rmSync(path.join(top, 'packages'), { recursive: true, force: true });
+  }
+});
+
+test("the Claude desktop app's own Claude Code is found on Windows, the newest version", () => {
+  const local = path.join(tmp, 'LocalAppData');
+  const base = path.join(local, 'Claude-Data', 'claude_abc123', 'claude-code');
+  const exe = (version, build) => {
+    fs.mkdirSync(path.join(base, version, build), { recursive: true });
+    fs.writeFileSync(path.join(base, version, build, 'claude.exe'), '');
+    return path.join(base, version, build, 'claude.exe');
+  };
+  assert.equal(desktopClaude({ LOCALAPPDATA: local }, 'win32'), null);
+  exe('2.1.9', 'aaa');
+  const newest = exe('2.1.10', 'bbb');
+  // a version still downloading has no claude.exe yet
+  fs.mkdirSync(path.join(base, '2.1.11', 'ccc'), { recursive: true });
+  assert.equal(desktopClaude({ LOCALAPPDATA: local }, 'win32'), newest);
+  // only Windows keeps it there
+  assert.equal(desktopClaude({ LOCALAPPDATA: local }, 'darwin'), null);
 });

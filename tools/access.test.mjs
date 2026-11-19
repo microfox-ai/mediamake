@@ -41,6 +41,21 @@ test('a computer reports what is found on it and what its owner added, by name o
   assert.ok(!JSON.stringify(report).includes('secret'));
 });
 
+test('the media library counts as the library keeps it ({ root }) and as a plain path, and only when it is there', () => {
+  const at = { env: env(), top: path.join(tmp, 'no-checkout'), home, cloud: false };
+  write(process.env.MEDIAMAKE_CONFIG, { library: { root: '~/Downloads/_LIBRARY', inbox: '~/Downloads/_INBOX' } });
+  assert.ok(!capabilities(at).includes('media:library'));
+  fs.mkdirSync(path.join(home, 'Downloads', '_LIBRARY'), { recursive: true });
+  assert.ok(capabilities(at).includes('media:library'));
+  // ~\ as an older mm migrate wrote it on Windows
+  write(process.env.MEDIAMAKE_CONFIG, { library: { root: '~\\Downloads\\_LIBRARY' } });
+  assert.equal(capabilities(at).includes('media:library'), path.sep === '\\');
+  write(process.env.MEDIAMAKE_CONFIG, { library: '~/Downloads/_LIBRARY' });
+  assert.ok(capabilities(at).includes('media:library'));
+  write(process.env.MEDIAMAKE_CONFIG, { library: { inbox: '~/Downloads/_INBOX' } });
+  assert.ok(!capabilities(at).includes('media:library'));
+});
+
 test('a cloud session reports as its environment, with its limits and never what only a device has', () => {
   const cloud = env({ CLAUDE_CODE_REMOTE: 'true', MEDIAMAKE_PLACE: 'Shorts', ELEVENLABS_API_KEY: 'sk-secret-value', ELEVENLABS_API_KEY_LIMIT: 'unlimited' });
   const report = placeReport({ env: cloud, top, home, asked: ['mcp:blender'] });
