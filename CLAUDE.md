@@ -308,8 +308,10 @@ what it is, who can open it, where it lives, what installing it does, and what n
 A computer signed in to MediaMake (`mm login`, once: it opens the browser, the user clicks Allow, and
 the key it makes for this computer stays in the Keychain; no key is pasted) installs what
 the account's membership opens by itself. `mm items` shows the account, its tier and each MCP and
-app it opens (installed, behind or not installed); `mm items install --yes` installs and updates
-them all, `mm items install <id> --yes` one (`tools/items.mjs`).
+app it opens (installed, behind or not installed), and MediaMake's hosted connectors it opens (mm-use
+for every member, mm-release for admins); `mm items install --yes` installs and updates them all and
+adds the connectors to Claude Code, `mm items install <id> --yes` one (`tools/items.mjs`). Signing in
+to a connector is the user's step: `/mcp`, pick it, Allow in the browser.
 
 - Never ask the user for the site address or an install prompt when `mm items` says they are
   signed in. Access follows the membership: there are no release or install codes. The site is

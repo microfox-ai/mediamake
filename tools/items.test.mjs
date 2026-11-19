@@ -52,8 +52,9 @@ function pack(slug, version, manifest, guide) {
 const CATALOG = [
   { id: 'mcp/browse-hack', kind: 'mcp', title: 'Browse Hack', tier: 'pro', access: 'granted' },
   { id: 'mcp/projectsync', kind: 'mcp', title: 'ProjectSync', tier: 'pro', access: 'granted' },
-  // nothing of these installs by itself: a hosted connector (no package), someone else's, a skill, a failed one
+  // MediaMake's hosted connector: no package, added to Claude Code by its address
   { id: 'mcp/mm-use', kind: 'mcp', title: 'mm-use', tier: 'public', access: 'open' },
+  // nothing of these installs by itself: someone else's, a skill, a failed one
   { id: 'mcp/elevenlabs', kind: 'mcp', title: 'ElevenLabs', tier: 'public', access: 'open', madeBy: { name: 'ElevenLabs' } },
   { id: 'skill/pack-brand-kit', kind: 'skill', title: 'Pack brand kit', tier: 'public', access: 'open' },
   { id: 'mcp/broken', kind: 'mcp', title: 'Broken', tier: 'public', access: 'open', health: 'failed' },
@@ -76,7 +77,7 @@ try { servers = JSON.parse(fs.readFileSync(${JSON.stringify(claudeState)}, 'utf8
 const save = () => fs.writeFileSync(${JSON.stringify(claudeState)}, JSON.stringify(servers));
 if (args[1] === 'get') process.exit(servers[args[2]] ? 0 : 1);
 if (args[1] === 'remove') { const had = !!servers[args[2]]; delete servers[args[2]]; save(); process.exit(had ? 0 : 1); }
-if (args[1] === 'add') { servers[args[4]] = args.slice(5); save(); process.exit(0); }
+if (args[1] === 'add') { const rest = args.slice(2); let i = 0; while (rest[i] && rest[i].startsWith('--')) i += 2; servers[rest[i]] = rest.slice(i + 1); save(); process.exit(0); }
 process.exit(1);
 `,
     { mode: 0o755 },
@@ -144,6 +145,22 @@ process.exit(1);
       steps: [
         { type: 'github-release', repo: 'microfox-ai/extensions', name: 'Browse Hack Chrome extension', asset: 'browse-hack-chrome.zip', kind: 'chrome-extension', downloadUrl: `${url}/files/browse-hack-chrome.zip`, requiredBy: ['mcp/browse-hack'] },
         { type: 'item', id: 'mcp/browse-hack', kind: 'mcp', slug: 'browse-hack', title: 'Browse Hack', version: '0.17.0', method: 'mcpb', entry: 'browse-hack.mcpb', ...browseHack, requiredBy: [] },
+      ],
+    },
+    'mcp/mm-use': {
+      ok: true,
+      itemId: 'mcp/mm-use',
+      choices: [],
+      steps: [
+        {
+          type: 'source',
+          id: 'mcp/mm-use',
+          kind: 'mcp',
+          slug: 'mm-use',
+          title: 'mm-use',
+          source: { type: 'mcp-server', name: 'mm-use', remote: { url: 'https://mediamake.microfox.app/mcp/use' } },
+          requiredBy: [],
+        },
       ],
     },
     'mcp/projectsync': {
@@ -225,17 +242,20 @@ test('mm items: the account, its tier and what it opens that installs by itself'
   assert.deepEqual(out.account, { name: 'Ana', email: 'ana@example.com', tier: 'pro', isAdmin: false });
   assert.deepEqual(out.items.map(i => [i.id, i.state, i.version]), [['mcp/browse-hack', 'missing', '0.17.0'], ['mcp/projectsync', 'missing', '0.3.0']]);
   assert.deepEqual(out.locked, [{ id: 'app/vault-app', title: 'Cohort App', tier: 'cohort' }]);
+  // the hosted connector it opens, not in Claude Code yet
+  assert.deepEqual(out.connectors.map(c => [c.id, c.name, c.state]), [['mcp/mm-use', 'mm-use', 'missing']]);
   assert.ok(got.every(req => req.auth === `Bearer ${KEY}`));
   assert.ok(!r.stdout.includes(KEY));
   const text = await items([]);
   assert.match(text.stdout, /Signed in: Ana · Pro/);
-  assert.match(text.stdout, /2 to install or update: mm items install --yes/);
+  assert.match(text.stdout, /MediaMake connectors:\n {2}○ mcp\/mm-use +not in Claude Code/);
+  assert.match(text.stdout, /3 to install or update: mm items install --yes/);
 });
 
 test('mm items install without --yes only lists, and asks the site for no plan', async () => {
   const r = await items(['install']);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /Would install for Ana · Pro:\n {2}mcp\/browse-hack\n {2}mcp\/projectsync/);
+  assert.match(r.stdout, /Would install for Ana · Pro:\n {2}mcp\/browse-hack\n {2}mcp\/projectsync\n {2}mcp\/mm-use/);
   assert.ok(!got.some(req => req.path === '/api/catalog/install'));
   assert.ok(!fs.existsSync(path.join(home, '.mediamake', 'installed.json')));
 });
@@ -256,14 +276,21 @@ test('mm items install --yes installs everything the account opens, with nothing
   // the extension is unpacked; loading it is the one thing left to the person
   assert.equal(readJson(path.join(home, 'Extensions', 'browse-hack-chrome', 'manifest.json')).version, '2.4.0');
   const person = out.left.filter(entry => entry.needsPerson);
-  assert.equal(person.length, 1);
+  assert.equal(person.length, 2);
   assert.match(person[0].what, /Load unpacked/);
+  // the hosted connector is added by its address; signing in is the person's one step
+  assert.equal(person[1].item, 'mcp/mm-use');
+  assert.match(person[1].what, /run \/mcp, pick mm-use, sign in to MediaMake .* click Allow/);
   assert.ok(out.left.some(entry => /INSTALL\.md/.test(entry.what) && entry.item === 'mcp/browse-hack'));
 
   // added to Claude Code for every project; ProjectSync gets the site and the signed-in key
   const adds = claudeCalls().filter(args => args[1] === 'add');
   assert.deepEqual(adds[0], ['mcp', 'add', '--scope', 'user', 'browse-hack', '-e', 'BROWSE_HACK_PORT=17892', '--', 'node', path.join(mcp, 'browse-hack', 'server', 'index.js')]);
   assert.deepEqual(adds[1], ['mcp', 'add', '--scope', 'user', 'projectsync', '-e', `MEDIAMAKE_API_URL=${url}`, '-e', `MEDIAMAKE_API_KEY=${KEY}`, '--', 'node', path.join(mcp, 'projectsync', 'server', 'index.js')]);
+  assert.deepEqual(adds[2], ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'mm-use', 'https://mediamake.microfox.app/mcp/use']);
+  assert.ok(out.done.includes('mm-use added to Claude Code (https://mediamake.microfox.app/mcp/use)'));
+  // a connector has no package: nothing of it is recorded or kept for updates
+  assert.ok(!out.installed.some(i => i.id === 'mcp/mm-use'));
 
   // recorded, with the update token, so updates need nothing either
   const installed = readJson(path.join(home, '.mediamake', 'installed.json')).items;
@@ -348,4 +375,20 @@ test('without Claude Code on the computer the server is unpacked and the bundle 
   assert.ok(fs.existsSync(path.join(home, '.mediamake', 'mcp', 'projectsync', 'manifest.json')));
   assert.match(out.left[0].what, /In Claude Desktop, open .*projectsync\.mcpb and click Install/);
   assert.deepEqual(out.installed.map(i => i.id), ['mcp/projectsync']);
+});
+
+test('a hosted connector already in Claude Code is left alone, and without Claude Code its address is handed over', async () => {
+  fs.writeFileSync(claudeState, JSON.stringify({ 'mm-use': ['https://mediamake.microfox.app/mcp/use'] }));
+  const r = await items(['install', 'mcp/mm-use', '--yes', '--json']);
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.ok(out.done.includes('mm-use is already in Claude Code'));
+  assert.ok(!claudeCalls().some(args => args[1] === 'add' || args[1] === 'remove'));
+  assert.deepEqual(out.left, []);
+
+  const status = JSON.parse((await items(['--json'])).stdout);
+  assert.deepEqual(status.connectors.map(c => c.state), ['added']);
+
+  const without = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'], { MEDIAMAKE_CLAUDE_BIN: '' })).stdout);
+  assert.match(without.left[0].what, /In Claude Desktop, add a custom connector with https:\/\/mediamake\.microfox\.app\/mcp\/use/);
 });

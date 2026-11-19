@@ -3,7 +3,9 @@
  * items: what your MediaMake account opens, and installing it without an install prompt or code.
  *
  *   mm items                        who is signed in, their membership, and each MCP and app it opens:
- *                                   installed (with its version), behind, or not installed
+ *                                   installed (with its version), behind, or not installed; and
+ *                                   MediaMake's hosted connectors it opens (mm-use, mm-release for
+ *                                   admins): in Claude Code or not
  *   mm items install                what `--yes` would install: every MCP and app your membership opens
  *                                   that isn't on this computer yet, and the ones that are behind
  *   mm items install --yes          installs them
@@ -22,6 +24,9 @@
  *     Claude Code for every project (`claude mcp add --scope user`), with the site and, where the
  *     server needs it, the signed-in key
  *   - a skill package: copied to ~/.claude/skills/<slug>
+ *   - one of MediaMake's hosted connectors (mm-use for every member, mm-release for admins): added to
+ *     Claude Code for every project by its address (`claude mcp add --transport http --scope user`);
+ *     signing in to it (/mcp, then Allow in the browser) is the person's one step
  *   - the record in ~/.mediamake/installed.json and the update token in the config, so updates need
  *     nothing either
  * What it can't do is listed under "Left to do" (`left` in the JSON) for Claude or the person: loading
@@ -43,6 +48,12 @@ const WIN = process.platform === 'win32';
 const INSTALL_GUIDE = 'https://github.com/microfox-ai/mediamake/blob/main/install.md';
 /** The kinds that put something on the computer by themselves; skills of ours come with the repo. */
 const AUTO_KINDS = new Set(['mcp', 'app']);
+/**
+ * MediaMake's own hosted connectors and the name each has in Claude: no package, added by their
+ * address. mm-use opens to every signed-in account, mm-release to admins (the vault), so `mm items`
+ * lists only the ones the account opens.
+ */
+export const HOSTED_CONNECTORS = { 'mcp/mm-use': 'mm-use', 'mcp/mm-release': 'mm-release' };
 const TIMEOUT_MS = 30_000;
 
 const readJson = file => {
@@ -182,8 +193,25 @@ export async function mine(url, key, env = process.env) {
     site: url,
     account: me ? { name: me.name, email: me.email, tier: me.tier ?? (me.isAdmin ? 'admin' : undefined), isAdmin: !!me.isAdmin } : null,
     items,
+    connectors: connectorsHere(open, env),
     locked: all.filter(item => item.access === 'locked').map(item => ({ id: item.id, title: item.title, tier: item.tier })),
   };
+}
+
+/**
+ * MediaMake's hosted connectors the account opens (HOSTED_CONNECTORS), each `added` when Claude Code
+ * already has it by its name, else `missing`; `unknown` when Claude Code isn't on this computer.
+ */
+export function connectorsHere(open, env = process.env) {
+  const claude = claudeBin(env);
+  return open
+    .filter(item => HOSTED_CONNECTORS[item.id])
+    .map(item => {
+      const name = HOSTED_CONNECTORS[item.id];
+      const state = !claude ? 'unknown' : run(claude, ['mcp', 'get', name]).status === 0 ? 'added' : 'missing';
+      return { id: item.id, title: item.title, name, tier: item.tier ?? 'public', state };
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
 }
 
 // ── installing ──────────────────────────────────────────────────────────────
@@ -316,6 +344,28 @@ async function carryOut(plan, ctx) {
         what: `Load the extension in Chrome: open chrome://extensions, turn on Developer mode (top right), click "Load unpacked" and pick ${dest}`,
         ...(step.guide && { guide: step.guide }),
       });
+      continue;
+    }
+
+    // one of MediaMake's hosted connectors: added to Claude Code by its address; signing in is the person's
+    if (step.type === 'source' && !step.madeBy && step.source?.type === 'mcp-server' && step.source.remote?.url && !step.source.remote.headers?.some(h => h.required)) {
+      const name = step.source.name || step.slug;
+      const address = step.source.remote.url;
+      const signIn = { step: id, needsPerson: true, what: `Sign in to ${step.title}: in Claude Code, run /mcp, pick ${name}, sign in to MediaMake in the browser window that opens and click Allow` };
+      if (!claude) {
+        left.push({ step: id, what: `Add ${step.title} to Claude: Claude Code isn't on this computer's PATH. In Claude Desktop, add a custom connector with ${address}, then sign in and click Allow` });
+        continue;
+      }
+      const registered = run(claude, ['mcp', 'get', name]).status === 0;
+      if (registered && !ctx.force) {
+        done.push(`${step.title} is already in Claude Code`);
+        continue;
+      }
+      if (registered) for (const scope of ['user', 'local', 'project']) if (run(claude, ['mcp', 'remove', name, '--scope', scope]).status === 0) break;
+      const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'user', name, address]);
+      if (add.status !== 0) throw new Error(`claude mcp add ${name} failed: ${(add.stderr || add.stdout || '').trim().split('\n').pop()}`);
+      done.push(`${step.title} added to Claude Code (${address})`);
+      left.push(signIn);
       continue;
     }
 
@@ -475,7 +525,13 @@ function printMine(state) {
     const what = item.state === 'installed' ? `installed ${item.installed}` : item.state === 'behind' ? `installed ${item.installed ?? '(version unknown)'}, ${item.version} is live` : `not installed (${item.version})`;
     console.log(`  ${mark} ${item.id.padEnd(width)}  ${what}  [${TIER[item.tier] ?? item.tier}]`);
   }
-  const todo = state.items.filter(item => item.state !== 'installed');
+  const connectors = state.connectors ?? [];
+  if (connectors.length) {
+    console.log('\nMediaMake connectors:');
+    for (const connector of connectors)
+      console.log(`  ${connector.state === 'added' ? '✔' : '○'} ${connector.id.padEnd(width)}  ${connector.state === 'added' ? 'in Claude Code' : connector.state === 'missing' ? 'not in Claude Code' : "Claude Code isn't on this computer"}  [${TIER[connector.tier] ?? connector.tier}]`);
+  }
+  const todo = [...state.items.filter(item => item.state !== 'installed'), ...connectors.filter(connector => connector.state === 'missing')];
   if (todo.length) console.log(`\n${todo.length} to install or update: mm items install --yes`);
   else if (state.items.length) console.log('\nEverything your membership opens is installed and up to date.');
   const byTier = new Map();
@@ -532,7 +588,7 @@ async function main(args) {
     let state = null;
     if (!wanted.length) {
       state = await mine(url, key, env);
-      wanted = state.items.filter(item => item.state !== 'installed').map(item => item.id);
+      wanted = [...state.items.filter(item => item.state !== 'installed'), ...(state.connectors ?? []).filter(connector => connector.state === 'missing')].map(item => item.id);
     }
     if (!flags.has('--yes')) {
       if (json) console.log(JSON.stringify({ signedIn: true, site: url, account: state?.account, wouldInstall: wanted }, null, 2));
