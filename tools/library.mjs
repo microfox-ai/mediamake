@@ -27,8 +27,19 @@
  *   mm library fetch <collection>/<entry> [<slot>…] [--to=<folder>] [--replace]
  *                                            the files, checked against their SHA-256. A file this computer
  *                                            fetched before comes from its cache, not the network.
+ *   mm library use <collection>/<entry> [<slot>…] --into=<project or folder> [--replace]
+ *                                            the entry's files into a production's input folder (every slot,
+ *                                            or the ones named), and a note of what it took in
+ *                                            library.json there: each file's SHA-256, for a later render.
+ *   mm library made-from <file or SHA-256> [--slot=transcript] [--tool=<name>] [--params="<settings>"]
+ *        [--to=<file>] [--replace]
+ *                                            what the Library holds that was made from this exact file with
+ *                                            these settings (none: the tool's defaults): a transcript of
+ *                                            this master. Look before paying for it again. --to takes the
+ *                                            newest one. Every space you can open, or --project's.
  *   mm library save <collection> [<entry>] [--set <field>=<value>]… [--json=<fields.json>]
- *        [--file <slot>=<path>]… [--item <slot>=<media library id>]… [--made-from=<slot>=<source slot>[:<tool>]]
+ *        [--file <slot>=<path>]… [--item <slot>=<media library id>]…
+ *        [--made-from=<slot>=<source slot>[:<tool>[:<settings>]]]
  *        [--rev=<n>] [--private-ok] [--yes]
  *                                            adds an entry (no <entry>: a new one, named by its title) or
  *                                            changes one. Without --yes nothing is saved: it prints the one
@@ -123,13 +134,15 @@ export function filesFrom(pairs) {
   });
 }
 
-/** `--made-from=transcript=master:scribe` → which slot's file was made from which, and with what. */
+/** `--made-from=transcript=master:scribe` (or `…:scribe:lang=en letters`) → which slot's file was made from which, with what tool and settings. */
 export function madeFromOf(value) {
   return listOf(value).map(spec => {
-    const [slot, rest = ''] = spec.split('=');
-    const [source, tool] = rest.split(':');
-    if (!SLUG.test(slot ?? '') || !SLUG.test(source ?? '')) throw new Error(`--made-from takes <slot>=<source slot>[:<tool>], not "${spec}"`);
-    return { slot, source, ...(tool && { tool }) };
+    const at = spec.indexOf('=');
+    const slot = at < 0 ? spec : spec.slice(0, at);
+    const [source, tool, ...rest] = (at < 0 ? '' : spec.slice(at + 1)).split(':');
+    const params = rest.join(':').trim();
+    if (!SLUG.test(slot ?? '') || !SLUG.test(source ?? '')) throw new Error(`--made-from takes <slot>=<source slot>[:<tool>[:<settings>]], not "${spec}"`);
+    return { slot, source, ...(tool && { tool }), ...(params && { params }) };
   });
 }
 
@@ -386,6 +399,27 @@ async function preview(env, [raw, slot], flags) {
   return 0;
 }
 
+/** Brings one stored file to `dest`, from this computer's cache when it has it. Says where it came from. */
+async function bring(env, file, dest, replace) {
+  const cached = cachePath(file.sha256, env);
+  if (fs.existsSync(dest)) {
+    if ((await sha256Of(dest)) === file.sha256) return 'already there';
+    if (!replace) throw new Error(`${dest} is there and differs from the Library's ${file.name}. Nothing was replaced: move it, or add --replace.`);
+  }
+  let from = 'this computer';
+  if (!fs.existsSync(cached)) {
+    const { part, sha256 } = await download(file.url, cached);
+    if (sha256 !== file.sha256) {
+      fs.rmSync(part, { force: true });
+      throw new Error(`${file.name} arrived damaged (its SHA-256 differs): try again.`);
+    }
+    fs.renameSync(part, cached);
+    from = 'the cloud';
+  }
+  place(cached, dest);
+  return from;
+}
+
 async function fetchFiles(env, [raw, ...slots], flags) {
   const ref = refOf(raw);
   const space = await spaceFor(env, flags);
@@ -393,31 +427,84 @@ async function fetchFiles(env, [raw, ...slots], flags) {
   const got = await api(env, 'GET', `/files${query({ space: space.id, ref, slots: slots.join(','), device: placeName(env) })}`);
   const done = [];
   for (const file of got.files) {
-    const cached = cachePath(file.sha256, env);
     const dest = path.join(to, file.name);
-    if (fs.existsSync(dest)) {
-      if ((await sha256Of(dest)) === file.sha256) {
-        done.push(`  = ${dest} (already there)`);
-        continue;
-      }
-      if (!flags.replace) throw new Error(`${dest} is there and differs from the Library's ${file.name}. Nothing was replaced: move it, or add --replace.`);
-    }
-    let from = 'this computer';
-    if (!fs.existsSync(cached)) {
-      const { part, sha256 } = await download(file.url, cached);
-      if (sha256 !== file.sha256) {
-        fs.rmSync(part, { force: true });
-        throw new Error(`${file.name} arrived damaged (its SHA-256 differs): try again.`);
-      }
-      fs.renameSync(part, cached);
-      from = 'the cloud';
-    }
-    place(cached, dest);
-    done.push(`  ✔ ${dest} (${file.slot}, ${sizeOf(file.size)}, from ${from})`);
+    const from = await bring(env, file, dest, flags.replace);
+    done.push(from === 'already there' ? `  = ${dest} (already there)` : `  ✔ ${dest} (${file.slot}, ${sizeOf(file.size)}, from ${from})`);
   }
   if (flags.json) return console.log(JSON.stringify({ ref, to, files: got.files.map(f => ({ slot: f.slot, name: f.name, sha256: f.sha256, path: path.join(to, f.name) })) }, null, 2)), 0;
   console.log(`${got.title}:`);
   for (const line of done) console.log(line);
+  return 0;
+}
+
+/** Where a production keeps what it was given: `--into` as a folder, else the input folder of that project in the workspace. */
+export function inputFolder(into, env = process.env) {
+  if (typeof into !== 'string' || !into) throw new Error('Into which production? --into=<project> (its input folder), or --into=<a folder>.');
+  if (/[\\/]/.test(into) || into.startsWith('.') || into.startsWith('~')) return path.resolve(into.replace(/^~(?=[\\/]|$)/, os.homedir()));
+  const set = env.MEDIAMAKE_WORKSPACE?.trim() || readConfig(env).workspace;
+  const root = typeof set === 'string' && set.trim() ? path.resolve(set.trim().replace(/^~(?=[\\/]|$)/, os.homedir())) : path.join(path.dirname(SELF), '..', 'apps', 'studio');
+  const project = path.join(root, 'projects', into);
+  if (!fs.existsSync(project)) throw new Error(`No project ${into} in ${path.join(root, 'projects')}. Give its folder instead: --into=<folder>.`);
+  return path.join(project, 'input');
+}
+
+/** The note a production keeps of what it took from the Library: one line per file, the newest take of a slot's file replacing the older. */
+export function takenNote(before, taken) {
+  const kept = (Array.isArray(before?.files) ? before.files : []).filter(old => !taken.files.some(file => file.name === old.name));
+  return { schema: 'mediamake.library-use/v1', files: [...kept, ...taken.files.map(file => ({ ...file, ref: taken.ref, space: taken.space, at: taken.at }))] };
+}
+
+async function use(env, [raw, ...slots], flags) {
+  const ref = refOf(raw);
+  const to = inputFolder(flags.into, env);
+  const space = await spaceFor(env, flags);
+  const got = await api(env, 'GET', `/files${query({ space: space.id, ref, slots: slots.join(','), device: placeName(env) })}`);
+  if (!got.files.length) throw new Error(`${ref} has no file${slots.length ? ` in ${slots.join(', ')}` : ''} (mm library get ${ref}).`);
+  const lines = [];
+  for (const file of got.files) {
+    const dest = path.join(to, file.name);
+    const from = await bring(env, file, dest, flags.replace);
+    lines.push(from === 'already there' ? `  = ${file.name} (${file.slot}, already there)` : `  ✔ ${file.name} (${file.slot}, ${sizeOf(file.size)}, from ${from})`);
+  }
+  const noteFile = path.join(to, 'library.json');
+  let before = null;
+  try {
+    before = JSON.parse(fs.readFileSync(noteFile, 'utf8'));
+  } catch {}
+  const note = takenNote(before, { ref, space: space.name, at: new Date().toISOString(), files: got.files.map(f => ({ slot: f.slot, name: f.name, sha256: f.sha256, size: f.size })) });
+  fs.writeFileSync(noteFile, `${JSON.stringify(note, null, 2)}\n`);
+  if (flags.json === true) return console.log(JSON.stringify({ ref, to, files: note.files.filter(f => f.ref === ref) }, null, 2)), 0;
+  console.log(`${got.title} → ${to}`);
+  for (const line of lines) console.log(line);
+  console.log(`  noted in ${noteFile}`);
+  return 0;
+}
+
+async function madeFromFile(env, [what], flags) {
+  if (!what) throw new Error('Made from which file? mm library made-from <file or SHA-256> [--slot=transcript]');
+  let sha = String(what).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(sha)) {
+    const file = path.resolve(what);
+    if (!fs.statSync(file, { throwIfNoEntry: false })?.isFile()) throw new Error(`No file at ${file}`);
+    sha = await sha256Of(file);
+  }
+  const space = typeof flags.project === 'string' ? await spaceFor(env, flags) : null;
+  const text = name => (typeof flags[name] === 'string' ? flags[name] : undefined);
+  const { results } = await api(env, 'GET', `/files${query({ madeFrom: sha, space: space?.id, slot: text('slot'), tool: text('tool'), params: text('params'), device: placeName(env) })}`);
+  const to = text('to') && path.resolve(text('to'));
+  let taken = null;
+  if (to && results.length) {
+    const hit = results[0];
+    const got = await api(env, 'GET', `/files${query({ space: hit.spaceId, ref: hit.ref, slots: hit.slot, device: placeName(env) })}`);
+    const file = got.files.find(f => f.sha256 === hit.sha256);
+    if (!file) throw new Error(`${hit.ref} no longer holds ${hit.name}: look again.`);
+    taken = { ...hit, path: to, from: await bring(env, file, to, flags.replace) };
+  }
+  if (flags.json === true) return console.log(JSON.stringify({ sha256: sha, results, ...(taken && { taken }) }, null, 2)), 0;
+  if (!results.length) return console.log(`Nothing in ${space ? `the ${space.name} space` : 'the Library'} was made from this file${text('params') ? ' with these settings' : " with the tool's default settings"} (${sha.slice(0, 12)}).`), 0;
+  for (const hit of results) console.log(`${hit.ref} (${hit.space}) · ${hit.slot}: ${hit.name} · ${sizeOf(hit.size)}${hit.tool ? ` · with ${hit.tool}` : ''}${hit.params ? ` (${hit.params})` : ''} · added ${hit.addedAt.slice(0, 10)}`);
+  if (taken) console.log(`  ✔ ${taken.path} (${taken.from === 'already there' ? 'already there' : `from ${taken.from}`})`);
+  else console.log('\nNothing was fetched. --to=<file> takes the newest one.');
   return 0;
 }
 
@@ -472,7 +559,7 @@ async function save(env, [collection, entry], flags) {
     const from = made.find(m => m.slot === f.slot);
     const source = from && (shaOfSlot(from.source) ?? existing?.slots?.[from.source]?.[0]?.sha256);
     if (from && !source) throw new Error(`--made-from: there is no file in ${from.source} to say ${f.name} was made from.`);
-    return { slot: f.slot, sha256: f.sha256, name: f.name, ...(source && { madeFrom: { sha256: source, ...(from.tool && { tool: from.tool }) } }) };
+    return { slot: f.slot, sha256: f.sha256, name: f.name, ...(source && { madeFrom: { sha256: source, ...(from.tool && { tool: from.tool }), ...(from.params && { params: from.params }) } }) };
   });
   const saved = await api(env, 'POST', '/entries', { ...body, files });
   if (flags.json === true) return console.log(JSON.stringify(saved, null, 2)), 0;
@@ -711,6 +798,10 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return headshot(env, rest, flags);
     case 'usage':
       return usage(env, flags);
+    case 'use':
+      return use(env, rest, flags);
+    case 'made-from':
+      return madeFromFile(env, rest, flags);
     case 'report':
       return report(env, rest, flags);
     case 'devices':

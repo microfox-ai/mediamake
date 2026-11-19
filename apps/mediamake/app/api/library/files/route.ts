@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server';
+import { getDatabase } from '@/lib/mongodb';
 import { parseRef, type ReadAsk } from '@/lib/cloud-library';
-import { answer, caller, failed, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { librarySpaces } from '@/lib/cloud-library/access';
+import { answer, caller, failed, mayUseLibrary, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { parseMadeFromAsk } from '@/lib/cloud-library/reuse';
 import { storageReady } from '@/lib/cloud-library/storage';
 import { libraryDB } from '@/lib/cloud-library/store';
 
@@ -18,6 +21,9 @@ import { libraryDB } from '@/lib/cloud-library/store';
  *       ?space=<id>&ref=…&read=<field or slot> [&lines=1-40] [&from=60&to=90]
  *            a field's text or a text or JSON file's content, whole or a part (lines, or seconds of a
  *            timed transcript). Nothing is downloaded by the caller.
+ *       ?madeFrom=<sha256> [&space=<id>] [&slot=transcript] [&tool=…] [&params=…]
+ *            the files that were made from that exact file with those settings (none: the tool's
+ *            defaults), in one space or in every space the caller can open. Cards, no links.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -39,6 +45,20 @@ export async function GET(req: NextRequest) {
   const { clientId, usage } = caller(req);
   if (!clientId) return refuse('Sign in first', 401);
   const params = req.nextUrl.searchParams;
+  if (params.has('madeFrom')) {
+    const ask = parseMadeFromAsk(params);
+    if ('error' in ask) return refuse(ask.error);
+    try {
+      if (params.get('space')) {
+        const at = await spaceOf(clientId, params.get('space'), 'read');
+        return 'response' in at ? at.response : answer(await libraryDB.madeFrom([at.space], ask, usage));
+      }
+      const locked = await mayUseLibrary(clientId);
+      return locked ?? answer(await libraryDB.madeFrom(await librarySpaces(await getDatabase(), clientId), ask, usage));
+    } catch (error) {
+      return failed('look for the result', error);
+    }
+  }
   const ref = parseRef(params.get('ref'));
   if (!ref) return refuse('ref is <collection>/<entry>, e.g. songs/nakama');
   try {

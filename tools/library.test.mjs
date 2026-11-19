@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { cachePath, cardOfItem, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
+import { cachePath, cardOfItem, inputFolder, takenNote, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
 
 test('arguments: positionals, repeated flags and switches', () => {
   const { args, flags } = parseArgs(['save', 'songs', 'nakama', '--set', 'title=Nakama! = fun', '--set', 'use=Released', '--file', 'master=a b.wav', '--project=Get Into Zone', '--yes', '--has=transcript', '--has=stems']);
@@ -28,6 +28,7 @@ test('--file and --made-from', () => {
   assert.deepEqual(filesFrom(['Master=/tmp/a.wav']), [{ slot: 'master', path: '/tmp/a.wav' }]);
   assert.throws(() => filesFrom(['/tmp/a.wav']), /<slot>=<path>/);
   assert.deepEqual(madeFromOf('transcript=master:scribe'), [{ slot: 'transcript', source: 'master', tool: 'scribe' }]);
+  assert.deepEqual(madeFromOf('transcript=master:transcribe:lang=en letters'), [{ slot: 'transcript', source: 'master', tool: 'transcribe', params: 'lang=en letters' }]);
   assert.deepEqual(madeFromOf(undefined), []);
   assert.throws(() => madeFromOf('transcript'), /<slot>=<source slot>/);
 });
@@ -112,8 +113,13 @@ async function standIn() {
       return send({ ref: 'songs/nakama', created: true, changed: true, warnings: [], entry: state.entry });
     }
     if (url.pathname === '/api/library/entries' && req.method === 'GET') return send({ entry: state.entry, statistics: [] });
+    if (url.pathname === '/api/library/files' && req.method === 'GET' && url.searchParams.has('madeFrom')) {
+      const hits = Object.entries(state.entry?.slots ?? {}).flatMap(([slot, list]) => list.filter(f => f.madeFrom?.sha256 === url.searchParams.get('madeFrom') && (!url.searchParams.get('slot') || slot === url.searchParams.get('slot')) && (f.madeFrom.params ?? '') === (url.searchParams.get('params') ?? '')).map(f => ({ ref: 'songs/nakama', title: 'Nakama!', slot, name: f.name, size: state.blobs.get(f.sha256).length, sha256: f.sha256, tool: f.madeFrom.tool, addedAt: '2026-11-19T10:00:00Z', space: 'Get Into Zone', spaceId: SPACE })));
+      return send({ results: hits });
+    }
     if (url.pathname === '/api/library/files' && req.method === 'GET') {
-      const files = Object.entries(state.entry.slots).flatMap(([slot, list]) => list.map(f => ({ slot, name: f.name, size: state.blobs.get(f.sha256).length, sha256: f.sha256, url: `${origin}/blob/${f.sha256}${state.damage ? '?damage' : ''}` })));
+      const wanted = (url.searchParams.get('slots') ?? '').split(',').filter(Boolean);
+      const files = Object.entries(state.entry.slots).filter(([slot]) => !wanted.length || wanted.includes(slot)).flatMap(([slot, list]) => list.map(f => ({ slot, name: f.name, size: state.blobs.get(f.sha256).length, sha256: f.sha256, url: `${origin}/blob/${f.sha256}${state.damage ? '?damage' : ''}` })));
       return send({ ref: 'songs/nakama', title: 'Nakama!', files });
     }
     if (url.pathname === '/api/library/devices' && req.method === 'POST') return send({ saved: body.cards.length, ...(body.done && { files: state.calls.filter(c => c.path === '/api/library/devices' && c.method === 'POST' && c.body.run === body.run).reduce((n, c) => n + c.body.cards.length, 0) }) });
@@ -287,6 +293,60 @@ test('a computer reports only after its owner turns it on, and --item takes a fi
     const gone = await run(['report', 'forget'], env);
     assert.match(gone.out, /✔ Forgotten: 2 card\(s\)/);
     assert.equal(JSON.parse(fs.readFileSync(config, 'utf8')).libraryReport, 'off');
+  } finally {
+    await site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* ---------- reuse ---------- */
+
+test('a production notes what it took, the newest take of a file replacing the older', () => {
+  const first = takenNote(null, { ref: 'songs/a', space: 'Zone', at: 't1', files: [{ slot: 'master', name: 'a.wav', sha256: 'a'.repeat(64), size: 1 }] });
+  const second = takenNote(first, { ref: 'songs/a', space: 'Zone', at: 't2', files: [{ slot: 'master', name: 'a.wav', sha256: 'b'.repeat(64), size: 2 }, { slot: 'transcript', name: 'a.json', sha256: 'c'.repeat(64), size: 3 }] });
+  assert.equal(second.schema, 'mediamake.library-use/v1');
+  assert.deepEqual(second.files.map(f => [f.name, f.sha256[0], f.at]), [['a.wav', 'b', 't2'], ['a.json', 'c', 't2']]);
+  assert.equal(inputFolder('./somewhere/input'), path.resolve('somewhere/input'));
+  assert.throws(() => inputFolder(undefined), /Into which production/);
+  assert.throws(() => inputFolder('no-such-project', { MEDIAMAKE_WORKSPACE: os.tmpdir() }), /No project no-such-project/);
+});
+
+test('a result is found by the file it was made from, and an entry goes into a project in one call', async () => {
+  const site = await standIn();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-library-'));
+  const env = { MEDIAMAKE_API_URL: site.url, MEDIAMAKE_API_KEY: 'test-key', MEDIAMAKE_CONFIG: path.join(dir, 'config.json'), MEDIAMAKE_LIBRARY_CACHE: path.join(dir, 'cache'), MEDIAMAKE_PLACE: 'test-place', MEDIAMAKE_WORKSPACE: path.join(dir, 'ws') };
+  const master = path.join(dir, 'nakama.wav');
+  const words = path.join(dir, 'nakama.words.json');
+  fs.writeFileSync(master, Buffer.alloc(4000, 9));
+  fs.writeFileSync(words, JSON.stringify({ words: [{ text: 'hey', start: 0, end: 1 }] }));
+  fs.mkdirSync(path.join(dir, 'ws', 'projects', 'nakama-video'), { recursive: true });
+  try {
+    const saved = await run(['save', 'songs', '--project=Get Into Zone', '--set', 'title=Nakama!', '--file', `master=${master}`, '--file', `transcript=${words}`, '--made-from=transcript=master:transcribe', '--yes'], env);
+    assert.equal(saved.code, 0);
+    const masterSha = await sha256Of(master);
+    assert.deepEqual(site.state.calls.at(-1).body.files[1].madeFrom, { sha256: masterSha, tool: 'transcribe' });
+
+    // another computer asks by the master's content, and takes the words without paying again
+    const out = path.join(dir, 'elsewhere', 'lyrics.raw.json');
+    const found = await run(['made-from', master, '--slot=transcript', `--to=${out}`, '--json'], env);
+    const answer = JSON.parse(found.out);
+    assert.equal(answer.sha256, masterSha);
+    assert.equal(answer.taken.ref, 'songs/nakama');
+    assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8')), JSON.parse(fs.readFileSync(words, 'utf8')));
+    // other settings are another result
+    const other = await run(['made-from', masterSha, '--slot=transcript', '--params=letters'], env);
+    assert.match(other.out, /Nothing in the Library was made from this file with these settings/);
+
+    // the entry's files into the project's input folder, with a note of what was taken
+    const used = await run(['use', 'songs/nakama', '--project=Get Into Zone', '--into=nakama-video'], env);
+    assert.equal(used.code, 0);
+    const input = path.join(dir, 'ws', 'projects', 'nakama-video', 'input');
+    assert.deepEqual(fs.readdirSync(input).sort(), ['library.json', 'nakama.wav', 'nakama.words.json']);
+    const note = JSON.parse(fs.readFileSync(path.join(input, 'library.json'), 'utf8'));
+    assert.deepEqual(note.files.map(f => [f.slot, f.name, f.sha256 === masterSha, f.ref]), [['master', 'nakama.wav', true, 'songs/nakama'], ['transcript', 'nakama.words.json', false, 'songs/nakama']]);
+    // a second time moves nothing
+    const again = await run(['use', 'songs/nakama', 'master', '--project=Get Into Zone', '--into=nakama-video'], env);
+    assert.match(again.out, /= nakama\.wav \(master, already there\)/);
   } finally {
     await site.close();
     fs.rmSync(dir, { recursive: true, force: true });

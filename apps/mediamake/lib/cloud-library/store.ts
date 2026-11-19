@@ -51,6 +51,7 @@ import {
   type UsageSum,
 } from './index';
 import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storageReady, storedSize } from './storage';
+import { madeFrom, type MadeFromAsk } from './reuse';
 import { TEMPLATES } from './templates';
 
 const COLLECTIONS = 'library_collections';
@@ -315,6 +316,20 @@ export const libraryDB = {
     const limit = ask.limit ?? 10;
     const from = ask.offset ?? 0;
     return { total: hits.length, results: hits.slice(from, from + limit).map(entry => ({ ...entryView(entry as EntryRecord, false), space: names.get(entry.space), spaceId: entry.space })) };
+  },
+
+  /** The files, in the spaces given, that were made from one exact file (./reuse): a transcript of this master. Cards only, no links. */
+  async madeFrom(spaces: LibrarySpace[], ask: MadeFromAsk, usage: { clientId: string; device?: string }) {
+    const db = await database();
+    const names = new Map(spaces.map(space => [space.id, space.name]));
+    const docs = await db
+      .collection<EntryRecord>(ENTRIES)
+      .find({ space: { $in: [...names.keys()] }, ...LIVE }, { projection: { _id: 0, space: 1, collection: 1, slug: 1, title: 1, slots: 1 } })
+      .limit(5000)
+      .toArray();
+    const results = [...names.keys()].flatMap(id => madeFrom(docs.filter(doc => doc.space === id), ask).map(hit => ({ ...hit, space: names.get(id), spaceId: id })));
+    await logUsage({ ...usage, action: 'search', space: spaces.length === 1 ? spaces[0].id : '' });
+    return { results: results.sort((a, b) => b.addedAt.localeCompare(a.addedAt)) };
   },
 
   /**

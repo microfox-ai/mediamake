@@ -226,11 +226,30 @@ SHA-256 is the same: nothing else links them, and nothing is written to the comp
 (`q`, `kind`, `where=device|both`), `POST` takes a report's part and `DELETE ?label=` forgets one.
 Cards live in `library_device_files`, a computer's sums in `library_devices`.
 
+## Reuse: found before it is paid for again
+
+- **A result names what it was made from.** `mm library save … --file transcript=<words.json>
+  --made-from=transcript=master:transcribe` records that the transcript was made from that exact
+  master (its SHA-256), with that tool. Settings other than the tool's defaults go after it:
+  `…:transcribe:lang=en letters`.
+- **Asking by the file.** `mm library made-from <file or SHA-256> [--slot=transcript]
+  [--params="…"]` lists what every space you can open holds that was made from this file with these
+  settings (none means the defaults: other settings are another result). `--to=<file>` takes the
+  newest. `GET /api/library/files?madeFrom=<sha256>` is the route.
+- **`mm transcribe` asks first.** After the media library's own cache and before it prints a price,
+  it asks the Cloud Library for the words of this exact song. A hit is kept like Scribe's own
+  answer and nothing is spent. When the Library can't be asked (not signed in, offline, not a
+  member) nothing changes. `--fresh` skips it, and `MEDIAMAKE_LIBRARY_REUSE=off` turns it off.
+- **An entry into a production in one call.** `mm library use <collection>/<entry> [<slot>…]
+  --into=<project>` puts the entry's files in the project's `input/` folder (from this computer's
+  cache when it has them) and notes each file's SHA-256 in `input/library.json`, so a later render
+  can say exactly which file it was made with.
+
 ## Not built yet
 
-A device library's own collections, "Fetch to this device" from the page, the older Library page
-(`/library`, the Mac's media library) folded into Computers, reuse of paid
-results by `mm transcribe` and `mm analyze`, shared collections, the tools in the Spaces MCP, search
+`mm analyze` and `media cache get` asking the Library, a skill naming the slots it reads
+(`mm library use --for=<skill>`), a device library's own collections, "Fetch to this device" from the page, the older Library page
+(`/library`, the Mac's media library) folded into Computers, shared collections, the tools in the Spaces MCP, search
 by meaning, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
