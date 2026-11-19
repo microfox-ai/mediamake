@@ -28,7 +28,7 @@ import {
   type SlotFile,
   type UsageLine,
 } from './index';
-import { SONGS, TEMPLATES, templateList } from './templates';
+import { SONGS, TEMPLATES, templateList, upgradeTemplate } from './templates';
 
 const SPACE = 'a'.repeat(24);
 const T0 = new Date('2026-11-19T10:00:00.000Z');
@@ -218,6 +218,30 @@ test('search: plain words and exact filters', () => {
   assert.deepEqual([a, b].filter(e => matches(e, ask('lacks=transcript,lyrics'))).map(e => e.slug), ['sky-song']);
   assert.equal(ask('limit=900').limit, 200);
   assert.equal(ask('collection=..%2Fx').collection, undefined);
+  // a key the template doesn't know is searched where it is kept, and a name an object always has finds nothing
+  const loose = saved(songs(), null, { fields: { title: 'Loose', mood: 'Calm' } }).entry;
+  assert.ok(matches(loose, ask('where=mood%3Dcalm')));
+  assert.ok(!matches(loose, ask('where=constructor%3Dfunction')));
+  assert.ok(!matches(loose, ask('where=title.constructor%3Dx')));
+});
+
+test('a collection made from an older template reads as the latest version, its own extras kept', () => {
+  const v1 = {
+    ...SONGS,
+    version: 1,
+    guide: '# The old guide',
+    fields: [...SONGS.fields.map(field => ({ ...field, keys: undefined })), { key: 'mood', label: 'Mood', kind: 'tags' as const, group: 'Words' }],
+    slots: SONGS.slots.filter(slot => slot.key !== 'distrokid-pack'),
+  };
+  const read = upgradeTemplate(v1);
+  assert.equal(read.version, SONGS.version);
+  assert.equal(read.guide, SONGS.guide);
+  assert.ok(read.fields.find(f => f.key === 'distrokid')?.keys?.length);
+  assert.ok(read.slots.some(slot => slot.key === 'distrokid-pack'));
+  assert.equal(read.fields.at(-1)?.key, 'mood');
+  assert.equal(upgradeTemplate(SONGS), SONGS);
+  const unknown = { ...v1, id: 'made-up' };
+  assert.equal(upgradeTemplate(unknown), unknown);
 });
 
 test('reading a part: lines of a text, seconds of a timed transcript', () => {

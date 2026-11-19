@@ -42,6 +42,18 @@ export interface TemplateField {
   hint?: string;
   /** An AI never fills it from a guess: only from a file, a tag or the person. */
   neverGuess?: boolean;
+  /**
+   * group: the keys it is known to hold, shown first, in this order, with their labels. Any other
+   * key is kept too. A `link` key is shown as a link and searched as `where=<field>.<key>=…`.
+   */
+  keys?: GroupKey[];
+}
+
+export interface GroupKey {
+  key: string;
+  label: string;
+  kind?: 'text' | 'date' | 'link';
+  hint?: string;
 }
 
 export interface TemplateSlot {
@@ -371,6 +383,10 @@ function cleanField(field: TemplateField, raw: unknown, learned: CollectionRecor
         const kept = Array.isArray(value) ? value.map(item => text(item)).filter(Boolean) : text(value, 5000);
         if (name && (Array.isArray(kept) ? kept.length : kept)) out[name] = kept;
       }
+      for (const known of field.keys ?? []) {
+        const value = out[known.key];
+        if (known.kind === 'link' && typeof value === 'string' && !isUrl(value)) warnings.push(`${field.label}: ${known.label} "${value}" does not look like a link`);
+      }
       return Object.keys(out).length ? out : undefined;
     }
   }
@@ -570,7 +586,11 @@ export function askSentence(input: { noun: string; title: string; collection: st
 export interface SearchAsk {
   q?: string;
   collection?: string;
-  /** field=value, matched without case: `use=released`. */
+  /**
+   * field=value, matched without case: `use=released`. A list or a group is matched as its JSON
+   * (`distrokid=<albumuuid>` finds the song whose DistroKid link holds it), one key of a group as
+   * `field.key` (`distrokid.link=…`), and a key the template doesn't know in the entry's `extra`.
+   */
   where?: Record<string, string>;
   has?: string[];
   lacks?: string[];
@@ -616,12 +636,25 @@ export function factsOf(entry: Pick<EntryRecord, 'fields' | 'slots'>): { facts: 
   return { facts, has };
 }
 
-export function matches(entry: Pick<EntryRecord, 'card' | 'fields' | 'slots' | 'title'>, ask: SearchAsk): boolean {
+/** The value a `where` key names: a field, one key of a group (`distrokid.link`, any case), or a value kept under `extra`. */
+export function whereValue(entry: Pick<EntryRecord, 'fields'> & { extra?: Record<string, unknown> }, key: string): unknown {
+  const own = (record: object | undefined, name: string) => (record && Object.prototype.hasOwnProperty.call(record, name) ? (record as Record<string, unknown>)[name] : undefined);
+  const value = own(entry.fields, key) ?? own(entry.extra, key);
+  if (value !== undefined) return value;
+  const dot = key.indexOf('.');
+  if (dot < 1) return undefined;
+  const group = own(entry.fields, key.slice(0, dot)) ?? own(entry.extra, key.slice(0, dot));
+  if (!group || typeof group !== 'object' || Array.isArray(group)) return undefined;
+  const sub = key.slice(dot + 1).toLowerCase();
+  return Object.entries(group as Record<string, unknown>).find(([name]) => name.toLowerCase() === sub)?.[1];
+}
+
+export function matches(entry: Pick<EntryRecord, 'card' | 'fields' | 'slots' | 'title'> & { extra?: Record<string, unknown> }, ask: SearchAsk): boolean {
   for (const slot of ask.has ?? []) if (!(entry.slots[slot] ?? []).length && entry.fields[slot] === undefined) return false;
   for (const slot of ask.lacks ?? []) if ((entry.slots[slot] ?? []).length || entry.fields[slot] !== undefined) return false;
   for (const [key, wanted] of Object.entries(ask.where ?? {})) {
-    const value = entry.fields[key];
-    const hay = value === undefined ? '' : typeof value === 'string' || typeof value === 'number' ? String(value) : JSON.stringify(value);
+    const value = whereValue(entry, key);
+    const hay = value === undefined || value === null ? '' : typeof value === 'string' || typeof value === 'number' ? String(value) : (JSON.stringify(value) ?? '');
     if (!hay.toLowerCase().includes(wanted.toLowerCase())) return false;
   }
   if (ask.q) {

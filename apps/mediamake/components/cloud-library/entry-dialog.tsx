@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { CheckIcon, ClipboardIcon, Loader2Icon, SparklesIcon, UploadIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ClipboardIcon, Loader2Icon, PackageIcon, SparklesIcon, UploadIcon, XIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EntryRecord, FieldValue } from '@/lib/cloud-library';
+import { DISTROKID_FIELD, DISTROKID_PACK_SLOT, fromDistrokidPack, isDistrokidPack, packRelease } from '@/lib/cloud-library/distrokid';
 import { MAX_FILL_READ_BYTES, addPrompt, applyFill, changedFields, formatBytes, listOf, placeFiles, readsAsText, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
 import { libraryApi, uploadFiles } from './api';
 import { FieldInput } from './field-input';
@@ -18,6 +19,9 @@ import { FieldInput } from './field-input';
  * When files are dropped, Claude reads their names and the small text files among them and fills
  * the fields that are still empty. What it filled is marked and can be undone; nothing is saved
  * until the person saves.
+ *
+ * A DistroKid pack (info.json) put in its slot first copies the release it records into the form,
+ * with no AI: its DistroKid link, UPC and dates, a single's ISRC (lib/cloud-library/distrokid).
  */
 
 const button = 'inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50';
@@ -55,6 +59,8 @@ export function EntryDialog({
   // what Claude filled from the dropped files: the fields, what they held before, and what it said
   const [fill, setFill] = React.useState<{ keys: string[]; before: Record<string, unknown>; notes?: string; unread: string[] } | null>(null);
   const [filling, setFilling] = React.useState(false);
+  // what a dropped DistroKid pack copied in: the fields, what they held before, and whether it records a release yet
+  const [packed, setPacked] = React.useState<{ name: string; keys: string[]; before: Record<string, unknown>; recorded: boolean } | null>(null);
   const fillOff = React.useRef(false);
   const fillRun = React.useRef(0);
   const valuesNow = React.useRef(values);
@@ -70,6 +76,7 @@ export function EntryDialog({
     setError(null);
     setFill(null);
     setFilling(false);
+    setPacked(null);
     fillRun.current += 1;
   }, [open, entry]);
 
@@ -84,9 +91,47 @@ export function EntryDialog({
     // a single slot that already holds a file, here or in this drop, is not filled again by a guess
     const filled = new Set([...collection.slots.filter(slot => !slot.many && kept(slot.key).length).map(slot => slot.key), ...added.filter(a => collection.slots.some(slot => slot.key === a.slot && !slot.many)).map(a => a.slot)]);
     const slots = placeFiles(files, collection.slots, filled);
-    const all = [...added, ...files.map((file, index) => ({ file, slot: slots[index] }))];
+    const fresh = files.map((file, index) => ({ file, slot: slots[index] }));
+    const all = [...added, ...fresh];
     setAdded(all);
-    void fillFrom(all);
+    void (async () => {
+      for (const item of fresh) {
+        // a pack is usually called info.json: known by what it holds, it goes in its own slot when that is free
+        if (takesPack && item.slot !== DISTROKID_PACK_SLOT && !filled.has(DISTROKID_PACK_SLOT) && !fresh.some(other => other.slot === DISTROKID_PACK_SLOT) && /\.json$/i.test(item.file.name) && item.file.size <= MAX_FILL_READ_BYTES) {
+          const isPack = await item.file.text().then(isDistrokidPack, () => false);
+          if (isPack) {
+            item.slot = DISTROKID_PACK_SLOT;
+            setAdded(current => current.map(a => (a.file === item.file ? { ...a, slot: DISTROKID_PACK_SLOT } : a)));
+          }
+        }
+        await copyPack(item);
+      }
+      await fillFrom(all);
+    })();
+  };
+
+  // a DistroKid pack in its slot: the release it records goes into the form, before Claude reads anything
+  const takesPack = collection.fields.some(field => field.key === DISTROKID_FIELD) && collection.slots.some(slot => slot.key === DISTROKID_PACK_SLOT);
+  const copyPack = async ({ file, slot }: Added) => {
+    if (!takesPack || slot !== DISTROKID_PACK_SLOT || !readsAsText(file) || file.size > MAX_FILL_READ_BYTES) return;
+    try {
+      const text = await file.text();
+      const { group, isrc } = packRelease(text);
+      const recorded = Object.keys(group).length > 0 || !!isrc;
+      const patch = recorded ? fromDistrokidPack(text, valuesNow.current) : {};
+      const keys = Object.keys(patch);
+      const before = Object.fromEntries(keys.map(key => [key, valuesNow.current[key]]));
+      valuesNow.current = { ...valuesNow.current, ...patch };
+      setValues(valuesNow.current);
+      setPacked({ name: file.name, keys, before, recorded });
+    } catch {
+      // a pack that can't be read is still kept as a file
+    }
+  };
+  const undoPack = () => {
+    if (!packed) return;
+    setValues(current => ({ ...current, ...packed.before }));
+    setPacked(null);
   };
 
   // Claude reads the files' names and the small text files, and fills what is still empty
@@ -232,7 +277,13 @@ export function EntryDialog({
                       {item.file.name}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatBytes(item.file.size)}</span>
-                    <Select value={item.slot} onValueChange={slot => setAdded(current => current.map((a, i) => (i === index ? { ...a, slot } : a)))}>
+                    <Select
+                      value={item.slot}
+                      onValueChange={slot => {
+                        setAdded(current => current.map((a, i) => (i === index ? { ...a, slot } : a)));
+                        void copyPack({ file: item.file, slot });
+                      }}
+                    >
                       <SelectTrigger className="h-8 w-44" aria-label="Where it goes">
                         <SelectValue />
                       </SelectTrigger>
@@ -251,6 +302,21 @@ export function EntryDialog({
                   </li>
                 ))}
               </ul>
+            )}
+            {packed && (
+              <div className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm" role="status">
+                <PackageIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  {!packed.recorded && <p>{packed.name} holds no DistroKid release yet. Once the release is submitted, Browse Hack&apos;s distrokid_record_packs writes its link, UPC and dates into it: drop it again then.</p>}
+                  {packed.recorded && packed.keys.length > 0 && <p>Copied the DistroKid release from {packed.name} into {listOf(packed.keys.map(labelOf))}.</p>}
+                  {packed.recorded && !packed.keys.length && <p>This {collection.noun} already holds the DistroKid release in {packed.name}.</p>}
+                </div>
+                {packed.keys.length > 0 && (
+                  <button type="button" className="shrink-0 rounded-md border bg-background px-2 py-1 text-xs font-medium hover:bg-muted" onClick={undoPack}>
+                    Undo
+                  </button>
+                )}
+              </div>
             )}
             {(filling || fill) && (
               <div className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm" role="status">
@@ -308,11 +374,18 @@ export function EntryDialog({
                   <div key={field.key} className="flex flex-col gap-1.5">
                     <p className="flex items-center gap-2 text-sm font-medium">
                       {field.label}
-                      {fill?.keys.includes(field.key) && (
+                      {packed?.keys.includes(field.key) ? (
                         <span className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
-                          <SparklesIcon className="size-3" />
-                          Filled by Claude
+                          <PackageIcon className="size-3" />
+                          From the DistroKid pack
                         </span>
+                      ) : (
+                        fill?.keys.includes(field.key) && (
+                          <span className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
+                            <SparklesIcon className="size-3" />
+                            Filled by Claude
+                          </span>
+                        )
                       )}
                     </p>
                     {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}

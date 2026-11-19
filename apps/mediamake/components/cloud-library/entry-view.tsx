@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { BotIcon, DownloadIcon, Loader2Icon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { BotIcon, DownloadIcon, ExternalLinkIcon, Loader2Icon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EntryRecord, FieldValue, PlaylistLink, SongPart, StoreLink } from '@/lib/cloud-library';
-import { canChange, clock, dayText, formatBytes, valueLine, type CollectionView, type EntryAnswer, type FieldView, type SpaceView } from '@/lib/cloud-library/view';
+import { openable, releaseLinkOf } from '@/lib/cloud-library/distrokid';
+import { canChange, clock, dayText, formatBytes, groupRows, valueLine, type CollectionView, type EntryAnswer, type FieldView, type SpaceView } from '@/lib/cloud-library/view';
 import { ShareNotesCard } from './share-dialog';
 import { libraryApi } from './api';
 import { EntryDialog } from './entry-dialog';
@@ -38,9 +39,13 @@ function Value({ field, value }: { field: FieldView; value: FieldValue | undefin
         {(value as StoreLink[]).map(row => (
           <li key={`${row.platform}-${row.url}`} className="flex gap-2">
             <span className="w-36 shrink-0 text-muted-foreground">{row.platform}</span>
-            <a href={row.url} target="_blank" rel="noopener noreferrer" className={`${link} min-w-0 truncate`}>
-              {row.url}
-            </a>
+            {openable(row.url) ? (
+              <a href={row.url} target="_blank" rel="noopener noreferrer" className={`${link} min-w-0 truncate`}>
+                {row.url}
+              </a>
+            ) : (
+              <span className="min-w-0 truncate">{row.url}</span>
+            )}
           </li>
         ))}
       </ul>
@@ -75,10 +80,16 @@ function Value({ field, value }: { field: FieldView; value: FieldValue | undefin
   if (field.kind === 'group')
     return (
       <ul className="flex flex-col gap-1 text-sm">
-        {Object.entries(value as Record<string, string | string[]>).map(([name, v]) => (
-          <li key={name} className="flex gap-2">
-            <span className="w-36 shrink-0 text-muted-foreground">{name}</span>
-            <span className="min-w-0">{Array.isArray(v) ? v.join(', ') : v}</span>
+        {groupRows(field, value).map(row => (
+          <li key={row.key} className="flex gap-2">
+            <span className="w-44 shrink-0 text-muted-foreground">{row.label}</span>
+            {row.href ? (
+              <a href={row.href} target="_blank" rel="noopener noreferrer" className={`${link} min-w-0 truncate`}>
+                {row.text}
+              </a>
+            ) : (
+              <span className="min-w-0 break-words">{row.text}</span>
+            )}
           </li>
         ))}
       </ul>
@@ -180,6 +191,9 @@ export function EntryView({ space, home, collection, answer, onChanged, onTrashe
   const groups = [...new Set(collection.fields.map(field => field.group))];
   const may = canChange(space);
   const fileCount = Object.values(entry.slots).reduce((sum, files) => sum + files.length, 0);
+  // a song's release on DistroKid and its store links, one click from the top
+  const release = releaseLinkOf(entry.fields);
+  const storeLinks = Array.isArray(entry.fields.storeLinks) ? (entry.fields.storeLinks as StoreLink[]).filter(row => openable(row?.url)) : [];
 
   const trash = async () => {
     try {
@@ -205,6 +219,22 @@ export function EntryView({ space, home, collection, answer, onChanged, onTrashe
               </span>
             )}
           </p>
+          {(release || storeLinks.length > 0) && (
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+              {release && (
+                <a href={release} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 font-medium hover:bg-muted" title={release}>
+                  <ExternalLinkIcon className="size-3" />
+                  On DistroKid
+                </a>
+              )}
+              {storeLinks.map(row => (
+                <a key={`${row.platform}-${row.url}`} href={row.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground" title={row.url}>
+                  <ExternalLinkIcon className="size-3" />
+                  {row.platform}
+                </a>
+              ))}
+            </p>
+          )}
         </div>
         {may && (
           <div className="flex shrink-0 gap-2">

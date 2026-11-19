@@ -125,26 +125,64 @@ function Tags({ value, onChange, listId, options }: { value: string[]; onChange:
   );
 }
 
-/** Loose details as name and value pairs (what a DistroKid pack holds). A row counts once it has a name. */
-function Details({ value, onChange, listId }: { value: unknown; onChange: (value: unknown) => void; listId: string }) {
-  const [rows, setRows] = React.useState<Row[]>(() =>
-    Object.entries((value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, string | string[]>).map(([name, v]) => ({ name, value: Array.isArray(v) ? v.join(', ') : v })),
-  );
+/**
+ * Loose details as name and value pairs (what a DistroKid pack holds). The keys the template knows
+ * (a DistroKid link, a UPC) get a box each, by their labels; any other is a row, which counts once it
+ * has a name. A value put in from outside (a dropped pack, Claude's fill, Undo) shows at once.
+ */
+function Details({ field, value, onChange, listId }: { field: FieldView; value: unknown; onChange: (value: unknown) => void; listId: string }) {
+  const known = field.keys ?? [];
+  const group = (value && typeof value === 'object' && !Array.isArray(value) ? value : {}) as Record<string, string | string[]>;
+  const text = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join(', ') : (v ?? ''));
+  const rowsOf = (from: Record<string, string | string[]>): Row[] => Object.entries(from).filter(([name]) => !known.some(k => k.key === name)).map(([name, v]) => ({ name, value: text(v) }));
+  const [rows, setRows] = React.useState<Row[]>(() => rowsOf(group));
+  const sent = React.useRef(JSON.stringify(group));
+  const now = JSON.stringify(group);
+  // only a value changed from outside resets the rows: what this box sent itself is known
+  React.useEffect(() => {
+    if (now === sent.current) return;
+    sent.current = now;
+    setRows(rowsOf(JSON.parse(now)));
+  }, [now]);
+  const send = (knownValues: Record<string, string | string[]>, next: Row[]) => {
+    const out = { ...knownValues, ...Object.fromEntries(next.filter(row => String(row.name ?? '').trim()).map(row => [String(row.name).trim(), String(row.value ?? '')])) };
+    sent.current = JSON.stringify(out);
+    onChange(out);
+  };
+  const knownValues = Object.fromEntries(known.filter(k => group[k.key] !== undefined).map(k => [k.key, group[k.key]]));
   return (
-    <Rows
-      value={rows}
-      onChange={next => {
-        setRows(next);
-        onChange(Object.fromEntries(next.filter(row => String(row.name ?? '').trim()).map(row => [String(row.name).trim(), String(row.value ?? '')])));
-      }}
-      add="Add a detail"
-      listId={listId}
-      options={[]}
-      columns={[
-        { key: 'name', label: 'Detail', width: 'w-44' },
-        { key: 'value', label: 'Value', width: 'min-w-0 flex-1' },
-      ]}
-    />
+    <div className="flex flex-col gap-3">
+      {known.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {known.map(k => (
+            <label key={k.key} className="flex flex-col gap-1 text-xs text-muted-foreground" title={k.hint}>
+              {k.label}
+              <Input
+                className="text-sm text-foreground"
+                type={k.kind === 'link' ? 'url' : 'text'}
+                placeholder={k.kind === 'date' ? '2026-11-20' : k.kind === 'link' ? 'https://' : undefined}
+                value={text(group[k.key])}
+                onChange={event => send({ ...knownValues, [k.key]: event.target.value }, rows)}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+      <Rows
+        value={rows}
+        onChange={next => {
+          setRows(next);
+          send(knownValues, next);
+        }}
+        add="Add a detail"
+        listId={listId}
+        options={[]}
+        columns={[
+          { key: 'name', label: 'Detail', width: 'w-44' },
+          { key: 'value', label: 'Value', width: 'min-w-0 flex-1' },
+        ]}
+      />
+    </div>
   );
 }
 
@@ -218,7 +256,7 @@ export function FieldInput({ field, value, onChange, learned }: { field: FieldVi
         ]}
       />
     );
-  if (field.kind === 'group') return <Details value={value} onChange={onChange} listId={listId} />;
+  if (field.kind === 'group') return <Details field={field} value={value} onChange={onChange} listId={listId} />;
   return (
     <>
       <Suggest id={listId} options={options} />

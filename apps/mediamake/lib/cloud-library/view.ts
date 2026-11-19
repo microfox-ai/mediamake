@@ -15,6 +15,8 @@ export interface FieldView {
   learns?: string;
   neverGuess?: boolean;
   hint?: string;
+  /** group: the keys it is known to hold, with their labels (lib/cloud-library › GroupKey). */
+  keys?: { key: string; label: string; kind?: 'text' | 'date' | 'link'; hint?: string }[];
 }
 export interface SlotView {
   key: string;
@@ -213,6 +215,26 @@ export function valueLine(kind: FieldKind, value: FieldValue | undefined): strin
       .map(([key, v]) => `${key}: ${Array.isArray(v) ? v.join(', ') : v}`)
       .join(' · ');
   return Array.isArray(value) ? (value as string[]).join(', ') : String(value);
+}
+
+/**
+ * A group's rows as an entry shows them: its known keys first, in the template's order and by their
+ * labels, then the rest by their own names. A link row carries the link when it is one that opens.
+ */
+export function groupRows(field: Pick<FieldView, 'keys'>, value: unknown): { key: string; label: string; text: string; href?: string }[] {
+  const group = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, string | string[]>) : {};
+  const known = field.keys ?? [];
+  const text = (v: string | string[]) => (Array.isArray(v) ? v.join(', ') : String(v));
+  const rows = known
+    .filter(k => group[k.key] !== undefined && text(group[k.key]).trim())
+    .map(k => {
+      const value = text(group[k.key]).trim();
+      return { key: k.key, label: k.label, text: value, ...(k.kind === 'link' && /^https?:\/\/[^\s"'<>]+$/i.test(value) && { href: value }) };
+    });
+  const rest = Object.entries(group)
+    .filter(([key]) => !known.some(k => k.key === key))
+    .map(([key, v]) => ({ key, label: key, text: text(v) }));
+  return [...rows, ...rest];
 }
 
 /** Seconds as `1:05`. */

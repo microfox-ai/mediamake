@@ -17,6 +17,7 @@ import { ROLE_ON_ACCEPT, SAMPLE, stateOf, type ListedCard, type RequestAsk, type
 import { spaceNames } from './share-store';
 import type { ShareRecord } from './shares';
 import { blobKey, createReadUrl, storageReady } from './storage';
+import { upgradeTemplate } from './templates';
 
 const COLLECTIONS = 'library_collections';
 const ENTRIES = 'library_entries';
@@ -81,8 +82,8 @@ export const listingDB = {
           rights: doc.listing.rights,
           ...(headshot && { headshot }),
           sample: sample.map(entry => entry.title),
-          fields: doc.template.fields.map(field => field.label),
-          slots: doc.template.slots.map(slot => slot.label),
+          fields: upgradeTemplate(doc.template).fields.map(field => field.label),
+          slots: upgradeTemplate(doc.template).slots.map(slot => slot.label),
           state: stateOf({ mine: mineIds.includes(doc.space), share: share.some(one => one.state === 'accepted') ? 'accepted' : share.length ? 'invited' : undefined, request: requests.find(one => one.from === doc.space && one.collection === doc.slug)?.state }),
         };
       }),

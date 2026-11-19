@@ -107,7 +107,7 @@ test('the prompt to add names the place, the guide and the ask before saving', (
   assert.match(prompt, /mm library save songs --project=abc123 --set title="Sea Song"/);
   assert.match(prompt, /stems \(stems, several\)/);
   assert.match(prompt, /Add --yes only after I agree/);
-  assert.match(prompt, /Never guess: isrc, release date, store links, playlists\./);
+  assert.match(prompt, /Never guess: isrc, release date, distrokid details, store links, playlists\./);
   const mine = addPrompt({ id: 'p1', name: 'Personal', personal: true }, view);
   assert.ok(!mine.includes('--project'));
   assert.match(mine, /Add a song to .* the Personal space/);

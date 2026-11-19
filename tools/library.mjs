@@ -17,6 +17,9 @@
  *   mm library search ["<words>"] [--collection=songs] [--where=use=released]… [--has=transcript]
  *        [--lacks=stems] [--limit=10] [--all] [--meaning]
  *                                            cards of the entries that fit. --all: every space you can open.
+ *                                            --where takes a group whole or one of its keys: the song of a
+ *                                            DistroKid release is --where=distrokid=<album UUID> (or
+ *                                            --where=distrokid.link=<its link>).
  *                                            --meaning: by what an entry is about ("the sad sea song"), best
  *                                            first, each with the piece of its words that fits.
  *   mm library reindex [<collection>]        rebuild the search index of a collection (or of every collection of
@@ -50,6 +53,9 @@
  *                                            sentence to ask the person. Add --yes after they agree.
  *                                            --item takes the file from this computer's media library by
  *                                            its id (or the id's start): the file stays where it is.
+ *                                            A song's --file distrokid-pack=<release folder>/info.json copies
+ *                                            the release it records (DistroKid link, UPC, dates, a single's
+ *                                            ISRC) into the song when it is saved.
  *   mm library stats <collection>/<entry> --platform=<name> [--day=2026-11-19] --set <number>=<value>…
  *                                            a platform's numbers for a day
  *   mm library trash <collection>/<entry> [--yes]
@@ -373,7 +379,10 @@ async function guide(env, [collection], flags) {
   if (flags.json) return console.log(JSON.stringify(found, null, 2)), 0;
   console.log(found.guide.trim());
   console.log('\n## Fields\n');
-  for (const f of found.fields) console.log(`- ${f.key} (${f.kind}${f.learns ? `, learns ${f.learns}` : ''}${f.neverGuess ? ', never guessed' : ''})${f.options ? `: ${f.options.join(' | ')}` : ''}${f.hint ? `. ${f.hint}` : ''}`);
+  for (const f of found.fields) {
+    console.log(`- ${f.key} (${f.kind}${f.learns ? `, learns ${f.learns}` : ''}${f.neverGuess ? ', never guessed' : ''})${f.options ? `: ${f.options.join(' | ')}` : ''}${f.hint ? `. ${f.hint}` : ''}`);
+    for (const k of f.keys ?? []) console.log(`  - ${f.key}.${k.key}: ${k.label}${k.kind && k.kind !== 'text' ? ` (${k.kind})` : ''}${k.hint ? `. ${k.hint}` : ''}`);
+  }
   console.log('\n## File slots\n');
   for (const s of found.slots) console.log(`- ${s.key} (${s.accepts.join(' or ')}, ${s.many ? 'many' : 'one'})${s.hint ? `. ${s.hint}` : ''}`);
   for (const [list, values] of Object.entries(found.learned ?? {})) if (values.length) console.log(`\n## Known ${list}s, most used first\n\n${values.join(', ')}`);
