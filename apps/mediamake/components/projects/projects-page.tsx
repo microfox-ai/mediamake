@@ -9,6 +9,7 @@ import {
   FolderPlusIcon,
   ImageIcon,
   LayoutGridIcon,
+  LockIcon,
   ListIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -33,7 +34,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BrandKitSheet } from '@/components/projects/BrandKitSheet';
 import { GenerationsSheet } from '@/components/projects/GenerationsSheet';
 import { AvatarStack, ProjectAccessSheet, RoleBadge } from '@/components/projects/project-access';
-import { PersonalSpace } from '@/components/projects/personal-space';
 import { SpacesExplainer } from '@/components/projects/spaces-explainer';
 import type { SpaceView } from '@/lib/space/space';
 import { StorageCapAdmin, StorageMeter, type MemberStorageState } from '@/components/projects/storage-meter';
@@ -54,8 +54,8 @@ interface Overview {
 }
 
 /**
- * /app/spaces for Plus members and above: their personal space first, then
- * the space of every project they own or were given, to search, sort and
+ * /app/spaces for Plus members and above: their personal space as the first
+ * card, then the space of every project they own or were given, to search, sort and
  * look through as cards or a list, with who each is shared with and the
  * controls to change that; then how a space is filled from a computer. The
  * cards come from GET /api/project/overview.
@@ -126,7 +126,10 @@ export function ProjectsPage({
     { id: 'mine', label: 'Mine', count: mine },
     { id: 'shared', label: 'Shared with me', count: all.length - mine },
   ];
-  const visible = browseProjects(all, { query, scope, sort });
+  // the personal space is a card like the others, always first: it is left out only of "Shared with me" and of a search it doesn't match
+  const personalShown = personal && scope !== 'shared' && (!query.trim() || 'your personal space'.includes(query.trim().toLowerCase()));
+  const visible = [...(personalShown ? [personal] : []), ...browseProjects(all, { query, scope, sort })];
+  const about = mySpace ? `${mySpace.items.length} item${mySpace.items.length === 1 ? '' : 's'} on ${mySpace.devices.length} computer${mySpace.devices.length === 1 ? '' : 's'}` : undefined;
   const filtered = !!query.trim() || scope !== 'all';
   const actions = { share: setSharing, brand: setBrand, takes: setTakes, rename: setNaming };
   const cap = storage?.cap ?? null;
@@ -150,14 +153,10 @@ export function ProjectsPage({
 
         <StorageMeter storage={storage} />
 
-        <PersonalSpace card={personal} space={mySpace} loading={!data && !error} />
-
-        <h2 className="-mb-2 text-sm font-semibold">Project spaces</h2>
-
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 basis-56">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by project, tag or person" aria-label="Search project spaces" className="pl-9" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by space, tag or person" aria-label="Search spaces" className="pl-9" />
             {query && (
               <button type="button" className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Clear the search" onClick={() => setQuery('')}>
                 <XIcon className="size-3.5" />
@@ -214,7 +213,7 @@ export function ProjectsPage({
           </div>
         ) : !data ? (
           <Loading view={view} />
-        ) : all.length === 0 ? (
+        ) : all.length === 0 && !visible.length ? (
           <NoProjects onNew={() => setNaming('new')} />
         ) : visible.length === 0 ? (
           <div className="rounded-xl border border-dashed p-10 text-center">
@@ -237,7 +236,7 @@ export function ProjectsPage({
         ) : view === 'grid' ? (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map(card => (
-              <GridCard key={card.id} card={card} me={data.clientId} cap={cap} {...actions} />
+              <GridCard key={card.id} card={card} me={data.clientId} cap={cap} about={card.personal ? about : undefined} {...actions} />
             ))}
           </ul>
         ) : (
@@ -247,6 +246,8 @@ export function ProjectsPage({
             ))}
           </ul>
         )}
+
+        {data && all.length === 0 && visible.length > 0 && <NoProjects onNew={() => setNaming('new')} />}
 
         {isAdmin && <StorageCapAdmin />}
 
@@ -284,7 +285,11 @@ function Mark({ card, className }: { card: ProjectCard; className?: string }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={card.brandKit.logo} alt="" className="size-full object-contain p-1.5" />
       ) : (
-        card.displayName.trim().charAt(0).toUpperCase()
+        card.personal ? (
+          <LockIcon className="size-4" />
+        ) : (
+          card.displayName.trim().charAt(0).toUpperCase()
+        )
       )}
       {!!card.brandKit?.colors.length && (
         <span className="absolute inset-x-0 bottom-0 flex h-1">
@@ -357,9 +362,11 @@ function CardMenu({ card, share, brand, takes, rename }: { card: ProjectCard } &
             <ArrowUpRightIcon /> Open
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => share(card)}>
-          <UsersIcon /> {card.role === 'owner' ? 'Share and manage access' : 'Who has access'}
-        </DropdownMenuItem>
+        {!card.personal && (
+          <DropdownMenuItem onClick={() => share(card)}>
+            <UsersIcon /> {card.role === 'owner' ? 'Share and manage access' : 'Who has access'}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => brand(card)}>
           <PaletteIcon /> Brand kit
@@ -367,7 +374,7 @@ function CardMenu({ card, share, brand, takes, rename }: { card: ProjectCard } &
         <DropdownMenuItem onClick={() => takes(card)}>
           <MusicIcon /> Song takes
         </DropdownMenuItem>
-        {canWrite(card.role) && (
+        {canWrite(card.role) && !card.personal && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => rename(card)}>
@@ -381,6 +388,13 @@ function CardMenu({ card, share, brand, takes, rename }: { card: ProjectCard } &
 }
 
 function People({ card, me, share, className }: { card: ProjectCard; me: string; share: (card: ProjectCard) => void; className?: string }) {
+  // a personal space is never shared: nothing to open
+  if (card.personal)
+    return (
+      <span className={cn('flex min-w-0 items-center gap-2 text-xs text-muted-foreground', className)}>
+        <LockIcon className="size-4 shrink-0" aria-hidden /> <span className="truncate">Only you</span>
+      </span>
+    );
   const faces = card.role === 'owner' ? card.members : [card.owner, ...card.members.filter(member => member.clientId !== me)];
   return (
     <button type="button" onClick={() => share(card)} className={cn('relative z-10 flex min-w-0 cursor-pointer items-center gap-2 rounded-md text-left text-xs text-muted-foreground hover:text-foreground', className)} title={card.role === 'owner' ? 'Share and manage access' : 'Who has access'}>
@@ -390,7 +404,14 @@ function People({ card, me, share, className }: { card: ProjectCard; me: string;
   );
 }
 
-function GridCard({ card, me, cap, ...actions }: { card: ProjectCard; me: string; cap: number | null } & CardActions) {
+const nameOf = (card: ProjectCard) => (card.personal ? 'Your personal space' : card.displayName);
+
+function Kind({ card, className }: { card: ProjectCard; className?: string }) {
+  if (!card.personal) return <RoleBadge role={card.role} className={className} />;
+  return <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground', className)}>Personal</span>;
+}
+
+function GridCard({ card, me, cap, about, ...actions }: { card: ProjectCard; me: string; cap: number | null; /** A personal space: its skills, MCPs and apps in a line. */ about?: string } & CardActions) {
   return (
     <li className="group relative flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 transition-shadow focus-within:ring-2 focus-within:ring-ring/40 hover:shadow-md">
       <div className="flex items-start gap-3">
@@ -398,15 +419,15 @@ function GridCard({ card, me, cap, ...actions }: { card: ProjectCard; me: string
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-base leading-tight font-semibold">
             <Link href={pageOf(card.id)} className="outline-none after:absolute after:inset-0 after:rounded-xl">
-              {card.displayName}
+              {nameOf(card)}
             </Link>
           </h3>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {card.role === 'owner' ? 'Yours' : `By ${card.owner.name}`}
+            {card.personal ? (about ?? 'Your own skills, MCPs, apps and files') : card.role === 'owner' ? 'Yours' : `By ${card.owner.name}`}
             {card.tags.length > 0 && ` · ${card.tags.join(', ')}`}
           </p>
         </div>
-        <RoleBadge role={card.role} className="mt-0.5 shrink-0" />
+        <Kind card={card} className="mt-0.5 shrink-0" />
       </div>
 
       <Holds card={card} />
@@ -430,9 +451,9 @@ function ListRow({ card, me, ...actions }: { card: ProjectCard; me: string } & C
       <div className="min-w-0">
         <p className="flex items-center gap-2">
           <Link href={pageOf(card.id)} className="truncate text-sm font-medium outline-none after:absolute after:inset-0">
-            {card.displayName}
+            {nameOf(card)}
           </Link>
-          <RoleBadge role={card.role} className="shrink-0" />
+          <Kind card={card} className="shrink-0" />
         </p>
         <Holds card={card} className="mt-1 hidden md:flex" />
       </div>

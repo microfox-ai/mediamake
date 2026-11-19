@@ -3,7 +3,7 @@ import { getViewerTier } from '@/lib/access';
 import type { MemberTier } from '@/lib/memberships/tiers';
 import { getDatabase } from '@/lib/mongodb';
 import { BUNDLE_COLLECTION, type BundleDoc } from '@/lib/projectsync';
-import { noRoomFor, storageCap, type StorageRaise } from './storage';
+import { bundleBytes, noRoomFor, storageCap, type StorageRaise } from './storage';
 
 /** What is stored for cloud projects, counted, and the caps admins raised (see ./storage). */
 
@@ -75,12 +75,49 @@ export async function storageUsedBy(db: Db, ownerId: string): Promise<{ total: n
       .toArray(),
   ]);
   for (const doc of bundles.flat()) {
-    const stored = new Map<string, number>();
-    for (const version of doc.versions ?? []) for (const file of version.files ?? []) stored.set(file.key, Number(file.size) || 0);
-    byProject[doc.projectId] = (byProject[doc.projectId] ?? 0) + [...stored.values()].reduce((a, b) => a + b, 0);
+    byProject[doc.projectId] = (byProject[doc.projectId] ?? 0) + bundleBytes(doc);
   }
   for (const row of [...media, ...library]) byProject[row._id] = (byProject[row._id] ?? 0) + (Number(row.bytes) || 0);
   return { total: Object.values(byProject).reduce((a, b) => a + b, 0), byProject };
+}
+
+/** What one space stores, by what it is. A file several versions of a production share is counted once. */
+export interface SpaceStorage {
+  brand: number;
+  productions: number;
+  releases: number;
+  media: number;
+  /** The Cloud Library's files of this space. */
+  library: number;
+  total: number;
+}
+
+/** What one space stores, split into its brand kit, productions, releases, media and Library. Trash is not counted. */
+export async function spaceStorage(db: Db, projectId: string): Promise<SpaceStorage> {
+  const sumOf = (rows: { bytes: number }[]) => Number(rows[0]?.bytes) || 0;
+  const bundles = (kind: keyof typeof BUNDLE_COLLECTION) =>
+    db
+      .collection<BundleDoc>(BUNDLE_COLLECTION[kind])
+      .find({ projectId, ...LIVE }, { projection: { 'versions.files.key': 1, 'versions.files.size': 1 } })
+      .toArray()
+      .then(docs => docs.reduce((sum, doc) => sum + bundleBytes(doc), 0));
+  const [project, productions, releases, media, library] = await Promise.all([
+    ObjectId.isValid(projectId) ? db.collection('projects').findOne({ _id: new ObjectId(projectId) }, { projection: { 'brandKit.assets.size': 1 } }) : null,
+    bundles('production'),
+    bundles('release'),
+    db
+      .collection('mediaFiles')
+      .aggregate<{ bytes: number }>([{ $match: { projectId, ...LIVE } }, { $group: { _id: null, bytes: { $sum: '$fileSize' } } }])
+      .toArray()
+      .then(sumOf),
+    db
+      .collection('library_files')
+      .aggregate<{ bytes: number }>([{ $match: { space: projectId, state: 'stored' } }, { $group: { _id: null, bytes: { $sum: '$size' } } }])
+      .toArray()
+      .then(sumOf),
+  ]);
+  const brand = ((project?.brandKit?.assets ?? []) as { size?: number }[]).reduce((sum, asset) => sum + (Number(asset.size) || 0), 0);
+  return { brand, productions, releases, media, library, total: brand + productions + releases + media + library };
 }
 
 export interface MemberStorage {

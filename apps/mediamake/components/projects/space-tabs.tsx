@@ -33,11 +33,14 @@ export function BrandTab({
   projectName,
   canEdit,
   me,
+  used,
 }: {
   projectId: string;
   projectName: string;
   canEdit: boolean;
   me?: string;
+  /** The bytes the brand kit's files use, when counted. */
+  used?: number;
 }) {
   const [kit, setKit] = React.useState<BrandKit | null | undefined>(undefined);
   const [error, setError] = React.useState<string | null>(null);
@@ -100,6 +103,13 @@ export function BrandTab({
           {kit.summary && (
             <span className="text-muted-foreground"> · {kit.summary}</span>
           )}
+        </p>
+        <p className="rounded-md border px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
+          {kit.assets.length} file{kit.assets.length === 1 ? '' : 's'} ·{' '}
+          <span className="font-medium text-foreground">
+            {formatBytes(used ?? kit.assets.reduce((sum, asset) => sum + (asset.size ?? 0), 0))}
+          </span>{' '}
+          used
         </p>
         {edit && <div className="ml-auto">{edit}</div>}
       </div>

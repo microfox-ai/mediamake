@@ -54,8 +54,8 @@ README.md                   what the space is, and "What's here": a list `mm spa
 ```
 
 **On the space's page** the tabs are Code, Skills (the skills, MCPs and apps, a card each), Brand
-(the brand kit: colours, fonts and a card per file; owners and editors change it in a dialog),
-Productions, Releases, Media, People, To do, Where it runs (a project's space only) and Set up. **Code** is the repo as GitHub shows it: the branch and
+(the brand kit: colours, fonts and a card per file, with the space its files use; owners and editors change it in a dialog),
+Assets (productions, releases and media in one tab: a card each with the space it uses, which also picks the list below; `GET /api/project/storage?projectId=` counts it), People, To do, Where it runs (a project's space only) and Set up. **Code** is the repo as GitHub shows it: the branch and
 the latest commit over the file list (folders open in place, a file opens on GitHub), the README under
 it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
 and Devices (each computer that has the space, and how many updates it is behind the newest one or has

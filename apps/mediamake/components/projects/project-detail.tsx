@@ -14,6 +14,7 @@ import {
   RoleBadge,
 } from '@/components/projects/project-access';
 import { CopyLine } from './copy-line';
+import { AssetsTab, isAssetKind, type Bundle, type Listing, type MediaItem } from './space-assets';
 import { BrandTab } from './space-tabs';
 import { CodeTab } from './space-code';
 import { CloudSetupCard } from './space-cloud';
@@ -29,32 +30,7 @@ import type { ProjectRole } from '@/lib/editor/project-access';
 import type { LinkedItemView } from '@/lib/space/links';
 import type { SpaceCodeView, SpaceView } from '@/lib/space/space';
 import { formatBytes } from '@/lib/projects/storage';
-
-interface Bundle {
-  id: string;
-  slug: string;
-  title: string;
-  latestVersion: number;
-  status: string;
-  fileCount: number;
-  bytes: number;
-  updatedAt: string;
-  release?: { platform: string };
-}
-
-interface MediaItem {
-  id: string;
-  name: string;
-  url: string;
-  contentType?: string;
-  size?: number;
-  createdAt?: string;
-}
-
-interface Listing<T> {
-  total: number;
-  items: T[];
-}
+import type { SpaceStorage } from '@/lib/projects/storage-store';
 
 interface Project {
   id: string;
@@ -67,15 +43,6 @@ interface Project {
   sharedWith?: unknown[];
   brandKit?: { assetCount: number; logo?: string };
 }
-
-const day = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '';
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -122,8 +89,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
 /**
  * One space in the app, one tab each: its code (its repo as GitHub shows
  * it: files, README, commits, who has it and where each computer stands),
- * its skills, MCPs and apps, its brand kit, what it keeps on MediaMake (its
- * productions, its releases and its media), who can open it, which its owner
+ * its skills, MCPs and apps, its brand kit, its assets (what it keeps on MediaMake:
+ * its productions, its releases and its media, with the space each uses), who can open it, which its owner
  * changes here, its to-dos (the steps a session could not do where it ran, waiting
  * for a place that can), where its steps can run (its cloud environments and the
  * computers open to it), and how to set it up: the line for a computer, and for a Claude cloud
@@ -165,6 +132,7 @@ export function ProjectDetail({
   );
   const [releases, setReleases] = React.useState<Listing<Bundle> | null>(null);
   const [media, setMedia] = React.useState<Listing<MediaItem> | null>(null);
+  const [storage, setStorage] = React.useState<SpaceStorage | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [todos, setTodos] = React.useState<TodosView | null>(null);
   const [todosError, setTodosError] = React.useState<string | null>(null);
@@ -211,6 +179,10 @@ export function ProjectDetail({
     getJson<Listing<MediaItem>>(`/api/project/media?projectId=${id}&limit=100`)
       .then(setMedia)
       .catch(() => setMedia({ total: 0, items: [] }));
+    // what the space stores, by kind: left out when it can't be counted
+    getJson<SpaceStorage>(`/api/project/storage?projectId=${id}`)
+      .then(setStorage)
+      .catch(() => setStorage(null));
   }, [projectId]);
 
   const back = (
@@ -277,6 +249,7 @@ export function ProjectDetail({
               {project.brandKit
                 ? `Brand kit with ${project.brandKit.assetCount} file${project.brandKit.assetCount === 1 ? '' : 's'}`
                 : 'No brand kit yet'}
+              {storage && ` · ${formatBytes(storage.total)} stored`}
               {(project.tags ?? []).length > 0 &&
                 ` · ${project.tags!.join(', ')}`}
             </p>
@@ -295,15 +268,13 @@ export function ProjectDetail({
         </div>
       </div>
 
-      <Tabs defaultValue={tab ?? 'code'} onValueChange={value => rememberTab(value)} className="gap-4">
+      <Tabs defaultValue={isAssetKind(tab) ? 'assets' : (tab ?? 'code')} onValueChange={value => rememberTab(value)} className="gap-4">
         <div className="-mx-4 overflow-x-auto px-4">
           <TabsList>
             <Tab value="code" label="Code" />
             <Tab value="skills" label="Skills" count={(space?.items.length ?? 0) + linked.length} />
             <Tab value="brand" label="Brand" count={project?.brandKit?.assetCount} />
-            <Tab value="productions" label="Productions" count={productions?.total} />
-            <Tab value="releases" label="Releases" count={releases?.total} />
-            <Tab value="media" label="Media" count={media?.total} />
+            <Tab value="assets" label="Assets" count={productions && releases && media ? productions.total + releases.total + media.total : undefined} />
             {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
             <Tab value="runs" label="Runs" count={runs?.ready || undefined} />
             <Tab value="todos" label="To do" count={todos?.todos.filter(todo => todo.state !== 'done' && todo.state !== 'cancelled').length || undefined} />
@@ -342,45 +313,14 @@ export function ProjectDetail({
 
         <TabsContent value="brand">
           {project ? (
-            <BrandTab projectId={projectId} projectName={personal ? 'Your brand' : project.displayName} canEdit={role === 'owner' || role === 'editor'} me={me} />
+            <BrandTab projectId={projectId} projectName={personal ? 'Your brand' : project.displayName} canEdit={role === 'owner' || role === 'editor'} me={me} used={storage?.brand} />
           ) : (
             <Loading />
           )}
         </TabsContent>
 
-        <TabsContent value="productions">
-          <Bundles listing={productions} empty="No productions yet. A production is a video's code and renders, kept so any computer on the space can pick it up." />
-        </TabsContent>
-
-        <TabsContent value="releases">
-          <Bundles listing={releases} empty="No releases yet. A release is a whole kit: a YouTube upload pack, a DistroKid release." />
-        </TabsContent>
-
-        <TabsContent value="media">
-          {!media ? (
-            <Loading />
-          ) : media.items.length ? (
-            <ul className="divide-y rounded-xl border bg-card px-4">
-              {media.items.map(item => (
-                <li key={item.id} className="flex items-baseline gap-3 py-2.5 text-sm">
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate underline-offset-4 hover:underline">
-                    {item.name}
-                  </a>
-                  <span className="text-xs text-muted-foreground">{item.contentType}</span>
-                  <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {formatBytes(item.size ?? 0)} · {day(item.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty>No media yet. Shared pictures, songs and clips of the space show here.</Empty>
-          )}
-          {media && media.total > media.items.length && (
-            <p className="pt-2 text-xs text-muted-foreground">
-              Showing the newest {media.items.length} of {media.total}.
-            </p>
-          )}
+        <TabsContent value="assets">
+          <AssetsTab productions={productions} releases={releases} media={media} storage={storage} first={isAssetKind(tab) ? tab : undefined} />
         </TabsContent>
 
         {!personal && (
@@ -441,36 +381,8 @@ function Tab({ value, label, count }: { value: string; label: string; count?: nu
   );
 }
 
-function Bundles({ listing, empty }: { listing: Listing<Bundle> | null; empty: string }) {
-  if (!listing) return <Loading />;
-  if (!listing.items.length) return <Empty>{empty}</Empty>;
-  return (
-    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {listing.items.map(item => (
-        <li key={item.id} className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">{item.title}</span>
-            {item.release && <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{item.release.platform}</span>}
-            {item.status !== 'ready' && <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">uploading</span>}
-          </div>
-          <span className="mt-0.5 font-mono text-xs text-muted-foreground">{item.slug}</span>
-          <span className="mt-3 text-xs tabular-nums text-muted-foreground">
-            v{item.latestVersion || 1} · {item.fileCount} file{item.fileCount === 1 ? '' : 's'} · {formatBytes(item.bytes)} · {day(item.updatedAt)}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 const Loading = () => (
   <p className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
     <Loader2Icon className="size-3.5 animate-spin" /> Loading
-  </p>
-);
-
-const Empty = ({ children }: { children: React.ReactNode }) => (
-  <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
-    {children}
   </p>
 );
