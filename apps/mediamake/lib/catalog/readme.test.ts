@@ -33,6 +33,31 @@ describe('renderReadme', () => {
     assert.match(html, /<a>d<\/a>/);
   });
 
+  it('shows a run of pictures as a grid of example outputs, captioned by their alt text', async () => {
+    // one per line: a single paragraph
+    const lines = await renderReadme('# T\n\n## What it makes\n\n![A thumbnail](https://cdn.test/a.png)\n![](https://cdn.test/b.png)\n[![A poster](https://cdn.test/c.png)](https://cdn.test/c-big.png)\n');
+    assert.match(lines.html, /<div class="readme-gallery"><figure><img src="https:\/\/cdn\.test\/a\.png" alt="A thumbnail"[^>]*><figcaption>A thumbnail<\/figcaption><\/figure><figure><img src="https:\/\/cdn\.test\/b\.png"[^>]*><\/figure><figure><a href="https:\/\/cdn\.test\/c-big\.png"[^>]*><img src="https:\/\/cdn\.test\/c\.png"[^>]*><\/a><figcaption>A poster<\/figcaption><\/figure><\/div>/);
+    assert.doesNotMatch(lines.html, /<p><img/);
+    // a blank line between each: paragraphs of one picture, then the grid ends at the words after it
+    const paragraphs = await renderReadme('# T\n\n![One](https://cdn.test/1.png)\n\n![Two](https://cdn.test/2.png)\n\nAfter.\n');
+    assert.equal((paragraphs.html.match(/<figure>/g) ?? []).length, 2);
+    assert.match(paragraphs.html, /<\/div>\s*<p>After\.<\/p>/);
+  });
+
+  it('leaves a lone picture, and pictures among words, as they are', async () => {
+    const lone = await renderReadme('# T\n\n![One](https://cdn.test/1.png)\n\nWords.\n');
+    assert.doesNotMatch(lone.html, /readme-gallery/);
+    assert.match(lone.html, /<p><img src="https:\/\/cdn\.test\/1\.png"/);
+    const mixed = await renderReadme('# T\n\nSee ![a](https://cdn.test/a.png) and ![b](https://cdn.test/b.png).\n');
+    assert.doesNotMatch(mixed.html, /readme-gallery/);
+  });
+
+  it('resolves the pictures of a grid against the folder', async () => {
+    const { html } = await renderReadme('![a](shots/a.png)\n![b](shots/b.png)\n', BASE);
+    assert.match(html, /readme-gallery/);
+    assert.match(html, /src="https:\/\/raw\.githubusercontent\.com\/o\/r\/main\/skills\/x\/shots\/b\.png"/);
+  });
+
   it('drops relative links when it has no folder to point at', async () => {
     const { html } = await renderReadme('![a](a.png)');
     assert.doesNotMatch(html, /src=/);

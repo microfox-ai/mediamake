@@ -4,13 +4,17 @@ import { requireAdmin } from '@/lib/admin-utils';
 import { catalogIndex } from '@/lib/catalog/admin-index';
 import { CANONICAL_SITE, installPromptFor, siteUrl } from '@/lib/catalog/install-prompt';
 import { hasLaunchVideo, launchVideoPromptFor } from '@/lib/catalog/launch-video';
-import { codeUrlOf, isRepoSkill, staticOrigin } from '@/lib/catalog/items';
+import { SKILLS_REPO, codeUrlOf, isRepoSkill, staticOrigin } from '@/lib/catalog/items';
 import { planInstall } from '@/lib/catalog/plan';
-import { accessGrantsDB, accessGroupsDB } from '@/lib/catalog/store';
+import { defaultReadme, type ReadmeSource } from '@/lib/catalog/readme';
+import { skillReadmeBase, skillReadmeText } from '@/lib/catalog/readme-data';
+import { natureOf, readmeProfile, skillDetailsView, suggestedType, typeOf, type SkillDetailsForm } from '@/lib/catalog/skill-profile';
+import { accessGrantsDB, accessGroupsDB, skillProfilesDB } from '@/lib/catalog/store';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { usedByOf } from '@/lib/catalog/summary';
 import { knownIssuesDB } from '@/lib/feedback/known-issues-store';
 import { registry, skillNamed } from '@/lib/skills/registry';
-import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, slugOf, type CatalogItemRecord } from '@/lib/catalog/types';
+import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, savedProofOf, slugOf, type CatalogItemRecord } from '@/lib/catalog/types';
 import { currentMembership } from '@/lib/memberships/membership';
 import { membershipsDB } from '@/lib/memberships/store';
 import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, type MemberTier } from '@/lib/memberships/tiers';
@@ -69,6 +73,55 @@ export async function GET(req: NextRequest) {
     ? (await knownIssuesDB.forItem(id).catch(() => [])).filter(issue => issue.status === 'open').map(issue => issue.title)
     : [];
 
+  const listing = listings.get(id);
+  const repoSkill = item.kind === 'skill' ? skillNamed(item.slug) : null;
+  const fileText = repoSkill?.readme && isRepoSkill(id) ? await skillReadmeText(repoSkill) : null;
+  // its README as the editor opens it: a repo skill's README.md is edited in the repo; the rest on the listing
+  const readme: ReadmeSource | undefined =
+    item.kind === 'skill' || item.kind === 'mcp' || item.kind === 'app'
+      ? fileText !== null && repoSkill
+        ? {
+            text: fileText,
+            source: 'file',
+            editUrl: `https://github.com/${SKILLS_REPO}/edit/main/${repoSkill.path}/README.md`,
+            base: skillReadmeBase(repoSkill),
+            ...(listing?.readme && { override: true }),
+          }
+        : {
+            text: listing?.readme ?? '',
+            source: listing?.readme ? 'listing' : 'default',
+            defaultText: defaultReadme({
+              kind: item.kind,
+              name: item.slug,
+              title: item.title,
+              summary: listing?.description ?? item.summary,
+              youtubeId: video?.youtubeId,
+              open: item.kind === 'app' && item.href && !isInstallable(item) ? item.href : undefined,
+            }),
+          }
+      : undefined;
+  // a skill's type and superset (lib/catalog/skill-profile), as its page works them out
+  let skillDetails: SkillDetailsForm | undefined;
+  if (item.kind === 'skill') {
+    const key = detailsKey.catalog(id);
+    const [profile, named] = await Promise.all([skillProfilesDB.get(key).catch(() => null), skillProfilesDB.subsetsOf(item.slug).catch((): string[] => [])]);
+    const hasSubsets = named.length > 0 || !!registry?.skills.some(skill => skill.variantOf === item.slug);
+    const view = skillDetailsView({
+      key,
+      profile,
+      stated: { nature: natureOf(repoSkill?.listing?.nature), type: typeOf(repoSkill?.listing?.type), ...readmeProfile(fileText) },
+      suggested: suggestedType(repoSkill, hasSubsets),
+      variantOf: repoSkill?.variantOf,
+    });
+    skillDetails = {
+      key,
+      type: view.type ?? null,
+      superset: view.superset ?? null,
+      set: !!profile?.type,
+      supersets: [...byId.values()].filter(other => other.kind === 'skill' && other.id !== id).map(other => other.slug).sort(),
+    };
+  }
+
   return NextResponse.json({
     item,
     definedIn: storedIds.has(id) ? 'database' : staticOrigin(id),
@@ -101,10 +154,19 @@ export async function GET(req: NextRequest) {
       icon: listings.get(id)?.icon,
       readme: listings.get(id)?.readme,
       editorsPick: !!listings.get(id)?.editorsPick,
+      advice: listings.get(id)?.advice ?? 'recommended',
+      adviceNote: listings.get(id)?.adviceNote,
+      insteadOf: listings.get(id)?.insteadOf,
       // a repo skill's README.md is a file in its folder: it is edited there, not here
       readmeFile: isRepoSkill(id) && !!skillNamed(slugOf(id))?.readme,
     },
     openKnownIssues: knownIssues,
+    // the productions on its mark, kept while it is Alpha or Beta, for going to Production again
+    savedProof: savedProofOf(readiness.get(id)),
+    // every tag in the catalog, for the tags picker
+    tagOptions: [...new Set([...byId.values()].flatMap(record => record.tags ?? []))].sort(),
+    ...(readme && { readme }),
+    ...(skillDetails && { skillDetails }),
     // what an admin pastes into Claude to make its Cook with Claude episode
     ...(hasLaunchVideo(item.kind) && {
       launchVideoPrompt: launchVideoPromptFor({
@@ -138,3 +200,4 @@ export async function GET(req: NextRequest) {
 function lessonOf(record: CatalogItemRecord) {
   return { id: record.id, title: record.title, tier: itemTier(record), thumbnail: record.video?.thumbnail, archivedAt: record.archivedAt };
 }
+

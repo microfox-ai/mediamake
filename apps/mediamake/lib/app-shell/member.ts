@@ -1,7 +1,7 @@
 import { updatePromptFor } from '@/lib/catalog/install-prompt';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { shownOn } from '@/lib/catalog/shown';
-import { isFailed, slugOf, type CatalogEntry, type ItemTier } from '@/lib/catalog/types';
+import { isFailed, slugOf, type CatalogEntry, type ItemTier, type Readiness } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import type { LocalSkill, SkillUsage } from '@/lib/usage/usage';
@@ -41,7 +41,16 @@ export type AppItem = CatalogEntry & {
   open: string;
   /** Lower case, what the search looks in. */
   text: string;
+  /** Its level: Alpha, Beta or Production (`ready`). */
+  level: Readiness;
+  /** Beta: published, not yet proven (Alpha is `alpha`). */
   beta: boolean;
+  /** Alpha: behind Explore's Alpha filter. */
+  alpha: boolean;
+  /** Deprecated on its listing: behind Explore's Deprecated filter. */
+  deprecated: boolean;
+  /** In the vault (tier admin): behind Explore's Admin only filter. */
+  adminOnly: boolean;
   failed: boolean;
   locked: boolean;
   /** The membership that opens a locked item, e.g. `Pro`. */
@@ -88,7 +97,11 @@ export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], 
         .filter(Boolean)
         .join(' ')
         .toLowerCase(),
+      level: entry.readiness ?? 'beta',
       beta: shown.badge === 'beta',
+      alpha: shown.badge === 'alpha',
+      deprecated: entry.advice === 'deprecated',
+      adminOnly: tier === 'admin',
       failed: isFailed(entry),
       locked,
       ...(locked && { opensWith: tierLabel(tier) }),
@@ -107,6 +120,12 @@ export interface ExploreFilters {
   failed: boolean;
   internal: boolean;
   archived: boolean;
+  /** Alpha items stay out until this is on. */
+  alpha: boolean;
+  /** Deprecated items stay out until this is on. */
+  deprecated: boolean;
+  /** The vault's items (admin only) stay out until this is on: only admins have any. */
+  admin: boolean;
   /** Off hides what the member's membership doesn't open. */
   locked: boolean;
   /** The store front (editors' picks, new, rows by tag) or the list. A search, a kind or a category is always the list. */
@@ -129,9 +148,23 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     failed: show.has('failed'),
     internal: show.has('internal'),
     archived: show.has('archived'),
+    alpha: show.has('alpha'),
+    deprecated: show.has('deprecated'),
+    admin: show.has('admin'),
     locked: one('locked') !== '0',
   };
-  const asked = !!(filters.q.trim() || filters.kind || filters.category || filters.failed || filters.internal || filters.archived || !filters.locked);
+  const asked = !!(
+    filters.q.trim() ||
+    filters.kind ||
+    filters.category ||
+    filters.failed ||
+    filters.internal ||
+    filters.archived ||
+    filters.alpha ||
+    filters.deprecated ||
+    filters.admin ||
+    !filters.locked
+  );
   return { ...filters, view: asked || one('view') === 'all' ? 'list' : 'store' };
 }
 
@@ -142,13 +175,18 @@ export interface ExploreResult {
   /** How many match per kind, whatever kind is picked. */
   kinds: Record<MemberKind, number>;
   /** Matches a toggle keeps out, so a search never comes up empty without saying why. */
-  hidden: { failed: number; internal: number; archived: number };
+  hidden: { failed: number; internal: number; archived: number; alpha: number; deprecated: number; admin: number };
 }
+
+/** Production first, then Beta, then Alpha. */
+const LEVEL_RANK: Record<Readiness, number> = { ready: 0, beta: 1, alpha: 2 };
+const levelRank = (item: Pick<AppItem, 'level'>) => LEVEL_RANK[item.level] ?? 1;
 
 /**
  * Explore's list: what matches the search, the kind and the category. Failed
- * items are only shown behind their filter; internal skills and archived
- * items behind theirs. Best match first, then Ready before Beta, then newest.
+ * items are only shown behind their filter; internal skills, archived, Alpha,
+ * deprecated and admin-only items behind theirs. Best match first, then
+ * Production before Beta before Alpha, then newest.
  */
 export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder: string[] = []): ExploreResult {
   const q = filters.q.trim().toLowerCase();
@@ -161,12 +199,24 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
   };
   // why a matching item is kept out, if it is
   const keptOut = (item: AppItem): keyof ExploreResult['hidden'] | null =>
-    item.failed && !filters.failed ? 'failed' : item.internal && !filters.internal ? 'internal' : item.archivedAt && !filters.archived ? 'archived' : null;
+    item.failed && !filters.failed
+      ? 'failed'
+      : item.deprecated && !filters.deprecated
+        ? 'deprecated'
+        : item.adminOnly && !filters.admin
+          ? 'admin'
+          : item.alpha && !filters.alpha
+            ? 'alpha'
+            : item.internal && !filters.internal
+              ? 'internal'
+              : item.archivedAt && !filters.archived
+                ? 'archived'
+                : null;
 
   const matching = items.map(item => ({ item, score: score(item) })).filter(match => match.score > 0 && (filters.locked || !match.item.locked));
   const kinds: Record<MemberKind, number> = { skill: 0, mcp: 0, app: 0 };
   const counts = new Map<string, number>();
-  const hidden = { failed: 0, internal: 0, archived: 0 };
+  const hidden = { failed: 0, internal: 0, archived: 0, alpha: 0, deprecated: 0, admin: 0 };
   const shown: { item: AppItem; score: number }[] = [];
   for (const match of matching) {
     const { item } = match;
@@ -190,7 +240,7 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
         (a, b) =>
           b.score - a.score ||
           Number(a.item.locked) - Number(b.item.locked) ||
-          Number(a.item.beta) - Number(b.item.beta) ||
+          levelRank(a.item) - levelRank(b.item) ||
           b.item.releasedAt.localeCompare(a.item.releasedAt) ||
           a.item.id.localeCompare(b.item.id),
       )
@@ -239,18 +289,18 @@ export function tagTitle(tag: string): string {
 /**
  * Explore's store front, like an app store's: the editors' picks (an
  * admin's flag on the item's listing), what is new, and a row a tag. Failed,
- * internal and archived items stay out, as they do in the list; a locked one
- * shows, after the ones the member can open.
+ * internal, archived, Alpha, deprecated and admin-only items stay out, as they
+ * do in the list; a locked one shows, after the ones the member can open.
  */
 export function storefront(
   items: AppItem[],
   categories: { id: string; about?: string }[] = [],
   { rowSize = 10, maxTagRows = 6, minTagItems = 3 }: { rowSize?: number; maxTagRows?: number; minTagItems?: number } = {},
 ): Storefront {
-  const shown = items.filter(item => !item.failed && !item.internal && !item.archivedAt);
+  const shown = items.filter(item => !item.failed && !item.internal && !item.archivedAt && !item.alpha && !item.deprecated && !item.adminOnly);
   const newest = (a: AppItem, b: AppItem) => launchedAt(b).localeCompare(launchedAt(a)) || a.id.localeCompare(b.id);
-  // what the member can open first, then Ready before Beta, then the newest
-  const best = (a: AppItem, b: AppItem) => Number(a.locked) - Number(b.locked) || Number(a.beta) - Number(b.beta) || newest(a, b);
+  // what the member can open first, then Production before Beta, then the newest
+  const best = (a: AppItem, b: AppItem) => Number(a.locked) - Number(b.locked) || levelRank(a) - levelRank(b) || newest(a, b);
 
   const picked = shown.filter(item => item.editorsPick).sort(best);
   // the large one needs a picture of its own, when any pick has one

@@ -20,7 +20,9 @@ import { parseYouTubeId, youtubeEmbedUrl, youtubeUrl } from './video';
  *
  * Raw HTML in the Markdown is dropped (remark-rehype leaves it out). A
  * YouTube link or an MP4 or WebM link alone on a line plays in place, as a
- * video dropped into a README does on GitHub. Pure but for nothing: no
+ * video dropped into a README does on GitHub. A run of two or more pictures
+ * (one per line, or one paragraph each) is a grid of example outputs, each
+ * captioned with its alt text (`div.readme-gallery`). Pure but for nothing: no
  * network, so the pages, the dialog and the tests share it.
  */
 
@@ -117,6 +119,71 @@ function player(video: ReadmeVideo): HastNode {
   return { type: 'element', tagName: 'div', properties: { className: ['readme-video'] }, children: [frame] };
 }
 
+/** A picture as a README writes it: an image, or an image wrapped in a link. */
+function pictureOf(node: HastNode): HastNode | null {
+  if (node.type !== 'element') return null;
+  if (node.tagName === 'img') return node;
+  if (node.tagName !== 'a') return null;
+  const inside = (node.children ?? []).filter(child => !isBlank(child));
+  return inside.length === 1 && inside[0].type === 'element' && inside[0].tagName === 'img' ? node : null;
+}
+
+/** The pictures of a paragraph that holds nothing else (line breaks aside), or null. */
+function picturesOf(node: HastNode): HastNode[] | null {
+  if (node.type !== 'element' || node.tagName !== 'p') return null;
+  const parts = (node.children ?? []).filter(child => !isBlank(child) && !(child.type === 'element' && child.tagName === 'br'));
+  const pictures = parts.map(pictureOf);
+  return parts.length && pictures.every(Boolean) ? (pictures as HastNode[]) : null;
+}
+
+/** One tile of a gallery: the picture (in its link), captioned with its alt text when it has one. */
+function figure(picture: HastNode): HastNode {
+  const img = picture.tagName === 'img' ? picture : (picture.children ?? []).find(child => child.type === 'element' && child.tagName === 'img');
+  const alt = String(img?.properties?.alt ?? '').trim();
+  return {
+    type: 'element',
+    tagName: 'figure',
+    properties: {},
+    children: [picture, ...(alt ? [{ type: 'element', tagName: 'figcaption', properties: {}, children: [{ type: 'text', value: alt }] }] : [])],
+  };
+}
+
+/**
+ * A run of pictures as a grid of example outputs, like a store listing's screenshots: one paragraph
+ * of nothing but pictures, or paragraphs of one picture each, one after another. Two or more make a
+ * `div.readme-gallery` of captioned tiles; a lone picture stays as it is.
+ */
+function galleries(parent: HastNode) {
+  const children = parent.children ?? [];
+  const out: HastNode[] = [];
+  let run: HastNode[] = [];
+  let runNodes: HastNode[] = [];
+  const close = () => {
+    if (run.length >= 2) out.push({ type: 'element', tagName: 'div', properties: { className: ['readme-gallery'] }, children: run.map(figure) });
+    else out.push(...runNodes);
+    run = [];
+    runNodes = [];
+  };
+  for (const child of children) {
+    const pictures = picturesOf(child);
+    if (pictures) {
+      run.push(...pictures);
+      runNodes.push(child);
+      continue;
+    }
+    // the blank lines between the paragraphs of a run stay in it
+    if (isBlank(child) && run.length) {
+      runNodes.push(child);
+      continue;
+    }
+    close();
+    if (child.type === 'element') galleries(child);
+    out.push(child);
+  }
+  close();
+  parent.children = out;
+}
+
 function resolve(url: string, base: ReadmeBase | undefined, file: boolean): string | null {
   if (url.startsWith('#')) return url;
   if (/^(https?:|mailto:)/i.test(url)) return url;
@@ -186,6 +253,8 @@ export async function renderReadme(markdown: string, base?: ReadmeBase, written 
         });
       };
       embed(root);
+      // a run of pictures is a grid of example outputs
+      galleries(root);
       fixLinks(root, base);
     })
     .use(rehypeStringify)
@@ -245,4 +314,19 @@ export function defaultReadme(facts: ReadmeFacts): string {
     lines.push(`1. ${install}`, '2. Open it from Claude, or as its setup says.');
   }
   return `${lines.join('\n')}\n`;
+}
+
+/** Its README as the release page's editor opens it. */
+export interface ReadmeSource {
+  /** What is written: a repo skill's README.md, or the README on its listing (empty when it has none). */
+  text: string;
+  /** file: a repo skill's README.md, edited in the repo (editUrl); listing: written here; default: none yet, the default shows. */
+  source: 'file' | 'listing' | 'default';
+  editUrl?: string;
+  /** Where a README.md's relative links and pictures point, for the preview. */
+  base?: ReadmeBase;
+  /** A repo skill that also has a README saved on its listing, which wins over its file. */
+  override?: boolean;
+  /** The default README, shown while none is written. */
+  defaultText?: string;
 }

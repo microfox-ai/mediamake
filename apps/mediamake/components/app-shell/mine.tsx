@@ -7,7 +7,7 @@ import { deviceName } from '@/lib/space/space';
 import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemCards } from './item-cards';
-import { BetaBadge, FailedNote, ItemActions, TierBadge } from './item-bits';
+import { AdviceBadge, FailedNote, ItemActions, LevelBadge, TierBadge } from './item-bits';
 import { DetailsButton, rememberTab } from './item-details';
 
 /**
@@ -36,7 +36,8 @@ function InstalledRow({ entry, now }: { entry: MineItem; now: number }) {
             <DetailsButton detailsKey={detailsKey.catalog(item.id)} cover className="truncate text-sm font-medium">
               {item.title}
             </DetailsButton>
-            {item.beta && <BetaBadge />}
+            <LevelBadge item={item} />
+            <AdviceBadge item={item} />
             <TierBadge item={item} />
             {entry.updateAvailable && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium">Update out</span>}
           </div>

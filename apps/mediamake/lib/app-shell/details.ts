@@ -5,7 +5,7 @@ import type { ItemReadme } from '@/lib/catalog/readme';
 import { needDependencies, type ReadmeCheck, type SkillDependency, type SkillDetailsView, type SkillFiles } from '@/lib/catalog/skill-profile';
 import type { RatingSummary } from '@/lib/ratings/ratings';
 import { itemPath } from '@/lib/catalog/summary';
-import { slugOf } from '@/lib/catalog/types';
+import { adviceInfo, levelInfo, slugOf } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import { linkedSummary, type LinkedItemView } from '@/lib/space/links';
 import { deviceOnly } from '@/lib/space/places';
@@ -382,19 +382,14 @@ function ofCatalog(
       tone: 'bad',
       note: `It is broken right now. ${item.healthNote ?? 'No reason was given.'}`,
     });
-  status.push(
-    item.beta
-      ? {
-          label: 'Beta',
-          tone: 'warn',
-          note: 'Published, not yet proven by a finished production.',
-        }
-      : {
-          label: 'Ready',
-          tone: 'good',
-          note: 'Proven by a finished production made with it.',
-        },
-  );
+  if (item.advice)
+    status.push({
+      label: adviceInfo(item.advice).label,
+      tone: 'bad',
+      note: `${item.adviceNote ?? adviceInfo(item.advice).about}${item.insteadOf ? ` Use ${slugOf(item.insteadOf)} instead.` : ''}`,
+    });
+  const level = levelInfo(item.level);
+  status.push({ label: level.label, tone: level.id === 'ready' ? 'good' : level.id === 'alpha' ? 'bad' : 'warn', note: level.about });
   if (entry?.updateAvailable)
     status.push({
       label: 'Update out',
@@ -494,8 +489,8 @@ function ofCatalog(
       ...(headshotOf(item) && { headshot: headshotOf(item) }),
       ...(item.icon && { icon: item.icon }),
       tags: item.tags ?? [],
-      // Failed, Beta and Ready are in `status` already; a locked item says which membership opens it there
-      badges: listingBadges({ beta: item.beta, tier: item.tier, version: item.version, size: item.size, deps: item.deps }).filter(
+      // Failed and the level (Alpha, Beta, Production) are in `status` already; a locked item says which membership opens it there
+      badges: listingBadges({ level: item.level, tier: item.tier, version: item.version, size: item.size, deps: item.deps }).filter(
         (badge, i) => i > 0 && !(item.locked && i === 1),
       ),
       ...(item.size && { size: item.size }),

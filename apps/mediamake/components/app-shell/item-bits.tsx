@@ -6,21 +6,54 @@ import { AlertTriangleIcon, ArrowUpRightIcon, CheckIcon, CopyIcon, LockIcon, Ref
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { AppItem } from '@/lib/app-shell/member';
+import { adviceInfo, levelInfo, slugOf } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 
 /**
- * The small parts Home, Explore and Mine share: an item's badges (Beta, its
- * membership, Failed with the reason) and its three actions (open, copy
- * install prompt, update).
+ * The small parts Home, Explore and Mine share: an item's badges (its level
+ * when it is Alpha or Beta, Deprecated or Not recommended, its membership,
+ * Failed with the reason) and its three actions (open, copy install prompt,
+ * update).
  */
 
 const chip = 'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium';
 
-export function BetaBadge() {
+/** Its level, strong, when it isn't Production: Beta on solid amber, Alpha on solid red. Production says nothing. */
+export function LevelBadge({ item }: { item: Pick<AppItem, 'level'> }) {
+  if (item.level === 'ready') return null;
+  const level = levelInfo(item.level);
   return (
-    <span className={cn(chip, 'bg-amber-500/10 text-amber-700 dark:text-amber-300')} title="Beta: published, not yet proven by a finished production made with it">
-      Beta
+    <span
+      className={cn(chip, 'font-semibold', item.level === 'alpha' ? 'bg-red-600 text-white dark:bg-red-500 dark:text-red-950' : 'bg-amber-400 text-amber-950')}
+      title={`${level.label}: ${level.about}`}
+    >
+      {level.label}
     </span>
+  );
+}
+
+/** Deprecated or Not recommended, with why on hover: none for a recommended item. */
+export function AdviceBadge({ item }: { item: Pick<AppItem, 'advice' | 'adviceNote'> }) {
+  if (!item.advice) return null;
+  return (
+    <span className={cn(chip, 'border border-red-500/40 text-red-700 dark:text-red-300')} title={item.adviceNote ?? adviceInfo(item.advice).about}>
+      <AlertTriangleIcon className="size-3" aria-hidden />
+      {adviceInfo(item.advice).label}
+    </span>
+  );
+}
+
+/** Not recommended or deprecated, and why: on a card in Explore's list. */
+export function AdviceNote({ item, className }: { item: Pick<AppItem, 'advice' | 'adviceNote' | 'insteadOf'>; className?: string }) {
+  if (!item.advice) return null;
+  return (
+    <p className={cn('flex items-start gap-1.5 rounded-md bg-red-500/10 px-2 py-1.5 text-xs text-red-700 dark:text-red-300', className)}>
+      <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+      <span>
+        <span className="font-medium">{adviceInfo(item.advice).label}.</span> {item.adviceNote ?? adviceInfo(item.advice).about}
+        {item.insteadOf && <> Use {slugOf(item.insteadOf)} instead.</>}
+      </span>
+    </p>
   );
 }
 

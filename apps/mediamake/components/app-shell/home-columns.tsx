@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { HealthBadge } from '@/components/catalog/health';
 import { KIND_LABEL, type HomeColumn, type HomeRow, type MemberKind } from '@/lib/app-shell/member';
 import { detailsKey } from '@/lib/app-shell/details-key';
-import { BetaBadge, ItemActions, TierBadge } from './item-bits';
+import { ItemActions, LevelBadge, TierBadge } from './item-bits';
 import { DetailsButton } from './item-details';
 
 /** Home's three columns (lib/app-shell/member › homeColumns): most used, then installed lately. */
@@ -41,7 +41,7 @@ function Row({ row }: { row: HomeRow }) {
               {row.name}
             </DetailsButton>
           )}
-          {item?.beta && <BetaBadge />}
+          {item && <LevelBadge item={item} />}
           {item && <TierBadge item={item} />}
           {item?.failed && <HealthBadge health="failed" note={item.healthNote} />}
           {row.updateAvailable && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium">Update out</span>}

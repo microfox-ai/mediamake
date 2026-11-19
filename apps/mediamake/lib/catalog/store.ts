@@ -415,7 +415,7 @@ export const catalogHealthDB = {
 
 // ── Readiness ────────────────────────────────────────────────────────────────
 
-/** Items marked Ready, with their proof (see Readiness): any item, kept apart from the items like health. Beta is having no mark. */
+/** Items marked Alpha or Ready (Production), with their proof (see Readiness): any item, kept apart from the items like health. Beta is having no mark, or one that keeps proof for later. */
 export const catalogReadinessDB = {
   async list(): Promise<ReadinessMark[]> {
     const db = await getDatabase();
@@ -442,10 +442,25 @@ export const catalogReadinessDB = {
     );
   },
 
-  /** Back to Beta: the mark and its proof go. */
-  async setBeta(ids: string[]) {
+  /**
+   * Alpha or back to Beta. A mark's proof stays on it, for when the item goes to Production again
+   * (proofOf only reads it while Ready); Beta with no proof kept is having no mark at all.
+   */
+  async setLevel(ids: string[], readiness: 'alpha' | 'beta', actor?: string) {
     const db = await getDatabase();
-    await db.collection<ReadinessMark>(COL.readiness).deleteMany({ id: { $in: ids } });
+    const marks = db.collection<ReadinessMark>(COL.readiness);
+    const at = nowISO();
+    await marks.bulkWrite(
+      ids.map(id => ({
+        updateOne: { filter: { id }, update: { $set: withoutUndefined({ readiness, at, by: actor }) as Partial<ReadinessMark>, $unset: { note: '' } }, upsert: readiness === 'alpha' },
+      })),
+    );
+    if (readiness === 'beta') await marks.deleteMany({ id: { $in: ids }, readiness: 'beta', $or: [{ proof: { $exists: false } }, { proof: { $size: 0 } }] });
+  },
+
+  /** Back to Beta, keeping any proof on the mark. */
+  async setBeta(ids: string[], actor?: string) {
+    await this.setLevel(ids, 'beta', actor);
   },
 };
 
@@ -518,6 +533,9 @@ export const catalogListingDB = {
       icon: listing.icon || undefined,
       readme: listing.readme || undefined,
       editorsPick: listing.editorsPick || undefined,
+      advice: listing.advice || undefined,
+      adviceNote: (listing.advice && listing.adviceNote) || undefined,
+      insteadOf: (listing.advice && listing.insteadOf) || undefined,
       updatedAt: nowISO(),
       updatedBy: actor,
     }) as ItemListing;

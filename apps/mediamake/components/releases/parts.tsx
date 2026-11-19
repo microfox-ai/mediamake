@@ -1,4 +1,4 @@
-import type { ItemTier, Readiness } from '@/lib/catalog/types';
+import { adviceInfo, levelInfo, type ItemAdvice, type ItemTier, type Readiness } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 import { TIER_META } from './model';
 
@@ -12,19 +12,33 @@ export function TierPill({ tier, className }: { tier: ItemTier; className?: stri
   );
 }
 
-/** How proven it is: Ready (an admin marked it, with a production made with it) or Beta. */
+/** How proven it is, as its level: Production (an admin marked it, with a production made with it), Beta or Alpha. */
 export function ReadinessPill({ readiness, className }: { readiness?: Readiness; className?: string }) {
-  const ready = readiness === 'ready';
+  const level = levelInfo(readiness);
   return (
     <span
-      title={ready ? 'Ready: battle tested, with a production made with it on record' : 'Beta: not marked Ready yet'}
+      title={`${level.label}: ${level.about}`}
       className={cn(
         'inline-flex w-fit shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        ready ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+        level.id === 'ready'
+          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+          : level.id === 'alpha'
+            ? 'bg-red-500/10 text-red-700 dark:text-red-300'
+            : 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
         className,
       )}
     >
-      {ready ? 'Ready' : 'Beta'}
+      {level.label}
+    </span>
+  );
+}
+
+/** Not recommended or deprecated, from its listing's advice. */
+export function AdvicePill({ advice, className }: { advice?: ItemAdvice; className?: string }) {
+  if (!advice || advice === 'recommended') return null;
+  return (
+    <span className={cn('inline-flex w-fit shrink-0 items-center rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300', className)}>
+      {adviceInfo(advice).label}
     </span>
   );
 }

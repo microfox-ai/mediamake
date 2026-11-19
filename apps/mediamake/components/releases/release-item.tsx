@@ -2,36 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { toast } from 'sonner';
-import { Archive, ArchiveRestore, ArrowLeft, Check, Code2, Copy, ExternalLink, ShieldAlert, Users } from 'lucide-react';
+import { ArrowLeft, Check, Code2, Copy, ExternalLink, ShieldAlert, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { HEALTH, HealthBadge } from '@/components/catalog/health';
-import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
+import { HealthBadge } from '@/components/catalog/health';
+import { NeedBadge } from '@/components/catalog/uses';
 import { cn } from '@/lib/utils';
-import { ITEM_HEALTH, ITEM_TIERS, VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemHealth, type ItemTier } from '@/lib/catalog/types';
+import { VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, proofOf, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemTier } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
 import { onYouTubeThumbnailLoad, watchPath, youtubeUrl } from '@/lib/catalog/video';
 import { itemPagePath } from '@/lib/catalog/paths';
 import type { InstallChoice, InstallStep } from '@/lib/catalog/plan';
 import { KIND_ICON } from './release-board';
-import { ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './parts';
-import { TIER_META, adminCall, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, reachOf, tierOf, type ItemDetail } from './model';
-import { ReadinessButton } from './proof-dialog';
+import { AdvicePill, ArchivedPill, GroupLabel, Panel, ReadinessPill, TierPill } from './parts';
+import { TIER_META, fetchItemDetail, formatDate, formatLeft, gateOf, itemPath, reachOf, tierOf, type ItemDetail } from './model';
 import { CoursePanel, VideoPanel } from './video-panel';
-import { ListingPanel } from './listing-panel';
+import { CardSection, MadeWithSection, ReadmeEditor, SaveBar, ScreenshotsSection, SkillDetailsSection, StatusSection, useListingDraft } from './listing-editor';
 
 /**
- * One catalog item's release page (/app/releases/<kind>/<slug>): what it is,
- * who can open it, where it lives, what installing it does, what it needs and
- * what uses it, its video, its store listing (tags and screenshots) and its
- * history. The wide column is what the item shows (video, listing, install,
- * history); the narrow one is what an admin does with it: its actions
- * (Archive / Unarchive, marking it Ready with what was made with it, its
- * health), its tier, its connections and where it lives. Each section's
- * buttons sit under it. Gates and grants stay on the board and in the access
- * sheet; everything is also in `npm run catalog` and mm-release's tools.
+ * One catalog item's release page (/app/releases/<kind>/<slug>): its header
+ * (what it is and where it stands), then its tabs. Listing is everything an
+ * admin sets on its store listing, in one place (./listing-editor: its level,
+ * advice, tier, health, editors' pick and archive, its card, a skill's
+ * details, its video); README its README, full width; Made with this its
+ * productions and screenshots; Access who can open it, what installing it
+ * does, what it connects to and where it lives; History its versions and
+ * tier changes. Gates and grants stay on the board and in the access sheet;
+ * everything is also in `npm run catalog` and mm-release's tools.
  */
 
 const KIND_LABEL: Record<CatalogKind, string> = { mcp: 'MCP', skill: 'Skill', app: 'App', tutorial: 'Tutorial', course: 'Course' };
@@ -111,7 +108,7 @@ function describeStep(step: InstallStep): { title: string; detail?: string } {
 export function ReleaseItem({ id }: { id: string }) {
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [error, setError] = useState<{ message: string; status?: number } | null>(null);
-  // bumped after archiving, to load the item again without the skeleton
+  // bumped after a change, to load the item again without the skeleton
   const [reloads, setReloads] = useState(0);
 
   useEffect(() => {
@@ -128,11 +125,6 @@ export function ReleaseItem({ id }: { id: string }) {
       live = false;
     };
   }, [id, reloads]);
-
-  // a link to one release (…#v0.7.0) lands on it once the page has loaded
-  useEffect(() => {
-    if (detail && window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView({ block: 'center' });
-  }, [detail]);
 
   if (error) {
     const title = error.status === 403 ? 'Admins only' : error.status === 404 ? `No item ${id}` : "Couldn't load it";
@@ -160,248 +152,208 @@ export function ReleaseItem({ id }: { id: string }) {
 
   if (!detail) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 md:p-6 lg:p-8">
         <Skeleton className="h-4 w-20" />
         <div className="flex gap-4">
-          <Skeleton className="size-12 rounded-xl" />
+          <Skeleton className="size-14 rounded-2xl" />
           <div className="flex flex-1 flex-col gap-2">
             <Skeleton className="h-7 w-64" />
             <Skeleton className="h-4 w-96 max-w-full" />
           </div>
         </div>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Skeleton className="h-72 rounded-2xl" />
-          <Skeleton className="h-72 rounded-2xl" />
-        </div>
+        <Skeleton className="h-9 w-full max-w-md" />
+        <Skeleton className="h-96 max-w-3xl rounded-2xl" />
       </div>
     );
   }
 
+  return <ReleaseEditor detail={detail} onChanged={() => setReloads(n => n + 1)} />;
+}
+
+type TabId = 'listing' | 'readme' | 'made' | 'access' | 'history';
+
+const TAB_LABEL: Record<TabId, string> = { listing: 'Listing', readme: 'README', made: 'Made with this', access: 'Access', history: 'History' };
+
+/** The tab a link opens: `?tab=readme`, or History for a link to one release (…#v0.7.0). */
+function tabFromUrl(tabs: TabId[]): TabId {
+  if (typeof window === 'undefined') return 'listing';
+  const asked = new URLSearchParams(window.location.search).get('tab') as TabId | null;
+  if (asked && tabs.includes(asked)) return asked;
+  return /^#v\d/.test(window.location.hash) ? 'history' : 'listing';
+}
+
+/**
+ * The page once the item has loaded: its header, then its tabs. Listing holds what an admin sets
+ * (components/releases/listing-editor); README its README, full width; Made with this its
+ * productions and screenshots; Access who can open it, what installing it does, its connections and
+ * where it lives; History its versions and tier changes. What waits to be saved sits in the save bar
+ * at the foot, whichever tab is open.
+ */
+function ReleaseEditor({ detail, onChanged }: { detail: ItemDetail; onChanged: () => void }) {
   const now = Date.now();
   const tier = tierOf(detail.item, now);
-  const reload = () => setReloads(n => n + 1);
-  // a tutorial or course is its video: nothing to install, nothing it connects to
   const isVideo = VIDEO_KINDS.includes(detail.item.kind);
+  const tabs: TabId[] = isVideo ? ['listing', 'access', 'history'] : ['listing', ...(detail.readme ? (['readme'] as const) : []), 'made', 'access', 'history'];
+  const [tab, setTab] = useState<TabId>('listing');
+  const state = useListingDraft(detail, onChanged);
+
+  // the tab a link names, once on the client
+  useEffect(() => {
+    setTab(tabFromUrl(tabs));
+  }, []);
+  // a link to one release (…#v0.7.0) lands on it
+  useEffect(() => {
+    if (tab === 'history' && window.location.hash) document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView({ block: 'center' });
+  }, [tab]);
+
+  const open = (next: TabId) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === 'listing') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', next);
+    window.history.replaceState(null, '', url);
+  };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
       <Link href="/app/releases" className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Releases
       </Link>
 
       <Header detail={detail} tier={tier} />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-6">
-          {detail.item.kind === 'course' ? <CoursePanel detail={detail} onSaved={reload} /> : <VideoPanel detail={detail} onSaved={reload} />}
+      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b px-1" role="tablist" aria-label="Release page">
+        {tabs.map(id => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => open(id)}
+            className={cn(
+              '-mb-px shrink-0 border-b-2 px-3 py-2 text-sm transition-colors',
+              tab === id ? 'border-foreground font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {TAB_LABEL[id]}
+            {id === 'made' && (detail.listing?.media.length || proofOf(detail.readinessMark).length) ? (
+              <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+                {(detail.listing?.media.length ?? 0) + proofOf(detail.readinessMark).length}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'listing' && (
+        <div className="flex max-w-3xl flex-col gap-10">
+          <StatusSection detail={detail} tier={tier} state={state} onChanged={onChanged} />
           {!isVideo && (
             <>
-              <ListingPanel detail={detail} onSaved={reload} />
-              <InstallPanel detail={detail} />
+              <hr />
+              <CardSection detail={detail} state={state} />
             </>
           )}
+          {detail.item.kind === 'skill' && detail.skillDetails && (
+            <>
+              <hr />
+              <SkillDetailsSection detail={detail} onChanged={onChanged} />
+            </>
+          )}
+          <hr />
+          {detail.item.kind === 'course' ? <CoursePanel detail={detail} onSaved={onChanged} /> : <VideoPanel detail={detail} onSaved={onChanged} />}
+        </div>
+      )}
+      {tab === 'readme' && <ReadmeEditor detail={detail} state={state} />}
+      {tab === 'made' && (
+        <div className="flex max-w-3xl flex-col gap-10">
+          <MadeWithSection detail={detail} onChanged={onChanged} />
+          {!isVideo && (
+            <>
+              <hr />
+              <ScreenshotsSection detail={detail} onChanged={onChanged} />
+            </>
+          )}
+        </div>
+      )}
+      {tab === 'access' && (
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-6">
+            <ReachPanel detail={detail} tier={tier} now={now} />
+            <WherePanel detail={detail} />
+          </div>
+          {!isVideo && (
+            <div className="flex min-w-0 flex-col gap-6">
+              <InstallPanel detail={detail} />
+              <ConnectionsPanel detail={detail} />
+            </div>
+          )}
+        </div>
+      )}
+      {tab === 'history' && (
+        <div className="max-w-3xl">
           <HistoryPanel item={detail.item} />
         </div>
-        <div className="flex min-w-0 flex-col gap-6">
-          <ActionsPanel detail={detail} onDone={reload} />
-          <ReachPanel detail={detail} tier={tier} now={now} onChanged={reload} />
-          {!isVideo && <ConnectionsPanel detail={detail} />}
-          <WherePanel detail={detail} />
-        </div>
-      </div>
+      )}
+
+      <SaveBar state={state} />
     </div>
   );
 }
 
-/** What the item is, across the whole page: its buttons are in the narrow column (ActionsPanel), so its words have room. */
+/** What the item is, in one line: its picture, its name and where it stands, and the links an admin opens. */
 function Header({ detail, tier }: { detail: ItemDetail; tier: ItemTier }) {
-  const { item, archive, healthMark, readinessMark } = detail;
+  const { item, archive, installPrompt, code } = detail;
   const Icon = KIND_ICON[item.kind];
   const version = item.versions.at(-1)?.version ?? item.version;
-  const cover = item.cover ?? item.video?.thumbnail;
+  const picture = detail.listing?.icon ?? detail.listing?.headshot ?? item.cover ?? item.video?.thumbnail;
+  const video = VIDEO_KINDS.includes(item.kind);
   return (
-    <header className="flex min-w-0 items-start gap-4">
-      <span className={cn('flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl', TIER_META[tier].soft)}>
-        {cover ? (
+    <header className="flex flex-wrap items-start gap-4">
+      <span className={cn('flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl', TIER_META[tier].soft)}>
+        {picture ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cover}
-            alt=""
-            onLoad={onYouTubeThumbnailLoad}
-            onError={e => (e.currentTarget.style.display = 'none')}
-            className="size-full object-cover"
-          />
+          <img src={picture} alt="" onLoad={onYouTubeThumbnailLoad} onError={e => (e.currentTarget.style.display = 'none')} className="size-full object-cover" />
         ) : (
           <Icon className="size-6 opacity-80" />
         )}
       </span>
-      <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
-          <TierPill tier={tier} />
-          <ReadinessPill readiness={item.readiness} />
-          {archive && <ArchivedPill />}
-          <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <h2 className="text-2xl font-semibold tracking-tight">{item.title}</h2>
         <p className="text-sm text-muted-foreground">
-          <span className="font-mono">{item.id}</span> · {KIND_LABEL[item.kind]}
-          {version ? ` · v${version}` : ''}
+          {KIND_LABEL[item.kind]}
+          {version ? ` · v${version}` : ''} · <span className="font-mono text-xs">{item.id}</span>
           {item.status === 'coming-soon' ? ` · ${STATUS_LABEL[item.status]}` : ''}
         </p>
-        <About summary={item.summary} description={detail.description} />
-        {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
-        {readinessMark?.proof?.length ? (
-          <p className="text-xs text-muted-foreground">
-            Ready since {formatDate(readinessMark.at)}. Made with it:{' '}
-            {readinessMark.proof.map((proof, i) => (
-              <span key={i}>
-                {i > 0 && ', '}
-                {proof.url ? (
-                  <a href={proof.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                    {proof.title}
-                  </a>
-                ) : (
-                  proof.title
-                )}
-              </span>
-            ))}
-            .
-          </p>
-        ) : null}
-        {healthMark && (
-          <p className="text-xs text-muted-foreground">
-            {HEALTH[healthMark.health].label} since {formatDate(healthMark.at)}
-            {healthMark.note ? `: ${healthMark.note}` : ''}.
-          </p>
-        )}
-        {archive && (
-          <p className="text-xs text-muted-foreground">
-            Archived {formatDate(archive.at)}
-            {archive.note ? `: ${archive.note}` : ''}. Left off the homepage; it still installs by its link.
-          </p>
-        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ReadinessPill readiness={item.readiness} />
+          <TierPill tier={tier} />
+          <AdvicePill advice={detail.listing?.advice} />
+          {detail.listing?.editorsPick && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <Star className="size-3 fill-current" /> Editors&apos; pick
+            </span>
+          )}
+          {archive && <ArchivedPill />}
+          {item.health && item.health !== 'healthy' && <HealthBadge health={item.health} note={item.healthNote} className="text-xs" />}
+        </div>
       </div>
-    </header>
-  );
-}
-
-/**
- * What an admin does with the item, as a grid of buttons two across: copy
- * its install prompt, open its page and its code, mark it Ready, archive it,
- * set its health.
- */
-function ActionsPanel({ detail, onDone }: { detail: ItemDetail; onDone: () => void }) {
-  const { item, installPrompt, code, archive, healthMark } = detail;
-  const video = VIDEO_KINDS.includes(item.kind);
-  return (
-    <section className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-4" aria-label="Actions">
-      {installPrompt && <CopyPrompt prompt={installPrompt} />}
-      <Button variant="outline" size="sm" asChild>
-        <a href={video ? watchPath(item.id) : itemPagePath(item.id)} target="_blank" rel="noreferrer">
-          <ExternalLink /> {item.kind === 'course' ? 'Course page' : 'Item page'}
-        </a>
-      </Button>
-      <ReadinessButton detail={detail} onDone={onDone} />
-      {code && (
+      <div className="flex flex-wrap items-center gap-2">
+        {installPrompt && <CopyPrompt prompt={installPrompt} />}
+        {code && (
+          <Button variant="ghost" size="sm" asChild>
+            <a href={code} target="_blank" rel="noreferrer">
+              <Code2 /> Code
+            </a>
+          </Button>
+        )}
         <Button variant="outline" size="sm" asChild>
-          <a href={code} target="_blank" rel="noreferrer">
-            <Code2 /> Code
+          <a href={video ? watchPath(item.id) : itemPagePath(item.id)} target="_blank" rel="noreferrer">
+            <ExternalLink /> {item.kind === 'course' ? 'Course page' : 'Its page'}
           </a>
         </Button>
-      )}
-      <ArchiveButton id={item.id} archived={!!archive} onDone={onDone} />
-      <HealthSelect id={item.id} marked={healthMark?.health} shown={item.health ?? 'healthy'} onDone={onDone} />
-    </section>
-  );
-}
-
-/** The summary, and the whole description behind "More" when there is more to it. */
-function About({ summary, description }: { summary: string; description?: string }) {
-  const [open, setOpen] = useState(false);
-  const more = !!description && description !== summary;
-  if (!summary && !description) return null;
-  return (
-    <p className="max-w-2xl whitespace-pre-line pt-1 text-sm">
-      {open && more ? description : summary}
-      {more && (
-        <button type="button" onClick={() => setOpen(!open)} className="ml-1.5 text-xs font-medium text-primary hover:underline">
-          {open ? 'Less' : 'More'}
-        </button>
-      )}
-    </p>
-  );
-}
-
-/**
- * An item's health (see ItemHealth), shown on its card and install page. "Default"
- * clears the mark: back to the repo's default, healthy when it has none. A
- * health other than healthy asks why, shown with it on its page; failed needs it.
- */
-function HealthSelect({ id, marked, shown, onDone }: { id: string; marked?: ItemHealth; shown?: ItemHealth; onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const set = async (value: string) => {
-    const health = value === 'default' ? null : (value as ItemHealth);
-    const note =
-      health && health !== 'healthy'
-        ? window.prompt(`Why is it ${HEALTH[health].label.toLowerCase()}? Shown on its page${health === 'failed' ? '' : ' (optional)'}`)
-        : null;
-    if (health === 'failed' && !note?.trim()) return toast.error('A failed item needs its reason');
-    setBusy(true);
-    try {
-      await adminCall({ type: 'set_health', itemIds: [id], health, note: note?.trim() || undefined });
-      toast.success(health ? `Health: ${HEALTH[health].label}` : 'Health back to the default');
-      onDone();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <Select value={marked ?? 'default'} onValueChange={set} disabled={busy}>
-      <SelectTrigger size="sm" className="h-8 w-full gap-1.5 text-xs" title="Whether it works right now, on its card and install page">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="text-muted-foreground">Health</span>
-          <SelectValue />
-        </span>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="default">Default{!marked && shown ? ` (${HEALTH[shown].label})` : ''}</SelectItem>
-        {ITEM_HEALTH.map(health => (
-          <SelectItem key={health} value={health}>
-            {HEALTH[health].label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-/** Archives the item (left off the homepage, still installs) or brings it back. */
-function ArchiveButton({ id, archived, onDone }: { id: string; archived: boolean; onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={busy}
-      title={archived ? 'Show it on the homepage again' : 'Leave it off the homepage; it stays public and installs by its link'}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          await adminCall({ type: 'set_archived', itemIds: [id], archived: !archived });
-          toast.success(archived ? 'Back on the homepage' : 'Archived: left off the homepage');
-          onDone();
-        } catch (e) {
-          toast.error((e as Error).message);
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      {archived ? <ArchiveRestore /> : <Archive />}
-      {archived ? 'Unarchive' : 'Archive'}
-    </Button>
+      </div>
+    </header>
   );
 }
 
@@ -410,6 +362,7 @@ function CopyPrompt({ prompt }: { prompt: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
+      variant="ghost"
       size="sm"
       title="Copy its install prompt"
       onClick={async () => {
@@ -648,7 +601,7 @@ function HistoryPanel({ item }: { item: CatalogItemRecord }) {
   );
 }
 
-function ReachPanel({ detail, tier, now, onChanged }: { detail: ItemDetail; tier: ItemTier; now: number; onChanged: () => void }) {
+function ReachPanel({ detail, tier, now }: { detail: ItemDetail; tier: ItemTier; now: number }) {
   const { item, members, grants, publicReleasesOpen } = detail;
   const always = isAlwaysPublic(item);
   const inCode = detail.definedIn === 'items.ts';
@@ -693,13 +646,10 @@ function ReachPanel({ detail, tier, now, onChanged }: { detail: ItemDetail; tier
         )
       }
     >
-      <TierSelect
-        id={item.id}
-        title={item.title}
-        tier={tier}
-        locked={always ? (item.madeBy ? 'Made by others: always Public' : 'In the public repo: always Public') : inCode ? 'Set in lib/catalog/items.ts' : undefined}
-        onDone={onChanged}
-      />
+      <p className="text-sm">
+        <span className="text-muted-foreground">Tier:</span> <span className="font-medium">{TIER_META[tier].label}</span>
+        <span className="text-xs text-muted-foreground"> · set under Listing</span>
+      </p>
       <ul className="mt-4 flex flex-col gap-2">
         {rows.map(row => (
           <li key={row.label} className={cn('flex items-center gap-2 text-sm', !row.on && 'text-muted-foreground line-through decoration-muted-foreground/40')}>
@@ -719,54 +669,6 @@ function ReachPanel({ detail, tier, now, onChanged }: { detail: ItemDetail; tier
         </div>
       )}
     </Panel>
-  );
-}
-
-/**
- * The item's tier, the lowest membership that opens it, changed on the spot
- * (`set_item_tier`). Releasing to Public asks first. A skill in the public
- * repo, an item made by others and a card defined in code can't be moved:
- * the select says why (`locked`).
- */
-function TierSelect({ id, title, tier, locked, onDone }: { id: string; title: string; tier: ItemTier; locked?: string; onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
-  const set = async (value: string) => {
-    const next = value as ItemTier;
-    if (next === tier) return;
-    if (next === 'public' && !window.confirm(`Release ${title} to everyone now?`)) return;
-    setBusy(true);
-    try {
-      await adminCall({ type: 'set_item_tier', itemId: id, tier: next });
-      toast.success(next === 'public' ? 'Released to the public' : `Moved to ${next === 'admin' ? 'the vault' : TIER_META[next].label}`);
-      onDone();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor="item-tier" className="text-sm font-medium">
-          Tier
-        </label>
-        <Select value={tier} onValueChange={set} disabled={busy || !!locked}>
-          <SelectTrigger id="item-tier" size="sm" className="h-8 w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {ITEM_TIERS.map(option => (
-              <SelectItem key={option} value={option}>
-                <span className={cn('size-1.5 rounded-full', TIER_META[option].dot)} />
-                {TIER_META[option].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {locked && <p className="text-xs text-muted-foreground">{locked}</p>}
-    </div>
   );
 }
 

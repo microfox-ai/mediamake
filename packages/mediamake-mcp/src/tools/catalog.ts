@@ -246,11 +246,11 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Catalog items (admins)',
       description:
-        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials, courses) in a line each: the lowest membership that opens it (tier: public, plus, pro, cohort, or vault for admins only; the ladder is strict, so each tier opens everything below it), its readiness (beta, or ready with the productions that prove it), where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, its health when it has one (healthy, inactive, archived, failed with the reason), the MCPs it works with, what uses it, and its release page. Filter by kind, tier, readiness, archived, health or words in the id or title. Start here before archiving, moving or sharing items.',
+        'Admins only. Every MediaMake catalog item (skills, MCPs, apps, tutorials, courses) in a line each: the lowest membership that opens it (tier: public, plus, pro, cohort, or vault for admins only; the ladder is strict, so each tier opens everything below it), its level (readiness: alpha, beta, or ready, which is Production, with the productions that prove it), its advice when it is not recommended or deprecated, where it comes from (our package, a skill in the repo, open source or hosted by its maker, a page of the app), whether it is archived, its health when it has one (healthy, inactive, archived, failed with the reason), the MCPs it works with, what uses it, and its release page. Filter by kind, tier, readiness, archived, health or words in the id or title. Start here before archiving, moving or sharing items.',
       inputSchema: {
         kind: KIND.optional(),
         tier: ITEM_TIER.optional(),
-        readiness: z.enum(['beta', 'ready']).optional(),
+        readiness: z.enum(['alpha', 'beta', 'ready', 'production']).optional().describe('Its level; production and ready are the same'),
         archived: z.boolean().optional().describe('true: only archived items; false: only the ones in use; leave out for both'),
         health: HEALTH.optional().describe('Only items with this health (one that says nothing is healthy)'),
         query: z.string().optional().describe('Words in the id or title'),
@@ -261,7 +261,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
       const { items } = await client.get<{ items: { page: string; tier: string }[] }>('/api/admin/catalog/items', {
         kind,
         tier: tier && storedTier(tier),
-        readiness,
+        readiness: readiness === 'production' ? 'ready' : readiness,
         archived,
         health,
         q: query,
@@ -279,7 +279,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: 'Catalog item (admins)',
       description:
-        'Admins only. Everything about one catalog item: what it is, the lowest membership that opens it, how many people hold each membership and the grants that reach it, whether it is Beta or Ready (with its proof), its health, whether it is archived, where it lives (who makes it, its code, its package and how it installs), what installing it does (the steps, and the MCPs it offers as choices with what each is for and what is lost without it), what needs or uses it, its video (an intro, a tutorial, or the lessons of a course), and its versions with release notes. Answers with its release page link: give it to the user.',
+        'Admins only. Everything about one catalog item: what it is, the lowest membership that opens it, how many people hold each membership and the grants that reach it, its level (Alpha, Beta or Production, with its proof), its advice (not recommended or deprecated, with why and what to use instead), its health, whether it is archived, where it lives (who makes it, its code, its package and how it installs), what installing it does (the steps, and the MCPs it offers as choices with what each is for and what is lost without it), what needs or uses it, its video (an intro, a tutorial, or the lessons of a course), and its versions with release notes. Answers with its release page link: give it to the user.',
       inputSchema: { item: ITEM_ID },
       annotations: READ,
     },
@@ -337,7 +337,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: "Set an item's store listing (admins)",
       description:
-        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page and in its dialog. tags: words people look for it by, added beside the ones it already has, such as a skill's category. media: screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). description: what it is, for people, in a line or two, shown instead of its summary. headshot: its 16:9 picture by https link, shown on its cards (without one, its video's thumbnail is used). icon: an MCP's or an app's square icon by https link. readme: its README in Markdown, the left side of its page, for an item without a README.md of its own (a repo skill's README.md is a file in its folder): a video link alone on the first line, then `# Title`, what it does, and `## How to use`; it introduces the item and never explains how it works (that stays in SKILL.md). Each one given replaces what was there: give the whole list or text, an empty list or empty text to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
+        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page and in its dialog. tags: words people look for it by, added beside the ones it already has, such as a skill's category. media: screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). description: what it is, for people, in a line or two, shown instead of its summary. headshot: its 16:9 picture by https link, shown on its cards (without one, its video's thumbnail is used). icon: an MCP's or an app's square icon by https link. readme: its README in Markdown, the left side of its page, for an item without a README.md of its own (a repo skill's README.md is a file in its folder): a video link alone on the first line, then `# Title`, what it does, and `## How to use`; it introduces the item and never explains how it works (that stays in SKILL.md). editorsPick: true puts it in Explore's Editors' picks, false takes it out. advice: recommended (the default, nothing shown), not-recommended (it works, but there is a better way: its card and page warn) or deprecated (on its way out: Explore hides it behind a filter, it still installs by its link); the last two need adviceNote, why, shown with it, and may name insteadOf, the item to use instead. Each one given replaces what was there: give the whole list or text, an empty list or empty text to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
       inputSchema: {
         item: ITEM_ID,
         tags: z.array(z.string().min(1).max(30)).max(12).optional().describe('The tags an admin adds, e.g. ["anime", "lyric-video"]; stored in lowercase with dashes'),
@@ -356,13 +356,19 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
         headshot: z.string().max(1000).optional().describe('Its 16:9 picture, by https link; empty clears it'),
         icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon, by https link; empty clears it"),
         readme: z.string().max(32768).optional().describe('Its README in Markdown; empty clears it'),
+        editorsPick: z.boolean().optional().describe("true: one of Explore's Editors' picks; false: not"),
+        advice: z.enum(['recommended', 'not-recommended', 'deprecated']).optional().describe('recommended clears a warning'),
+        adviceNote: z.string().max(300).optional().describe('With not-recommended or deprecated: why, shown on its card and page'),
+        insteadOf: z.string().optional().describe('With not-recommended or deprecated: the item to use instead, e.g. mcp/elevenlabs; empty clears it'),
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
-    safe(async ({ item, tags, media, description, headshot, icon, readme }) => {
-      const texts = { description, headshot, icon, readme };
+    safe(async ({ item, tags, media, description, headshot, icon, readme, editorsPick, advice, adviceNote, insteadOf }) => {
+      const texts = { description, headshot, icon, readme, editorsPick, advice, adviceNote, insteadOf };
       const given = Object.fromEntries(Object.entries(texts).filter(([, value]) => value !== undefined));
-      if (!tags && !media && !Object.keys(given).length) throw new Error('Give tags, media, description, headshot, icon or readme');
+      if (!tags && !media && !Object.keys(given).length) throw new Error('Give tags, media, description, headshot, icon, readme, editorsPick or advice');
+      if ((adviceNote !== undefined || insteadOf !== undefined) && advice === undefined) throw new Error('adviceNote and insteadOf go with advice: give it too');
+      if (advice && advice !== 'recommended' && !adviceNote?.trim()) throw new Error(`Say why it is ${advice === 'deprecated' ? 'deprecated' : 'not recommended'} in adviceNote: its card and page show it`);
       const { listing } = await client.post<{ listing: unknown }>('/api/admin/catalog', { type: 'set_listing', itemId: item, ...(tags && { tags }), ...(media && { media }), ...given });
       return json({ item, listing, page: page(item) });
     }),
@@ -371,12 +377,12 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
   server.registerTool(
     'catalog_set_readiness',
     {
-      title: 'Mark items Ready or Beta (admins)',
+      title: "Set items' level: Alpha, Beta or Production (admins)",
       description:
-        "Admins only. Say how proven items are, for any kind, ours or made by others. Everything starts as beta. ready means battle tested, and needs proof on record: at least one finished production made with it (its title, and a link when it has one), because we publish nothing we don't use. The item's page shows them as a Made with this gallery, like a store listing, after its trailer (catalog_set_video): give each production a YouTube link, a picture or a clip when there is one (files are uploaded on its release page, this tool takes links). An MCP also needs to be shown in use: a skill that uses it (catalog_items' usedBy) or a video on it. Only Ready items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one: never invent it. beta takes the mark and its proof away. Give the user the release page links it answers with.",
+        "Admins only. Set items' level, how proven they are, for any kind, ours or made by others. Everything starts as beta. alpha: still being tried by its makers; the app's Explore keeps it behind a filter. production (ready is the same): battle tested, and needs proof on record: at least one finished production made with it (its title, and a link when it has one), because we publish nothing we don't use. The item's page shows them as a Made with this gallery, like a store listing, after its trailer (catalog_set_video): give each production a YouTube link, a picture or a clip when there is one (files are uploaded on its release page, this tool takes links). An MCP also needs to be shown in use: a skill that uses it (catalog_items' usedBy) or a video on it. Only Production items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one: never invent it. alpha and beta keep any proof on the mark for when it goes to Production again. Give the user the release page links it answers with.",
       inputSchema: {
         items: z.array(ITEM_ID).min(1).max(200),
-        readiness: z.enum(['ready', 'beta']),
+        readiness: z.enum(['alpha', 'beta', 'production', 'ready']).describe('production and ready are the same'),
         proof: z
           .array(
             z.object({
@@ -388,16 +394,17 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
           )
           .max(20)
           .optional()
-          .describe('With ready: the finished productions made with it'),
+          .describe('With production: the finished productions made with it'),
         note: z.string().max(500).optional(),
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
     safe(async ({ items, readiness, proof, note }) => {
-      if (readiness === 'ready' && !proof?.length) throw new Error('Ready needs proof: at least one finished production made with it (title, and url when it has one)');
-      if (readiness === 'beta' && proof?.length) throw new Error('beta takes the mark away: give no proof');
-      await client.post('/api/admin/catalog', { type: 'set_readiness', itemIds: items, readiness, proof, note });
-      return json({ readiness, ...(proof && { proof }), items: items.map(id => ({ id, page: page(id) })) });
+      const level = readiness === 'production' ? 'ready' : readiness;
+      if (level === 'ready' && !proof?.length) throw new Error('Production needs proof: at least one finished production made with it (title, and url when it has one)');
+      if (level !== 'ready' && proof?.length) throw new Error(`${level} takes no proof: only production does`);
+      await client.post('/api/admin/catalog', { type: 'set_readiness', itemIds: items, readiness: level, proof, note });
+      return json({ readiness: level === 'ready' ? 'production' : level, ...(proof && { proof }), items: items.map(id => ({ id, page: page(id) })) });
     }),
   );
 

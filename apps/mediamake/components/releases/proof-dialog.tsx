@@ -17,8 +17,8 @@ import { adminCall, type ItemDetail } from './model';
  * "Made with this" for one item, as an admin edits it: the finished
  * productions that make it Ready, each with a title, a link (a YouTube link
  * plays in the gallery), an uploaded picture and an uploaded clip. Saving
- * marks the item Ready with them (set_readiness); with none it can only go
- * back to Beta. The preview is the gallery its page shows (never the trailer, which plays above the README).
+ * takes the item to Production with them (set_readiness ready); with none it
+ * can only go back to Beta. The preview is the gallery its page shows (never the trailer, which plays above the README).
  */
 
 type Draft = { title: string; url: string; image: string; video: string };
@@ -53,25 +53,15 @@ function problemOf(draft: Draft): string | null {
   return null;
 }
 
-/** The button on an item's release page: Mark Ready, or edit what was made with it. */
-export function ReadinessButton({ detail, onDone }: { detail: ItemDetail; onDone: () => void }) {
-  const [open, setOpen] = useState(false);
-  const ready = detail.item.readiness === 'ready';
-  return (
-    <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        {ready ? 'Made with this' : 'Mark Ready'}
-      </Button>
-      {open && <ProofDialog detail={detail} onClose={() => setOpen(false)} onDone={onDone} />}
-    </>
-  );
-}
-
-function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose: () => void; onDone: () => void }) {
+/**
+ * What was made with the item, as the release page asks for it when the item goes to Production
+ * (and edits it after): filled with the productions it had, kept on its mark while it was Alpha or Beta.
+ */
+export function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose: () => void; onDone: () => void }) {
   const { item, readinessMark } = detail;
   const ready = item.readiness === 'ready';
   const [drafts, setDrafts] = useState<Draft[]>(() => {
-    const saved = draftsOf(proofOf(readinessMark));
+    const saved = draftsOf(ready ? proofOf(readinessMark) : (detail.savedProof ?? []));
     return saved.length ? saved : [{ ...EMPTY }];
   });
   const [busy, setBusy] = useState(false);
@@ -94,7 +84,7 @@ function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose:
     setBusy(true);
     try {
       await adminCall({ type: 'set_readiness', itemIds: [item.id], readiness, ...(readiness === 'ready' && { proof }) });
-      toast.success(readiness === 'beta' ? 'Back to Beta' : ready ? 'Made with this saved' : 'Marked Ready');
+      toast.success(readiness === 'beta' ? 'Back to Beta' : ready ? 'Productions saved' : 'Level: Production');
       onDone();
       onClose();
     } catch (e) {
@@ -110,7 +100,7 @@ function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose:
         <DialogHeader>
           <DialogTitle>Made with this: {item.title}</DialogTitle>
           <DialogDescription>
-            {RULE} Add the finished productions made with it: they are what makes it Ready, and its page shows them as a gallery under Made with this. Its trailer is separate: it plays above the README.
+            {RULE} Add the finished productions made with it: they are what take it to Production, and its page shows them as a gallery under Made with this. Its trailer is separate: it plays above the README.
           </DialogDescription>
         </DialogHeader>
 
@@ -162,7 +152,7 @@ function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; onClose:
             </Button>
             <Button disabled={!valid || busy} onClick={() => save('ready')}>
               {busy && <Loader2 className="animate-spin" />}
-              {ready ? 'Save' : 'Mark Ready'}
+              {ready ? 'Save' : 'Take it to Production'}
             </Button>
           </div>
         </DialogFooter>
