@@ -3,13 +3,13 @@ import { publicReleasesOpen } from '@/lib/access';
 import { requireAdmin } from '@/lib/admin-utils';
 import { catalogIndex } from '@/lib/catalog/admin-index';
 import { summarize } from '@/lib/catalog/summary';
-import { CATALOG_KINDS, ITEM_HEALTH, ITEM_TIERS, READINESS, parseHealth, type CatalogKind, type ItemTier, type Readiness } from '@/lib/catalog/types';
+import { CATALOG_KINDS, ITEM_HEALTH, ITEM_TIERS, parseHealth, parseReadiness, type CatalogKind, type ItemTier } from '@/lib/catalog/types';
 
 /**
- * GET /api/admin/catalog/items[?kind=skill][&tier=pro][&readiness=ready][&archived=true|false][&health=failed][&q=brand]
+ * GET /api/admin/catalog/items[?kind=skill][&tier=pro][&readiness=alpha|beta|production][&archived=true|false][&health=failed][&q=brand]
  * Every catalog item in a line each (see ItemSummary): the lowest membership
  * that opens it (tier: public, plus, pro, cohort, or admin for the vault), its
- * readiness (beta, or ready with its proof),
+ * readiness (its level: alpha, beta, or production, `ready`, with its proof),
  * where it comes from, whether it is archived, its health, what it works with, what uses
  * it, and its release page. What the MediaMake MCP's `catalog_items` tool
  * shows. Read-only: it settles no gates.
@@ -25,14 +25,15 @@ export async function GET(req: NextRequest) {
   // the earlier names still filter: vault, development and community
   const tierParam = params.get('tier');
   const tier = (tierParam && ({ vault: 'admin', development: 'cohort', community: 'pro' } as Record<string, ItemTier>)[tierParam]) || (tierParam as ItemTier | null);
-  const readiness = params.get('readiness') as Readiness | null;
+  const asked = params.get('readiness');
+  const readiness = asked ? parseReadiness(asked) : null;
   const archived = params.get('archived');
   const healthParam = params.get('health');
   const health = healthParam ? parseHealth(healthParam) : null;
   const q = params.get('q')?.trim().toLowerCase();
   if (kind && !CATALOG_KINDS.includes(kind)) return NextResponse.json({ error: `kind must be one of ${CATALOG_KINDS.join(', ')}` }, { status: 400 });
   if (tier && !ITEM_TIERS.includes(tier)) return NextResponse.json({ error: `tier must be one of ${ITEM_TIERS.join(', ')}` }, { status: 400 });
-  if (readiness && !READINESS.includes(readiness)) return NextResponse.json({ error: `readiness must be one of ${READINESS.join(', ')}` }, { status: 400 });
+  if (asked && !readiness) return NextResponse.json({ error: 'readiness must be one of alpha, beta, production (ready)' }, { status: 400 });
   if (healthParam && !health) return NextResponse.json({ error: `health must be one of ${ITEM_HEALTH.join(', ')}` }, { status: 400 });
 
   const { byId } = await catalogIndex();

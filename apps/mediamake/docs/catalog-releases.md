@@ -203,38 +203,61 @@ by https link, like an app store listing's. A video is a YouTube link, or an
 MP4 or WebM. The item's own page shows the tags, and the screenshots in a
 gallery under "Made with this"; cards carry the tags too.
 
-On the item's release page it is the Store listing panel: Add tags and Add
-screenshot or video each open a dialog, and every change saves at once.
+On the item's release page it is the Listing tab (`components/releases/listing-editor.tsx`): every
+field in one place. A choice saves the moment it is made (the level, the tier, Editors' pick,
+Archived, a skill's type); what takes words waits for the save bar at the foot of the page (the
+description, tags, headshot, icon, README, and the advice and health with their reasons). Pictures
+are uploaded there (`create_thumbnail_upload`) or pasted by link.
 
 - `{ type: 'set_listing', itemId, tags?, media?: [{ kind: 'image' | 'video', url, title? }] }`:
   each one given replaces what was there (an empty list clears it); left out,
   it stays. At most 12 tags and 12 screenshots.
 - The same call takes `description`, `headshot` (a 16:9 picture by https link), `icon` (an MCP's or
   an app's, a square picture by https link) and `readme` (Markdown, for an item without a README.md
-  of its own): each a text, empty to clear it. The panel's "Headshot and description" and "README"
-  buttons set them. `docs/item-readme.md` has the README's format.
+  of its own): each a text, empty to clear it. The Listing tab's Card section and the README tab
+  set them. `docs/item-readme.md` has the README's format.
 
-- `{ type: 'set_listing', itemId, editorsPick: true | false }`: an editors' pick, the button on the
-  Store listing panel. Picks show at the top of the app's Explore: the first with a picture large,
+- `{ type: 'set_listing', itemId, editorsPick: true | false }`: an editors' pick, the switch under
+  Listing › Status. Picks show at the top of the app's Explore: the first with a picture large,
   the others in the Editors' picks row (`storefront` in `lib/app-shell/member.ts`).
+- `{ type: 'set_listing', itemId, advice, adviceNote?, insteadOf? }`: what MediaMake says about
+  using it (`ItemAdvice`). `recommended` is the default and shows nothing. `not-recommended`: it
+  works, but there is a better way; its card and page warn, with why. `deprecated`: on its way out;
+  Explore hides it behind the Deprecated filter, and it still installs by its link. The last two
+  need `adviceNote` (why, shown with it) and may name `insteadOf`, the item to use instead.
 
 Explore's New row goes by the day an item first came out. A released item has its release date; a
 skill from the repo has the day of its first commit, in `lib/catalog/skill-dates.json`: a pull
 request that adds a skill adds its line there (without one, the skill sorts with the oldest).
 
-From Claude, mm-release's `catalog_set_listing` does the same, except the editors' pick.
+From Claude, mm-release's `catalog_set_listing` does the same, the editors' pick and the advice included.
 
 ### The release page
 
-`/app/releases/<kind>/<slug>` has a wide column for what the item shows (its
-intro video, its store listing, what installing it does, its history) and a
-narrow one for what an admin does with it: the actions (install prompt, item
-page, Made with this, code, Archive, health), who can open it with its Tier
-(`set_item_tier`: a skill in the public repo, an item made by others and a
-card in `lib/catalog/items.ts` can't be moved, and the select says why), its
-connections and where it lives. Each panel's buttons sit under it. The intro
-video is one row with two buttons, Copy launch video prompt and Add Launch
-Video (its form is a dialog).
+`/app/releases/<kind>/<slug>` opens with the item's header (its picture, name,
+level, tier, advice and the links an admin opens: its install prompt, its code
+and its page), then its tabs:
+
+- **Listing**: everything set on its store listing, in one place. Status: its
+  level (Alpha, Beta, Production: picking Production asks for what was made
+  with it), its advice, its tier (`set_item_tier`: a skill in the public repo,
+  an item made by others and a card in `lib/catalog/items.ts` can't be moved,
+  and the hint says why) and its health as dropdowns, then Editors' pick and
+  Archived as switches. Card: its headshot, icon, description and tags (a
+  picker of the catalog's tags that takes new ones). A skill's type and
+  superset. Its intro video, one row with Copy launch video prompt and Add
+  Launch Video (its form is a dialog).
+- **README**: its README, full width, Write and Preview, saved with the save
+  bar. A repo skill's README.md is edited in the repo: it shows to read, with
+  a link to edit it on GitHub.
+- **Made with this**: the productions that make it Production, and its
+  screenshots and videos (uploaded or by link).
+- **Access**: who can open it, where it lives, what installing it does and
+  what it connects to.
+- **History**: its versions and tier changes.
+
+A choice saves at once; what takes words waits for the save bar at the foot of
+the page, whichever tab is open.
 
 ### Launch videos
 
@@ -247,9 +270,9 @@ lives in the Cook with Claude project's space, not in this repo (since
 
 - The item's release page has **Copy launch video prompt** under its
   Intro video panel. The prompt carries what the catalog knows about the item:
-  its id and version, what it is, who can open it, Beta or Ready, a skill's
+  its id and version, what it is, who can open it, its level, a skill's
   first prompt, the install prompt to show (for a computer without MediaMake),
-  its code, what was made with it (the Ready mark's proof), what it works with
+  its code, what was made with it (the Production mark's proof), what it works with
   and what uses it. It tells Claude to check each fact, to ask for what is
   missing, and to stop when no finished production was made with it.
   It also lists the item's open known issues (the public list an admin writes,
@@ -281,7 +304,7 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_archive` | Archive items, or bring them back (`archived: false`), with a note. |
 | `catalog_set_stage` | Set the lowest membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (`set_item_tier`): public, plus, pro, cohort or vault, optionally with a gate. Repo skills and items made by others refuse: archive them instead. |
 | `catalog_set_health` | Say whether items of any kind work (`set_health`): healthy, inactive, archived, or failed with its reason. |
-| `catalog_set_readiness` | Mark items Ready with the finished productions that prove it, or back to Beta (`set_readiness`). |
+| `catalog_set_readiness` | Set items' level: Production with the finished productions that prove it, Beta or Alpha (`set_readiness`). |
 | `catalog_set_listing` | Set an item's store listing (`set_listing`): its tags, screenshots, description, headshot, icon and README, shown on its own page and in its dialog (`docs/item-readme.md`). |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
@@ -400,12 +423,15 @@ are in `lib/access/rules.ts`.
 
 Every item of every kind, ours or made by others, has both, shown as badges:
 
-- **Readiness** is Beta or Ready. Everything starts as **Beta**. **Ready**
+- **Readiness** is the item's level: **Alpha**, **Beta** or **Production** (stored as `ready`;
+  the API and mm-release take `production` too). Everything starts as **Beta**. **Alpha** means
+  still being tried by its makers: Explore keeps it behind the Alpha filter. **Production**
   means battle tested, and an admin can mark it only with proof on record: at
   least one finished production made with it (`readyProof`: a title, and a
   link when it has one). An MCP also needs to be shown in use: a skill that
   uses it, or a video on it (`readyProblems`). Marks live in
-  `catalog_readiness`. Today every skill is Beta except `pack-brand-kit`.
+  `catalog_readiness`. Moving an item back to Beta or Alpha keeps its proof on
+  the mark, so taking it to Production again starts from it.
   This is how the rule, "We publish nothing we don't use." (`RULE` in
   `lib/catalog/types.ts`), is kept: every item's page (`/skills/<name>`,
   `/mcps/<slug>`, `/apps/<slug>`) has a "Made with this" panel
@@ -414,8 +440,8 @@ Every item of every kind, ours or made by others, has both, shown as badges:
   video) is not one of them: it plays above the README, apart. Each production (`ReadyProof`) has a
   title and, optionally, a link (`url`: a YouTube link plays in place, any
   other opens from its tile), a picture (`image`) and a clip (`video`, MP4
-  or WebM). An admin adds them on the item's release page (**Mark Ready** or
-  **Made with this**: uploads go through `create_proof_upload`, public once
+  or WebM). An admin adds them on the item's release page (picking Production
+  as its level asks for them; the Made with this tab edits them: uploads go through `create_proof_upload`, public once
   uploaded), or as links with `catalog_set_readiness` and
   `npm run catalog -- ready … --url --image --video`. A Beta item shows the
   note that no production is on record yet. A skill's
@@ -429,12 +455,16 @@ Every item of every kind, ours or made by others, has both, shown as badges:
 Where an item is shown follows from tier, readiness and health
 (`shownOn` in `lib/catalog/shown.ts`):
 
-| Surface | Ready and healthy | Beta | Failed |
-| --- | --- | --- | --- |
-| Public site | shown, if it is Public and not archived | hidden | hidden |
-| Explore, in the app | shown | shown with a Beta badge | only behind a filter, with the reason |
-| My Items (installed) | shown | shown | shown with a warning and the reason |
-| Admin | shown | shown | shown |
+| Surface | Production and healthy | Beta | Alpha | Failed |
+| --- | --- | --- | --- | --- |
+| Public site | shown, if it is Public and not archived | hidden | hidden | hidden |
+| Explore, in the app | shown | shown with a strong Beta badge | only behind the Alpha filter, with an Alpha badge | only behind a filter, with the reason |
+| My Items (installed) | shown | shown | shown | shown with a warning and the reason |
+| Admin | shown | shown | shown | shown |
+
+Explore also keeps a deprecated item (its listing's advice) behind the Deprecated filter and the
+vault's items (admin only, which only admins see) behind the Admin only filter; a not recommended
+item shows with its warning.
 
 In Explore an item a higher membership would open is shown locked, saying
 which one; Cohort and vault items stay out of sight of everyone below them.
@@ -486,7 +516,7 @@ Every way someone gets access is a record, never a code change:
 | --- | --- | --- |
 | Grant to a person or group (with expiry and note) | `grant`, `approve` | `access_grants` |
 | Membership (tier, source, expiry; see [Memberships](#memberships)) | `member`, Manage Memberships, an approved request | `memberships` |
-| Readiness marks with their proof | `ready`, `beta` | `catalog_readiness` |
+| Readiness marks with their proof | `ready` (Production), `alpha`, `beta` (alpha and beta when proof is kept) | `catalog_readiness` |
 | Group membership (your own groups; the earlier `private` and `network` until migrated) | `group add` | `access_groups` |
 | Requests from the "Request access" button | the person | `access_requests` |
 | Each package download | `/api/catalog/download` | `catalog_downloads` |

@@ -19,7 +19,7 @@ import {
   Users,
   Wand2,
 } from 'lucide-react';
-import { isAlwaysPublic, type CatalogItemRecord, type CatalogKind, type ItemTier } from '@/lib/catalog/types';
+import { adviceInfo, isAlwaysPublic, levelInfo, type CatalogItemRecord, type CatalogKind, type ItemTier } from '@/lib/catalog/types';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -199,7 +199,8 @@ export function ItemCard({
             <Users className="size-3" />
             {grants} grant{grants === 1 ? '' : 's'}
           </span>
-          <span>{item.readiness === 'ready' ? 'Ready' : 'Beta'}</span>
+          <span>{levelInfo(item.readiness).label}</span>
+          {item.advice && <span className="text-red-600 dark:text-red-400">{adviceInfo(item.advice).label}</span>}
           {item.health && item.health !== 'healthy' && <span className="capitalize" title={item.healthNote}>{item.health}</span>}
           {item.listed === false && <span>Unlisted</span>}
           {item.archivedAt && <span title="Left off the homepage; still installs by its link">Archived</span>}

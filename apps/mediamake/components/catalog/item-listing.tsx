@@ -1,23 +1,28 @@
-import { BoxIcon, HardDriveIcon, LayersIcon, ShapesIcon, Share2Icon, ShieldCheckIcon, TagIcon, UsersIcon } from 'lucide-react';
+import Link from 'next/link';
+import { BoxIcon, HardDriveIcon, LayersIcon, OctagonAlertIcon, ShapesIcon, Share2Icon, ShieldCheckIcon, TagIcon, TriangleAlertIcon, UsersIcon } from 'lucide-react';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
 import { placeholderBackground } from '@/lib/catalog/video';
 import { sizeLabel, type ListingBadge } from '@/lib/catalog/listing';
 import type { ItemReadme } from '@/lib/catalog/readme';
+import { adviceInfo, levelInfo, type ItemAdvice, type Readiness } from '@/lib/catalog/types';
 import { cn } from '@/lib/utils';
 
 /**
  * The parts of an item's listing, shared by its own page (/skills/<name>,
- * /mcps/<slug>, /apps/<slug>) and the item dialog, laid out as GitHub lays
- * out a repo: the README on the left (ReadmeView: the video first, the
- * title, the badges, then the README's text), and a narrow About column on
- * the right (AboutCard). No hooks, so server pages and the dialog both use
- * them.
+ * /mcps/<slug>, /apps/<slug>) and the item dialog. The page opens like an
+ * app store's (ItemHero: its icon, title, one line, badges and the install
+ * button; AdviceBanner when it is not recommended or deprecated; ItemMedia:
+ * its video or headshot), then its tabs with the README (ReadmeView with
+ * `header={false}`) and a narrow About column on the right (AboutCard). The
+ * dialog draws the README with its own header (the video first, the title,
+ * the badges). No hooks, so server pages and the dialog both use them.
  */
 
+/** Strong, solid colours: a level, a failure or a warning is read at a glance (Production green, Beta amber, Alpha and warnings red). */
 const TONE: Record<ListingBadge['tone'], string> = {
-  good: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-200',
-  warn: 'bg-amber-500/15 text-amber-800 dark:text-amber-200',
-  bad: 'bg-red-500/15 text-red-700 dark:text-red-300',
+  good: 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950',
+  warn: 'bg-amber-400 text-amber-950',
+  bad: 'bg-red-600 text-white dark:bg-red-500 dark:text-red-950',
   plain: 'bg-muted text-muted-foreground',
 };
 
@@ -36,6 +41,11 @@ export const README_PROSE = [
   // a video dropped into the README plays in place, at 16:9
   '[&_.readme-video]:relative [&_.readme-video]:aspect-video [&_.readme-video]:overflow-hidden [&_.readme-video]:rounded-lg [&_.readme-video]:bg-black',
   '[&_.readme-video>*]:absolute [&_.readme-video>*]:inset-0 [&_.readme-video>*]:size-full [&_.readme-video>*]:border-0',
+  // a run of pictures is a grid of example outputs, captioned by their alt text
+  '[&_.readme-gallery]:grid [&_.readme-gallery]:grid-cols-2 [&_.readme-gallery]:gap-3 sm:[&_.readme-gallery]:grid-cols-3',
+  '[&_.readme-gallery_figure]:flex [&_.readme-gallery_figure]:min-w-0 [&_.readme-gallery_figure]:flex-col [&_.readme-gallery_figure]:gap-1.5',
+  '[&_.readme-gallery_a]:block [&_.readme-gallery_img]:aspect-video [&_.readme-gallery_img]:w-full [&_.readme-gallery_img]:rounded-lg [&_.readme-gallery_img]:border [&_.readme-gallery_img]:bg-muted [&_.readme-gallery_img]:object-cover',
+  '[&_.readme-gallery_figcaption]:line-clamp-2 [&_.readme-gallery_figcaption]:text-xs [&_.readme-gallery_figcaption]:text-muted-foreground',
 ].join(' ');
 
 export function ListingBadges({ badges, className }: { badges: ListingBadge[]; className?: string }) {
@@ -43,7 +53,7 @@ export function ListingBadges({ badges, className }: { badges: ListingBadge[]; c
   return (
     <ul className={cn('flex flex-wrap gap-1.5', className)}>
       {badges.map(badge => (
-        <li key={badge.label} title={badge.title} className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', TONE[badge.tone])}>
+        <li key={badge.label} title={badge.title} className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', TONE[badge.tone])}>
           {badge.label}
         </li>
       ))}
@@ -64,9 +74,110 @@ export function ItemIcon({ id, title, src, className }: { id: string; title: str
 }
 
 /**
- * The left side: what every README opens with, drawn the same for every
- * item (its video, else its headshot; its title with an MCP's or app's
- * icon; its badges), then the README's own text.
+ * The top of an item's page, as an app store opens a listing: its icon (an MCP's or an app's), its
+ * title, what it is in a line, its badges (its level first, in a strong colour) and its main action
+ * (`actions`: install, open, request access). Stacks on a phone.
+ */
+export function ItemHero({
+  id,
+  kind,
+  title,
+  description,
+  icon,
+  badges,
+  actions,
+  footnote,
+}: {
+  id: string;
+  kind: 'skill' | 'mcp' | 'app';
+  title: string;
+  description?: string;
+  icon?: string;
+  badges: ListingBadge[];
+  actions?: React.ReactNode;
+  /** A small line under the actions: who made it, where else it is. */
+  footnote?: React.ReactNode;
+}) {
+  return (
+    <header className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+      {kind !== 'skill' && <ItemIcon id={id} title={title} src={icon} className="size-16 rounded-2xl text-2xl sm:size-20" />}
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
+          {description && (
+            <p className="line-clamp-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground" title={description}>
+              {description}
+            </p>
+          )}
+        </div>
+        <ListingBadges badges={badges} />
+        {actions && <div className="pt-1">{actions}</div>}
+        {footnote && <div className="text-xs text-muted-foreground">{footnote}</div>}
+      </div>
+    </header>
+  );
+}
+
+/**
+ * A warning under the hero when MediaMake says not to use the item (its listing's advice): Not
+ * recommended or Deprecated, why, and what to use instead.
+ */
+export function AdviceBanner({ advice, note, instead }: { advice?: ItemAdvice; note?: string; instead?: { title: string; href?: string } }) {
+  if (!advice || advice === 'recommended') return null;
+  const Icon = advice === 'deprecated' ? OctagonAlertIcon : TriangleAlertIcon;
+  return (
+    <div role="note" className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:text-red-100">
+      <Icon className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" aria-hidden />
+      <div className="min-w-0 space-y-0.5">
+        <p className="font-semibold">{adviceInfo(advice).label}</p>
+        {note && <p className="leading-relaxed">{note}</p>}
+        {instead && (
+          <p>
+            Use{' '}
+            {instead.href ? (
+              <Link href={instead.href} className="font-semibold underline underline-offset-4">
+                {instead.title}
+              </Link>
+            ) : (
+              <span className="font-semibold">{instead.title}</span>
+            )}{' '}
+            instead.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What an item's page shows under its hero: the video its README opens with or its intro, else its
+ * headshot. Nothing without one: the hero already shows its name, so a title on a colour would only
+ * take room.
+ */
+export function ItemMedia({
+  id,
+  title,
+  readme,
+  video,
+  headshot,
+}: {
+  id: string;
+  title: string;
+  readme: ItemReadme;
+  video?: { youtubeId?: string; title?: string } | null;
+  headshot?: string;
+}) {
+  const youtubeId = readme.video?.youtubeId ?? (readme.video?.src ? undefined : video?.youtubeId);
+  if (youtubeId) return <YouTubeEmbed youtubeId={youtubeId} title={video?.title ?? title} className="border" />;
+  if (readme.video?.src) return <video src={readme.video.src} controls playsInline preload="metadata" poster={headshot} className="aspect-video w-full rounded-xl border bg-black" />;
+  if (!headshot) return null;
+  return <VideoThumb id={id.replace(/^catalog:/, '')} title={title} src={headshot} className="rounded-xl border" />;
+}
+
+/**
+ * The README. With its header (the item dialog), what every README opens with, drawn the same for
+ * every item (its video, else its headshot; its title with an MCP's or app's icon; its badges), then
+ * the README's own text. Without it (`header={false}`, the item's page, whose hero drew them), its text alone.
  */
 export function ReadmeView({
   id,
@@ -78,6 +189,7 @@ export function ReadmeView({
   headshot,
   icon,
   heading: Heading = 'h1',
+  header = true,
   className,
 }: {
   /** The item's id or key: picks the colour of an icon without a picture. */
@@ -91,20 +203,17 @@ export function ReadmeView({
   headshot?: string;
   icon?: string;
   heading?: 'h1' | 'h2';
+  /** False on the item's page: its hero and media already show the video, the title and the badges. */
+  header?: boolean;
   className?: string;
 }) {
-  const youtubeId = readme.video?.youtubeId ?? (readme.video?.src ? undefined : video?.youtubeId);
   const name = readme.title ?? title;
+  if (!header) {
+    return readme.html ? <article className={cn(README_PROSE, className)} dangerouslySetInnerHTML={{ __html: readme.html }} /> : null;
+  }
   return (
     <div className={cn('flex min-w-0 flex-col gap-5', className)}>
-      {youtubeId ? (
-        <YouTubeEmbed youtubeId={youtubeId} title={video?.title ?? name} className="border" />
-      ) : readme.video?.src ? (
-        <video src={readme.video.src} controls playsInline preload="metadata" poster={headshot} className="aspect-video w-full rounded-xl border bg-black" />
-      ) : (
-        // every item has a headshot: without a picture, its title on its own colour, as on its card
-        <VideoThumb id={id.replace(/^catalog:/, '')} title={name} src={headshot} className="rounded-xl border" />
-      )}
+      <ItemMedia id={id} title={name} readme={readme} video={video} headshot={headshot} />
       <div className="flex flex-col gap-2.5">
         <div className="flex items-center gap-3">
           {kind !== 'skill' && <ItemIcon id={id} title={name} src={icon} />}
@@ -145,7 +254,8 @@ export function AboutCard({
   tags?: string[];
   rating?: React.ReactNode;
   facts: {
-    ready?: boolean;
+    /** Its level: Alpha, Beta or Production (`ready`). */
+    level?: Readiness;
     tier?: string;
     version?: string;
     size?: { bytes: number; files?: number };
@@ -202,10 +312,10 @@ export function AboutCard({
             )}
           </AboutRow>
         )}
-        {facts.ready !== undefined && (
-          <AboutRow icon={ShieldCheckIcon} label="Status">
-            {facts.ready ? 'Ready' : 'Beta'}
-            <span className="text-muted-foreground"> · {facts.ready ? 'proven by a finished production' : 'not proven by a production yet'}</span>
+        {facts.level !== undefined && (
+          <AboutRow icon={ShieldCheckIcon} label="Level">
+            {levelInfo(facts.level).label}
+            <span className="text-muted-foreground"> · {levelInfo(facts.level).about}</span>
           </AboutRow>
         )}
         {facts.tier && (

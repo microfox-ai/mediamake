@@ -123,13 +123,26 @@ Like on GitHub: `![what it shows](shots/a.png)` for a picture (a file in the ite
 https link), and a YouTube, MP4 or WebM link alone on a line for a video that plays in place. Raw HTML
 is dropped. Keep large media out of the folder: link it (the media library carries it).
 
+**Pictures one after another show as a grid of example outputs**, each with its alt text as its
+caption: put two or more `![…](…)` lines together, on following lines or with blank lines between
+them. It is the way to show what the item makes, under "What the skill outputs" (or an MCP's own
+outputs section):
+
+```markdown
+## What the skill outputs
+
+![A 16:9 thumbnail](shots/thumbnail.png)
+![The 9:16 Short](shots/short.png)
+![The end screen](shots/end-screen.png)
+```
+
 ## Where the README lives
 
 | Item | Its README | Its headshot, description, tags | Its icon |
 | --- | --- | --- | --- |
 | A skill in this repo | `README.md` in its folder, beside `SKILL.md` | The README's frontmatter | None |
 | A skill, MCP or app in a space (a member's own, a project's, a linked item) | `README.md` in its folder, sent with the space's report (below) | The README's frontmatter | None |
-| An MCP or an app made here | Its release page, Store listing › README (`catalog_set_listing`'s `readme`) | The same panel (`description`, `headshot`, `tags`) | The same panel (`icon`): a square picture |
+| An MCP or an app made here | Its release page's README tab, Write and Preview, saved with the save bar (`catalog_set_listing`'s `readme`) | Its release page, Listing › Card (`description`, `headshot`, `tags`) | Listing › Card (`icon`): a square picture |
 | Any item, by an admin | What is set on the release page wins over the file | The same | |
 
 **In a space, the README goes with the item.** Every report a computer sends (`mm space sync`, `mm space

@@ -205,6 +205,12 @@ export interface CatalogItem {
   icon?: string;
   /** An editors' pick (see ItemListing): an admin's choice for the top of Explore. */
   editorsPick?: boolean;
+  /** Not recommended or deprecated (see ItemAdvice, set on its listing); none: recommended. */
+  advice?: Exclude<ItemAdvice, 'recommended'>;
+  /** Why it is not recommended or deprecated. */
+  adviceNote?: string;
+  /** The item to use instead, by id. */
+  insteadOf?: string;
   /** When it first came out (ISO date), where that differs from `releasedAt`: a repo skill's first commit (./skill-dates.json). Explore's New row goes by it. */
   launchedAt?: string;
   /** How big it is: a skill's folder, or the latest package of an MCP or an app. */
@@ -465,15 +471,53 @@ export function isFailed(item: { health?: ItemHealth }): boolean {
 
 /**
  * Readiness: how proven an item is, for every kind, ours or made by others.
- *  - beta:  everything starts here.
- *  - ready: battle tested. An admin marks it, with the proof on record: at
- *    least one real production made with it (see ReadyProof). An MCP also
- *    needs to be shown in use: a skill that uses it, or a video on it.
+ * People see it as the item's level (see LEVELS): Alpha, Beta or Production.
+ *  - alpha: still being tried by its makers; Explore keeps it behind a filter.
+ *  - beta:  everything starts here: published, not yet proven.
+ *  - ready: Production, battle tested. An admin marks it, with the proof on
+ *    record: at least one real production made with it (see ReadyProof). An
+ *    MCP also needs to be shown in use: a skill that uses it, or a video on it.
  * Kept in MongoDB `catalog_readiness`, apart from the items like health, so
- * an item the repo defines can be marked too.
+ * an item the repo defines can be marked too. `ready` is the stored word for
+ * Production; the API takes `production` too (parseReadiness).
  */
-export type Readiness = 'beta' | 'ready';
-export const READINESS: Readiness[] = ['beta', 'ready'];
+export type Readiness = 'alpha' | 'beta' | 'ready';
+export const READINESS: Readiness[] = ['alpha', 'beta', 'ready'];
+
+/** An item's level as people see it: its readiness in plain words. */
+export const LEVELS: { id: Readiness; label: string; about: string }[] = [
+  { id: 'alpha', label: 'Alpha', about: 'Still being tried by its makers. Hidden in Explore unless the Alpha filter is on.' },
+  { id: 'beta', label: 'Beta', about: 'Published, not yet proven by a finished production made with it.' },
+  { id: 'ready', label: 'Production', about: 'Proven: a finished production was made with it.' },
+];
+
+export const levelInfo = (readiness: Readiness | undefined) => LEVELS.find(level => level.id === (readiness ?? 'beta'))!;
+
+/** A readiness as the API takes it: `alpha`, `beta`, `ready` or `production` (the same as ready); null otherwise. */
+export function parseReadiness(value: unknown): Readiness | null {
+  if (value === 'production') return 'ready';
+  return READINESS.includes(value as Readiness) ? (value as Readiness) : null;
+}
+
+/**
+ * What MediaMake says about using an item, set on its listing (see ItemListing):
+ *  - recommended: the default, nothing is shown.
+ *  - not-recommended: it works, but there is a better way; its card and page warn, with why.
+ *  - deprecated: on its way out; hidden in Explore unless the Deprecated filter is on, still installs by its link.
+ * A non-default one says why (adviceNote) and can name the item to use instead (insteadOf).
+ */
+export type ItemAdvice = 'recommended' | 'not-recommended' | 'deprecated';
+export const ADVICE: { id: ItemAdvice; label: string; about: string }[] = [
+  { id: 'recommended', label: 'Recommended', about: 'The default: nothing is shown.' },
+  { id: 'not-recommended', label: 'Not recommended', about: 'It works, but there is a better way. Its card and page warn, with why.' },
+  { id: 'deprecated', label: 'Deprecated', about: 'On its way out. Hidden in Explore unless the Deprecated filter is on; it still installs by its link.' },
+];
+
+export const adviceInfo = (advice: ItemAdvice | undefined) => ADVICE.find(entry => entry.id === (advice ?? 'recommended'))!;
+
+export function parseAdvice(value: unknown): ItemAdvice | null {
+  return ADVICE.some(entry => entry.id === value) ? (value as ItemAdvice) : null;
+}
 
 /**
  * The rule MediaMake is run by, in the owner's words. Readiness is how it is
@@ -505,20 +549,25 @@ export interface ReadinessMark {
   by?: string;
 }
 
-/** Each item with its readiness: Ready with its proof when an admin marked it so, else Beta. */
+/** Each item with its readiness: Ready with its proof when an admin marked it so, Alpha when marked so, else Beta. */
 export function withReadiness<T extends { id: string; readiness?: Readiness; readyProof?: ReadyProof[] }>(items: T[], marks: ReadinessMark[]): T[] {
   const byId = new Map(marks.map(mark => [mark.id, mark]));
   return items.map(item => {
     const mark = byId.get(item.id);
     if (mark?.readiness === 'ready' && mark.proof?.length) return { ...item, readiness: 'ready' as const, readyProof: mark.proof };
     const { readyProof: _proof, ...rest } = item;
-    return { ...rest, readiness: 'beta' as const } as T;
+    return { ...rest, readiness: mark?.readiness === 'alpha' ? ('alpha' as const) : ('beta' as const) } as T;
   });
 }
 
-/** The productions that make an item Ready, from its mark; none while it is Beta. */
+/** The productions that make an item Ready, from its mark; none while it is Alpha or Beta. */
 export function proofOf(mark: ReadinessMark | null | undefined): ReadyProof[] {
-  return mark?.readiness === 'ready' ? (mark.proof ?? []).filter(entry => entry.title.trim()) : [];
+  return mark?.readiness === 'ready' ? savedProofOf(mark) : [];
+}
+
+/** The productions on its mark, whatever its level: an item moved back to Beta keeps them for when it goes to Production again. */
+export function savedProofOf(mark: ReadinessMark | null | undefined): ReadyProof[] {
+  return (mark?.proof ?? []).filter(entry => entry.title.trim());
 }
 
 /**

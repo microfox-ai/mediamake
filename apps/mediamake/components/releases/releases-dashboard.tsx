@@ -188,7 +188,7 @@ export function ReleasesDashboard() {
           <h2 className="text-2xl font-semibold tracking-tight">Releases</h2>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Every skill, MCP, app, tutorial and course MediaMake hands out: who can open it, where it comes from and what it
-            works with. Open one to see everything about it, to mark it Ready and to set a skill&apos;s intro video. Our apps,
+            works with. Open one to edit its whole store listing: its level (Alpha, Beta, Production), advice, card, README and video. Our apps,
             MCPs, tutorials and courses move between the vault, the cohort, Pro, Plus and the public on the Board; skills in the
             public repo, and MCPs or skills made by others, are always public.
           </p>

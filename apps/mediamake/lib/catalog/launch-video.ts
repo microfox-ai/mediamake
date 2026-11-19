@@ -78,7 +78,7 @@ function whatItIs(about?: string): string {
 export function launchVideoGaps(facts: Pick<LaunchVideoFacts, 'readiness' | 'proof' | 'tier' | 'installable' | 'kind' | 'knownIssues'>): string[] {
   const gaps: string[] = [];
   if (!facts.proof?.length) gaps.push('No finished production is on record, so Claude will ask what was made with it before it writes the script.');
-  if (facts.readiness !== 'ready') gaps.push('It is still Beta. A launch video is for an item marked Ready.');
+  if (facts.readiness !== 'ready') gaps.push(`It is still ${facts.readiness === 'alpha' ? 'Alpha' : 'Beta'}. A launch video is for an item at Production.`);
   if (facts.tier === 'cohort' || facts.tier === 'admin') gaps.push(`It is not public (${facts.tier === 'admin' ? 'the vault' : 'the cohort'}), so Claude will check with you before anything about it is uploaded.`);
   if (facts.knownIssues?.length) gaps.push(`It has ${facts.knownIssues.length} open known issue${facts.knownIssues.length === 1 ? '' : 's'}. Fix what the video would show before making it.`);
   if (!facts.installable) gaps.push('It has nothing to install, so the episode has no install prompt to show.');
@@ -107,7 +107,7 @@ export function launchVideoPromptFor(facts: LaunchVideoFacts): string {
   const about = whatItIs(facts.about);
   if (about) lines.push(`- What it is: ${about}`);
   lines.push(`- Who can open it: ${TIER_WORD[facts.tier]}`);
-  lines.push(`- Readiness: ${facts.readiness === 'ready' ? 'Ready' : 'Beta (not marked Ready yet: tell me before going on)'}`);
+  lines.push(`- Level: ${facts.readiness === 'ready' ? 'Production' : `${facts.readiness === 'alpha' ? 'Alpha' : 'Beta'} (not at Production yet: tell me before going on)`}`);
   if (facts.kind === 'skill') lines.push(`- Its first prompt: /${slugOf(id)} (read its SKILL.md for what it asks back)`);
   if (facts.installable) {
     lines.push(`- Install prompt to show (for a computer without MediaMake): ${installPromptFor(id)}`);

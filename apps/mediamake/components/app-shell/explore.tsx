@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EXPLORE_PARAMS, KIND_LABEL, MEMBER_KINDS, explore, launchedAt, storefront, type AppItem, type ExploreFilters, type MemberKind, type Storefront } from '@/lib/app-shell/member';
 import { detailsKey } from '@/lib/app-shell/details-key';
 import { cn } from '@/lib/utils';
-import { BetaBadge, FailedNote, ItemActions, RuleLine, TierBadge } from './item-bits';
+import { AdviceBadge, AdviceNote, FailedNote, ItemActions, LevelBadge, RuleLine, TierBadge } from './item-bits';
 import { DetailsButton } from './item-details';
 
 function writeFilters(f: ExploreFilters) {
@@ -26,7 +26,7 @@ function writeFilters(f: ExploreFilters) {
   if (f.q.trim()) url.searchParams.set('q', f.q.trim());
   if (f.kind) url.searchParams.set('kind', f.kind);
   if (f.category) url.searchParams.set('category', f.category);
-  const show = [f.failed && 'failed', f.internal && 'internal', f.archived && 'archived'].filter(Boolean).join(',');
+  const show = [f.failed && 'failed', f.internal && 'internal', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.admin && 'admin'].filter(Boolean).join(',');
   if (show) url.searchParams.set('show', show);
   if (!f.locked) url.searchParams.set('locked', '0');
   // the list with nothing asked of it: say so, or the address would open the store front
@@ -45,7 +45,8 @@ const ALL = 'all';
  * every skill, MCP and app the member's membership opens, and the ones a
  * higher membership would open, locked and saying which (the cohort's never
  * reach this page: lib/app-shell/member › appItems), by category, with failed,
- * internal and archived items behind Filters. A search always shows the list.
+ * internal, archived, Alpha, deprecated and admin-only items behind Filters.
+ * A search always shows the list.
  * A card's picture or name opens the item's page (./item-details).
  */
 export function Explore({
@@ -91,9 +92,13 @@ export function Explore({
   const allKinds = MEMBER_KINDS.reduce((sum, kind) => sum + result.kinds[kind], 0);
   const lockedCount = useMemo(() => items.filter(item => item.locked).length, [items]);
   const failedCount = useMemo(() => items.filter(item => item.failed).length, [items]);
+  const alphaCount = useMemo(() => items.filter(item => item.alpha).length, [items]);
+  const deprecatedCount = useMemo(() => items.filter(item => item.deprecated).length, [items]);
+  // only admins see the vault's items: the filter is theirs alone
+  const adminCount = useMemo(() => items.filter(item => item.adminOnly).length, [items]);
   const filtered = !!(filters.q.trim() || filters.category);
-  const hiddenTotal = result.hidden.failed + result.hidden.internal + result.hidden.archived;
-  const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived].filter(Boolean).length;
+  const hiddenTotal = Object.values(result.hidden).reduce((sum, n) => sum + n, 0);
+  const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived, filters.alpha, filters.deprecated, filters.admin].filter(Boolean).length;
 
   const tab = filters.view === 'store' ? FEATURED : (filters.kind ?? ALL);
   const openTab = (next: string) => {
@@ -174,6 +179,17 @@ export function Explore({
                     <DropdownMenuCheckboxItem checked={filters.archived} onCheckedChange={on => update({ archived: !!on })} onSelect={e => e.preventDefault()} title="Not in use any more: still installable">
                       Archived
                     </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={filters.alpha} onCheckedChange={on => update({ alpha: !!on })} onSelect={e => e.preventDefault()} title="Still being tried by their makers">
+                      Alpha {alphaCount > 0 && <Count n={alphaCount} />}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={filters.deprecated} onCheckedChange={on => update({ deprecated: !!on })} onSelect={e => e.preventDefault()} title="On their way out: each page says what to use instead">
+                      Deprecated {deprecatedCount > 0 && <Count n={deprecatedCount} />}
+                    </DropdownMenuCheckboxItem>
+                    {adminCount > 0 && (
+                      <DropdownMenuCheckboxItem checked={filters.admin} onCheckedChange={on => update({ admin: !!on })} onSelect={e => e.preventDefault()} title="The vault: admins and the people granted them only">
+                        Admin only <Count n={adminCount} />
+                      </DropdownMenuCheckboxItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -188,6 +204,9 @@ export function Explore({
                         result.hidden.failed > 0 && <HiddenLink key="f" n={result.hidden.failed} label="failed" onClick={() => update({ failed: true })} />,
                         result.hidden.internal > 0 && <HiddenLink key="i" n={result.hidden.internal} label="internal" onClick={() => update({ internal: true })} />,
                         result.hidden.archived > 0 && <HiddenLink key="a" n={result.hidden.archived} label="archived" onClick={() => update({ archived: true })} />,
+                        result.hidden.alpha > 0 && <HiddenLink key="al" n={result.hidden.alpha} label="alpha" onClick={() => update({ alpha: true })} />,
+                        result.hidden.deprecated > 0 && <HiddenLink key="d" n={result.hidden.deprecated} label="deprecated" onClick={() => update({ deprecated: true })} />,
+                        result.hidden.admin > 0 && <HiddenLink key="ad" n={result.hidden.admin} label="admin only" onClick={() => update({ admin: true })} />,
                       ]
                         .filter(Boolean)
                         .flatMap((el, i) => (i ? [', ', el] : [el]))}{' '}
@@ -258,13 +277,14 @@ function dayLabel(iso: string): string {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-/** What an item is, in small words under its name: its kind, Beta, the membership that opens it, its rating. */
+/** What an item is, in small words under its name: its kind, its level (Beta, Alpha), a warning, the membership that opens it, its rating. */
 function StoreMeta({ item, note }: { item: AppItem; note?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       <span>{KIND_LABEL[item.kind].one}</span>
       {note && <span>· {note}</span>}
-      {item.beta && <BetaBadge />}
+      <LevelBadge item={item} />
+      <AdviceBadge item={item} />
       <TierBadge item={item} />
       <RatingChip rating={item.rating} />
     </div>
@@ -364,7 +384,7 @@ function ExploreCard({ item }: { item: AppItem }) {
   // every item has a headshot: the one its listing names, else its video's thumbnail, else its title on its own colour
   const headshot = headshotOf(item);
   return (
-    <article className={cn('flex h-full flex-col overflow-hidden rounded-xl border bg-card', item.locked && 'border-dashed', item.failed && 'border-red-500/40')}>
+    <article className={cn('flex h-full flex-col overflow-hidden rounded-xl border bg-card', item.locked && 'border-dashed', (item.failed || item.advice) && 'border-red-500/40')}>
       <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} tabIndex={-1} aria-hidden className="block w-full">
         <VideoThumb id={item.id} title={item.video?.title || item.title} src={headshot} className={cn('border-b', item.locked && 'opacity-60')} />
       </DetailsButton>
@@ -372,7 +392,8 @@ function ExploreCard({ item }: { item: AppItem }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="rounded border px-1.5 py-0.5 text-[11px] font-medium">{KIND_LABEL[item.kind].one}</span>
           <RunsBadges runs={item.runs} />
-          {item.beta && <BetaBadge />}
+          <LevelBadge item={item} />
+          {item.deprecated && <AdviceBadge item={item} />}
           <TierBadge item={item} />
           {/* a failed item says so in full below */}
           {!item.failed && item.health && item.health !== 'healthy' && <HealthBadge health={item.health} note={item.healthNote} />}
@@ -395,6 +416,8 @@ function ExploreCard({ item }: { item: AppItem }) {
         </div>
 
         {item.failed && <FailedNote item={item} />}
+        {/* not recommended or deprecated, and why */}
+        {!item.failed && <AdviceNote item={item} />}
 
         <div className="mt-auto flex flex-wrap items-center gap-2">
           {item.locked ? (

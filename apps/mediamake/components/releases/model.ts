@@ -17,6 +17,9 @@ import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, tierOpens, type Granta
 import type { InstallPlan } from '@/lib/catalog/plan';
 import type { UsedBy } from '@/lib/catalog/summary';
 import type { ListingMedia } from '@/lib/catalog/listing';
+import type { ItemAdvice, ReadyProof } from '@/lib/catalog/types';
+import type { ReadmeSource } from '@/lib/catalog/readme';
+import type { SkillDetailsForm } from '@/lib/catalog/skill-profile';
 
 export { COMMUNITY_GROUP, PRIVATE_GROUP };
 
@@ -90,7 +93,27 @@ export interface ItemDetail {
   /** A skill's whole description (its card's summary is the first sentence). */
   description?: string;
   /** Its store listing: the tags an admin added (item.tags has its own too) and its screenshots. */
-  listing?: { tags: string[]; media: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string; readmeFile?: boolean; editorsPick?: boolean };
+  listing?: {
+    tags: string[];
+    media: ListingMedia[];
+    description?: string;
+    headshot?: string;
+    icon?: string;
+    readme?: string;
+    readmeFile?: boolean;
+    editorsPick?: boolean;
+    advice?: ItemAdvice;
+    adviceNote?: string;
+    insteadOf?: string;
+  };
+  /** The productions on its readiness mark, kept while it is Alpha or Beta. */
+  savedProof?: ReadyProof[];
+  /** Every tag in the catalog, for the tags picker. */
+  tagOptions?: string[];
+  /** Its README as the editor opens it (a skill, MCP or app). */
+  readme?: ReadmeSource;
+  /** A skill's type and superset. */
+  skillDetails?: SkillDetailsForm;
   /** Its video as stored: a skill's intro, a tutorial, a course and its lessons. */
   video: CatalogVideo | null;
   /** A course: every tutorial it can play. */

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
 import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
-import { AboutCard, README_PROSE, ReadmeView } from '@/components/catalog/item-listing';
+import { AboutCard, AdviceBanner, ItemHero, ItemMedia, README_PROSE, ReadmeView } from '@/components/catalog/item-listing';
 import { CatalogItemPage } from '@/components/catalog/item-page';
 import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
@@ -21,20 +21,22 @@ import { skillHeadshot } from '@/lib/catalog/items';
 import { listingBadges } from '@/lib/catalog/listing';
 import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
 import { natureInfo, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, suggestedType, typeInfo, typeOf } from '@/lib/catalog/skill-profile';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { itemPath } from '@/lib/catalog/summary';
 import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB, skillProfilesDB } from '@/lib/catalog/store';
-import { proofOf } from '@/lib/catalog/types';
+import { proofOf, slugOf, type Readiness } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
 import { ratingsDB } from '@/lib/ratings/store';
 import { skillMarkdownHtml } from '@/lib/skills/skill-md';
 import { registry, skillMdUrl, skillNamed, skillRelations, SKILLS_GITHUB } from '@/lib/skills/registry';
 
 /**
- * /skills/<name>: one skill's own page, the link to share, laid out as GitHub lays out a repo. On the
- * left its README, the skill's store listing (a video first, its title, its badges, how to use it;
- * components/catalog/item-listing), with tabs beside it for how it works (its SKILL.md), what was made
- * with it and feedback. On the right a narrow column: what it is, its tags, its rating, its size, the
- * install prompt, and what it works with. Every skill in skills.json is public, so the page is the same
+ * /skills/<name>: one skill's own page, the link to share, laid out like an app store's listing. On top
+ * its title, what it is in a line, its badges (its level first) and the install prompt to copy
+ * (ItemHero), a warning when it is not recommended or deprecated; then its video or headshot and tabs
+ * for its README (the skill's store listing, components/catalog/item-listing), how it works (its
+ * SKILL.md), what was made with it and feedback. On the right a narrow column: what it is, its tags,
+ * its rating, its size, and what it works with. Every skill in skills.json is public, so the page is the same
  * for everyone, inside the app's sidebar (ItemShell: signed out, the sidebar holds a Sign in button;
  * admins get a Release page button). The list of skills is the homepage's Skills tab (/?tab=skills).
  */
@@ -92,6 +94,11 @@ export default async function SkillPage({ params }: Props) {
   const [owner] = skill.upstream?.split('/') ?? [];
   const proof = proofOf(readiness);
   const ready = proof.length > 0;
+  const level: Readiness = ready ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
+  // what to use instead, when its listing says not to use this one
+  const insteadId = listing?.advice ? listing.insteadOf : undefined;
+  const insteadRecord = insteadId ? await getCatalogRecord(insteadId).catch(() => null) : null;
+  const instead = insteadId ? { title: insteadRecord?.title ?? slugOf(insteadId), href: itemPagePath(insteadId) } : undefined;
   // what an admin set on the listing wins over what the README.md says
   const description = listing?.description ?? skill.listing?.description ?? skill.summary;
   const headshot = listing?.headshot ?? skillHeadshot(skill) ?? video?.thumbnail;
@@ -123,106 +130,115 @@ export default async function SkillPage({ params }: Props) {
 
   return (
     <ItemShell back={{ href: '/?tab=skills', label: 'All skills' }} releasePath={itemPath(id)}>
-      <main className="mx-auto grid max-w-6xl gap-10 px-4 py-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-sm text-muted-foreground">
-            <span title={category?.about}>{skill.category}</span>
-            <span aria-hidden>/</span>
-            <span className="font-semibold text-foreground">{skill.name}</span>
-            {skill.internal && <span className="rounded-full border px-2 py-0.5 font-sans text-[11px]">Internal</span>}
-            {archived && <span className="rounded-full border px-2 py-0.5 font-sans text-[11px]">Archived</span>}
-          </p>
-          <ItemTabs
-            aliases={{ 'made-with-this': 'made', screenshots: 'made', 'skill-md': 'how' }}
-            tabs={[
-              {
-                id: 'readme',
-                label: 'README',
-                content: (
-                  <div className="flex min-w-0 flex-col gap-5">
-                    {files && <SkillFilesCard files={files} />}
-                    <ReadmeView id={id} kind="skill" title={title} readme={readme} badges={listingBadges({ beta: !ready, tier: 'public', version: skill.version, size, deps })} video={video} headshot={headshot} />
-                  </div>
-                ),
-              },
-              {
-                id: 'how',
-                label: 'How it works',
-                content: (
-                  <section className="flex flex-col gap-3">
-                    <div className="flex items-baseline justify-between gap-3 border-b pb-2">
-                      <h2 className="font-mono text-sm font-semibold">SKILL.md</h2>
-                      <a href={skillMdUrl(skill)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline">
-                        On GitHub <ExternalLinkIcon className="size-3" />
-                      </a>
+      <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
+          <span title={category?.about}>{skill.category}</span>
+          <span aria-hidden>/</span>
+          <span className="text-foreground">{skill.name}</span>
+          {skill.internal && <span className="rounded-full border px-2 py-0.5 font-sans text-[11px]">Internal</span>}
+          {archived && <span className="rounded-full border px-2 py-0.5 font-sans text-[11px]">Archived</span>}
+        </p>
+        <ItemHero
+          id={id}
+          kind="skill"
+          title={readme.title ?? title}
+          description={description}
+          badges={listingBadges({ level, advice: listing?.advice, tier: 'public', version: skill.version, size, deps })}
+          actions={
+            <div className="flex flex-col gap-2.5">
+              <SkillActions installPrompt={installPromptFor(id)} title={skill.name} />
+              <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">Paste it into Claude Code or Claude Desktop: it sets the skill up, with what it needs.</p>
+            </div>
+          }
+        />
+        <AdviceBanner advice={listing?.advice} note={listing?.adviceNote} instead={instead} />
+
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <ItemMedia id={id} title={readme.title ?? title} readme={readme} video={video} headshot={headshot} />
+            <ItemTabs
+              aliases={{ 'made-with-this': 'made', screenshots: 'made', 'skill-md': 'how' }}
+              tabs={[
+                {
+                  id: 'readme',
+                  label: 'README',
+                  content: (
+                    <div className="flex min-w-0 flex-col gap-5">
+                      {files && <SkillFilesCard files={files} />}
+                      <ReadmeView id={id} kind="skill" title={title} readme={readme} badges={[]} header={false} />
                     </div>
-                    {markdown ? (
-                      <article className={README_PROSE} dangerouslySetInnerHTML={{ __html: markdown }} />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Couldn&apos;t load it just now.{' '}
-                        <a href={skillMdUrl(skill)} target="_blank" rel="noreferrer" className="underline">
-                          Read it on GitHub
+                  ),
+                },
+                {
+                  id: 'how',
+                  label: 'How it works',
+                  content: (
+                    <section className="flex flex-col gap-3">
+                      <div className="flex items-baseline justify-between gap-3 border-b pb-2">
+                        <h2 className="font-mono text-sm font-semibold">SKILL.md</h2>
+                        <a href={skillMdUrl(skill)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline">
+                          On GitHub <ExternalLinkIcon className="size-3" />
                         </a>
-                        .
-                      </p>
-                    )}
-                  </section>
-                ),
-              },
-              {
-                id: 'made',
-                label: 'Made with this',
-                count: made,
-                content: (
-                  <div className="flex flex-col gap-6">
-                    <MadeWithThis itemId={id} mark={readiness} />
-                    <ListingScreenshots itemId={id} media={listing?.media} />
-                  </div>
-                ),
-              },
-              { id: 'feedback', label: 'Feedback', content: <ItemFeedback itemId={id} title={skill.name} version={skill.version} /> },
-            ]}
-          />
-        </div>
-
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
-          <AboutCard
-            kind="skill"
-            description={description}
-            tags={tags}
-            rating={<ItemRating itemId={id} title={skill.name} version={skill.version} initial={rating} />}
-            facts={{ ready, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: { ...typeInfo(details.type), of: details.superset, ofHref: details.supersetHref } }) }}
-          >
-            {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
-            {skill.variantOf && (
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <GitForkIcon className="size-4" /> A variant of <SkillLink name={skill.variantOf} />
-                {skill.variantRef && <> · modelled on {skill.variantRef}</>}
-              </p>
-            )}
-            <SkillOwnerTools itemKey={key} title={title} view={details} checks={readmeChecks(written, details.nature, depends.length > 0)} />
-          </AboutCard>
-
-          <section className="flex flex-col gap-3 border-t pt-5">
-            <h2 className="text-sm font-semibold">Install</h2>
-            <p className="text-xs text-muted-foreground">Paste the install prompt into Claude: it sets the skill up, with what it needs.</p>
-            <SkillActions installPrompt={installPromptFor(id)} title={skill.name} />
-            <div className="flex flex-col gap-1 pt-1 text-xs">
-              <Link href={`/library?view=skills&skill=${encodeURIComponent(skill.name)}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline">
+                      </div>
+                      {markdown ? (
+                        <article className={README_PROSE} dangerouslySetInnerHTML={{ __html: markdown }} />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Couldn&apos;t load it just now.{' '}
+                          <a href={skillMdUrl(skill)} target="_blank" rel="noreferrer" className="underline">
+                            Read it on GitHub
+                          </a>
+                          .
+                        </p>
+                      )}
+                    </section>
+                  ),
+                },
+                {
+                  id: 'made',
+                  label: 'Made with this',
+                  count: made,
+                  content: (
+                    <div className="flex flex-col gap-6">
+                      <MadeWithThis itemId={id} mark={readiness} />
+                      <ListingScreenshots itemId={id} media={listing?.media} />
+                    </div>
+                  ),
+                },
+                { id: 'feedback', label: 'Feedback', content: <ItemFeedback itemId={id} title={skill.name} version={skill.version} /> },
+              ]}
+            />
+          </div>
+  
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
+            <AboutCard
+              kind="skill"
+              tags={tags}
+              rating={<ItemRating itemId={id} title={skill.name} version={skill.version} initial={rating} />}
+              facts={{ level, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: { ...typeInfo(details.type), of: details.superset, ofHref: details.supersetHref } }) }}
+            >
+              {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
+              {skill.variantOf && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <GitForkIcon className="size-4" /> A variant of <SkillLink name={skill.variantOf} />
+                  {skill.variantRef && <> · modelled on {skill.variantRef}</>}
+                </p>
+              )}
+              <Link href={`/library?view=skills&skill=${encodeURIComponent(skill.name)}`} className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline">
                 Runs and outputs in the Library <LibraryIcon className="size-3" />
               </Link>
-            </div>
-          </section>
-
-          {depends.length > 0 && (
-            <div className="border-t pt-5">
-              <DependsOn depends={depends} />
-            </div>
-          )}
-          {usedBy.length > 0 && <SkillList title="Used by" names={usedBy.map(s => s.name)} skills={usedBy} />}
-          {variants.length > 0 && <SkillList title="Subset skills" names={variants.map(s => s.name)} skills={variants} />}
-        </aside>
+              <SkillOwnerTools itemKey={key} title={title} view={details} checks={readmeChecks(written, details.nature, depends.length > 0)} />
+            </AboutCard>
+  
+            {depends.length > 0 && (
+              <div className="border-t pt-5">
+                <DependsOn depends={depends} />
+              </div>
+            )}
+            {usedBy.length > 0 && <SkillList title="Used by" names={usedBy.map(s => s.name)} skills={usedBy} />}
+            {variants.length > 0 && <SkillList title="Subset skills" names={variants.map(s => s.name)} skills={variants} />}
+          </aside>
+        </div>
       </main>
     </ItemShell>
   );

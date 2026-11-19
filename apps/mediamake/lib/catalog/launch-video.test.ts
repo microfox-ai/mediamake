@@ -31,7 +31,7 @@ describe('launchVideoPromptFor', () => {
     assert.match(prompt, /in the Cook with Claude project's space, so run mm space sync, or mm space join "Cook with Claude"/);
     assert.match(prompt, /- What it is: Builds a brand kit from a logo\./);
     assert.match(prompt, /- Who can open it: Public \(everyone\)/);
-    assert.match(prompt, /- Readiness: Ready\n/);
+    assert.match(prompt, /- Level: Production\n/);
     assert.match(prompt, /- Its first prompt: \/pack-brand-kit /);
     assert.match(prompt, /- Code: https:\/\/github\.com\/microfox-ai\/mediamake\/tree/);
     assert.match(prompt, /- Its page for viewers: https:\/\/mediamake\.microfox\.app\/skills\/pack-brand-kit\n/);
@@ -61,7 +61,7 @@ describe('launchVideoPromptFor', () => {
     const none = launchVideoPromptFor(facts({ proof: [], readiness: 'beta' }));
     assert.match(none, /Nothing is on record\. Ask me which finished productions/);
     assert.match(none, /Never use a test render or a demo/);
-    assert.match(none, /Readiness: Beta \(not marked Ready yet/);
+    assert.match(none, /Level: Beta \(not at Production yet/);
   });
 
   it('says how the finished video becomes the intro', () => {

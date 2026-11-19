@@ -16,7 +16,7 @@ import {
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
 import { catalogIndex } from '@/lib/catalog/admin-index';
-import { MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
+import { MAX_ADVICE_NOTE, MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
 import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
 import { usedByOf } from '@/lib/catalog/summary';
@@ -33,6 +33,7 @@ import {
   CATALOG_STATUSES,
   DEFAULT_GATE_DAYS,
   ALWAYS_PUBLIC_ERROR,
+  ADVICE,
   ITEM_HEALTH,
   ITEM_TIERS,
   USE_NEEDS,
@@ -41,7 +42,10 @@ import {
   catalogItemId,
   parseCatalogItemId,
   isValidSlug,
+  levelInfo,
+  parseAdvice,
   parseHealth,
+  parseReadiness,
   readyProblems,
   withArchive,
   withHealth,
@@ -324,12 +328,13 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *                             (a gate: the item keeps its tier now and goes Public by itself at that time)
  *  { type: 'cancel_release',  itemId }                    (drops the gate; the item stays where it is)
  *  { type: 'set_never_publish', itemId, neverPublish: boolean }  (older: into the vault, or out of it to the cohort)
- *  { type: 'set_readiness',   itemIds: string[] (or itemId), readiness: 'ready' | 'beta', proof?: [{ title, url?, image?, video? }], note? }
+ *  { type: 'set_readiness',   itemIds: string[] (or itemId), readiness: 'alpha' | 'beta' | 'production' (or 'ready'), proof?: [{ title, url?, image?, video? }], note? }
  *  { type: 'create_proof_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
  *                             (a signed PUT for a production's picture or clip in the item's gallery,
  *                             public once uploaded; send the same Content-Type and x-amz-acl: public-read)
  *                             (Ready needs proof: at least one finished production made with it; an MCP also
- *                             needs a skill that uses it or a video. Beta drops the mark. Any kind)
+ *                             needs a skill that uses it or a video. Alpha and Beta keep any proof on the mark
+ *                             for later; Explore hides Alpha behind a filter. Any kind)
  *  { type: 'set_health',      itemIds: string[] (or itemId), health: 'healthy' | 'inactive' | 'archived' | 'failed' | null, note? }
  *                             (any kind; failed needs the reason in note; null clears an admin's mark)
  *  { type: 'set_archived',    itemIds: string[] (or itemId), archived: boolean, note? }
@@ -343,7 +348,10 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *                             (its store listing, any item: the tags an admin adds beside its own, and its
  *                             screenshots, pictures and videos by https link, a YouTube link or an MP4 for a
  *                             video. Each one given replaces what was there; left out, it stays.
- *                             `editorsPick: true | false` puts it in, or takes it out of, Explore's Editors' picks)
+ *                             `editorsPick: true | false` puts it in, or takes it out of, Explore's Editors' picks;
+ *                             `advice: 'recommended' | 'not-recommended' | 'deprecated'` with `adviceNote` (why: needed
+ *                             for the last two) and `insteadOf` (an item id, or empty) warns on its card and page;
+ *                             Explore hides a deprecated item behind a filter. Also description, headshot, icon, readme)
  *  { type: 'create_video_item', kind: 'tutorial' | 'course', slug, video, visibility? }
  *                             (a new tutorial or course with its video; it starts in development)
  *  { type: 'create_thumbnail_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
@@ -497,13 +505,14 @@ export async function POST(req: NextRequest) {
     case 'set_readiness': {
       const ids = idsFrom(body);
       if (!ids) return bad('itemIds is required: 1 to 200 item ids');
-      if (body.readiness !== 'ready' && body.readiness !== 'beta') return bad('readiness must be ready or beta');
+      const readiness = parseReadiness(body.readiness);
+      if (!readiness) return bad('readiness must be alpha, beta or production (ready)');
       if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 500)) return bad('note must be text of 500 characters or fewer');
       const { byId } = await catalogIndex();
       const unknown = ids.filter(id => !byId.has(id));
       if (unknown.length) return NextResponse.json({ error: `Unknown item${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}` }, { status: 404 });
-      if (body.readiness === 'beta') {
-        await catalogReadinessDB.setBeta(ids);
+      if (readiness !== 'ready') {
+        await catalogReadinessDB.setLevel(ids, readiness, adminId);
       } else {
         const parsed = proofSchema.safeParse(body.proof ?? []);
         if (!parsed.success) return bad(parsed.error.issues.map(i => `proof.${i.path.join('.')}: ${i.message}`).join('; '));
@@ -520,7 +529,7 @@ export async function POST(req: NextRequest) {
       }
       revalidatePath('/');
       refreshSkillPages(ids);
-      return NextResponse.json({ readiness: body.readiness, itemIds: ids });
+      return NextResponse.json({ readiness, level: levelInfo(readiness).label, itemIds: ids });
     }
 
     case 'set_video': {
@@ -549,7 +558,8 @@ export async function POST(req: NextRequest) {
       const item = itemId ? (staticRecord(itemId) ?? (await catalogItemsDB.get(itemId))) : null;
       if (!item) return NextResponse.json({ error: `Unknown item ${itemId || '(itemId is required)'}` }, { status: 404 });
       const TEXTS = ['description', 'headshot', 'icon', 'readme'] as const;
-      if (body.tags === undefined && body.media === undefined && body.editorsPick === undefined && TEXTS.every(key => body[key] === undefined)) return bad('Give tags, media, description, headshot, icon, readme or editorsPick');
+      if (body.tags === undefined && body.media === undefined && body.editorsPick === undefined && body.advice === undefined && TEXTS.every(key => body[key] === undefined))
+        return bad('Give tags, media, description, headshot, icon, readme, editorsPick or advice');
       if (body.editorsPick !== undefined && typeof body.editorsPick !== 'boolean') return bad('editorsPick must be true or false');
       const current = await catalogListingDB.get(item.id);
       let tags = current?.tags ?? [];
@@ -579,11 +589,43 @@ export async function POST(req: NextRequest) {
       }
       if (texts.icon && item.kind === 'skill') return bad('Only an MCP or an app has an icon');
       const editorsPick = body.editorsPick === undefined ? !!current?.editorsPick : body.editorsPick;
-      const listing = await catalogListingDB.set(item.id, { tags, media, ...texts, editorsPick }, adminId);
+      // advice: recommended (the default) clears it; not recommended or deprecated says why, and may name what to use instead
+      let advice = current?.advice;
+      let adviceNote = current?.adviceNote;
+      let insteadOf = current?.insteadOf;
+      if (body.advice !== undefined) {
+        const parsed = parseAdvice(body.advice);
+        if (!parsed) return bad(`advice must be one of ${ADVICE.map(entry => entry.id).join(', ')}`);
+        advice = parsed === 'recommended' ? undefined : parsed;
+        if (body.adviceNote !== undefined && typeof body.adviceNote !== 'string') return bad('adviceNote must be text');
+        if (body.insteadOf !== undefined && body.insteadOf !== null && typeof body.insteadOf !== 'string') return bad('insteadOf must be an item id, or empty');
+        adviceNote = body.adviceNote === undefined ? adviceNote : body.adviceNote.trim() || undefined;
+        insteadOf = body.insteadOf === undefined ? insteadOf : body.insteadOf?.trim() || undefined;
+        if (!advice) {
+          adviceNote = undefined;
+          insteadOf = undefined;
+        }
+        if (advice && !adviceNote) return bad(`Say why it is ${advice === 'deprecated' ? 'deprecated' : 'not recommended'} in adviceNote: its card and page show it`);
+        if ((adviceNote?.length ?? 0) > MAX_ADVICE_NOTE) return bad(`Keep adviceNote under ${MAX_ADVICE_NOTE} characters`);
+        if (insteadOf === item.id) return bad('insteadOf names another item');
+        if (insteadOf && !staticRecord(insteadOf) && !(await catalogItemsDB.get(insteadOf))) return bad(`insteadOf: no item ${insteadOf}`);
+      }
+      const listing = await catalogListingDB.set(item.id, { tags, media, ...texts, editorsPick, advice, adviceNote, insteadOf }, adminId);
       revalidatePath('/');
       refreshSkillPages([item.id]);
       return NextResponse.json({
-        listing: { tags: listing?.tags ?? [], media: listing?.media ?? [], description: listing?.description, headshot: listing?.headshot, icon: listing?.icon, readme: listing?.readme, editorsPick: !!listing?.editorsPick },
+        listing: {
+          tags: listing?.tags ?? [],
+          media: listing?.media ?? [],
+          description: listing?.description,
+          headshot: listing?.headshot,
+          icon: listing?.icon,
+          readme: listing?.readme,
+          editorsPick: !!listing?.editorsPick,
+          advice: listing?.advice ?? 'recommended',
+          adviceNote: listing?.adviceNote,
+          insteadOf: listing?.insteadOf,
+        },
       });
     }
 

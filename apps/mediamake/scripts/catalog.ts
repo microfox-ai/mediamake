@@ -26,7 +26,8 @@
  *   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
  *   ready <itemId> [<itemId>...] --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
  *                                                    (Ready needs a finished production made with it)
- *   beta <itemId> [<itemId>...]                      (back to Beta)
+ *   beta <itemId> [<itemId>...]                      (back to Beta; any proof stays on the mark for later)
+ *   alpha <itemId> [<itemId>...]                     (Alpha: still being tried; Explore keeps it behind a filter)
  *   health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]
  *                                                    (any kind; failed needs --note)
  *   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
@@ -78,7 +79,8 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
   ready <itemId>... --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
                                               (Ready needs a production made with it; the link, picture and clip fill its page's gallery)
-  beta <itemId>...                                 (back to Beta)
+  beta <itemId>...                                 (back to Beta; any proof stays on the mark for later)
+  alpha <itemId>...                                (Alpha: still being tried; Explore keeps it behind a filter)
   health <itemId>... <healthy|inactive|archived|failed|default> [--note "why"]   (any kind; failed needs --note)
   member <clientId> <public|plus|pro|cohort> [--source admin|contribution|paid] [--ref <PR or item>] [--days 90] [--permanent] [--note "..."]
   member add <clientId> <plus|pro|cohort> ...       (adds a record beside theirs: contributing again renews)
@@ -390,15 +392,16 @@ async function main() {
         proof: [{ title: proofTitle, url: flag(flags, 'url'), image: flag(flags, 'image'), video: flag(flags, 'video') }],
         note: flag(flags, 'note'),
       });
-      console.log(`✅ Ready, with its proof: ${proofTitle}`);
+      console.log(`✅ Production, with its proof: ${proofTitle}`);
       for (const itemId of positional) console.log(page(itemId));
       return;
     }
 
+    case 'alpha':
     case 'beta': {
-      if (!positional.length) fail('beta <itemId> [<itemId>...]');
-      await admin({ type: 'set_readiness', itemIds: positional, readiness: 'beta' });
-      console.log('✅ Back to Beta');
+      if (!positional.length) fail(`${command} <itemId> [<itemId>...]`);
+      await admin({ type: 'set_readiness', itemIds: positional, readiness: command });
+      console.log(command === 'alpha' ? '✅ Alpha: Explore keeps it behind a filter' : '✅ Back to Beta');
       for (const itemId of positional) console.log(page(itemId));
       return;
     }
@@ -540,7 +543,7 @@ async function main() {
         const itemGrants = grants.filter((g: any) => g.itemId === item.id);
         const stage = item.neverPublish || item.tier === 'admin' ? 'vault' : (item.tier ?? { private: 'cohort', network: 'pro', public: 'public' }[item.visibility as 'private']);
         const gate = item.publicAt ? `  public on ${item.publicAt.slice(0, 10)}` : '';
-        console.log(`${stage.padEnd(8)} ${item.readiness === 'ready' ? 'ready' : 'beta '}  ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${gate}${item.listed === false ? '  [unlisted]' : ''}`);
+        console.log(`${stage.padEnd(8)} ${(item.readiness === 'ready' ? 'prod' : (item.readiness ?? 'beta')).padEnd(5)}  ${item.id}@${item.version ?? '-'}  ${itemGrants.length} grant(s)${gate}${item.listed === false ? '  [unlisted]' : ''}`);
         for (const g of itemGrants) console.log(describe(g));
       }
       const everything = grants.filter((g: any) => g.itemId === '*' || g.itemId.endsWith('/*'));

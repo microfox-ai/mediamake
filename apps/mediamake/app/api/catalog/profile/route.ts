@@ -49,9 +49,21 @@ export async function POST(req: NextRequest) {
       if (tags) {
         // a store skill's tags are its listing's; the ones that come with it are not stored again
         const [item, current] = await Promise.all([getCatalogRecord(id), catalogListingDB.get(id)]);
+        // the rest of its listing stays as it is (its editors' pick and advice too)
         await catalogListingDB.set(
           id,
-          { tags: tags.filter(tag => !item?.tags?.includes(tag)), media: current?.media ?? [], description: current?.description, headshot: current?.headshot, icon: current?.icon, readme: current?.readme },
+          {
+            tags: tags.filter(tag => !item?.tags?.includes(tag)),
+            media: current?.media ?? [],
+            description: current?.description,
+            headshot: current?.headshot,
+            icon: current?.icon,
+            readme: current?.readme,
+            editorsPick: current?.editorsPick,
+            advice: current?.advice,
+            adviceNote: current?.adviceNote,
+            insteadOf: current?.insteadOf,
+          },
           clientId,
         );
       }

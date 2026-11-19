@@ -346,3 +346,14 @@ export function readmeTemplate(title: string, hasDependencies = true): string {
     '',
   ].join('\n');
 }
+
+/** A skill's type and superset as the release page edits them (POST /api/catalog/profile with `key`). */
+export interface SkillDetailsForm {
+  key: string;
+  type: SkillType | null;
+  superset: string | null;
+  /** True when someone set the type; otherwise it is what its README says, or a guess. */
+  set: boolean;
+  /** The skills it can be a subset of. */
+  supersets: string[];
+}

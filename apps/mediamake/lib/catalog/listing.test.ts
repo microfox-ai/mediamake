@@ -83,12 +83,20 @@ describe('a listing', () => {
 
   it('shows its badges in one order: where it stands, who it opens for, version, size, dependencies', () => {
     assert.deepEqual(
-      listingBadges({ beta: true, tier: 'pro', version: 'v1.2.0', size: { bytes: 70 * 1024, files: 3 }, deps: 2 }).map(badge => badge.label),
+      listingBadges({ level: 'beta', tier: 'pro', version: 'v1.2.0', size: { bytes: 70 * 1024, files: 3 }, deps: 2 }).map(badge => badge.label),
       ['Beta', 'Pro', 'v1.2.0', '70 KB', '2 dependencies'],
     );
     assert.deepEqual(
-      listingBadges({ beta: false, failed: true, tier: 'public', deps: 1 }).map(badge => badge.label),
-      ['Failed', 'Ready', 'Public', '1 dependency'],
+      listingBadges({ level: 'ready', failed: true, tier: 'public', deps: 1 }).map(badge => badge.label),
+      ['Failed', 'Production', 'Public', '1 dependency'],
+    );
+    assert.deepEqual(
+      listingBadges({ level: 'alpha', advice: 'deprecated', tier: 'plus' }).map(badge => [badge.label, badge.tone]),
+      [
+        ['Deprecated', 'bad'],
+        ['Alpha', 'bad'],
+        ['Plus', 'plain'],
+      ],
     );
   });
 });

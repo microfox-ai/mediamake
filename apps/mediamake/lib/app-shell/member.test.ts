@@ -49,7 +49,7 @@ const ENTRIES = [
 ];
 
 const items = appItems(ENTRIES, SKILLS, ['cleanup']);
-const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, locked: true, view: 'list' };
+const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, alpha: false, deprecated: false, admin: false, locked: true, view: 'list' };
 const ids = (list: { id: string }[]) => list.map(item => item.id).sort();
 
 describe('the items the app lists', () => {
@@ -89,9 +89,37 @@ describe('Explore', () => {
   it('keeps failed and internal items behind their filters, and counts them', () => {
     const result = explore(items, ALL);
     assert.deepEqual(ids(result.shown), ['app/skill-library', 'mcp/browse-hack', 'mcp/elevenlabs', 'skill/make-lyrics-video', 'skill/pack-brand-kit']);
-    assert.deepEqual(result.hidden, { failed: 1, internal: 1, archived: 0 });
+    assert.deepEqual(result.hidden, { failed: 1, internal: 1, archived: 0, alpha: 0, deprecated: 0, admin: 0 });
     assert.deepEqual(ids(explore(items, { ...ALL, failed: true }).shown).includes('mcp/broken'), true);
     assert.deepEqual(ids(explore(items, { ...ALL, internal: true }).shown).includes('skill/cleanup-out'), true);
+  });
+
+  it('keeps Alpha, deprecated and admin-only items behind their filters, and counts them', () => {
+    const more = appItems(
+      [
+        entry('skill/make-lyrics-video', { readiness: 'ready' }),
+        entry('skill/make-trial', { readiness: 'alpha' }),
+        entry('mcp/old-way', { advice: 'deprecated', adviceNote: 'Replaced', insteadOf: 'mcp/elevenlabs' }),
+        entry('mcp/meh', { advice: 'not-recommended', adviceNote: 'Slow' }),
+        // an admin sees the vault's items: they open for them
+        entry('mcp/vault', { tier: 'admin', visibility: 'private', access: 'granted' }),
+      ],
+      [skill('make-lyrics-video'), skill('make-trial')],
+    );
+    const byId = new Map(more.map(item => [item.id, item]));
+    assert.equal(byId.get('skill/make-trial')!.alpha, true);
+    assert.equal(byId.get('skill/make-trial')!.beta, false);
+    assert.equal(byId.get('skill/make-trial')!.level, 'alpha');
+    assert.equal(byId.get('mcp/old-way')!.deprecated, true);
+    assert.equal(byId.get('mcp/vault')!.adminOnly, true);
+    const result = explore(more, ALL);
+    // not recommended still shows, with its warning on the card
+    assert.deepEqual(ids(result.shown), ['mcp/meh', 'skill/make-lyrics-video']);
+    assert.deepEqual(result.hidden, { failed: 0, internal: 0, archived: 0, alpha: 1, deprecated: 1, admin: 1 });
+    assert.deepEqual(ids(explore(more, { ...ALL, alpha: true, deprecated: true, admin: true }).shown), ['mcp/meh', 'mcp/old-way', 'mcp/vault', 'skill/make-lyrics-video', 'skill/make-trial']);
+    // and the store front never shows them
+    const front = storefront(more.map(item => ({ ...item, editorsPick: true })));
+    assert.deepEqual(ids([front.hero!, ...front.picks]), ['mcp/meh', 'skill/make-lyrics-video']);
   });
 
   it('filters by kind, category and search, with counts for the chips', () => {
@@ -108,20 +136,23 @@ describe('Explore', () => {
     assert.equal(explore(items, { ...ALL, locked: false }).shown.some(item => item.locked), false);
   });
 
-  it('puts open items before locked ones and Ready before Beta', () => {
+  it('puts open items before locked ones and Production before Beta', () => {
     const shown = explore(items, { ...ALL, kind: 'skill' }).shown;
     assert.equal(shown[0].id, 'skill/pack-brand-kit');
     assert.equal(explore(items, { ...ALL, kind: 'mcp' }).shown.at(-1)!.id, 'mcp/browse-hack');
   });
 
   it('reads its filters from the address', () => {
-    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived', locked: '0' }), {
+    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived,alpha,deprecated,admin', locked: '0' }), {
       q: 'amv',
       kind: 'skill',
       category: null,
       failed: true,
       internal: false,
       archived: true,
+      alpha: true,
+      deprecated: true,
+      admin: true,
       locked: false,
       view: 'list',
     });
@@ -133,6 +164,7 @@ describe('Explore', () => {
     assert.equal(exploreFiltersFrom({ view: 'all' }).view, 'list');
     assert.equal(exploreFiltersFrom({ category: 'make' }).view, 'list');
     assert.equal(exploreFiltersFrom({ show: 'failed' }).view, 'list');
+    assert.equal(exploreFiltersFrom({ show: 'deprecated' }).view, 'list');
   });
 });
 
