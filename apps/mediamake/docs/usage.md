@@ -153,3 +153,11 @@ writer's membership at the time and read by admins and the writer only
 (`GET /api/feedback`, admins with `?all=true`). What happens next (Claude's
 triage, automatic draft pull requests, the admin Feedback page, known issues
 and the mail when a fix ships) is in [feedback.md](feedback.md).
+
+## The Cloud Library
+
+Using the Cloud Library is counted on the server, apart from everything above: one line per upload,
+download, read, search, save and AI fill, with who, from which place (this computer's random label
+or the cloud environment's name), which space and collection, and how many bytes. Never a file's
+content and never a search's words. It is what lets admins see what the Library costs and who uses
+how much; `mm library usage` shows a member their own. The details are in [library.md](library.md).

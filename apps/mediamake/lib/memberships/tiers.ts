@@ -102,11 +102,13 @@ export function isHiddenTier(tier: MemberTier): boolean {
  * projects (project spaces and a space's files, brand kits, channel sync, song takes) open at
  * Plus; the MediaMake Spaces MCP (mcp/projectsync) that syncs them from a computer is a catalog
  * item, at Plus too. Lambda renders cost money per render, so they stay with the
- * cohort.
+ * cohort. The Cloud Library (lib/cloud-library) costs storage and downloads, so it
+ * opens with the cohort first.
  */
 export const FEATURE_TIERS = {
   cloudProjects: 'plus',
   lambdaRender: 'cohort',
+  cloudLibrary: 'cohort',
 } as const satisfies Record<string, MemberTier>;
 
 export type TierFeature = keyof typeof FEATURE_TIERS;

@@ -50,6 +50,7 @@
     "access": "node ../../tools/access.mjs",
     "todo": "node ../../tools/todo.mjs",
     "run": "node ../../tools/run.mjs",
+    "library": "node ../../tools/library.mjs",
     "items": "node ../../tools/items.mjs",
     "submit": "node ../../tools/submit.mjs",
     "login": "node ../../tools/login.mjs",
