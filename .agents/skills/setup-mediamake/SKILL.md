@@ -185,14 +185,25 @@ picks. A skip is final for this run: no second ask, and no `✗` or "not ready" 
 | MCP | Need | Used for | Without it |
 |---|---|---|---|
 | `mcp/elevenlabs` | optional | the key `mm transcribe --yes` uses for timed lyrics, voice-overs and sound effects (open source) | no timed words for lyric videos, no voice or sound effects |
+| `mcp/blender` | optional | 3D sets and scenes in a live Blender (needs Blender open with its add-on) | no Blender from Claude |
+| `mcp/figcraft` | optional | editable layouts Claude builds (thumbnails, banners, posts) and the person finishes by hand; create-thumbnail's final edit | no editable layers for a picked thumbnail |
 
-- ElevenLabs (local first): `claude mcp add --scope user elevenlabs -e ELEVENLABS_API_KEY=<key> -- uvx elevenlabs-mcp`.
-  Walk them through the key: open https://elevenlabs.io/app/settings/api-keys, make one, paste it as
-  their next message alone. Write it only into that command; never in a `.env` or a file in the repo.
-  Someone who'd rather not paste a key gets the line with `<your key>` to run themselves.
-- Anything else from the catalog that someone else makes (fal, Blender, Gemini): follow
-  https://github.com/microfox-ai/mediamake/blob/main/install.md ("Set up mcp/fal from MediaMake …").
-  Never register an MCP straight from a checkout of the extensions repo.
+These are the MCPs setup offers. Anything else in the catalog (Gemini, fal) is added on its own, from
+its page's install prompt, when the person asks for it. The repo registers no MCP (no `.mcp.json`):
+every one is added on this computer, for every project, with its command as this computer finds it
+(a Mac's `/opt/homebrew/bin/uvx` isn't on Windows, where `npx` goes through `cmd /c`).
+
+- Each of them: `mm items install mcp/<name> --yes --json`. It adds the server with its command's
+  full path here, takes a key from the environment when it is set there, and lists under `left` what
+  remains: a command to get first (Figcraft's `figcraft-cli`, a download for the computer's system:
+  run `mm items install` again once it's there), its own setup (Blender's add-on), or a key to ask
+  for with the line that adds it.
+- A key (ElevenLabs): walk them through it: open https://elevenlabs.io/app/settings/api-keys, make
+  one, paste it as their next message alone. Write it only into the line `left` gives; never in a
+  `.env` or a file in the repo. Someone who'd rather not paste a key gets the line with `<your key>`
+  to run themselves.
+- Never register an MCP straight from a checkout of the extensions repo, and never in a repo's
+  `.mcp.json`.
 - New MCPs show up in the next Claude Code session, not this one: say so.
 
 ## 7. Doctor

@@ -25,17 +25,22 @@
  *     server needs it, the signed-in key
  *   - a skill package: copied to ~/.claude/skills/<slug>
  *   - one of MediaMake's hosted connectors (mm-use for every member, mm-release for admins): added to
- *     Claude Code for every project by its address (`claude mcp add --transport http --scope user`),
- *     and for this checkout too (`--scope local`) when its .mcp.json names a server of the same name
- *     that can't start here (the developers' build of packages/mediamake-mcp), which would hide it;
+ *     Claude Code for every project by its address (`claude mcp add --transport http --scope user`);
  *     signing in to it (/mcp, then Allow in the browser) is the person's one step
+ *   - an MCP server someone else makes that runs on the computer (Blender, Figcraft, ElevenLabs): added
+ *     to Claude Code for every project with its command as this computer finds it (localCommand), and
+ *     its keys from this computer's environment when they are set there; its own setup is left to do
  * Claude Code is MEDIAMAKE_CLAUDE_BIN when it is set, else `claude` on the PATH, else the copy the
  * Claude desktop app keeps for its Code tab (desktopClaude).
  *   - the record in ~/.mediamake/installed.json and the update token in the config, so updates need
  *     nothing either
  * What it can't do is listed under "Left to do" (`left` in the JSON) for Claude or the person: loading
- * a new Chrome extension (Chrome has no command for it), an item's own INSTALL.md, an app, something
- * made by someone else. A working setup that didn't come from MediaMake is never replaced.
+ * a new Chrome extension (Chrome has no command for it), an item's own INSTALL.md, an app, a key the
+ * person gives, an MCP's own setup. A working setup that didn't come from MediaMake is never replaced.
+ *
+ * MCPs are never registered in a file of the repo (no .mcp.json): a command there is one computer's
+ * (a Mac's /opt/homebrew/bin/uvx isn't on Windows, where npx needs `cmd /c`), and the file is
+ * everyone's. Each computer adds its own, here or as install.md says.
  */
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -48,8 +53,6 @@ import { fileURLToPath } from 'node:url';
 import { apiKey, configFile, site } from './usage.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
-/** The checkout this runs from, whose .mcp.json Claude Code reads in sessions opened there. */
-const TOP = path.resolve(path.dirname(SELF), '..');
 const WIN = process.platform === 'win32';
 const INSTALL_GUIDE = 'https://github.com/microfox-ai/mediamake/blob/main/install.md';
 /** The kinds that put something on the computer by themselves; skills of ours come with the repo. */
@@ -206,31 +209,25 @@ export async function mine(url, key, env = process.env) {
 
 /**
  * MediaMake's hosted connectors the account opens (HOSTED_CONNECTORS), each `added` when Claude Code
- * has it by its name for every project, `hidden` when it has but this checkout's .mcp.json names a
- * server of the same name that can't start here and no local one beats it (sessions opened in the
- * checkout may get that one),
- * else `missing`; `unknown` when Claude Code isn't on this computer.
+ * has it by its name for every project, else `missing`; `unknown` when Claude Code isn't on this
+ * computer.
  */
 export function connectorsHere(open, env = process.env) {
   const claude = claudeBin(env);
-  const top = checkout(env);
   return open
     .filter(item => HOSTED_CONNECTORS[item.id])
     .map(item => {
       const name = HOSTED_CONNECTORS[item.id];
-      const state = !claude ? 'unknown' : !mcpGet(claude, name, os.homedir()) ? 'missing' : hiddenIn(claude, name, top) ? 'hidden' : 'added';
+      const state = !claude ? 'unknown' : !mcpGet(claude, name, os.homedir()) ? 'missing' : 'added';
       return { id: item.id, title: item.title, name, tier: item.tier ?? 'public', state };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** The checkout whose .mcp.json is looked at: this one (MEDIAMAKE_CHECKOUT in tests). */
-const checkout = env => env.MEDIAMAKE_CHECKOUT || TOP;
-
 /**
  * What Claude Code has under `name` for a session opened in `cwd`, or null: its scope (`user`, `local`,
  * `project`) and, for a server it reaches by address, its URL. From the home folder it is what every
- * project gets; from a checkout, what that checkout's sessions get (local beats project beats user).
+ * project gets.
  */
 function mcpGet(claude, name, cwd) {
   const r = run(claude, ['mcp', 'get', name], { cwd });
@@ -239,32 +236,58 @@ function mcpGet(claude, name, cwd) {
   return { scope: text.match(/^\s*Scope:\s*(\w+)/m)?.[1]?.toLowerCase() ?? null, url: text.match(/^\s*URL:\s*(\S+)/m)?.[1] ?? null };
 }
 
-/**
- * The script the checkout's own .mcp.json entry for `name` runs, when that script isn't there and the
- * server can't start (packages/mediamake-mcp/dist, the developers' local copy of mm-use and
- * mm-release, until they build it); else null. A developer who built it keeps theirs.
- */
-function deadIn(top, name) {
-  const entry = readJson(path.join(top, '.mcp.json')).mcpServers?.[name];
-  if (!entry || entry.url || !Array.isArray(entry.args)) return null;
-  const script = entry.args.find(arg => typeof arg === 'string' && /\.[cm]?js$/.test(arg));
-  return script && !fs.existsSync(path.resolve(top, script)) ? script : null;
-}
-
-/**
- * Whether sessions opened in the checkout may get its dead .mcp.json entry instead of the hosted
- * connector: only a local one beats it. `claude mcp get` leaves a .mcp.json server out until it is
- * approved, but the Claude desktop app's Code tab starts them unasked, so the user's one being what
- * `get` shows there doesn't settle it.
- */
-const hiddenIn = (claude, name, top) => !!deadIn(top, name) && mcpGet(claude, name, top)?.scope !== 'local';
-
 // ── installing ──────────────────────────────────────────────────────────────
 
-// a bare name goes through the Windows shell (it finds claude.cmd and the like); an .exe by its path
-// doesn't need it, and a folder with a space in it would break the shell's line
-const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', shell: WIN && !/\.exe$/i.test(cmd), ...opts });
-const has = cmd => run(WIN ? 'where.exe' : 'which', [cmd]).status === 0;
+/** An argument as the Windows shell reads it: quoted when it has a space or one of its own characters. */
+const quoteForCmd = arg => (/[\s&|<>^()]/.test(arg) ? `"${String(arg).replace(/"/g, '""')}"` : arg);
+// a bare name goes through the Windows shell (it finds claude.cmd and the like), its arguments quoted so
+// a folder with a space in it stays one; an .exe by its path doesn't need the shell
+const run = (cmd, args, opts = {}) => {
+  const shell = WIN && !/\.exe$/i.test(cmd);
+  return spawnSync(cmd, shell ? args.map(quoteForCmd) : args, { encoding: 'utf8', shell, ...opts });
+};
+/** Every place the PATH has `cmd`, first one first (where.exe lists npx and npx.cmd both). */
+const whereIs = cmd => {
+  const r = run(WIN ? 'where.exe' : 'which', [cmd]);
+  return r.status === 0 ? (r.stdout ?? '').split(/\r?\n/).map(line => line.trim()).filter(Boolean) : [];
+};
+const has = cmd => whereIs(cmd).length > 0;
+
+/**
+ * The command and arguments Claude Code starts a local MCP server with, as this computer finds
+ * `command`, or null when it isn't on this computer. By its full path, since the Claude app may start
+ * servers without the terminal's PATH (a Mac's /opt/homebrew/bin); on Windows an .exe by its path, and
+ * an npm shim (npx.cmd) through `cmd /c`, the only way Claude Code starts one there. Off the PATH, it
+ * looks in ~/.local/bin (uv's and many installers' folder) and the folders its maker's installer uses
+ * (`places`, a catalog item's `local.find`).
+ */
+export function localCommand(command, args = [], { platform = process.platform, find = whereIs, exists = fs.existsSync, places = [], env = process.env } = {}) {
+  if (path.isAbsolute(command) || path.win32.isAbsolute(command)) return exists(command) ? { command, args } : null;
+  const found = find(command);
+  const win = platform === 'win32';
+  if (win) {
+    const exe = found.find(p => /\.exe$/i.test(p));
+    if (exe) return { command: exe, args };
+    if (found.some(p => /\.(cmd|bat)$/i.test(p))) return { command: 'cmd', args: ['/c', command, ...args] };
+  } else if (found[0]) return { command: found[0], args };
+  const file = win && !/\.exe$/i.test(command) ? `${command}.exe` : command;
+  for (const place of ['~/.local/bin', ...places]) {
+    const dir = fillPlace(place, env);
+    const full = dir && (win ? path.win32 : path.posix).join(dir, file);
+    if (full && exists(full)) return { command: full, args };
+  }
+  return null;
+}
+
+/** A folder named with `~` and `%VAR%`, filled in for this computer; null when it names a variable this one hasn't. */
+function fillPlace(place, env) {
+  let missing = false;
+  const dir = place.replace(/^~(?=$|[\\/])/, () => os.homedir()).replace(/%([^%]+)%/g, (_, name) => env[name] ?? ((missing = true), ''));
+  return missing ? null : dir;
+}
+
+/** What to install when a server's command isn't on the computer. */
+const PROVIDES = { uvx: 'uv (https://docs.astral.sh/uv/getting-started/installation/)', uv: 'uv (https://docs.astral.sh/uv/getting-started/installation/)', npx: 'Node.js (https://nodejs.org)', node: 'Node.js (https://nodejs.org)' };
 
 /**
  * The tar that unpacks here. On Windows, Windows' own (System32\tar.exe, bsdtar: .tar.gz and .zip,
@@ -375,6 +398,72 @@ export function desktopClaude(env = process.env, platform = process.platform) {
   return found.sort((a, b) => compareVersions(b.version, a.version))[0]?.exe ?? null;
 }
 
+/** A local server's settings (`source.local.env`): a list of { name, required, secret, default, getAt }, or a plain map. */
+const settingsOf = env => (Array.isArray(env) ? env : Object.entries(env ?? {}).map(([name, value]) => ({ name, default: value })));
+
+/**
+ * Adds an MCP server that runs on this computer (a plan's `source.local`) to Claude Code for every
+ * project: its command as localCommand finds it here, each setting from this computer's environment,
+ * else its default. A required one with neither (an API key) is the person's to give, so the server
+ * is left to do with the line that adds it. One already registered under its name is kept (--force
+ * replaces it). Its own `setup` steps are left to do, in order.
+ */
+function addLocalServer(step, { claude, env, force }) {
+  const { name = step.slug, local, setup = [], guide } = step.source;
+  const title = step.title ?? name;
+  const done = [];
+  const left = [];
+  const how = { step: step.id, ...(guide && { guide }) };
+  if (!claude) {
+    left.push({ ...how, what: `Add ${title} to Claude: Claude Code isn't on this computer's PATH. For Claude Desktop, follow install.md's \`type: "source"\` with \`mm items plan ${step.id}\`` });
+    return { done, left };
+  }
+  const home = os.homedir();
+  const registered = !!mcpGet(claude, name, home);
+  if (registered && !force) {
+    done.push(`${title}: Claude Code already has a server named ${name}; kept as it is (mm items install ${step.id} --yes --force replaces it)`);
+    return { done, left };
+  }
+  const found = localCommand(local.command, local.args ?? [], { places: local.find ?? [], env });
+  if (!found) {
+    // how to get the command: the item's own steps (a download per system), else what provides it
+    const steps = local.install ?? [];
+    const install = steps.length ? 'Get it as the next steps say' : PROVIDES[local.command] ? `Install ${PROVIDES[local.command]}` : `Install it (${guide ?? 'as its maker says'})`;
+    left.push({ ...how, what: `Add ${title} to Claude Code: ${local.command} isn't on this computer. ${install}, then mm items install ${step.id} --yes` });
+    for (const line of steps) left.push({ ...how, what: `${title}: ${line}` });
+    return { done, left };
+  }
+  const values = {};
+  const fromEnv = [];
+  const needed = [];
+  for (const setting of settingsOf(local.env)) {
+    if (env[setting.name]) {
+      values[setting.name] = env[setting.name];
+      fromEnv.push(setting.name);
+    } else if (setting.default !== undefined && setting.default !== '') values[setting.name] = String(setting.default);
+    else if (setting.required) needed.push(setting);
+  }
+  const shown = [found.command, ...found.args].map(arg => (/\s/.test(arg) ? `"${arg}"` : arg)).join(' ');
+  if (needed.length) {
+    const line = ['claude mcp add --scope user', name, ...needed.map(s => `-e ${s.name}=<${s.secret ? 'your key' : 'value'}>`), '--', shown].join(' ');
+    const where = needed.map(s => s.getAt).filter(Boolean);
+    left.push({
+      ...how,
+      what: `Add ${title} to Claude Code: it needs ${needed.map(s => s.name).join(', ')}${where.length ? ` (from ${where.join(', ')})` : ''}, which this computer's environment doesn't have. Ask the person for it as install.md's \`type: "source"\` says, then: ${line}`,
+    });
+    return { done, left };
+  }
+  if (registered) run(claude, ['mcp', 'remove', name, '--scope', 'user'], { cwd: home });
+  const add = run(claude, ['mcp', 'add', '--scope', 'user', name, ...Object.entries(values).flatMap(([k, v]) => ['-e', `${k}=${v}`]), '--', found.command, ...found.args], { cwd: home });
+  if (add.status !== 0) throw new Error(`claude mcp add ${name} failed: ${(add.stderr || add.stdout || '').trim().split('\n').pop()}`);
+  const by = step.madeBy?.name ? ` (made by ${step.madeBy.name})` : '';
+  const keys = fromEnv.length ? `, with ${fromEnv.join(', ')} from this computer's environment` : '';
+  done.push(`${title}${by} added to Claude Code as ${name} (for every project): ${shown}${keys}`);
+  if (step.notes) done.push(`  note: ${step.notes}`);
+  for (const what of setup) left.push({ ...how, what: `${title}'s setup: ${what}` });
+  return { done, left, record: { source: 'mcp-server', title, path: name, installedAt: new Date().toISOString() } };
+}
+
 /**
  * Installs the steps of one plan. Returns what it did (`done`), what is left for Claude or the person
  * (`left`) and the entries for installed.json. `seen` keeps a step shared by two items from running twice.
@@ -442,36 +531,28 @@ async function carryOut(plan, ctx) {
         left.push({ step: id, what: `Add ${step.title} to Claude: Claude Code isn't on this computer's PATH. In Claude Desktop, add a custom connector with ${address}, then sign in and click Allow` });
         continue;
       }
-      // what every project gets, seen from the home folder: from inside the checkout, `claude mcp get`
-      // would find the checkout's own .mcp.json entry of the same name and take it for this one
+      // what every project gets, seen from the home folder: a project's own .mcp.json can't answer for it
       const home = os.homedir();
-      const failed = (what, r) => new Error(`claude mcp ${what} ${name} failed: ${(r.stderr || r.stdout || '').trim().split('\n').pop()}`);
-      let added = false;
       const registered = !!mcpGet(claude, name, home);
-      if (registered && !ctx.force) done.push(`${step.title} is already in Claude Code`);
-      else {
-        if (registered) run(claude, ['mcp', 'remove', name, '--scope', 'user'], { cwd: home });
-        const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'user', name, address], { cwd: home });
-        if (add.status !== 0) throw failed('add', add);
-        done.push(`${step.title} added to Claude Code (${address})`);
-        added = true;
+      if (registered && !ctx.force) {
+        done.push(`${step.title} is already in Claude Code`);
+        continue;
       }
-      // sessions opened in the checkout read its .mcp.json before the user's servers: when that names a
-      // server of the same name that can't start here, the checkout gets the hosted one too (local beats
-      // project; hiddenIn says why `claude mcp get` can't be asked which one wins)
-      const top = checkout(env);
-      const script = deadIn(top, name);
-      if (script) {
-        const there = mcpGet(claude, name, top);
-        if (there?.scope !== 'local' || ctx.force) {
-          if (there?.scope === 'local') run(claude, ['mcp', 'remove', name, '--scope', 'local'], { cwd: top });
-          const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'local', name, address], { cwd: top });
-          if (add.status !== 0) throw failed('add', add);
-          done.push(`${step.title} added for sessions opened in ${tilde(top)} too: its .mcp.json has a ${name} that can't start here (${script} isn't built)`);
-          added = true;
-        }
-      }
-      if (added) left.push(signIn);
+      if (registered) run(claude, ['mcp', 'remove', name, '--scope', 'user'], { cwd: home });
+      const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'user', name, address], { cwd: home });
+      if (add.status !== 0) throw new Error(`claude mcp add ${name} failed: ${(add.stderr || add.stdout || '').trim().split('\n').pop()}`);
+      done.push(`${step.title} added to Claude Code (${address})`);
+      left.push(signIn);
+      continue;
+    }
+
+    // an MCP server that runs on this computer (one someone else makes: Blender, Figcraft, ElevenLabs):
+    // added for every project with its command as this computer finds it, never from a file in the repo
+    if (step.type === 'source' && step.source?.type === 'mcp-server' && step.source.local?.command) {
+      const out = addLocalServer(step, { claude, env, force: ctx.force });
+      done.push(...out.done);
+      left.push(...out.left);
+      if (out.record) records[step.id] = out.record;
       continue;
     }
 
@@ -599,12 +680,16 @@ export async function install(ids, { url, key, env = process.env, force = false 
     }
   }
 
-  const ours = Object.keys(records);
-  if (ours.length) {
+  const recorded = Object.keys(records);
+  if (recorded.length) {
     const file = readJson(dirs.installed);
     writeJson(dirs.installed, { ...file, items: { ...(file.items ?? {}), ...records } });
-    result.installed = ours.map(id => ({ id, version: records[id].version, path: records[id].path }));
-    // so the items update themselves (Browse Hack checks every few hours) with no code or key
+    result.installed = recorded.map(id => ({ id, ...(records[id].version && { version: records[id].version }), path: records[id].path }));
+  }
+  // packages of ours update themselves (Browse Hack checks every few hours) with no code or key; a
+  // server someone else makes has no version on MediaMake (uvx and npx start its latest release)
+  const ours = recorded.filter(id => records[id].version);
+  if (ours.length) {
     try {
       const config = readJson(configFile(env));
       const issued = await call(url, key, 'POST', '/api/catalog/update-token', { body: { items: ours, ...(typeof config.updateToken === 'string' && { token: config.updateToken }) } });
@@ -621,7 +706,7 @@ export async function install(ids, { url, key, env = process.env, force = false 
 
 const TIER = { public: 'Public', plus: 'Plus', pro: 'Pro', cohort: 'Cohort', admin: 'Admin' };
 /** The connector states `mm items install --yes` acts on. */
-const TO_ADD = new Set(['missing', 'hidden']);
+const TO_ADD = new Set(['missing']);
 const who = account => (account ? `${account.name || account.email || 'your account'}${account.tier ? ` · ${TIER[account.tier] ?? account.tier}` : ''}` : 'your account');
 
 function printMine(state) {
@@ -639,7 +724,6 @@ function printMine(state) {
     const says = {
       added: 'in Claude Code',
       missing: 'not in Claude Code',
-      hidden: "in Claude Code, but this checkout's .mcp.json hides it with a server that isn't built",
       unknown: "Claude Code isn't on this computer",
     };
     for (const connector of connectors)

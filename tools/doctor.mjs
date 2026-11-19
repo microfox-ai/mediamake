@@ -536,7 +536,7 @@ export async function checks({ top, fetch = true } = {}) {
         'elevenlabs',
         'warn',
         'mm transcribe has no ElevenLabs key: lyric videos need timed words',
-        'Add the local ElevenLabs MCP with your key: `claude mcp add --scope user elevenlabs -e ELEVENLABS_API_KEY=<your key> -- uvx elevenlabs-mcp` (keys: https://elevenlabs.io/app/settings/api-keys).',
+        'Add the local ElevenLabs MCP with your key: `mm items install mcp/elevenlabs --yes` adds it with uvx as this computer finds it, taking ELEVENLABS_API_KEY from your environment, or gives the line to run with your key (keys: https://elevenlabs.io/app/settings/api-keys).',
       );
     else
       add(

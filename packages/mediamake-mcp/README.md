@@ -71,11 +71,14 @@ npm run build --workspace @microfox/mediamake-mcp
 
 | `MEDIAMAKE_MCP_SERVER` | `legacy`                | Which server the stdio entry runs when no argument names one: `release`, `use` or `legacy`  |
 
-The repo's `.mcp.json` already registers all three (`mm-release`, `mm-use`, `mediamake`) for Claude Code sessions opened at the repo root (build the package first). Elsewhere:
+The repo has no `.mcp.json`: each computer adds its own servers, since a command in a shared file is one computer's. Members get the hosted mm-use (and mm-release for admins) from `mm items install --yes`. To run your own build instead (build the package first), add it for your checkout only, from its root (`$PWD` works in a Mac or Linux shell and in PowerShell):
 
 ```bash
-claude mcp add mm-release -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MEDIAMAKE_API_KEY=... -- node /path/to/mediamake/packages/mediamake-mcp/dist/index.js release
+claude mcp add --scope local mm-use -e MEDIAMAKE_API_URL=http://localhost:3000 -- node "$PWD/packages/mediamake-mcp/dist/index.js" use
+claude mcp add --scope local mm-release -e MEDIAMAKE_API_URL=http://localhost:3000 -- node "$PWD/packages/mediamake-mcp/dist/index.js" release
 ```
+
+Against another site, for every project: `claude mcp add --scope user mm-release -e MEDIAMAKE_API_URL=https://your-mediamake-host -e MEDIAMAKE_API_KEY=... -- node /path/to/mediamake/packages/mediamake-mcp/dist/index.js release`.
 
 ### Install in Claude Desktop (.mcpb)
 

@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, beforeEach, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { compareVersions, desktopClaude, mcpConfig } from './items.mjs';
+import { compareVersions, desktopClaude, localCommand, mcpConfig } from './items.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'mm-items-test-')));
@@ -18,9 +18,12 @@ const home = path.join(tmp, 'home');
 const config = path.join(home, '.mediamake', 'config.json');
 const claudeLog = path.join(tmp, 'claude.log');
 const claudeState = path.join(tmp, 'claude-servers.json');
-const claudeBin = path.join(tmp, 'claude');
-/** The checkout whose .mcp.json is looked at (MEDIAMAKE_CHECKOUT): none unless a test writes one. */
-const top = path.join(tmp, 'checkout');
+const WIN = process.platform === 'win32';
+const claudeScript = path.join(tmp, 'claude');
+/** On Windows a .cmd starts the script, as npm's claude.cmd does: items.mjs runs it through the shell. */
+const claudeBin = WIN ? path.join(tmp, 'claude.cmd') : claudeScript;
+/** Windows' own tar (bsdtar: zip and .tar.gz, C:\ paths); Git Bash's GNU tar reads C: as a host. */
+const TAR = WIN ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 const KEY = 'test-key';
 
 /** Every request the fake site got. */
@@ -35,6 +38,7 @@ const sh = (cmd, args, cwd) => {
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8' });
   assert.equal(r.status, 0, `${cmd} ${args.join(' ')}: ${r.stderr}`);
 };
+const zipDir = (zip, dir) => (WIN ? sh(TAR, ['--format', 'zip', '-cf', zip, '.'], dir) : sh('zip', ['-q', '-r', zip, '.'], dir));
 
 /** A released package as `npm run catalog -- release` packs it: the .mcpb, and INSTALL.md when it has one. */
 function pack(slug, version, manifest, guide) {
@@ -43,10 +47,10 @@ function pack(slug, version, manifest, guide) {
   fs.writeFileSync(path.join(dir, 'bundle', 'manifest.json'), JSON.stringify({ name: slug, version, ...manifest }));
   fs.writeFileSync(path.join(dir, 'bundle', 'server', 'index.js'), `// ${slug} ${version}\n`);
   fs.mkdirSync(path.join(dir, 'package'));
-  sh('zip', ['-q', '-r', path.join(dir, 'package', `${slug}.mcpb`), '.'], path.join(dir, 'bundle'));
+  zipDir(path.join(dir, 'package', `${slug}.mcpb`), path.join(dir, 'bundle'));
   if (guide) fs.writeFileSync(path.join(dir, 'package', 'INSTALL.md'), guide);
   const archive = path.join(dir, `${slug}-${version}.tar.gz`);
-  sh('tar', ['-czf', archive, '-C', path.join(dir, 'package'), '.']);
+  sh(TAR, ['-czf', archive, '-C', path.join(dir, 'package'), '.']);
   files.set(path.basename(archive), archive);
   return { downloadUrl: `${url}/files/${path.basename(archive)}`, sha256: crypto.createHash('sha256').update(fs.readFileSync(archive)).digest('hex') };
 }
@@ -67,16 +71,13 @@ let plans;
 
 before(async () => {
   fs.mkdirSync(path.dirname(config), { recursive: true });
-  fs.mkdirSync(top, { recursive: true });
   // `claude mcp get|add|remove`, keeping its servers in a file and every call in a log. Like Claude
-  // Code, a session in a folder gets its local server first, then the folder's .mcp.json (as though
-  // approved: the real one leaves it out until then), then the user's: user servers are kept by name,
-  // local ones as "local:<folder>:<name>".
+  // Code, a session in a folder gets its local server first, then the user's: user servers are kept by
+  // name, local ones as "local:<folder>:<name>".
   fs.writeFileSync(
-    claudeBin,
+    claudeScript,
     `#!/usr/bin/env node
 const fs = require('fs');
-const path = require('path');
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(claudeLog)}, JSON.stringify(args) + '\\n');
 let servers = {};
@@ -86,10 +87,8 @@ const cwd = process.cwd();
 const keyOf = name => (args.includes('--scope') && args[args.indexOf('--scope') + 1] === 'local' ? 'local:' + cwd + ':' + name : name);
 if (args[1] === 'get') {
   const name = args[2];
-  let project;
-  try { project = JSON.parse(fs.readFileSync(path.join(cwd, '.mcp.json'), 'utf8')).mcpServers[name]; } catch {}
   const local = servers['local:' + cwd + ':' + name];
-  const [scope, it] = local ? ['Local config (private to you in this project)', local] : project ? ['Project config (shared via .mcp.json)', [project.command, ...(project.args || [])]] : servers[name] ? ['User config (available in all your projects)', servers[name]] : [];
+  const [scope, it] = local ? ['Local config (private to you in this project)', local] : servers[name] ? ['User config (available in all your projects)', servers[name]] : [];
   if (!it) { console.log('No MCP server named "' + name + '".'); process.exit(1); }
   const url = it.find(a => /^https?:/.test(a));
   console.log(name + ':\\n  Scope: ' + scope + '\\n' + (url ? '  Type: http\\n  URL: ' + url : '  Type: stdio\\n  Command: ' + it.join(' ')));
@@ -101,6 +100,7 @@ process.exit(1);
 `,
     { mode: 0o755 },
   );
+  if (WIN) fs.writeFileSync(claudeBin, `@"${process.execPath}" "${claudeScript}" %*\r\n`);
   server = http.createServer((req, res) => {
     let body = '';
     req.on('data', chunk => (body += chunk));
@@ -139,7 +139,7 @@ process.exit(1);
   const extension = path.join(tmp, 'build', 'extension');
   fs.mkdirSync(extension, { recursive: true });
   fs.writeFileSync(path.join(extension, 'manifest.json'), JSON.stringify({ name: 'Browse Hack', version: '2.4.0' }));
-  sh('zip', ['-q', '-r', path.join(tmp, 'build', 'browse-hack-chrome.zip'), '.'], extension);
+  zipDir(path.join(tmp, 'build', 'browse-hack-chrome.zip'), extension);
   files.set('browse-hack-chrome.zip', path.join(tmp, 'build', 'browse-hack-chrome.zip'));
 
   const browseHack = pack(
@@ -190,6 +190,31 @@ process.exit(1);
       steps: [{ type: 'item', id: 'mcp/projectsync', kind: 'mcp', slug: 'projectsync', title: 'ProjectSync', version: '0.3.0', method: 'mcpb', entry: 'projectsync.mcpb', ...projectsync, requiredBy: [] }],
     },
   };
+  // MCP servers someone else makes, run on the computer (node stands in for uvx and npx, which a test
+  // machine may not have)
+  const theirs = (slug, title, local, more = {}) => ({
+    ok: true,
+    itemId: `mcp/${slug}`,
+    choices: [],
+    steps: [{ type: 'source', id: `mcp/${slug}`, kind: 'mcp', slug, title, madeBy: { name: 'Someone Else' }, source: { type: 'mcp-server', name: slug, local, guide: `https://example.com/${slug}#readme`, ...more }, requiredBy: [] }],
+  });
+  plans['mcp/blender'] = theirs('blender', 'Blender', { command: 'node', args: ['blender-server.js'] }, { setup: ['Install its add-on.', 'Turn it on in Blender.'] });
+  plans['mcp/gemini'] = theirs('gemini', 'Gemini', {
+    command: 'node',
+    args: ['gemini-server.js'],
+    env: [
+      { name: 'GEMINI_API_KEY', secret: true, required: true, getAt: 'https://aistudio.google.com/apikey' },
+      { name: 'GEMINI_OUTPUT_DIR', required: false },
+    ],
+  });
+  plans['mcp/nothere'] = theirs('nothere', 'Not Here', { command: 'no-such-tool-mm-test', args: ['mcp'] });
+  // a command of its own, downloaded per system into a folder of its installer's, off the PATH
+  plans['mcp/figcraft'] = theirs(
+    'figcraft',
+    'Figcraft',
+    { command: 'figcraft-cli-mm-test', args: ['mcp'], install: ['On a Mac: the zip, into ~/.local/bin.', 'On Windows: the .msi.'], find: ['%MM_TEST_APPS%/FigCraft'] },
+    { setup: ['Open the app to edit by hand.'] },
+  );
 });
 after(() => {
   server.close();
@@ -205,7 +230,7 @@ beforeEach(() => {
 });
 
 const env = (over = {}) => {
-  const e = { ...process.env, HOME: home, USERPROFILE: home, MEDIAMAKE_CONFIG: config, MEDIAMAKE_API_URL: url, MEDIAMAKE_API_KEY: KEY, MEDIAMAKE_CLAUDE_BIN: claudeBin, MEDIAMAKE_EXTENSIONS: path.join(home, 'Extensions'), MEDIAMAKE_CHECKOUT: top, ...over };
+  const e = { ...process.env, HOME: home, USERPROFILE: home, MEDIAMAKE_CONFIG: config, MEDIAMAKE_API_URL: url, MEDIAMAKE_API_KEY: KEY, MEDIAMAKE_CLAUDE_BIN: claudeBin, MEDIAMAKE_EXTENSIONS: path.join(home, 'Extensions'), GEMINI_API_KEY: undefined, GEMINI_OUTPUT_DIR: undefined, ...over };
   for (const [k, v] of Object.entries(e)) if (v === undefined) delete e[k];
   return e;
 };
@@ -302,10 +327,11 @@ test('mm items install --yes installs everything the account opens, with nothing
   assert.match(person[1].what, /run \/mcp, pick mm-use, sign in to MediaMake .* click Allow/);
   assert.ok(out.left.some(entry => /INSTALL\.md/.test(entry.what) && entry.item === 'mcp/browse-hack'));
 
-  // added to Claude Code for every project; ProjectSync gets the site and the signed-in key
+  // added to Claude Code for every project; ProjectSync gets the site and the signed-in key (the
+  // manifest's `${__dirname}/server/index.js`, which Node reads on Windows too)
   const adds = claudeCalls().filter(args => args[1] === 'add');
-  assert.deepEqual(adds[0], ['mcp', 'add', '--scope', 'user', 'browse-hack', '-e', 'BROWSE_HACK_PORT=17892', '--', 'node', path.join(mcp, 'browse-hack', 'server', 'index.js')]);
-  assert.deepEqual(adds[1], ['mcp', 'add', '--scope', 'user', 'projectsync', '-e', `MEDIAMAKE_API_URL=${url}`, '-e', `MEDIAMAKE_API_KEY=${KEY}`, '--', 'node', path.join(mcp, 'projectsync', 'server', 'index.js')]);
+  assert.deepEqual(adds[0], ['mcp', 'add', '--scope', 'user', 'browse-hack', '-e', 'BROWSE_HACK_PORT=17892', '--', 'node', `${path.join(mcp, 'browse-hack')}/server/index.js`]);
+  assert.deepEqual(adds[1], ['mcp', 'add', '--scope', 'user', 'projectsync', '-e', `MEDIAMAKE_API_URL=${url}`, '-e', `MEDIAMAKE_API_KEY=${KEY}`, '--', 'node', `${path.join(mcp, 'projectsync')}/server/index.js`]);
   assert.deepEqual(adds[2], ['mcp', 'add', '--transport', 'http', '--scope', 'user', 'mm-use', 'https://mediamake.microfox.app/mcp/use']);
   assert.ok(out.done.includes('mm-use added to Claude Code (https://mediamake.microfox.app/mcp/use)'));
   // a connector has no package: nothing of it is recorded or kept for updates
@@ -314,11 +340,11 @@ test('mm items install --yes installs everything the account opens, with nothing
   // recorded, with the update token, so updates need nothing either
   const installed = readJson(path.join(home, '.mediamake', 'installed.json')).items;
   assert.equal(installed['mcp/browse-hack'].version, '0.17.0');
-  assert.equal(installed['mcp/projectsync'].path, '~/.mediamake/mcp/projectsync');
+  assert.equal(installed['mcp/projectsync'].path, path.join('~', '.mediamake', 'mcp', 'projectsync'));
   const token = got.find(req => req.path === '/api/catalog/update-token');
   assert.deepEqual(token.body, { items: ['mcp/browse-hack', 'mcp/projectsync'] });
   assert.deepEqual(readJson(config), { url, updateToken: 'mmu_new' });
-  assert.equal(fs.statSync(config).mode & 0o777, 0o600);
+  if (!WIN) assert.equal(fs.statSync(config).mode & 0o777, 0o600); // Windows keeps no such bits
   // the key is in no file of ours and no output
   assert.ok(!r.stdout.includes(KEY));
   assert.ok(!fs.readFileSync(path.join(home, '.mediamake', 'installed.json'), 'utf8').includes(KEY));
@@ -412,47 +438,111 @@ test('a hosted connector already in Claude Code is left alone, and without Claud
   assert.match(without.left[0].what, /In Claude Desktop, add a custom connector with https:\/\/mediamake\.microfox\.app\/mcp\/use/);
 });
 
-test("a checkout whose .mcp.json has an unbuilt server of the connector's name gets the hosted one too; a built one is the developer's", async () => {
-  const hosted = 'https://mediamake.microfox.app/mcp/use';
-  const script = path.join(top, 'packages', 'mediamake-mcp', 'dist', 'index.js');
-  fs.writeFileSync(path.join(top, '.mcp.json'), JSON.stringify({ mcpServers: { 'mm-use': { command: 'node', args: ['packages/mediamake-mcp/dist/index.js', 'use'] } } }));
+test('a local server starts by its full path here; on Windows an .exe by its path and an npm shim through cmd /c', () => {
+  const finder = paths => cmd => paths[cmd] ?? [];
+  // a Mac: the Claude app may start servers without the terminal's PATH, so the full path
+  const mac = finder({ uvx: ['/opt/homebrew/bin/uvx'] });
+  assert.deepEqual(localCommand('uvx', ['mcp-for-blender'], { platform: 'darwin', find: mac }), { command: '/opt/homebrew/bin/uvx', args: ['mcp-for-blender'] });
+  assert.equal(localCommand('figcraft-cli', ['mcp'], { platform: 'darwin', find: mac }), null);
+  // Windows: where.exe lists npx (a shell script) before npx.cmd
+  const win = finder({ uvx: ['C:\\Users\\a\\.local\\bin\\uvx.exe'], npx: ['C:\\Program Files\\nodejs\\npx', 'C:\\Program Files\\nodejs\\npx.cmd'], sh: ['C:\\Program Files\\Git\\usr\\bin\\sh'] });
+  assert.deepEqual(localCommand('uvx', ['mcp-for-blender'], { platform: 'win32', find: win }), { command: 'C:\\Users\\a\\.local\\bin\\uvx.exe', args: ['mcp-for-blender'] });
+  assert.deepEqual(localCommand('npx', ['-y', '@rlabs-inc/gemini-mcp'], { platform: 'win32', find: win }), { command: 'cmd', args: ['/c', 'npx', '-y', '@rlabs-inc/gemini-mcp'] });
+  assert.equal(localCommand('sh', [], { platform: 'win32', find: win }), null);
+  // a command named by its full path is taken as it is, when it is there
+  const exists = p => p === '/opt/tools/figcraft-cli';
+  assert.deepEqual(localCommand('/opt/tools/figcraft-cli', ['mcp'], { platform: 'darwin', find: mac, exists }), { command: '/opt/tools/figcraft-cli', args: ['mcp'] });
+  assert.equal(localCommand('/gone/figcraft-cli', ['mcp'], { platform: 'darwin', find: mac, exists }), null);
+  // off the PATH: ~/.local/bin, then the folders its installer uses, with ~ and %VAR% filled in
+  const none = finder({});
+  const local = path.posix.join(os.homedir(), '.local', 'bin', 'figcraft-cli');
+  assert.deepEqual(localCommand('figcraft-cli', ['mcp'], { platform: 'darwin', find: none, exists: p => p === local }), { command: local, args: ['mcp'] });
+  const places = ['%LOCALAPPDATA%/Programs/ArtCraft/FigCraft', '%ProgramFiles%/ArtCraft/FigCraft'];
+  const installed = 'C:\\Program Files\\ArtCraft\\FigCraft\\figcraft-cli.exe';
+  const winEnv = { LOCALAPPDATA: 'C:\\Users\\a\\AppData\\Local', ProgramFiles: 'C:\\Program Files' };
+  assert.deepEqual(localCommand('figcraft-cli', ['mcp'], { platform: 'win32', find: none, places, env: winEnv, exists: p => p === installed }), { command: installed, args: ['mcp'] });
+  // a folder that names a variable this computer hasn't is skipped, not read as one at the disk's root
+  assert.equal(localCommand('figcraft-cli', ['mcp'], { platform: 'darwin', find: none, places, env: {}, exists: p => p.startsWith('/Programs') }), null);
+});
+
+/** Where this computer's PATH finds node, as items.mjs looks it up. */
+const nodeHere = () => spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['node'], { encoding: 'utf8' }).stdout.split(/\r?\n/)[0].trim();
+/** The same as a line to run shows it: quoted when it has a space (C:\Program Files\nodejs\node.exe). */
+const nodeShown = () => (/\s/.test(nodeHere()) ? `"${nodeHere()}"` : nodeHere());
+
+test("an MCP server someone else makes is added for every project with its command as this computer finds it; its setup is left to do", async () => {
+  const r = await items(['install', 'mcp/blender', '--yes', '--json']);
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.deepEqual(out.failed, []);
+  assert.deepEqual(
+    claudeCalls().filter(args => args[1] === 'add'),
+    [['mcp', 'add', '--scope', 'user', 'blender', '--', nodeHere(), 'blender-server.js']],
+  );
+  assert.ok(out.done.some(line => line.startsWith('Blender (made by Someone Else) added to Claude Code as blender (for every project)')), out.done.join('\n'));
+  assert.deepEqual(out.left.map(entry => entry.what), ["Blender's setup: Install its add-on.", "Blender's setup: Turn it on in Blender."]);
+  assert.equal(out.left[0].guide, 'https://example.com/blender#readme');
+  // recorded as installed from its source, with no version, and no update token asked for it
+  const record = readJson(path.join(home, '.mediamake', 'installed.json')).items['mcp/blender'];
+  assert.equal(record.source, 'mcp-server');
+  assert.equal(record.path, 'blender');
+  assert.deepEqual(out.installed, [{ id: 'mcp/blender', path: 'blender' }]);
+  assert.ok(!got.some(req => req.path === '/api/catalog/update-token'));
+
+  // a server already registered under its name is kept; --force replaces it
+  fs.rmSync(claudeLog, { force: true });
+  const again = JSON.parse((await items(['install', 'mcp/blender', '--yes', '--json'])).stdout);
+  assert.ok(again.done.some(line => /already has a server named blender; kept as it is/.test(line)));
+  assert.deepEqual(again.left, []);
+  assert.ok(!claudeCalls().some(args => args[1] === 'add' || args[1] === 'remove'));
+  await items(['install', 'mcp/blender', '--yes', '--force']);
+  assert.deepEqual(claudeCalls().filter(args => args[1] !== 'get').map(args => args[1]), ['remove', 'add']);
+});
+
+test("a server's key comes from this computer's environment, else the line that adds it is left to do; a missing command says what to install", async () => {
+  // no key here: nothing is added, and the line to add it has a place for the key
+  const without = JSON.parse((await items(['install', 'mcp/gemini', '--yes', '--json'])).stdout);
+  assert.deepEqual(without.failed, []);
+  assert.ok(!claudeCalls().some(args => args[1] === 'add'));
+  assert.match(without.left[0].what, /it needs GEMINI_API_KEY \(from https:\/\/aistudio\.google\.com\/apikey\)/);
+  assert.ok(without.left[0].what.endsWith(`claude mcp add --scope user gemini -e GEMINI_API_KEY=<your key> -- ${nodeShown()} gemini-server.js`), without.left[0].what);
+  assert.ok(!fs.existsSync(path.join(home, '.mediamake', 'installed.json')));
+
+  // the key set in the environment goes into Claude Code's config, and into no output
+  const r = await items(['install', 'mcp/gemini', '--yes', '--json'], { GEMINI_API_KEY: 'gk-test-secret' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(claudeCalls().find(args => args[1] === 'add'), ['mcp', 'add', '--scope', 'user', 'gemini', '-e', 'GEMINI_API_KEY=gk-test-secret', '--', nodeHere(), 'gemini-server.js']);
+  assert.ok(JSON.parse(r.stdout).done.some(line => /with GEMINI_API_KEY from this computer's environment/.test(line)));
+  assert.ok(!r.stdout.includes('gk-test-secret'));
+
+  // a command this computer doesn't have
+  fs.rmSync(claudeLog, { force: true });
+  const missing = JSON.parse((await items(['install', 'mcp/nothere', '--yes', '--json'])).stdout);
+  assert.match(missing.left[0].what, /no-such-tool-mm-test isn't on this computer\. Install it \(https:\/\/example\.com\/nothere#readme\), then mm items install mcp\/nothere --yes/);
+  assert.ok(!claudeCalls().some(args => args[1] === 'add'));
+});
+
+test("a command of the item's own: the steps to get it for each system, then it is found in its installer's folder off the PATH", async () => {
+  const apps = path.join(tmp, 'apps');
+  // not on this computer yet: the item's steps to get it, and nothing added
+  const before = JSON.parse((await items(['install', 'mcp/figcraft', '--yes', '--json'], { MM_TEST_APPS: apps })).stdout);
+  assert.deepEqual(before.left.map(entry => entry.what), [
+    "Add Figcraft to Claude Code: figcraft-cli-mm-test isn't on this computer. Get it as the next steps say, then mm items install mcp/figcraft --yes",
+    'Figcraft: On a Mac: the zip, into ~/.local/bin.',
+    'Figcraft: On Windows: the .msi.',
+  ]);
+  assert.ok(!claudeCalls().some(args => args[1] === 'add'));
+
+  // installed into its own folder, which isn't on the PATH: found there and added by its full path
+  const file = path.join(apps, 'FigCraft', WIN ? 'figcraft-cli-mm-test.exe' : 'figcraft-cli-mm-test');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, '');
   try {
-    // in Claude Code for every project, but sessions in the checkout would get its .mcp.json's
-    fs.writeFileSync(claudeState, JSON.stringify({ 'mm-use': [hosted] }));
-    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['hidden']);
-    const text = await items([]);
-    assert.match(text.stdout, /mcp\/mm-use +in Claude Code, but this checkout's \.mcp\.json hides it/);
-    assert.match(text.stdout, /3 to install or update/);
-
-    const r = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'])).stdout);
-    assert.deepEqual(r.failed, []);
-    assert.ok(r.done.includes('mm-use is already in Claude Code'));
-    assert.ok(r.done.some(line => /added for sessions opened in .+ too: its \.mcp\.json has a mm-use that can't start here \(packages\/mediamake-mcp\/dist\/index\.js isn't built\)/.test(line)));
-    // added for the checkout (local beats project), the one for every project left as it was
-    const servers = readJson(claudeState);
-    assert.deepEqual(servers[`local:${top}:mm-use`], [hosted]);
-    assert.deepEqual(servers['mm-use'], [hosted]);
-    assert.match(r.left[0].what, /run \/mcp, pick mm-use/);
-    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['added']);
-
-    // not in Claude Code at all: both are added in one go
-    fs.writeFileSync(claudeState, '{}');
-    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['missing']);
-    await items(['install', 'mcp/mm-use', '--yes']);
-    assert.deepEqual(readJson(claudeState), { 'mm-use': [hosted], [`local:${top}:mm-use`]: [hosted] });
-
-    // a developer who built the server keeps theirs in the checkout
-    fs.writeFileSync(claudeState, JSON.stringify({ 'mm-use': [hosted] }));
-    fs.mkdirSync(path.dirname(script), { recursive: true });
-    fs.writeFileSync(script, '// built\n');
-    fs.rmSync(claudeLog, { force: true });
-    assert.deepEqual(JSON.parse((await items(['--json'])).stdout).connectors.map(c => c.state), ['added']);
-    const built = JSON.parse((await items(['install', 'mcp/mm-use', '--yes', '--json'])).stdout);
-    assert.deepEqual(built.left, []);
-    assert.ok(!claudeCalls().some(args => args[1] === 'add' || args[1] === 'remove'));
+    const after = JSON.parse((await items(['install', 'mcp/figcraft', '--yes', '--json'], { MM_TEST_APPS: apps })).stdout);
+    assert.deepEqual(claudeCalls().find(args => args[1] === 'add'), ['mcp', 'add', '--scope', 'user', 'figcraft', '--', file, 'mcp']);
+    assert.deepEqual(after.left.map(entry => entry.what), ["Figcraft's setup: Open the app to edit by hand."]);
   } finally {
-    fs.rmSync(path.join(top, '.mcp.json'), { force: true });
-    fs.rmSync(path.join(top, 'packages'), { recursive: true, force: true });
+    fs.rmSync(apps, { recursive: true, force: true });
   }
 });
 

@@ -166,11 +166,20 @@
         "source": {
           "type": "mcp-server",
           "name": "figcraft",
-          "local": { "command": "figcraft-cli", "args": ["mcp"] },
+          "local": {
+            "command": "figcraft-cli",
+            "args": ["mcp"],
+            "install": [
+              "Get figcraft-cli from the latest release at https://github.com/storytold/figcraft/releases/latest, for this computer:",
+              "On a Mac: figcraft-cli-<version>-macos-universal.zip (signed and notarized); unzip it and put figcraft-cli in ~/.local/bin.",
+              "On Windows: the FigCraft app, figcraft-<version>-windows-x64.msi (windows-arm64 on an ARM computer); figcraft-cli.exe comes with it, in its folder (ArtCraft\\FigCraft under Program Files, or under %LOCALAPPDATA%\\Programs when installed for one account).",
+              "On Linux: the AppImage runs it as `FigCraft.AppImage cli`; put a figcraft-cli script in ~/.local/bin that runs `<path>/FigCraft.AppImage cli \"$@\"`.",
+              "Check: `figcraft-cli --version` (by its full path when its folder isn't on the PATH)."
+            ],
+            "find": ["~/.local/bin", "%LOCALAPPDATA%/Programs/ArtCraft/FigCraft", "%ProgramFiles%/ArtCraft/FigCraft"]
+          },
           "setup": [
-            "Download the command line for this computer from the latest release at https://github.com/storytold/figcraft/releases/latest (on a Mac figcraft-cli-<version>-macos-universal.zip, signed and notarized; on Linux the AppImage runs it as `FigCraft.AppImage cli`), unzip it and put figcraft-cli in ~/.local/bin. Check: `figcraft-cli --version`.",
-            "Add the server to Claude Code with the full path, since the Claude app may not have ~/.local/bin on its PATH: `claude mcp add --scope user figcraft -- ~/.local/bin/figcraft-cli mcp`. Its tools show up in the next session.",
-            "For editing by hand, install the FigCraft app from the same release (on a Mac figcraft-<version>-macos-universal.dmg). Started as `figcraft --control 7979`, a second server, `figcraft-cli mcp --attach 7979`, lets Claude change the open window while you watch."
+            "For editing by hand, the FigCraft app from the same release (on a Mac figcraft-<version>-macos-universal.dmg; on Windows it came with figcraft-cli). Started as `figcraft --control 7979`, a second server, `figcraft-cli mcp --attach 7979`, lets Claude change the open window while you watch."
           ],
           "guide": "https://github.com/storytold/figcraft/blob/main/docs/mcp.md"
         },
