@@ -111,8 +111,10 @@ export function capabilities({ env = process.env, top = TOP, home = os.homedir()
       if (apps.includes(need.slice(4))) can.push(need);
     }
   }
+  // the library's own config keeps it as { root, inbox, … } (apps/studio/scripts/library/config.ts); a plain path counts too
   const library = readJson(configFile(env)).library;
-  if (typeof library === 'string' && library && fs.existsSync(library.replace(/^~(?=\/|$)/, home))) can.push('media:library');
+  const root = typeof library === 'string' ? library : typeof library?.root === 'string' ? library.root : '';
+  if (root && fs.existsSync(root.replace(/^~(?=[\\/]|$)/, home))) can.push('media:library');
   can.push(...declared(env).has);
   // a cloud session never has what only a device has
   return [...new Set(can)].filter(need => !cloud || !deviceOnly(need));

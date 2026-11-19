@@ -25,8 +25,12 @@
  *     server needs it, the signed-in key
  *   - a skill package: copied to ~/.claude/skills/<slug>
  *   - one of MediaMake's hosted connectors (mm-use for every member, mm-release for admins): added to
- *     Claude Code for every project by its address (`claude mcp add --transport http --scope user`);
+ *     Claude Code for every project by its address (`claude mcp add --transport http --scope user`),
+ *     and for this checkout too (`--scope local`) when its .mcp.json names a server of the same name
+ *     that can't start here (the developers' build of packages/mediamake-mcp), which would hide it;
  *     signing in to it (/mcp, then Allow in the browser) is the person's one step
+ * Claude Code is MEDIAMAKE_CLAUDE_BIN when it is set, else `claude` on the PATH, else the copy the
+ * Claude desktop app keeps for its Code tab (desktopClaude).
  *   - the record in ~/.mediamake/installed.json and the update token in the config, so updates need
  *     nothing either
  * What it can't do is listed under "Left to do" (`left` in the JSON) for Claude or the person: loading
@@ -44,6 +48,8 @@ import { fileURLToPath } from 'node:url';
 import { apiKey, configFile, site } from './usage.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
+/** The checkout this runs from, whose .mcp.json Claude Code reads in sessions opened there. */
+const TOP = path.resolve(path.dirname(SELF), '..');
 const WIN = process.platform === 'win32';
 const INSTALL_GUIDE = 'https://github.com/microfox-ai/mediamake/blob/main/install.md';
 /** The kinds that put something on the computer by themselves; skills of ours come with the repo. */
@@ -200,24 +206,76 @@ export async function mine(url, key, env = process.env) {
 
 /**
  * MediaMake's hosted connectors the account opens (HOSTED_CONNECTORS), each `added` when Claude Code
- * already has it by its name, else `missing`; `unknown` when Claude Code isn't on this computer.
+ * has it by its name for every project, `hidden` when it has but this checkout's .mcp.json names a
+ * server of the same name that can't start here and no local one beats it (sessions opened in the
+ * checkout may get that one),
+ * else `missing`; `unknown` when Claude Code isn't on this computer.
  */
 export function connectorsHere(open, env = process.env) {
   const claude = claudeBin(env);
+  const top = checkout(env);
   return open
     .filter(item => HOSTED_CONNECTORS[item.id])
     .map(item => {
       const name = HOSTED_CONNECTORS[item.id];
-      const state = !claude ? 'unknown' : run(claude, ['mcp', 'get', name]).status === 0 ? 'added' : 'missing';
+      const state = !claude ? 'unknown' : !mcpGet(claude, name, os.homedir()) ? 'missing' : hiddenIn(claude, name, top) ? 'hidden' : 'added';
       return { id: item.id, title: item.title, name, tier: item.tier ?? 'public', state };
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/** The checkout whose .mcp.json is looked at: this one (MEDIAMAKE_CHECKOUT in tests). */
+const checkout = env => env.MEDIAMAKE_CHECKOUT || TOP;
+
+/**
+ * What Claude Code has under `name` for a session opened in `cwd`, or null: its scope (`user`, `local`,
+ * `project`) and, for a server it reaches by address, its URL. From the home folder it is what every
+ * project gets; from a checkout, what that checkout's sessions get (local beats project beats user).
+ */
+function mcpGet(claude, name, cwd) {
+  const r = run(claude, ['mcp', 'get', name], { cwd });
+  if (r.status !== 0) return null;
+  const text = r.stdout ?? '';
+  return { scope: text.match(/^\s*Scope:\s*(\w+)/m)?.[1]?.toLowerCase() ?? null, url: text.match(/^\s*URL:\s*(\S+)/m)?.[1] ?? null };
+}
+
+/**
+ * The script the checkout's own .mcp.json entry for `name` runs, when that script isn't there and the
+ * server can't start (packages/mediamake-mcp/dist, the developers' local copy of mm-use and
+ * mm-release, until they build it); else null. A developer who built it keeps theirs.
+ */
+function deadIn(top, name) {
+  const entry = readJson(path.join(top, '.mcp.json')).mcpServers?.[name];
+  if (!entry || entry.url || !Array.isArray(entry.args)) return null;
+  const script = entry.args.find(arg => typeof arg === 'string' && /\.[cm]?js$/.test(arg));
+  return script && !fs.existsSync(path.resolve(top, script)) ? script : null;
+}
+
+/**
+ * Whether sessions opened in the checkout may get its dead .mcp.json entry instead of the hosted
+ * connector: only a local one beats it. `claude mcp get` leaves a .mcp.json server out until it is
+ * approved, but the Claude desktop app's Code tab starts them unasked, so the user's one being what
+ * `get` shows there doesn't settle it.
+ */
+const hiddenIn = (claude, name, top) => !!deadIn(top, name) && mcpGet(claude, name, top)?.scope !== 'local';
+
 // ── installing ──────────────────────────────────────────────────────────────
 
-const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', shell: WIN, ...opts });
-const has = cmd => run(WIN ? 'where' : 'which', [cmd]).status === 0;
+// a bare name goes through the Windows shell (it finds claude.cmd and the like); an .exe by its path
+// doesn't need it, and a folder with a space in it would break the shell's line
+const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', shell: WIN && !/\.exe$/i.test(cmd), ...opts });
+const has = cmd => run(WIN ? 'where.exe' : 'which', [cmd]).status === 0;
+
+/**
+ * The tar that unpacks here. On Windows, Windows' own (System32\tar.exe, bsdtar: .tar.gz and .zip,
+ * C:\ paths): in Git Bash the PATH finds Git's GNU tar first, which reads `C:\…` as a remote host
+ * named C and stops ("Error is not recoverable").
+ */
+const TAR = (() => {
+  if (!WIN) return 'tar';
+  const own = path.join(process.env.SystemRoot || process.env.windir || 'C:\\Windows', 'System32', 'tar.exe');
+  return fs.existsSync(own) ? own : 'tar';
+})();
 
 async function download(url, dest) {
   const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(10 * 60_000) });
@@ -228,10 +286,10 @@ async function download(url, dest) {
 
 const sha256Of = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 
-/** Unpacks a zip (an .mcpb is one) into dir: unzip, else the tar every Mac and Windows 10+ has. */
+/** Unpacks a zip (an .mcpb is one) into dir: unzip, else the tar every Mac and Windows 10+ has (on Windows always that one). */
 function unzip(file, dir) {
   fs.mkdirSync(dir, { recursive: true });
-  const r = has('unzip') ? run('unzip', ['-o', '-q', file, '-d', dir]) : run('tar', ['-xf', file, '-C', dir]);
+  const r = !WIN && has('unzip') ? run('unzip', ['-o', '-q', file, '-d', dir]) : run(TAR, ['-xf', file, '-C', dir]);
   if (r.status !== 0) throw new Error(`Couldn't unpack ${path.basename(file)}: ${(r.stderr || r.stdout || '').trim().split('\n').pop()}`);
 }
 
@@ -287,7 +345,35 @@ export function mcpConfig(manifest, dir, { url, key }) {
 }
 
 /** Claude Code's command, or null where it isn't installed (Claude Desktop only, a bare terminal). */
-const claudeBin = env => ('MEDIAMAKE_CLAUDE_BIN' in env ? env.MEDIAMAKE_CLAUDE_BIN || null : has('claude') ? 'claude' : null);
+const claudeBin = env => ('MEDIAMAKE_CLAUDE_BIN' in env ? env.MEDIAMAKE_CLAUDE_BIN || null : has('claude') ? 'claude' : desktopClaude(env));
+
+const subfolders = dir => {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * The Claude Code the Claude desktop app keeps for its Code tab, for a computer where `claude` isn't on
+ * the PATH: on Windows %LOCALAPPDATA%\Claude-Data\<app>\claude-code\<version>\<build>\claude.exe, the
+ * newest version. Null elsewhere, or when there is none.
+ */
+export function desktopClaude(env = process.env, platform = process.platform) {
+  if (platform !== 'win32') return null;
+  const root = path.join(env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Claude-Data');
+  const found = [];
+  for (const app of subfolders(root)) {
+    const base = path.join(root, app, 'claude-code');
+    for (const version of subfolders(base))
+      for (const build of subfolders(path.join(base, version))) {
+        const exe = path.join(base, version, build, 'claude.exe');
+        if (fs.existsSync(exe)) found.push({ version, exe });
+      }
+  }
+  return found.sort((a, b) => compareVersions(b.version, a.version))[0]?.exe ?? null;
+}
 
 /**
  * Installs the steps of one plan. Returns what it did (`done`), what is left for Claude or the person
@@ -356,16 +442,36 @@ async function carryOut(plan, ctx) {
         left.push({ step: id, what: `Add ${step.title} to Claude: Claude Code isn't on this computer's PATH. In Claude Desktop, add a custom connector with ${address}, then sign in and click Allow` });
         continue;
       }
-      const registered = run(claude, ['mcp', 'get', name]).status === 0;
-      if (registered && !ctx.force) {
-        done.push(`${step.title} is already in Claude Code`);
-        continue;
+      // what every project gets, seen from the home folder: from inside the checkout, `claude mcp get`
+      // would find the checkout's own .mcp.json entry of the same name and take it for this one
+      const home = os.homedir();
+      const failed = (what, r) => new Error(`claude mcp ${what} ${name} failed: ${(r.stderr || r.stdout || '').trim().split('\n').pop()}`);
+      let added = false;
+      const registered = !!mcpGet(claude, name, home);
+      if (registered && !ctx.force) done.push(`${step.title} is already in Claude Code`);
+      else {
+        if (registered) run(claude, ['mcp', 'remove', name, '--scope', 'user'], { cwd: home });
+        const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'user', name, address], { cwd: home });
+        if (add.status !== 0) throw failed('add', add);
+        done.push(`${step.title} added to Claude Code (${address})`);
+        added = true;
       }
-      if (registered) for (const scope of ['user', 'local', 'project']) if (run(claude, ['mcp', 'remove', name, '--scope', scope]).status === 0) break;
-      const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'user', name, address]);
-      if (add.status !== 0) throw new Error(`claude mcp add ${name} failed: ${(add.stderr || add.stdout || '').trim().split('\n').pop()}`);
-      done.push(`${step.title} added to Claude Code (${address})`);
-      left.push(signIn);
+      // sessions opened in the checkout read its .mcp.json before the user's servers: when that names a
+      // server of the same name that can't start here, the checkout gets the hosted one too (local beats
+      // project; hiddenIn says why `claude mcp get` can't be asked which one wins)
+      const top = checkout(env);
+      const script = deadIn(top, name);
+      if (script) {
+        const there = mcpGet(claude, name, top);
+        if (there?.scope !== 'local' || ctx.force) {
+          if (there?.scope === 'local') run(claude, ['mcp', 'remove', name, '--scope', 'local'], { cwd: top });
+          const add = run(claude, ['mcp', 'add', '--transport', 'http', '--scope', 'local', name, address], { cwd: top });
+          if (add.status !== 0) throw failed('add', add);
+          done.push(`${step.title} added for sessions opened in ${tilde(top)} too: its .mcp.json has a ${name} that can't start here (${script} isn't built)`);
+          added = true;
+        }
+      }
+      if (added) left.push(signIn);
       continue;
     }
 
@@ -389,7 +495,7 @@ async function carryOut(plan, ctx) {
       fs.rmSync(work, { recursive: true, force: true });
       throw new Error(`${step.title} ${step.version}: the download doesn't match its SHA-256, so nothing was installed`);
     }
-    const untar = run('tar', ['-xzf', archive, '-C', work], { shell: false });
+    const untar = run(TAR, ['-xzf', archive, '-C', work], { shell: false });
     fs.rmSync(archive, { force: true });
     if (untar.status !== 0) throw new Error(`Couldn't unpack ${step.title}: ${(untar.stderr || '').trim().split('\n').pop()}`);
     const guide = findFile(work, name => name === 'INSTALL.md');
@@ -514,6 +620,8 @@ export async function install(ids, { url, key, env = process.env, force = false 
 // ── the command ─────────────────────────────────────────────────────────────
 
 const TIER = { public: 'Public', plus: 'Plus', pro: 'Pro', cohort: 'Cohort', admin: 'Admin' };
+/** The connector states `mm items install --yes` acts on. */
+const TO_ADD = new Set(['missing', 'hidden']);
 const who = account => (account ? `${account.name || account.email || 'your account'}${account.tier ? ` · ${TIER[account.tier] ?? account.tier}` : ''}` : 'your account');
 
 function printMine(state) {
@@ -528,10 +636,16 @@ function printMine(state) {
   const connectors = state.connectors ?? [];
   if (connectors.length) {
     console.log('\nMediaMake connectors:');
+    const says = {
+      added: 'in Claude Code',
+      missing: 'not in Claude Code',
+      hidden: "in Claude Code, but this checkout's .mcp.json hides it with a server that isn't built",
+      unknown: "Claude Code isn't on this computer",
+    };
     for (const connector of connectors)
-      console.log(`  ${connector.state === 'added' ? '✔' : '○'} ${connector.id.padEnd(width)}  ${connector.state === 'added' ? 'in Claude Code' : connector.state === 'missing' ? 'not in Claude Code' : "Claude Code isn't on this computer"}  [${TIER[connector.tier] ?? connector.tier}]`);
+      console.log(`  ${connector.state === 'added' ? '✔' : '○'} ${connector.id.padEnd(width)}  ${says[connector.state] ?? connector.state}  [${TIER[connector.tier] ?? connector.tier}]`);
   }
-  const todo = [...state.items.filter(item => item.state !== 'installed'), ...connectors.filter(connector => connector.state === 'missing')];
+  const todo = [...state.items.filter(item => item.state !== 'installed'), ...connectors.filter(connector => TO_ADD.has(connector.state))];
   if (todo.length) console.log(`\n${todo.length} to install or update: mm items install --yes`);
   else if (state.items.length) console.log('\nEverything your membership opens is installed and up to date.');
   const byTier = new Map();
@@ -588,7 +702,7 @@ async function main(args) {
     let state = null;
     if (!wanted.length) {
       state = await mine(url, key, env);
-      wanted = [...state.items.filter(item => item.state !== 'installed'), ...(state.connectors ?? []).filter(connector => connector.state === 'missing')].map(item => item.id);
+      wanted = [...state.items.filter(item => item.state !== 'installed'), ...(state.connectors ?? []).filter(connector => TO_ADD.has(connector.state))].map(item => item.id);
     }
     if (!flags.has('--yes')) {
       if (json) console.log(JSON.stringify({ signedIn: true, site: url, account: state?.account, wouldInstall: wanted }, null, 2));
