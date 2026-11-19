@@ -36,6 +36,8 @@
  *                                            a platform's numbers for a day
  *   mm library trash <collection>/<entry> [--yes]
  *   mm library prefs <collection> --file=<prefs.md> [--yes]    the owner's preferences for whoever fills it
+ *   mm library headshot <collection> <picture file or https link> [--yes]   the picture on the collection's card
+ *   mm library headshot <collection> --clear [--yes]                         takes it off
  *   mm library usage [--days=30] [--all]     what you used and its estimated cost (--all: admins, everyone's)
  *
  * --json prints the server's answer as JSON. A value for --set that starts with [ or { is read as JSON:
@@ -445,6 +447,37 @@ async function prefs(env, [collection], flags) {
   return 0;
 }
 
+async function headshot(env, [collection, source], flags) {
+  if (!SLUG.test(String(collection ?? ''))) throw new Error('Which collection? mm library headshot <collection> <picture file or https link>');
+  const space = await spaceFor(env, flags);
+  if (flags.clear) {
+    if (!flags.yes) return console.log(`Take the picture off the ${collection} collection of the ${space.name} space (cloud)?\nNothing was changed. After the person agrees: add --yes.`), 0;
+    await api(env, 'POST', '', { action: 'headshot', space: space.id, collection });
+    return console.log(`✔ The ${collection} collection has no picture now.`), 0;
+  }
+  if (typeof source !== 'string') throw new Error('The picture as a file or an https link: mm library headshot <collection> <picture>');
+  if (/^https:\/\//.test(source)) {
+    if (!flags.yes) return console.log(`Use ${source} as the picture of the ${collection} collection of the ${space.name} space (cloud)?\nNothing was changed. After the person agrees: add --yes.`), 0;
+    await api(env, 'POST', '', { action: 'headshot', space: space.id, collection, url: source });
+    return console.log(`✔ The ${collection} collection shows that picture.`), 0;
+  }
+  const file = path.resolve(source);
+  const stat = fs.statSync(file, { throwIfNoEntry: false });
+  if (!stat?.isFile()) throw new Error(`No file at ${file}`);
+  const name = path.basename(file);
+  if (!flags.yes) return console.log(`Upload ${name} (${sizeOf(stat.size)}) as the picture of the ${collection} collection of the ${space.name} space (cloud)?\nNothing was changed. After the person agrees: add --yes.`), 0;
+  const sha256 = await sha256Of(file);
+  const started = await api(env, 'POST', '/files', { action: 'start', space: space.id, files: [{ sha256, size: stat.size, name }] });
+  for (const upload of started.uploads) {
+    const res = await fetch(upload.uploadUrl, { method: 'PUT', headers: { ...upload.headers, 'Content-Length': String(stat.size) }, body: Readable.toWeb(fs.createReadStream(file)), duplex: 'half', signal: AbortSignal.timeout(30 * 60 * 1000) });
+    if (!res.ok) throw new Error(`Storage refused ${name} (${res.status}). Nothing was changed: run it again.`);
+  }
+  await api(env, 'POST', '/files', { action: 'finish', space: space.id, sha256s: [sha256], device: placeName(env) });
+  await api(env, 'POST', '', { action: 'headshot', space: space.id, collection, sha256 });
+  console.log(`✔ The ${collection} collection of the ${space.name} space shows ${name}.`);
+  return 0;
+}
+
 async function usage(env, flags) {
   const got = await api(env, 'GET', `/usage${query({ days: flags.days, all: flags.all ? 1 : undefined })}`);
   if (flags.json || flags.all) return console.log(JSON.stringify(got, null, 2)), 0;
@@ -486,6 +519,8 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return trash(env, rest, flags);
     case 'prefs':
       return prefs(env, rest, flags);
+    case 'headshot':
+      return headshot(env, rest, flags);
     case 'usage':
       return usage(env, flags);
     default:

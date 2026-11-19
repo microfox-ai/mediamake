@@ -207,7 +207,7 @@ test('search: plain words and exact filters', () => {
   assert.deepEqual([a, b].filter(e => matches(e, ask('where=use%3Dunreleased'))).map(e => e.slug), ['sky-song']);
   assert.deepEqual([a, b].filter(e => matches(e, ask('has=transcript'))).map(e => e.slug), ['sea-song']);
   assert.deepEqual([a, b].filter(e => matches(e, ask('lacks=transcript,lyrics'))).map(e => e.slug), ['sky-song']);
-  assert.equal(ask('limit=900').limit, 50);
+  assert.equal(ask('limit=900').limit, 200);
   assert.equal(ask('collection=..%2Fx').collection, undefined);
 });
 
