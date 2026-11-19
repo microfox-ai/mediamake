@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { MediamakeClient, configFromEnv } from '../../mediamake-mcp/src/client.js';
+import { registerLibraryTools } from './tools/library.js';
 import { registerBrandKitTools } from './tools/brand-kit.js';
 import { registerProductionTools, registerReleaseTools } from './tools/bundles.js';
 import { registerMediaTools } from './tools/media.js';
@@ -16,6 +17,7 @@ const INSTRUCTIONS = `MediaMake Spaces (it was ProjectSync) keeps the files of t
 - Media: single files (pictures, songs, clips: usually inputs). upload_media. Nothing is analysed on the way in.
 - Shared assets: the library files a project's team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, tags), so everyone on the project can download them: list_shared_assets, download_shared_assets (into a folder, or the library's inbox so \`media ingest\` files them), share_assets (owners and editors, under the project's sharing limit: 100 MB in all by default, set_shared_limit raises it, owner only), unshare_assets. Any project can hold them, a channel's or one made just to share files with a team.
 - To-dos: a step one place cannot do (an upload that needs a signed-in browser, pictures from Midjourney) waits in the project's queue for a place that can. list_todos shows what waits; post_todo posts one after saving the work to the project; "Pick up to-do td-… in <project>" is claim_todo, then the step, then finish_todo. where_it_runs is the project's register: which cloud environment and which opened computer can do what. A to-do is read by everyone on the project: never a key or a password in it.
+- Library: what a space reuses, kept as collections of entries (a channel's songs with their masters, lyrics, transcripts, release details and links), the same on every computer. Read before fetching: search_library answers with cards, get_library_entry and read_library_entry give fields and text with no download, and only fetch_library_files moves a file. Before paying for a result again (a transcript, stems), ask library_made_from. Before filling a collection, read it with list_library (its fields, what is never guessed, the owner's preferences). NEVER save without the person's yes: save_library_entry without yes saves nothing and gives the one sentence to ask; yes: true only after they agree. Never guess an ISRC, a release date, a link or a credit. Sharing a collection, starting one and the trash are the owner's, on the Library page or with \`mm library\`. Cohort members for now; every search, read, fetch and save is counted.
 Before uploading anything, ask the user whether it should go up as a production, a release or media, and to which project (list_projects); never decide for them. Run create_production / create_release with dryRun first and show them what would go up.
 Uploading the same slug again is a new version (update_production / update_release): earlier versions are kept and unchanged files are not sent again. get_production / get_release with saveTo download a version to a folder.
 The project's role decides what the user can do: viewers read, owners and editors upload and change, only the owner deletes. Deleting moves things to the project's trash; confirm with the user first.
@@ -29,7 +31,7 @@ export function apiConfig(env: NodeJS.ProcessEnv = process.env) {
 
 /** Builds the MediaMake Spaces MCP server (it was ProjectSync; its id stays `projectsync`): the MediaMake API with a MediaMake key, and files on this computer. */
 export function createServer(client = new MediamakeClient(apiConfig())) {
-  const server = new McpServer({ name: 'projectsync', title: 'MediaMake Spaces', version: '0.5.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'projectsync', title: 'MediaMake Spaces', version: '0.6.0' }, { instructions: INSTRUCTIONS });
   registerBrandKitTools(server, client);
   registerProjectTools(server, client);
   registerProductionTools(server, client);
@@ -37,5 +39,6 @@ export function createServer(client = new MediamakeClient(apiConfig())) {
   registerMediaTools(server, client);
   registerSharedAssetTools(server, client);
   registerTodoTools(server, client);
+  registerLibraryTools(server, client);
   return server;
 }

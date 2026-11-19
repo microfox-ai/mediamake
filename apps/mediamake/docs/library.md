@@ -286,13 +286,34 @@ for its owner, and `POST` takes `share`, `unshare`, `accept`, `leave` and `notes
 overview (`GET /api/library?space=`) lists the shared collections beside its own, each with
 `shared: { by, role }`, and its open `invitations`.
 
+## In the Spaces MCP
+
+Someone with only the MediaMake Spaces MCP (`mcp/projectsync`, no repo on the computer) reads and
+fills the Library with its tools (`packages/projectsync-mcp/src/tools/library.ts`), which call the
+same routes as `mm library`:
+
+| Tool | Does |
+| --- | --- |
+| `list_library` | The spaces whose Library the account can open and their collections. With a space and a collection: its fields, file slots, guide, learned spellings and the owner's preferences |
+| `search_library` | Cards, by words, `where`, `has` and `lacks`. No download |
+| `get_library_entry` | One entry in full |
+| `read_library_entry` | A field's text or a text file, whole or a part (lines, seconds) |
+| `fetch_library_files` | An entry's files into a folder, each checked against its SHA-256. A file there that differs is not replaced unless asked |
+| `library_made_from` | What was already made from an exact file, before paying again |
+| `save_library_entry` | Without `yes`: saves nothing and answers with the sentence to ask, what would change and the private details found. With `yes: true`, after the person agreed: uploads the files and saves |
+
+Sharing a collection, starting one from a template, the trash, preferences and a computer's report
+stay on the page and in `mm library`: they are the owner's decisions, and the MCP has no tool for
+them. The MCP keeps no cache of fetched files, so a file fetched twice into two folders is
+downloaded twice (`mm library fetch` clones it from the computer's cache).
+
 ## Not built yet
 
 `mm analyze` and `media cache get` asking the Library, a skill naming the slots it reads
 (`mm library use --for=<skill>`), a device library's own collections, "Fetch to this device" from the page, the older Library page
 (`/library`, the Mac's media library) folded into Computers, for shared collections a monthly limit per project
 or person, a mail when one is shared, a collection's rights and its listing in Explore with "Request access",
-and keeping a removed file's bytes for 30 days (nothing deletes stored bytes yet), the tools in the Spaces MCP, search
+and keeping a removed file's bytes for 30 days (nothing deletes stored bytes yet), search
 by meaning, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 

@@ -284,6 +284,9 @@ upload, download and search is counted. The media library above stays the comput
   after they agree; the same for `unshare`, `accept`, `leave` and `notes`. The others use the owner's
   live collection, never a copy, under its id in their Library (`songs`, or `songs-<who shares it>`).
   Never share one to make a step work, and never pass on a collection another space shared.
+- Without the repo, the MediaMake Spaces MCP reads and fills the Library: `search_library`, `get_library_entry`,
+  `read_library_entry`, `fetch_library_files`, `library_made_from`, and `save_library_entry`, which saves
+  nothing without `yes: true`. Pass that only after the person agreed to the sentence it gave.
 - A computer tells the Library what its media library holds only after its owner turns that on:
   `mm library report` shows what would go (a card a file: name, kind, size, SHA-256; never the file or
   its folder), `mm library report on` is the owner's word, in this session. Never turn it on for them.

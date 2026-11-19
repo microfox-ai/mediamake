@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "projectsync",
   "display_name": "MediaMake Spaces",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Keep your MediaMake spaces in the cloud: your personal space and each project space's brand kits, productions, release kits, media and shared assets, under each space's permissions. Was ProjectSync.",
   "long_description": "Connects Claude to your MediaMake account with a MediaMake API key, and reads and writes files on this computer. Every production (a video's code and outputs), release kit (a YouTube upload pack, a DistroKid release) and media file belongs to one space (your personal space, or a project's), and your role there decides: anyone it is shared with reads, owners and editors upload and change, only the owner deletes. Claude asks you each time whether files go up as a production, a release or media, and to which project. Media is never analysed on the way in.",
   "icon": "icon.png",
@@ -162,6 +162,34 @@
     {
       "name": "where_it_runs",
       "description": "A project's register: which cloud environment and computer can do what."
+    },
+    {
+      "name": "list_library",
+      "description": "The Cloud Library: the spaces you can open, their collections, and one collection's fields, file slots and guide."
+    },
+    {
+      "name": "search_library",
+      "description": "Search the Library by words and by what an entry has. Cards, no download."
+    },
+    {
+      "name": "get_library_entry",
+      "description": "One Library entry in full: fields, files by slot, history."
+    },
+    {
+      "name": "read_library_entry",
+      "description": "Read a field's text or a text file of an entry, whole or a part, with no download."
+    },
+    {
+      "name": "fetch_library_files",
+      "description": "Download an entry's files into a folder, each checked against its SHA-256."
+    },
+    {
+      "name": "library_made_from",
+      "description": "What was already made from an exact file (its transcript, its stems), before paying again."
+    },
+    {
+      "name": "save_library_entry",
+      "description": "Add or change a Library entry. Saves nothing until the person agreed to the sentence it gives."
     }
   ],
   "keywords": [
