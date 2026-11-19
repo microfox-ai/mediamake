@@ -1,0 +1,645 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:InstrumentSerif-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:InstrumentSerif-400italic.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Fraunces-900.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-600.ttf}}"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "clip": true,
+    "fills": [
+     "#F3EEE4"
+    ],
+    "effects": [
+     {
+      "type": "noise",
+      "mode": "mono",
+      "color": "#5A462E12",
+      "density": 0.4,
+      "size": 0.5
+     }
+    ]
+   },
+   "width": 1080,
+   "height": 1350,
+   "name": "Carousel slide 2"
+  },
+  "as": "slide"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 96,
+   "text": "02",
+   "props": {
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "fontSize": 360,
+    "letterSpacing": "-6%",
+    "lineHeight": "100%",
+    "textAlign": "right",
+    "fills": [
+     "#E6DCCB"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "num",
+   "width": 920
+  },
+  "as": "num"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 76,
+   "text": "DESIGN NOTES  ·  Nº 07",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "letterSpacing": "30%",
+    "fills": [
+     "#1D1A16"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "kick"
+  },
+  "as": "kick"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 76,
+   "text": "02 / 07",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "letterSpacing": "30%",
+    "features": {
+     "tnum": true
+    },
+    "fills": [
+     "#1D1A16"
+    ],
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "name": "page",
+   "width": 920
+  },
+  "as": "page"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 80,
+   "y": 112,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ]
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 920,
+   "height": 1.5,
+   "name": "rule0"
+  },
+  "as": "rule0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 168,
+   "text": "White space is not empty. It is where the eye comes to rest.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontSize": 104,
+    "lineHeight": "92%",
+    "letterSpacing": "-2.5%",
+    "fills": [
+     "#1D1A16"
+    ],
+    "hangingPunctuation": true,
+    "wrapStyle": "pretty",
+    "textAutoResize": "height"
+   },
+   "name": "head",
+   "width": 900
+  },
+  "as": "head"
+ },
+ {
+  "command": "text.style",
+  "params": {
+   "id": {
+    "$ref": "head"
+   },
+   "start": 32,
+   "end": 60,
+   "fontStyle": "Italic",
+   "textFills": [
+    "#B5482A"
+   ]
+  }
+ },
+ {
+  "command": "image.place",
+  "params": {
+   "path": "{{image:basil.jpg}}",
+   "x": 80,
+   "y": 560,
+   "width": 420,
+   "height": 540,
+   "parent": {
+    "$ref": "slide"
+   },
+   "name": "Fig. 2",
+   "mode": "fill"
+  },
+  "as": "ph"
+ },
+ {
+  "command": "image.adjust",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ph"
+    }
+   ],
+   "preset": "blackAndWhite",
+   "filters": {
+    "contrast": 0.35,
+    "exposure": -0.05
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "ph"
+   },
+   "strokes": [
+    "#1D1A16"
+   ],
+   "strokeWeight": 1,
+   "strokeAlign": "inside"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 1116,
+   "text": "Fig. 2 — One leaf on a white table. The subject is the space around it.",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Italic",
+    "fontSize": 20,
+    "lineHeight": "130%",
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.75,
+    "textAutoResize": "height"
+   },
+   "name": "cap",
+   "width": 420
+  },
+  "as": "cap"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 560,
+   "y": 556,
+   "text": "Every layout is a conversation between what is there and what is left out. Margins tell the reader where to start; gaps tell them where to breathe.\nCrowd the page and nothing is loud. Give one idea room, and it carries the whole spread.",
+   "props": {
+    "fontFamily": "Charter",
+    "fontStyle": "Roman",
+    "fontSize": 21,
+    "lineHeight": "150%",
+    "textAlign": "justified",
+    "paragraphSpacing": 14,
+    "fills": [
+     "#1D1A16"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "body",
+   "width": 440
+  },
+  "as": "body"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 560,
+   "y": 952,
+   "props": {
+    "fills": [
+     "#B5482A"
+    ]
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 48,
+   "height": 4,
+   "name": "qrule"
+  },
+  "as": "qrule"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 560,
+   "y": 976,
+   "text": "“Less, but better — and then a little less.”",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Italic",
+    "fontSize": 40,
+    "lineHeight": "112%",
+    "letterSpacing": "-1%",
+    "fills": [
+     "#B5482A"
+    ],
+    "hangingPunctuation": true,
+    "textAutoResize": "height"
+   },
+   "name": "quote",
+   "width": 440
+  },
+  "as": "quote"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 560,
+   "y": 1086,
+   "text": "AFTER DIETER RAMS",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "letterSpacing": "32%",
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.7,
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "qby"
+  },
+  "as": "qby"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 80,
+   "y": 1232,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ]
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 920,
+   "height": 1.5,
+   "name": "rule1"
+  },
+  "as": "rule1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 80,
+   "y": 1258,
+   "text": "lumen.studio",
+   "props": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Italic",
+    "fontSize": 26,
+    "fills": [
+     "#1D1A16"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "handle"
+  },
+  "as": "handle"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 470,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot0"
+  },
+  "as": "dot0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 492,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#B5482A"
+    ],
+    "opacity": 1
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot1"
+  },
+  "as": "dot1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 514,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot2"
+  },
+  "as": "dot2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 536,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot3"
+  },
+  "as": "dot3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 558,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot4"
+  },
+  "as": "dot4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 580,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot5"
+  },
+  "as": "dot5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 602,
+   "y": 1268,
+   "props": {
+    "fills": [
+     "#1D1A16"
+    ],
+    "opacity": 0.25
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "width": 9,
+   "height": 9,
+   "name": "dot6"
+  },
+  "as": "dot6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "slide"
+   },
+   "x": 820,
+   "y": 1263,
+   "text": "SWIPE",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "letterSpacing": "32%",
+    "fills": [
+     "#1D1A16"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "swipe"
+  },
+  "as": "swipe"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 912,
+   "y": 1272,
+   "props": {
+    "fills": [],
+    "strokes": [
+     "#1D1A16"
+    ],
+    "strokeWeight": 1.5,
+    "endCap": "lineArrow"
+   },
+   "parent": {
+    "$ref": "slide"
+   },
+   "name": "arrow",
+   "path": "M0 0 H88"
+  },
+  "as": "arrow"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "slide"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-carousel.png"
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "head"
+   },
+   "fields": [
+    "height"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "body"
+   },
+   "fields": [
+    "height"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "quote"
+   },
+   "fields": [
+    "height"
+   ]
+  }
+ }
+]

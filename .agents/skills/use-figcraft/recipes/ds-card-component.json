@@ -1,0 +1,2632 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Fraunces-900.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:InstrumentSerif-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:JetBrainsMono-400.ttf}}"
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Card/Title",
+   "value": {
+    "fontFamily": "Instrument Serif",
+    "fontStyle": "Regular",
+    "fontSize": 30,
+    "lineHeight": "108%",
+    "letterSpacing": "-1%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Card/Body",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "lineHeight": "150%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Card/Tag",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "8%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Card/Rest",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#1C19170D",
+     "offset": [
+      0,
+      1
+     ],
+     "radius": 2
+    },
+    {
+     "type": "dropShadow",
+     "color": "#1C19170F",
+     "offset": [
+      0,
+      8
+     ],
+     "radius": 24
+    }
+   ]
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1440,
+   "height": 1000,
+   "name": "Story card — Field Notes",
+   "props": {
+    "fill": "#F6F3EE",
+    "layout": "vertical",
+    "gap": 40,
+    "padding": [
+     72,
+     80,
+     88,
+     80
+    ],
+    "sizingV": "hug"
+   }
+  },
+  "as": "page"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Header",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "max",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "f1"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 10,
+   "name": "Title block",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f1"
+   }
+  },
+  "as": "f2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "FIELD NOTES  ·  DESIGN SYSTEM",
+   "name": "FIELD NOTES  ·  DESIGN S",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "letterSpacing": "10%",
+    "fill": "#C2410C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Story card",
+   "name": "Story card",
+   "props": {
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "fontSize": 64,
+    "letterSpacing": "-2%",
+    "fill": "#1C1917",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f2"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "One main component, six instances. Every difference below is an override: text and boolean properties, a replaced image, or a fill changed on a nested layer. Nothing is detached.",
+   "name": "One main component, six ",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 16,
+    "lineHeight": "150%",
+    "fill": "#57534E",
+    "textAutoResize": "height"
+   },
+   "width": 640
+  },
+  "as": "t5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "6 instances · 0 detached",
+   "name": "6 instances · 0 detached",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t6"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Main row",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 40,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "f7"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 460,
+   "height": 10,
+   "name": "Main holder",
+   "props": {
+    "fill": "#EFEAE2",
+    "cornerRadius": 20,
+    "layout": "vertical",
+    "gap": 16,
+    "padding": 30,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f7"
+   }
+  },
+  "as": "holder"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "holder"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "MAIN COMPONENT",
+   "name": "MAIN COMPONENT",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "letterSpacing": "8%",
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t8"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 10,
+   "name": "Story card",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 18,
+    "clip": true,
+    "layout": "vertical",
+    "gap": 0,
+    "sizingV": "hug",
+    "effectStyle": "Card/Rest"
+   },
+   "parent": {
+    "$ref": "holder"
+   }
+  },
+  "as": "card"
+ },
+ {
+  "command": "image.place",
+  "params": {
+   "path": "{{image:basil.jpg}}",
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 400,
+   "height": 230,
+   "name": "Image",
+   "mode": "fill"
+  },
+  "as": "img"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "img"
+    }
+   ],
+   "props": {
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 400,
+   "height": 10,
+   "name": "Body",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 10,
+    "padding": [
+     20,
+     22,
+     22,
+     22
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "card"
+   }
+  },
+  "as": "body"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 356,
+   "height": 10,
+   "name": "Meta",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "f9"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 60,
+   "height": 22,
+   "name": "Tag chip",
+   "props": {
+    "fill": "#FFEDD5",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     4,
+     10,
+     4,
+     10
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f9"
+   }
+  },
+  "as": "chip"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "chip"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "KITCHEN",
+   "name": "Tag",
+   "props": {
+    "textStyle": "Card/Tag",
+    "fill": "#C2410C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "tag"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f9"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "4 min read",
+   "name": "Read time",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "rt"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "body"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "A leaf of basil, and why it matters",
+   "name": "Title",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Card/Title",
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 356
+  },
+  "as": "title"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "body"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Torn, never cut: what a single leaf does to a Margherita, and the cooks who still argue about it.",
+   "name": "Excerpt",
+   "props": {
+    "sizingH": "fill",
+    "textStyle": "Card/Body",
+    "fill": "#57534E",
+    "textAutoResize": "height"
+   },
+   "width": 356
+  },
+  "as": "exc"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 356,
+   "height": 1,
+   "name": "Divider",
+   "props": {
+    "fill": "#E7E5E4",
+    "sizingH": "fill"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "f10"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 356,
+   "height": 10,
+   "name": "Author",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     4,
+     0,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "f11"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 30,
+   "height": 30,
+   "name": "Avatar",
+   "props": {
+    "fill": "#1C1917",
+    "cornerRadius": 15,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center"
+   },
+   "parent": {
+    "$ref": "f11"
+   }
+  },
+  "as": "av"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "av"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "MR",
+   "name": "Initials",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 11,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "ini"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 200,
+   "height": 10,
+   "name": "Byline",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 0,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f11"
+   }
+  },
+  "as": "f12"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f12"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Marta Rossi",
+   "name": "Author",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#1C1917",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "an"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f12"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Field Notes · Food desk",
+   "name": "Desk",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "dk"
+ },
+ {
+  "command": "component.create",
+  "params": {
+   "ids": [
+    {
+     "$ref": "card"
+    }
+   ]
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Title",
+   "type": "text",
+   "layer": {
+    "$ref": "title"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Excerpt",
+   "type": "text",
+   "layer": {
+    "$ref": "exc"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Tag",
+   "type": "text",
+   "layer": {
+    "$ref": "tag"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Read time",
+   "type": "text",
+   "layer": {
+    "$ref": "rt"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Author",
+   "type": "text",
+   "layer": {
+    "$ref": "an"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Initials",
+   "type": "text",
+   "layer": {
+    "$ref": "ini"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Desk",
+   "type": "text",
+   "layer": {
+    "$ref": "dk"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "card"
+   },
+   "name": "Show excerpt",
+   "type": "boolean",
+   "layer": {
+    "$ref": "exc"
+   },
+   "default": true
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 780,
+   "height": 10,
+   "name": "Property sheet",
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 20,
+    "layout": "vertical",
+    "gap": 0,
+    "padding": [
+     28,
+     32,
+     20,
+     32
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "stroke": "#E7E5E4",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f7"
+   }
+  },
+  "as": "f13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f13"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Properties",
+   "name": "Properties",
+   "props": {
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "fontSize": 26,
+    "fill": "#1C1917",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f13"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "What an instance can change without detaching.",
+   "name": "What an instance can cha",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t15"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 14,
+   "name": "Spacer",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f16"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Title",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f17"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f17"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Title",
+   "name": "Title",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t18"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#EEF2FF",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f17"
+   }
+  },
+  "as": "f19"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f19"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text",
+   "name": "text",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#4338CA",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t20"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f17"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "A leaf of basil, and why it matters",
+   "name": "A leaf of basil, and why",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t21"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Excerpt",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f22"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f22"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Excerpt",
+   "name": "Excerpt",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t23"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#EEF2FF",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f22"
+   }
+  },
+  "as": "f24"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f24"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text",
+   "name": "text",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#4338CA",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t25"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f22"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Torn, never cut: what a single leaf…",
+   "name": "Torn, never cut: what a ",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t26"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Show excerpt",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f27"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f27"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Show excerpt",
+   "name": "Show excerpt",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t28"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#ECFCCB",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f27"
+   }
+  },
+  "as": "f29"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f29"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "boolean",
+   "name": "boolean",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#3F6212",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t30"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f27"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "true",
+   "name": "true",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t31"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Tag",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f32"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Tag",
+   "name": "Tag",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t33"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#EEF2FF",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f32"
+   }
+  },
+  "as": "f34"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f34"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text",
+   "name": "text",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#4338CA",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t35"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f32"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "KITCHEN",
+   "name": "KITCHEN",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t36"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Read time",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f37"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f37"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Read time",
+   "name": "Read time",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t38"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#EEF2FF",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f37"
+   }
+  },
+  "as": "f39"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f39"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text",
+   "name": "text",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#4338CA",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t40"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f37"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "4 min read",
+   "name": "4 min read",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t41"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Author / Initials / Desk",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f42"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f42"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Author / Initials / Desk",
+   "name": "Author / Initials / Desk",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t43"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#EEF2FF",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f42"
+   }
+  },
+  "as": "f44"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f44"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "text",
+   "name": "text",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#4338CA",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t45"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f42"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Marta Rossi / MR / Food desk",
+   "name": "Marta Rossi / MR / Food ",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t46"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Image",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f47"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f47"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Image",
+   "name": "Image",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t48"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#FFEDD5",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f47"
+   }
+  },
+  "as": "f49"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f49"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "override",
+   "name": "override",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#C2410C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t50"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f47"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "image.replace on the Image layer",
+   "name": "image.replace on the Ima",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t51"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 46,
+   "name": "Tag chip fill",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 16,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "stroke": "#F0ECE6",
+    "strokeWeight": 1
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f52"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f52"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Tag chip fill",
+   "name": "Tag chip fill",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#1C1917",
+    "textAutoResize": "height"
+   },
+   "width": 170
+  },
+  "as": "t53"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 80,
+   "height": 22,
+   "name": "type",
+   "props": {
+    "fill": "#FFEDD5",
+    "cornerRadius": 6,
+    "layout": "horizontal",
+    "padding": [
+     3,
+     8,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "f52"
+   }
+  },
+  "as": "f54"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f54"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "override",
+   "name": "override",
+   "props": {
+    "fontFamily": "JetBrains Mono",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#C2410C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t55"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f52"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "node.set fill on the nested chip",
+   "name": "node.set fill on the nes",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#78716C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t56"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "page"
+   },
+   "x": 0,
+   "y": 0,
+   "text": "Instances",
+   "name": "Instances",
+   "props": {
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "fontSize": 30,
+    "fill": "#1C1917",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t57"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1280,
+   "height": 10,
+   "name": "Grid",
+   "props": {
+    "fill": "none",
+    "layout": "grid",
+    "gridColumns": 3,
+    "gridRows": 2,
+    "columnTracks": [
+     "1fr",
+     "1fr",
+     "1fr"
+    ],
+    "rowTracks": [
+     "auto",
+     "auto"
+    ],
+    "gap": 28,
+    "crossGap": 28,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "page"
+   }
+  },
+  "as": "grid"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci0"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci0"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 0,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci0"
+    }
+   ],
+   "properties": {
+    "Title": "The 1889 Margherita, revisited",
+    "Tag": "FOOD",
+    "Read time": "6 min read",
+    "Excerpt": "Naples, a queen, and three colours on a plate: the story behind the most copied pizza on earth.",
+    "Author": "Marta Rossi",
+    "Initials": "MR"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci0"
+   },
+   "name": "Image"
+  },
+  "as": "ci0img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci0img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:pizza-napoletana.jpg}}"
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci1"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci1"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 1,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci1"
+    }
+   ],
+   "properties": {
+    "Title": "Three days on the Inca Trail",
+    "Tag": "TRAVEL",
+    "Read time": "9 min read",
+    "Excerpt": "Forty-three kilometres, four passes and one sunrise at the Sun Gate that made every step worth it.",
+    "Author": "Diego Quispe",
+    "Initials": "DQ",
+    "Desk": "Field Notes · Travel desk"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci1"
+   },
+   "name": "Image"
+  },
+  "as": "ci1img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci1img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:mp-today.jpg}}"
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci1"
+   },
+   "name": "Tag chip"
+  },
+  "as": "ci1chip"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci1chip",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#ECFCCB"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci1"
+   },
+   "name": "Tag",
+   "type": "TEXT"
+  },
+  "as": "ci1tag"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci1tag",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#3F6212"
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci2"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci2"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 2,
+    "gridRow": 0
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci2"
+    }
+   ],
+   "properties": {
+    "Title": "The mirrors we left on the Moon",
+    "Tag": "SCIENCE",
+    "Read time": "7 min read",
+    "Excerpt": "Apollo crews set out reflectors in 1969. Observatories still bounce lasers off them every clear night.",
+    "Author": "Ana Lindqvist",
+    "Initials": "AL",
+    "Desk": "Field Notes · Science desk"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci2"
+   },
+   "name": "Image"
+  },
+  "as": "ci2img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci2img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:aldrin-visor.jpg}}"
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci2"
+   },
+   "name": "Tag chip"
+  },
+  "as": "ci2chip"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci2chip",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#DBEAFE"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci2"
+   },
+   "name": "Tag",
+   "type": "TEXT"
+  },
+  "as": "ci2tag"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci2tag",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#1D4ED8"
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci3"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci3"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 0,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci3"
+    }
+   ],
+   "properties": {
+    "Title": "Why San Marzano tomatoes taste sweeter",
+    "Tag": "FOOD",
+    "Read time": "3 min read",
+    "Show excerpt": false,
+    "Author": "Marta Rossi",
+    "Initials": "MR"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci3"
+   },
+   "name": "Image"
+  },
+  "as": "ci3img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci3img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:tomato.jpg}}"
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci4"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 1,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4"
+    }
+   ],
+   "properties": {
+    "Title": "Machu Picchu from above",
+    "Tag": "PHOTO ESSAY",
+    "Read time": "12 photos",
+    "Excerpt": "A ridge of terraces between two peaks, seen the way the condors see it.",
+    "Author": "Diego Quispe",
+    "Initials": "DQ",
+    "Desk": "Field Notes · Photo desk"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Image"
+  },
+  "as": "ci4img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:mp-wide.jpg}}"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4"
+    }
+   ],
+   "props": {
+    "fill": "#1C1917"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Title",
+   "type": "TEXT"
+  },
+  "as": "ci4Title"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Title",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#FAFAF9"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Excerpt",
+   "type": "TEXT"
+  },
+  "as": "ci4Excerpt"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Excerpt",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#D6D3D1"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Author",
+   "type": "TEXT"
+  },
+  "as": "ci4Author"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Author",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#FAFAF9"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Desk",
+   "type": "TEXT"
+  },
+  "as": "ci4Desk"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Desk",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#A8A29E"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Read time",
+   "type": "TEXT"
+  },
+  "as": "ci4Read time"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Read time",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#A8A29E"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Divider"
+  },
+  "as": "ci4Divider"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4Divider",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#44403C"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci4"
+   },
+   "name": "Avatar"
+  },
+  "as": "ci4av"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci4av",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#C2410C"
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "card"
+   },
+   "parent": {
+    "$ref": "grid"
+   }
+  },
+  "as": "ci5"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci5"
+    }
+   ],
+   "props": {
+    "sizingH": "fill",
+    "gridColumn": 2,
+    "gridRow": 1
+   }
+  }
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci5"
+    }
+   ],
+   "properties": {
+    "Title": "Fior di latte or buffalo?",
+    "Tag": "TASTE TEST",
+    "Read time": "5 min read",
+    "Excerpt": "We melted both on the same dough, at the same heat, and asked twelve cooks to choose.",
+    "Author": "Luca Bianchi",
+    "Initials": "LB"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci5"
+   },
+   "name": "Image"
+  },
+  "as": "ci5img"
+ },
+ {
+  "command": "image.replace",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci5img",
+     "field": "ids/0"
+    }
+   ],
+   "path": "{{image:mozzarella.jpg}}"
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci5"
+   },
+   "name": "Tag chip"
+  },
+  "as": "ci5chip"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci5chip",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#FEF3C7"
+   }
+  }
+ },
+ {
+  "command": "node.find",
+  "params": {
+   "root": {
+    "$ref": "ci5"
+   },
+   "name": "Tag",
+   "type": "TEXT"
+  },
+  "as": "ci5tag"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ci5tag",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "fill": "#B45309"
+   }
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "page"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-cards.png"
+  }
+ }
+]

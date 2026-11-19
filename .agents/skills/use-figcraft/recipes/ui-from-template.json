@@ -1,0 +1,592 @@
+[
+ {
+  "command": "file.newFromTemplate",
+  "params": {
+   "template": "landing-page",
+   "name": "Andes landing"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Brand/Primary",
+   "value": "#FF5A36"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Brand/Soft",
+   "value": "#FFF1EC"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Brand/Accent",
+   "value": "#FFB020"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Text/Primary",
+   "value": "#0B1220"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Text/Secondary",
+   "value": "#4B5563"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Surface/Page",
+   "value": "#FFF8F4"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Surface/Sunken",
+   "value": "#FFF1EC"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Border/Default",
+   "value": "#F1E4DD"
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Display/XL",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 64,
+    "lineHeight": 70,
+    "letterSpacing": "-3%"
+   }
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Display",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 48,
+    "lineHeight": 54,
+    "letterSpacing": "-3%"
+   }
+  }
+ },
+ {
+  "command": "style.update",
+  "params": {
+   "style": "Heading/L",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 30,
+    "lineHeight": 38,
+    "letterSpacing": "-2%"
+   }
+  }
+ },
+ {
+  "command": "edit.findReplace",
+  "params": {
+   "find": "Ridgeline Studio",
+   "replace": "Andes"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    22
+   ],
+   "props": {
+    "characters": "New · Shared trip budgets"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    24
+   ],
+   "props": {
+    "characters": "Trips your whole crew will love"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    25
+   ],
+   "props": {
+    "characters": "Andes plans the route, splits the costs and keeps everyone on the same page, so the only thing left to argue about is the playlist."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    28
+   ],
+   "props": {
+    "characters": "Start planning"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    93
+   ],
+   "props": {
+    "characters": "Start planning"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    17
+   ],
+   "props": {
+    "characters": "Get started"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    30
+   ],
+   "props": {
+    "characters": "Watch the tour"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    31
+   ],
+   "props": {
+    "characters": "Free for groups of up to ten travellers"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    39
+   ],
+   "props": {
+    "characters": "Everything the trip needs"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    40
+   ],
+   "props": {
+    "characters": "Three things group travellers told us they were tired of doing by hand."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    47
+   ],
+   "props": {
+    "characters": "Itineraries everyone can edit"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    48
+   ],
+   "props": {
+    "characters": "Build the route once and let the whole group adjust it. Every change is kept, so nothing is lost."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    54
+   ],
+   "props": {
+    "characters": "Ready without signal"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    55
+   ],
+   "props": {
+    "characters": "Tickets, maps and bookings are saved to each phone before you leave the hostel."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    61
+   ],
+   "props": {
+    "characters": "Costs split as you go"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    62
+   ],
+   "props": {
+    "characters": "Log a bill in a second; Andes keeps the balance so nobody chases anybody at the airport."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    66
+   ],
+   "props": {
+    "characters": "40,000"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    67
+   ],
+   "props": {
+    "characters": "Travellers planning together"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    69
+   ],
+   "props": {
+    "characters": "120k"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    70
+   ],
+   "props": {
+    "characters": "Trips booked"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    72
+   ],
+   "props": {
+    "characters": "98%"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    73
+   ],
+   "props": {
+    "characters": "Budgets kept"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    75
+   ],
+   "props": {
+    "characters": "64"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    76
+   ],
+   "props": {
+    "characters": "Countries"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    79
+   ],
+   "props": {
+    "characters": "“We used to plan in three group chats and a spreadsheet. Now the trip is simply there, and everyone is on it.”"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    82
+   ],
+   "props": {
+    "characters": "AR"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    84
+   ],
+   "props": {
+    "characters": "Ana Rojas"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    85
+   ],
+   "props": {
+    "characters": "Organiser, Lima Weekenders"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    90
+   ],
+   "props": {
+    "characters": "Take the next trip off the group chat"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    91
+   ],
+   "props": {
+    "characters": "Set up your group in a couple of minutes. No card needed."
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    100
+   ],
+   "props": {
+    "characters": "© 2026 Andes Travel, an invented company"
+   }
+  }
+ },
+ {
+  "command": "edit.delete",
+  "params": {
+   "ids": [
+    33,
+    34,
+    35
+   ]
+  }
+ },
+ {
+  "command": "image.place",
+  "params": {
+   "path": "{{image:mp-today.jpg}}",
+   "target": 32,
+   "mode": "fill"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    32
+   ],
+   "props": {
+    "cornerRadius": 28,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0B12201F",
+      "offset": [
+       0,
+       24
+      ],
+      "radius": 48
+     }
+    ]
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Card/Next stop",
+   "width": 10,
+   "height": 10,
+   "x": 24,
+   "y": 24,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "padding": [
+     10,
+     16,
+     10,
+     12
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0B122026",
+      "offset": [
+       0,
+       8
+      ],
+      "radius": 24
+     }
+    ],
+    "clip": false
+   },
+   "parent": 32
+  },
+  "as": "chip"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "chip"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 10,
+   "name": "Live dot",
+   "props": {
+    "fill": "#22C55E"
+   }
+  },
+  "as": "e1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "chip"
+   },
+   "text": "Day 3 · Sacred Valley",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0B1220",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t2"
+ },
+ {
+  "command": "edit.delete",
+  "params": {
+   "ids": [
+    101
+   ]
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    2
+   ],
+   "format": "png",
+   "scale": 0.75,
+   "path": "{{out}}/recipe-template.png"
+  }
+ }
+]

@@ -1,0 +1,6745 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Dashboard — Overview",
+   "width": 1440,
+   "height": 960,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F6F7FB",
+    "clip": true,
+    "layout": "horizontal"
+   }
+  },
+  "as": "root"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Sidebar",
+   "width": 248,
+   "height": 960,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#0F172A",
+    "sizingV": "fill",
+    "layout": "vertical",
+    "gap": 4,
+    "padding": [
+     24,
+     16,
+     20,
+     16
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "root"
+   }
+  },
+  "as": "side"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Brand",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     8,
+     20,
+     8
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "brand"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Mark",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#4F46E5",
+    "cornerRadius": 9,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "brand"
+   }
+  },
+  "as": "mk"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/logo",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "mk"
+   }
+  },
+  "as": "f1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f1"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+   "name": "logo",
+   "props": {
+    "fill": "#FFFFFF"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f1"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "brand"
+   },
+   "text": "Ledger",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 20,
+    "fill": "#FFFFFF",
+    "letterSpacing": -0.4,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t2"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Label/MAIN",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     14,
+     12,
+     6,
+     12
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f3"
+   },
+   "text": "MAIN",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#64748B",
+    "letterSpacing": 1.2,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t4"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Overview",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#1E293B",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f5"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/home",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f5"
+   }
+  },
+  "as": "f6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f6"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
+   "name": "home",
+   "props": {
+    "fill": "none",
+    "stroke": "#A5B4FC",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f6"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f5"
+   },
+   "text": "Overview",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#FFFFFF",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t7"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Transactions",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f8"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/receipt",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f9"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f9"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM8 8h8M8 12h8M8 16h5",
+   "name": "receipt",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f9"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f8"
+   },
+   "text": "Transactions",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t10"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Badge",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#4F46E5",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     8,
+     2,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f8"
+   }
+  },
+  "as": "f11"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f11"
+   },
+   "text": "12",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t12"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Invoices",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f13"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/inbox",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f13"
+   }
+  },
+  "as": "f14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f14"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
+   "name": "inbox",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f14"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f13"
+   },
+   "text": "Invoices",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t15"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Cards",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f16"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/card",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f16"
+   }
+  },
+  "as": "f17"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f17"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M2 5h20a0 0 0 0 1 0 0v14a0 0 0 0 1 0 0H2a0 0 0 0 1 0 0V5zM2 10h20",
+   "name": "card",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f17"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f16"
+   },
+   "text": "Cards",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t18"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Reports",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f19"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/chart",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f19"
+   }
+  },
+  "as": "f20"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f20"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M3 3v18h18M7 16v-5M12 16V8M17 16v-8",
+   "name": "chart",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f20"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f19"
+   },
+   "text": "Reports",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t21"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Label/WORKSPACE",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     14,
+     12,
+     6,
+     12
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f22"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f22"
+   },
+   "text": "WORKSPACE",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#64748B",
+    "letterSpacing": 1.2,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t23"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Team",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f24"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/users",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f24"
+   }
+  },
+  "as": "f25"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f25"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+   "name": "users",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f25"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f24"
+   },
+   "text": "Team",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t26"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Nav/Settings",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     10,
+     12,
+     10,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f27"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/settings",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f27"
+   }
+  },
+  "as": "f28"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f28"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
+   "name": "settings",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f28"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f27"
+   },
+   "text": "Settings",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#CBD5E1",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t29"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Grow",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "f30"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Upgrade",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "cornerRadius": 14,
+    "layout": "vertical",
+    "gap": 6,
+    "padding": 16,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#6366F1",
+       "#4338CA"
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1,
+       1
+      ]
+     }
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "up"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/bolt",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "up"
+   }
+  },
+  "as": "f31"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f31"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M13 2 3 14h9l-1 8 10-12h-9l1-8z",
+   "name": "bolt",
+   "props": {
+    "fill": "#FFFFFF"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f31"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "up"
+   },
+   "text": "Ledger Pro",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 15,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t32"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "up"
+   },
+   "text": "Unlimited cards, custom roles and audit logs.",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#E0E7FF",
+    "lineHeight": "150%",
+    "sizingH": "fill",
+    "textAutoResize": "height"
+   }
+  },
+  "as": "t33"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Button",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "padding": [
+     6,
+     12,
+     6,
+     12
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "up"
+   }
+  },
+  "as": "f34"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f34"
+   },
+   "text": "Upgrade",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t35"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "User",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     16,
+     8,
+     0,
+     8
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "side"
+   }
+  },
+  "as": "usr"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Avatar",
+   "width": 36,
+   "height": 36,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FDE68A",
+    "cornerRadius": 18,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "usr"
+   }
+  },
+  "as": "f36"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f36"
+   },
+   "text": "PS",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#78350F",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t37"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Who",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 1,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "usr"
+   }
+  },
+  "as": "f38"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f38"
+   },
+   "text": "Priya Shah",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t39"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f38"
+   },
+   "text": "Finance lead",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t40"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Main",
+   "width": 1192,
+   "height": 960,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "layout": "vertical",
+    "gap": 24,
+    "padding": [
+     28,
+     32,
+     32,
+     32
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "root"
+   }
+  },
+  "as": "main"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Top bar",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "main"
+   }
+  },
+  "as": "top"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Title",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 2,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "top"
+   }
+  },
+  "as": "f41"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f41"
+   },
+   "text": "Good afternoon, Priya",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t42"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f41"
+   },
+   "text": "Overview",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "fill": "#0F172A",
+    "letterSpacing": -0.6,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t43"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Actions",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "top"
+   }
+  },
+  "as": "f44"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Search",
+   "width": 260,
+   "height": 40,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 10,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f44"
+   }
+  },
+  "as": "f45"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/search",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f45"
+   }
+  },
+  "as": "f46"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f46"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14zM20 20l-4-4",
+   "name": "search",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f46"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f45"
+   },
+   "text": "Search transactions",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#94A3B8",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t47"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Kbd",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 5,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     6,
+     2,
+     6
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f45"
+   }
+  },
+  "as": "f48"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f48"
+   },
+   "text": "⌘K",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t49"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Date range",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 10,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "padding": [
+     0,
+     12,
+     0,
+     12
+    ],
+    "sizingH": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f44"
+   }
+  },
+  "as": "f50"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f50"
+    }
+   ],
+   "props": {
+    "height": 40
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/calendar",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f50"
+   }
+  },
+  "as": "f51"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f51"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M8 2v4M16 2v4M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM3 10h18",
+   "name": "calendar",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f51"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f50"
+   },
+   "text": "Jan 1 – Mar 31, 2026",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#334155",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t52"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/chevdown",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f50"
+   }
+  },
+  "as": "f53"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f53"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M6 9l6 6 6-6",
+   "name": "chevdown",
+   "props": {
+    "fill": "none",
+    "stroke": "#94A3B8",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f53"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Bell",
+   "width": 40,
+   "height": 40,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 10,
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f44"
+   }
+  },
+  "as": "f54"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/bell",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f54"
+   }
+  },
+  "as": "f55"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f55"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0",
+   "name": "bell",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f55"
+    }
+   ],
+   "factor": 0.75
+  }
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f54"
+   },
+   "x": 23,
+   "y": 9,
+   "width": 8,
+   "height": 8,
+   "name": "Dot",
+   "props": {
+    "fill": "#EF4444",
+    "stroke": "#FFFFFF",
+    "strokeWeight": 2,
+    "absolute": true
+   }
+  },
+  "as": "e56"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Button/Primary",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#4F46E5",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "padding": [
+     0,
+     16,
+     0,
+     14
+    ],
+    "sizingH": "hug",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#4F46E540",
+      "offset": [
+       0,
+       4
+      ],
+      "radius": 10
+     }
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f44"
+   }
+  },
+  "as": "f57"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f57"
+    }
+   ],
+   "props": {
+    "height": 40
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/plus",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f57"
+   }
+  },
+  "as": "f58"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f58"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M12 5v14M5 12h14",
+   "name": "plus",
+   "props": {
+    "fill": "none",
+    "stroke": "#FFFFFF",
+    "strokeWeight": 2.4,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f58"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f57"
+   },
+   "text": "New invoice",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t59"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "KPIs",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "main"
+   }
+  },
+  "as": "kpis"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "KPI/Total balance",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 10,
+    "padding": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "kpis"
+   }
+  },
+  "as": "f60"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Head",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f60"
+   }
+  },
+  "as": "f61"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f61"
+   },
+   "text": "Total balance",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t62"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon tile",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 9,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f61"
+   }
+  },
+  "as": "f63"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/card",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f63"
+   }
+  },
+  "as": "f64"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f64"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M2 5h20a0 0 0 0 1 0 0v14a0 0 0 0 1 0 0H2a0 0 0 0 1 0 0V5zM2 10h20",
+   "name": "card",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f64"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f60"
+   },
+   "text": "$284,190",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "fill": "#0F172A",
+    "letterSpacing": -0.8,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t65"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Foot",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f60"
+   }
+  },
+  "as": "f66"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Delta",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f66"
+   }
+  },
+  "as": "f67"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DCFCE7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     8,
+     2,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f67"
+   }
+  },
+  "as": "f68"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f68"
+   },
+   "text": "+12.4%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t69"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f67"
+   },
+   "text": "vs last qtr",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t70"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Sparkline",
+   "width": 72,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f66"
+   }
+  },
+  "as": "f71"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f71"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M0 22 L10 18 L20 20 L30 12 L40 14 L50 8 L60 9 L72 2",
+   "name": "line",
+   "props": {
+    "fill": "none",
+    "stroke": "#22C55E",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "KPI/Revenue",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 10,
+    "padding": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "kpis"
+   }
+  },
+  "as": "f72"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Head",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f72"
+   }
+  },
+  "as": "f73"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f73"
+   },
+   "text": "Revenue",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t74"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon tile",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 9,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f73"
+   }
+  },
+  "as": "f75"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/trend",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f75"
+   }
+  },
+  "as": "f76"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f76"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M22 7l-8.5 8.5-5-5L2 17M16 7h6v6",
+   "name": "trend",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f76"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f72"
+   },
+   "text": "$184,210",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "fill": "#0F172A",
+    "letterSpacing": -0.8,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t77"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Foot",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f72"
+   }
+  },
+  "as": "f78"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Delta",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f78"
+   }
+  },
+  "as": "f79"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DCFCE7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     8,
+     2,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f79"
+   }
+  },
+  "as": "f80"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f80"
+   },
+   "text": "+8.1%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t81"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f79"
+   },
+   "text": "vs last qtr",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t82"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Sparkline",
+   "width": 72,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f78"
+   }
+  },
+  "as": "f83"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f83"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M0 20 L12 16 L24 18 L36 10 L48 12 L60 6 L72 4",
+   "name": "line",
+   "props": {
+    "fill": "none",
+    "stroke": "#22C55E",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "KPI/Expenses",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 10,
+    "padding": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "kpis"
+   }
+  },
+  "as": "f84"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Head",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f84"
+   }
+  },
+  "as": "f85"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f85"
+   },
+   "text": "Expenses",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t86"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon tile",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 9,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f85"
+   }
+  },
+  "as": "f87"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/receipt",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f87"
+   }
+  },
+  "as": "f88"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f88"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M4 2v20l3-2 3 2 3-2 3 2 3-2 3 2V2l-3 2-3-2-3 2-3-2-3 2zM8 8h8M8 12h8M8 16h5",
+   "name": "receipt",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f88"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f84"
+   },
+   "text": "$48,230",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "fill": "#0F172A",
+    "letterSpacing": -0.8,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t89"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Foot",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f84"
+   }
+  },
+  "as": "f90"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Delta",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f90"
+   }
+  },
+  "as": "f91"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FEE2E2",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     8,
+     2,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f91"
+   }
+  },
+  "as": "f92"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f92"
+   },
+   "text": "+3.2%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#B91C1C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t93"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f91"
+   },
+   "text": "vs last qtr",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t94"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Sparkline",
+   "width": 72,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f90"
+   }
+  },
+  "as": "f95"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f95"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M0 14 L12 12 L24 16 L36 10 L48 8 L60 12 L72 6",
+   "name": "line",
+   "props": {
+    "fill": "none",
+    "stroke": "#EF4444",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "KPI/Open invoices",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 10,
+    "padding": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "kpis"
+   }
+  },
+  "as": "f96"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Head",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f96"
+   }
+  },
+  "as": "f97"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f97"
+   },
+   "text": "Open invoices",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t98"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon tile",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 9,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f97"
+   }
+  },
+  "as": "f99"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Icon/inbox",
+   "width": 24,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f99"
+   }
+  },
+  "as": "f100"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f100"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
+   "name": "inbox",
+   "props": {
+    "fill": "none",
+    "stroke": "#334155",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "transform.scale",
+  "params": {
+   "ids": [
+    {
+     "$ref": "f100"
+    }
+   ],
+   "factor": 0.6666666666666666
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f96"
+   },
+   "text": "23",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 28,
+    "fill": "#0F172A",
+    "letterSpacing": -0.8,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t101"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Foot",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f96"
+   }
+  },
+  "as": "f102"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Delta",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f102"
+   }
+  },
+  "as": "f103"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DCFCE7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "padding": [
+     2,
+     8,
+     2,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f103"
+   }
+  },
+  "as": "f104"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f104"
+   },
+   "text": "−4",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t105"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f103"
+   },
+   "text": "vs last qtr",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t106"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Sparkline",
+   "width": 72,
+   "height": 24,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f102"
+   }
+  },
+  "as": "f107"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "f107"
+   },
+   "x": 0,
+   "y": 0,
+   "path": "M0 6 L12 8 L24 7 L36 12 L48 14 L60 13 L72 18",
+   "name": "line",
+   "props": {
+    "fill": "none",
+    "stroke": "#22C55E",
+    "strokeWeight": 2,
+    "strokeJoin": "round",
+    "strokeCap": "round"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Charts",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "main"
+   }
+  },
+  "as": "charts"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Revenue",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 16,
+    "padding": 20,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "charts"
+   }
+  },
+  "as": "f108"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Header",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "min",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f108"
+   }
+  },
+  "as": "f109"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Title",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 4,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f109"
+   }
+  },
+  "as": "f110"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f110"
+   },
+   "text": "Revenue",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t111"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Figure",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "baseline",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f110"
+   }
+  },
+  "as": "f112"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f112"
+   },
+   "text": "$184,210",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 24,
+    "fill": "#0F172A",
+    "letterSpacing": -0.6,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t113"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f112"
+   },
+   "text": "+8.1% on last year",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t114"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Segmented",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 10,
+    "layout": "horizontal",
+    "gap": 2,
+    "padding": 3,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f109"
+   }
+  },
+  "as": "f115"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Seg/12M",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 7,
+    "layout": "horizontal",
+    "padding": [
+     5,
+     12,
+     5,
+     12
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f115"
+   }
+  },
+  "as": "f116"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f116"
+   },
+   "text": "12M",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t117"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Seg/30D",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 7,
+    "layout": "horizontal",
+    "padding": [
+     5,
+     12,
+     5,
+     12
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "effects": [],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f115"
+   }
+  },
+  "as": "f118"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f118"
+   },
+   "text": "30D",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t119"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Seg/7D",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "cornerRadius": 7,
+    "layout": "horizontal",
+    "padding": [
+     5,
+     12,
+     5,
+     12
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "effects": [],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f115"
+   }
+  },
+  "as": "f120"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f120"
+   },
+   "text": "7D",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#64748B",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t121"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Plot",
+   "width": 708,
+   "height": 214,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "sizingH": "fill",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f108"
+   }
+  },
+  "as": "f122"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "text": "$0",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "x": 0,
+    "y": 181.0,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t123"
+ },
+ {
+  "command": "shape.line",
+  "params": {
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 40,
+   "y": 188.0,
+   "width": 668,
+   "name": "Grid 0",
+   "props": {
+    "stroke": "#E2E8F0",
+    "strokeWeight": 1,
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    }
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "text": "$10k",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "x": 0,
+    "y": 136.0,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t124"
+ },
+ {
+  "command": "shape.line",
+  "params": {
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 40,
+   "y": 143.0,
+   "width": 668,
+   "name": "Grid 10",
+   "props": {
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1,
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    },
+    "dashes": [
+     4,
+     4
+    ]
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "text": "$20k",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "x": 0,
+    "y": 91.0,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t125"
+ },
+ {
+  "command": "shape.line",
+  "params": {
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 40,
+   "y": 98.0,
+   "width": 668,
+   "name": "Grid 20",
+   "props": {
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1,
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    },
+    "dashes": [
+     4,
+     4
+    ]
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "text": "$30k",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "x": 0,
+    "y": 46.0,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t126"
+ },
+ {
+  "command": "shape.line",
+  "params": {
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 40,
+   "y": 53.0,
+   "width": 668,
+   "name": "Grid 30",
+   "props": {
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1,
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    },
+    "dashes": [
+     4,
+     4
+    ]
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f122"
+   },
+   "text": "$40k",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "x": 0,
+    "y": 1.0,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t127"
+ },
+ {
+  "command": "shape.line",
+  "params": {
+   "parent": {
+    "$ref": "f122"
+   },
+   "x": 40,
+   "y": 8.0,
+   "width": 668,
+   "name": "Grid 40",
+   "props": {
+    "stroke": "#F1F5F9",
+    "strokeWeight": 1,
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    },
+    "dashes": [
+     4,
+     4
+    ]
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Bars",
+   "width": 664,
+   "height": 214,
+   "x": 44,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "max",
+    "padding": [
+     0,
+     8,
+     0,
+     8
+    ],
+    "constraints": {
+     "horizontal": "leftRight",
+     "vertical": "top"
+    },
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f122"
+   }
+  },
+  "as": "f128"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Apr",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f129"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f129"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 81,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r130"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f129"
+   },
+   "text": "Apr",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t131"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/May",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f132"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f132"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 99,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r133"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f132"
+   },
+   "text": "May",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t134"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Jun",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f135"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f135"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 86,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r136"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f135"
+   },
+   "text": "Jun",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t137"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Jul",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f138"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f138"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 117,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r139"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f138"
+   },
+   "text": "Jul",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t140"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Aug",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f141"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f141"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 108,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r142"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f141"
+   },
+   "text": "Aug",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t143"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Sep",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f144"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f144"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 135,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r145"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f144"
+   },
+   "text": "Sep",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t146"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Oct",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f147"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f147"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 126,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r148"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f147"
+   },
+   "text": "Oct",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t149"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Nov",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f150"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f150"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 148,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r151"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f150"
+   },
+   "text": "Nov",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t152"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Dec",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f153"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f153"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 140,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r154"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f153"
+   },
+   "text": "Dec",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t155"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Jan",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f156"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f156"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 162,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r157"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f156"
+   },
+   "text": "Jan",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t158"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Feb",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f159"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f159"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 153,
+   "name": "Bar",
+   "props": {
+    "fill": "#E0E7FF",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r160"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f159"
+   },
+   "text": "Feb",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t161"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Col/Mar",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f162"
+ },
+ {
+  "command": "shape.rectangle",
+  "params": {
+   "parent": {
+    "$ref": "f162"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 28,
+   "height": 176,
+   "name": "Bar",
+   "props": {
+    "fill": "#4F46E5",
+    "cornerRadius": [
+     6,
+     6,
+     2,
+     2
+    ]
+   }
+  },
+  "as": "r163"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f162"
+   },
+   "text": "Mar",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t164"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Tooltip",
+   "width": 10,
+   "height": 10,
+   "x": 600,
+   "y": -28.400000000000006,
+   "props": {
+    "absolute": true,
+    "fill": "#0F172A",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "padding": [
+     6,
+     10,
+     6,
+     10
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f128"
+   }
+  },
+  "as": "f165"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f165"
+   },
+   "text": "$39.2k",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#FFFFFF",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t166"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Spend by category",
+   "width": 360,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 20,
+    "padding": 20,
+    "sizingV": "fill",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "charts"
+   }
+  },
+  "as": "f167"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Header",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f167"
+   }
+  },
+  "as": "f168"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f168"
+   },
+   "text": "Spend by category",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t169"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f168"
+   },
+   "text": "This quarter",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t170"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Body",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 20,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f167"
+   }
+  },
+  "as": "f171"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Donut",
+   "width": 140,
+   "height": 140,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f171"
+   }
+  },
+  "as": "f172"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f172"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 140,
+   "height": 140,
+   "name": "Arc/Travel",
+   "props": {
+    "fill": "#4F46E5",
+    "arcStart": -90,
+    "arcSweep": 148.7,
+    "arcInner": 0.74
+   }
+  },
+  "as": "e173"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f172"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 140,
+   "height": 140,
+   "name": "Arc/Software",
+   "props": {
+    "fill": "#06B6D4",
+    "arcStart": 61.19999999999999,
+    "arcSweep": 91.10000000000001,
+    "arcInner": 0.74
+   }
+  },
+  "as": "e174"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f172"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 140,
+   "height": 140,
+   "name": "Arc/Office",
+   "props": {
+    "fill": "#F59E0B",
+    "arcStart": 154.8,
+    "arcSweep": 62.3,
+    "arcInner": 0.74
+   }
+  },
+  "as": "e175"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f172"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 140,
+   "height": 140,
+   "name": "Arc/Other",
+   "props": {
+    "fill": "#CBD5E1",
+    "arcStart": 219.60000000000002,
+    "arcSweep": 47.900000000000006,
+    "arcInner": 0.74
+   }
+  },
+  "as": "e176"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Center",
+   "width": 140,
+   "height": 140,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "gap": 0,
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f172"
+   }
+  },
+  "as": "f177"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f177"
+   },
+   "text": "$48.2k",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 20,
+    "fill": "#0F172A",
+    "letterSpacing": -0.4,
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t178"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f177"
+   },
+   "text": "total spend",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t179"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Legend",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 12,
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f171"
+   }
+  },
+  "as": "f180"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Item/Travel",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f180"
+   }
+  },
+  "as": "f181"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f181"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 8,
+   "height": 8,
+   "name": "Dot",
+   "props": {
+    "fill": "#4F46E5"
+   }
+  },
+  "as": "e182"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f181"
+   },
+   "text": "Travel",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t183"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f181"
+   },
+   "text": "42%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t184"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Item/Software",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f180"
+   }
+  },
+  "as": "f185"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f185"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 8,
+   "height": 8,
+   "name": "Dot",
+   "props": {
+    "fill": "#06B6D4"
+   }
+  },
+  "as": "e186"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f185"
+   },
+   "text": "Software",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t187"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f185"
+   },
+   "text": "26%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t188"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Item/Office",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f180"
+   }
+  },
+  "as": "f189"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f189"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 8,
+   "height": 8,
+   "name": "Dot",
+   "props": {
+    "fill": "#F59E0B"
+   }
+  },
+  "as": "e190"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f189"
+   },
+   "text": "Office",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t191"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f189"
+   },
+   "text": "18%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t192"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Item/Other",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f180"
+   }
+  },
+  "as": "f193"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f193"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 8,
+   "height": 8,
+   "name": "Dot",
+   "props": {
+    "fill": "#CBD5E1"
+   }
+  },
+  "as": "e194"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f193"
+   },
+   "text": "Other",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "sizingH": "fill",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t195"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f193"
+   },
+   "text": "14%",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t196"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Recent transactions",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FFFFFF",
+    "cornerRadius": 16,
+    "stroke": "#EEF1F6",
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#0F172A0A",
+      "offset": [
+       0,
+       1
+      ],
+      "radius": 3
+     }
+    ],
+    "layout": "vertical",
+    "gap": 4,
+    "padding": [
+     18,
+     20,
+     8,
+     20
+    ],
+    "sizingH": "fill",
+    "sizingV": "fill",
+    "clip": true
+   },
+   "parent": {
+    "$ref": "main"
+   }
+  },
+  "as": "f197"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Header",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     0,
+     0,
+     10,
+     0
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f198"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f198"
+   },
+   "text": "Recent transactions",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t199"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f198"
+   },
+   "text": "View all",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "fill": "#4F46E5",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t200"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Columns",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F8FAFC",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     8,
+     12,
+     8,
+     12
+    ],
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f201"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "text": "MERCHANT",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "letterSpacing": 0.8,
+    "sizingH": "fill",
+    "textAutoResize": "height"
+   }
+  },
+  "as": "t202"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "text": "DATE",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "letterSpacing": 0.8,
+    "textAlign": "left",
+    "textAutoResize": "height"
+   },
+   "width": 150
+  },
+  "as": "t203"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "text": "CARD",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "letterSpacing": 0.8,
+    "textAlign": "left",
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t204"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "text": "STATUS",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "letterSpacing": 0.8,
+    "textAlign": "left",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t205"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f201"
+   },
+   "text": "AMOUNT",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 11,
+    "fill": "#94A3B8",
+    "letterSpacing": 0.8,
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t206"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Row/Delta Air Lines",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     9,
+     12,
+     9,
+     12
+    ],
+    "stroke": "#F1F5F9",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f207"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Merchant",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f207"
+   }
+  },
+  "as": "f208"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Logo",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DBEAFE",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f208"
+   }
+  },
+  "as": "f209"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f209"
+   },
+   "text": "D",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 13,
+    "fill": "#1D4ED8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t210"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Name",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 0,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f208"
+   }
+  },
+  "as": "f211"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f211"
+   },
+   "text": "Delta Air Lines",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t212"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f211"
+   },
+   "text": "Travel",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t213"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f207"
+   },
+   "text": "Mar 28, 2026",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 150
+  },
+  "as": "t214"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f207"
+   },
+   "text": "•••• 4242",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t215"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Status",
+   "width": 130,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f207"
+   }
+  },
+  "as": "f216"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DCFCE7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "padding": [
+     3,
+     10,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f216"
+   }
+  },
+  "as": "f217"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f217"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 6,
+   "height": 6,
+   "name": "Dot",
+   "props": {
+    "fill": "#15803D"
+   }
+  },
+  "as": "e218"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f217"
+   },
+   "text": "Completed",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t219"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f207"
+   },
+   "text": "−$1,284.00",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t220"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Row/Figma",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     9,
+     12,
+     9,
+     12
+    ],
+    "stroke": "#F1F5F9",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f221"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Merchant",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f221"
+   }
+  },
+  "as": "f222"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Logo",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#EDE9FE",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f222"
+   }
+  },
+  "as": "f223"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f223"
+   },
+   "text": "F",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 13,
+    "fill": "#6D28D9",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t224"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Name",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 0,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f222"
+   }
+  },
+  "as": "f225"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f225"
+   },
+   "text": "Figma",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t226"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f225"
+   },
+   "text": "Software",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t227"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f221"
+   },
+   "text": "Mar 27, 2026",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 150
+  },
+  "as": "t228"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f221"
+   },
+   "text": "•••• 8810",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t229"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Status",
+   "width": 130,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f221"
+   }
+  },
+  "as": "f230"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FEF3C7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "padding": [
+     3,
+     10,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f230"
+   }
+  },
+  "as": "f231"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f231"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 6,
+   "height": 6,
+   "name": "Dot",
+   "props": {
+    "fill": "#B45309"
+   }
+  },
+  "as": "e232"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f231"
+   },
+   "text": "Pending",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#B45309",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t233"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f221"
+   },
+   "text": "−$45.00",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t234"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Row/WeWork",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     9,
+     12,
+     9,
+     12
+    ],
+    "stroke": "#F1F5F9",
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f235"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Merchant",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f235"
+   }
+  },
+  "as": "f236"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Logo",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FEF3C7",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f236"
+   }
+  },
+  "as": "f237"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f237"
+   },
+   "text": "W",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 13,
+    "fill": "#B45309",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t238"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Name",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 0,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f236"
+   }
+  },
+  "as": "f239"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f239"
+   },
+   "text": "WeWork",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t240"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f239"
+   },
+   "text": "Office",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t241"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "text": "Mar 25, 2026",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 150
+  },
+  "as": "t242"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "text": "•••• 4242",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t243"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Status",
+   "width": 130,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f235"
+   }
+  },
+  "as": "f244"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#DCFCE7",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "padding": [
+     3,
+     10,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f244"
+   }
+  },
+  "as": "f245"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f245"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 6,
+   "height": 6,
+   "name": "Dot",
+   "props": {
+    "fill": "#15803D"
+   }
+  },
+  "as": "e246"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f245"
+   },
+   "text": "Completed",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#15803D",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t247"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f235"
+   },
+   "text": "−$2,400.00",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t248"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Row/Notion",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "padding": [
+     9,
+     12,
+     9,
+     12
+    ],
+    "stroke": null,
+    "strokeSides": [
+     0,
+     0,
+     1,
+     0
+    ],
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f197"
+   }
+  },
+  "as": "f249"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Merchant",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f249"
+   }
+  },
+  "as": "f250"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Logo",
+   "width": 32,
+   "height": 32,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#F1F5F9",
+    "cornerRadius": 8,
+    "layout": "horizontal",
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f250"
+   }
+  },
+  "as": "f251"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f251"
+   },
+   "text": "N",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Bold",
+    "fontSize": 13,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t252"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Name",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "vertical",
+    "gap": 0,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f250"
+   }
+  },
+  "as": "f253"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f253"
+   },
+   "text": "Notion",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t254"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f253"
+   },
+   "text": "Software",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 12,
+    "fill": "#94A3B8",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t255"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f249"
+   },
+   "text": "Mar 24, 2026",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 150
+  },
+  "as": "t256"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f249"
+   },
+   "text": "•••• 1937",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 13,
+    "fill": "#334155",
+    "textAutoResize": "height"
+   },
+   "width": 140
+  },
+  "as": "t257"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Status",
+   "width": 130,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "layout": "horizontal",
+    "sizingV": "hug",
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f249"
+   }
+  },
+  "as": "f258"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "Pill",
+   "width": 10,
+   "height": 10,
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fill": "#FEE2E2",
+    "cornerRadius": 999,
+    "layout": "horizontal",
+    "gap": 6,
+    "crossAlign": "center",
+    "padding": [
+     3,
+     10,
+     3,
+     8
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "f258"
+   }
+  },
+  "as": "f259"
+ },
+ {
+  "command": "shape.ellipse",
+  "params": {
+   "parent": {
+    "$ref": "f259"
+   },
+   "x": 0,
+   "y": 0,
+   "width": 6,
+   "height": 6,
+   "name": "Dot",
+   "props": {
+    "fill": "#B91C1C"
+   }
+  },
+  "as": "e260"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f259"
+   },
+   "text": "Failed",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "fill": "#B91C1C",
+    "textAutoResize": "widthAndHeight"
+   }
+  },
+  "as": "t261"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "f249"
+   },
+   "text": "−$96.00",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fill": "#0F172A",
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "width": 130
+  },
+  "as": "t262"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "root"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-dashboard.png"
+  }
+ }
+]

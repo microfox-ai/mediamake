@@ -1,0 +1,2299 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:PlusJakartaSans-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.fonts",
+  "params": {
+   "family": "Plus Jakarta Sans"
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Theme",
+   "modes": [
+    "Light",
+    "Dark"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "stage",
+   "type": "color",
+   "values": {
+    "Light": "#E9ECEA",
+    "Dark": "#06090A"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "bg",
+   "type": "color",
+   "values": {
+    "Light": "#F7F8F5",
+    "Dark": "#0E1311"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "surface",
+   "type": "color",
+   "values": {
+    "Light": "#FFFFFF",
+    "Dark": "#18201D"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "field-border",
+   "type": "color",
+   "values": {
+    "Light": "#D9DFDB",
+    "Dark": "#2C3632"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "divider",
+   "type": "color",
+   "values": {
+    "Light": "#E3E7E4",
+    "Dark": "#25302B"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "text",
+   "type": "color",
+   "values": {
+    "Light": "#111714",
+    "Dark": "#E6E9E7"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "text-muted",
+   "type": "color",
+   "values": {
+    "Light": "#5F6B66",
+    "Dark": "#98A39E"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "brand",
+   "type": "color",
+   "values": {
+    "Light": "#B4471F",
+    "Dark": "#F0915F"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "on-brand",
+   "type": "color",
+   "values": {
+    "Light": "#FFFFFF",
+    "Dark": "#2A1206"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "brand-soft",
+   "type": "color",
+   "values": {
+    "Light": "#F6E7DE",
+    "Dark": "#2E1E16"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "brand-ink",
+   "type": "color",
+   "values": {
+    "Light": "#8A3A1C",
+    "Dark": "#F5BFA2"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "apple-bg",
+   "type": "color",
+   "values": {
+    "Light": "#000000",
+    "Dark": "#FFFFFF"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "apple-ink",
+   "type": "color",
+   "values": {
+    "Light": "#FFFFFF",
+    "Dark": "#000000"
+   }
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Theme",
+   "name": "mode-label",
+   "type": "string",
+   "values": {
+    "Light": "Light",
+    "Dark": "Dark"
+   }
+  }
+ },
+ {
+  "command": "variable.createCollection",
+  "params": {
+   "name": "Size",
+   "modes": [
+    "Default"
+   ]
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Size",
+   "name": "radius/control",
+   "type": "number",
+   "value": 12
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Size",
+   "name": "size/control",
+   "type": "number",
+   "value": 48
+  }
+ },
+ {
+  "command": "variable.create",
+  "params": {
+   "collection": "Size",
+   "name": "space/screen",
+   "type": "number",
+   "value": 24
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Display/H1",
+   "value": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 32,
+    "lineHeight": "120%",
+    "letterSpacing": "-2%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Body/md",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 15,
+    "lineHeight": "145%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Body/sm",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "lineHeight": "140%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Label/sm",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "lineHeight": "140%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "text",
+   "name": "Button/md",
+   "value": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 16,
+    "lineHeight": "120%"
+   }
+  }
+ },
+ {
+  "command": "style.create",
+  "params": {
+   "type": "effect",
+   "name": "Elevation/device",
+   "value": [
+    {
+     "type": "dropShadow",
+     "color": "#0B100E14",
+     "offset": [
+      0,
+      2
+     ],
+     "radius": 4
+    },
+    {
+     "type": "dropShadow",
+     "color": "#0B100E29",
+     "offset": [
+      0,
+      24
+     ],
+     "radius": 56,
+     "spread": -8
+    }
+   ]
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 1320,
+   "y": 0,
+   "width": 440,
+   "height": 10,
+   "name": "Components",
+   "props": {
+    "fill": {
+     "$var": "bg"
+    },
+    "clip": false,
+    "layout": "vertical",
+    "gap": 40,
+    "padding": 40,
+    "sizingV": "hug"
+   }
+  },
+  "as": "comps"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Components",
+   "name": "Title",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 24,
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "comps"
+   }
+  },
+  "as": "n1"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 48,
+   "name": "Variant=Primary",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "cornerRadius": 12,
+    "clip": false,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     20,
+     0,
+     20
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "fixed",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "comps"
+   }
+  },
+  "as": "btn_Primary"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Sign in",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fill": {
+     "$var": "on-brand"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "btn_Primary"
+   }
+  },
+  "as": "btn_Primary_l"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Primary"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/control"
+  }
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Primary"
+    }
+   ],
+   "field": "height",
+   "variable": "size/control"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 48,
+   "name": "Variant=Secondary",
+   "props": {
+    "fill": {
+     "$var": "brand-soft"
+    },
+    "cornerRadius": 12,
+    "clip": false,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     20,
+     0,
+     20
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "fixed",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "comps"
+   }
+  },
+  "as": "btn_Secondary"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Create an account",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fill": {
+     "$var": "brand-ink"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "btn_Secondary"
+   }
+  },
+  "as": "btn_Secondary_l"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Secondary"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/control"
+  }
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Secondary"
+    }
+   ],
+   "field": "height",
+   "variable": "size/control"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 48,
+   "name": "Variant=Apple",
+   "props": {
+    "fill": {
+     "$var": "apple-bg"
+    },
+    "cornerRadius": 12,
+    "clip": false,
+    "layout": "horizontal",
+    "gap": 8,
+    "padding": [
+     0,
+     20,
+     0,
+     20
+    ],
+    "mainAlign": "center",
+    "crossAlign": "center",
+    "sizingH": "fixed",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "comps"
+   }
+  },
+  "as": "btn_Apple"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 20,
+   "height": 20,
+   "name": "Icon/apple",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "btn_Apple"
+   }
+  },
+  "as": "apple_icon"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "path": "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z",
+   "name": "Apple logo",
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "apple_icon"
+   }
+  },
+  "as": "apple_vec"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "apple_vec"
+    }
+   ],
+   "props": {
+    "fill": {
+     "$var": "apple-ink"
+    },
+    "width": 16.3,
+    "height": 20,
+    "x": 1.85,
+    "y": 0
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Continue with Apple",
+   "name": "Label",
+   "props": {
+    "textStyle": "Button/md",
+    "fill": {
+     "$var": "apple-ink"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "btn_Apple"
+   }
+  },
+  "as": "btn_Apple_l"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Apple"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/control"
+  }
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Apple"
+    }
+   ],
+   "field": "height",
+   "variable": "size/control"
+  }
+ },
+ {
+  "command": "component.createMultiple",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Primary"
+    },
+    {
+     "$ref": "btn_Secondary"
+    },
+    {
+     "$ref": "btn_Apple"
+    }
+   ]
+  }
+ },
+ {
+  "command": "component.combineVariants",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btn_Primary"
+    },
+    {
+     "$ref": "btn_Secondary"
+    },
+    {
+     "$ref": "btn_Apple"
+    }
+   ]
+  },
+  "as": "btnset"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "btnset"
+    }
+   ],
+   "props": {
+    "name": "Button",
+    "layout": "vertical",
+    "gap": 16,
+    "padding": 16,
+    "sizingH": "hug",
+    "sizingV": "hug",
+    "fill": {
+     "$var": "bg"
+    }
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "btn_Primary_l"
+   },
+   "name": "Label",
+   "type": "text"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "btn_Secondary_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "component.bindProperty",
+  "params": {
+   "layer": {
+    "$ref": "btn_Apple_l"
+   },
+   "property": "Label",
+   "field": "characters"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Field",
+   "props": {
+    "fill": "none",
+    "clip": false,
+    "layout": "vertical",
+    "gap": 8,
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "comps"
+   }
+  },
+  "as": "field"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Email",
+   "name": "Label",
+   "props": {
+    "textStyle": "Label/sm",
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "field"
+   }
+  },
+  "as": "field_label"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 48,
+   "name": "Input",
+   "props": {
+    "fill": {
+     "$var": "surface"
+    },
+    "stroke": {
+     "$var": "field-border"
+    },
+    "strokeWeight": 1,
+    "cornerRadius": 12,
+    "layout": "horizontal",
+    "gap": 12,
+    "padding": [
+     0,
+     16,
+     0,
+     16
+    ],
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "field"
+   }
+  },
+  "as": "field_input"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "field_input"
+    }
+   ],
+   "field": "cornerRadius",
+   "variable": "radius/control"
+  }
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "field_input"
+    }
+   ],
+   "field": "height",
+   "variable": "size/control"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "you@example.com",
+   "name": "Value",
+   "props": {
+    "textStyle": "Body/md",
+    "fill": {
+     "$var": "text"
+    },
+    "sizingH": "fill",
+    "textAutoResize": "height"
+   },
+   "parent": {
+    "$ref": "field_input"
+   }
+  },
+  "as": "field_value"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 20,
+   "height": 20,
+   "name": "Icon/eye",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "field_input"
+   }
+  },
+  "as": "field_eye"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 1.5,
+   "y": 4,
+   "path": "M1.5 10 C 3.5 5.8 6.5 4 10 4 C 13.5 4 16.5 5.8 18.5 10 C 16.5 14.2 13.5 16 10 16 C 6.5 16 3.5 14.2 1.5 10 Z",
+   "name": "Outline",
+   "props": {
+    "fills": [],
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 1.6,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "field_eye"
+   }
+  },
+  "as": "eye_o"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 7,
+   "y": 7,
+   "name": "Pupil",
+   "props": {
+    "fill": "none",
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 1.6
+   },
+   "width": 6,
+   "height": 6,
+   "parent": {
+    "$ref": "field_eye"
+   }
+  },
+  "as": "eye_p"
+ },
+ {
+  "command": "component.create",
+  "params": {
+   "ids": [
+    {
+     "$ref": "field"
+    }
+   ]
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "field"
+   },
+   "name": "Label",
+   "type": "text",
+   "layer": {
+    "$ref": "field_label"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "field"
+   },
+   "name": "Value",
+   "type": "text",
+   "layer": {
+    "$ref": "field_value"
+   }
+  }
+ },
+ {
+  "command": "component.addProperty",
+  "params": {
+   "id": {
+    "$ref": "field"
+   },
+   "name": "Show trailing",
+   "type": "boolean",
+   "layer": {
+    "$ref": "field_eye"
+   },
+   "default": false
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1200,
+   "height": 10,
+   "name": "Penny / Sign in — Light + Dark",
+   "props": {
+    "fill": "#FFFFFF",
+    "layout": "vertical",
+    "gap": 0,
+    "sizingV": "hug"
+   }
+  },
+  "as": "board"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1200,
+   "height": 10,
+   "name": "Title bar",
+   "props": {
+    "fill": "#FFFFFF",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "max",
+    "padding": [
+     40,
+     56,
+     32,
+     56
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "board"
+   }
+  },
+  "as": "titlebar"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 700,
+   "height": 10,
+   "name": "Title",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "titlebar"
+   }
+  },
+  "as": "titlecol"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "PENNY  ·  SIGN IN",
+   "name": "Kicker",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 12,
+    "letterSpacing": "10%",
+    "fill": "#B4471F",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "titlecol"
+   }
+  },
+  "as": "n2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Sign in to Penny, Light and Dark",
+   "name": "Heading",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 36,
+    "letterSpacing": "-2%",
+    "fill": "#111714",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "titlecol"
+   }
+  },
+  "as": "n3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "iPhone 16 · 393 × 852 · 13 colour tokens, one Button set, one Field",
+   "name": "Meta",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 14,
+    "fill": "#5F6B66",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "titlebar"
+   }
+  },
+  "as": "n4"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1200,
+   "height": 10,
+   "name": "Stages",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 0,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "board"
+   }
+  },
+  "as": "stages"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 600,
+   "height": 10,
+   "name": "Stage",
+   "props": {
+    "fill": {
+     "$var": "stage"
+    },
+    "layout": "vertical",
+    "gap": 24,
+    "crossAlign": "center",
+    "padding": [
+     48,
+     0,
+     64,
+     0
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "stages"
+   }
+  },
+  "as": "stage"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 10,
+   "name": "Caption",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 8,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "stage"
+   }
+  },
+  "as": "caption"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 0,
+   "name": "Dot",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    }
+   },
+   "width": 10,
+   "height": 10,
+   "parent": {
+    "$ref": "caption"
+   }
+  },
+  "as": "n5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Light",
+   "name": "Mode",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "caption"
+   }
+  },
+  "as": "modelabel"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "modelabel"
+    }
+   ],
+   "field": "characters",
+   "variable": "mode-label"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "mode",
+   "name": "mode",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "Regular",
+    "fontSize": 15,
+    "fill": {
+     "$var": "text-muted"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "caption"
+   }
+  },
+  "as": "n6"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 393,
+   "height": 852,
+   "name": "Screen/Sign in",
+   "props": {
+    "fill": {
+     "$var": "bg"
+    },
+    "cornerRadius": 48,
+    "clip": true,
+    "layout": "vertical",
+    "gap": 0,
+    "effectStyle": "Elevation/device",
+    "sizingH": "fixed",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "stage"
+   }
+  },
+  "as": "screen"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 393,
+   "height": 54,
+   "name": "Status bar",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "spaceBetween",
+    "crossAlign": "center",
+    "padding": [
+     14,
+     32,
+     0,
+     44
+    ],
+    "sizingH": "fill",
+    "sizingV": "fixed"
+   },
+   "parent": {
+    "$ref": "screen"
+   }
+  },
+  "as": "statusbar"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "9:41",
+   "name": "Time",
+   "props": {
+    "fontFamily": "Inter",
+    "fontStyle": "SemiBold",
+    "fontSize": 16,
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "statusbar"
+   }
+  },
+  "as": "n7"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 70,
+   "height": 12,
+   "name": "Icons",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 5,
+    "crossAlign": "max",
+    "sizingH": "hug"
+   },
+   "parent": {
+    "$ref": "statusbar"
+   }
+  },
+  "as": "sbicons"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Signal 0",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "width": 3,
+   "height": 4,
+   "parent": {
+    "$ref": "sbicons"
+   }
+  },
+  "as": "n8"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Signal 1",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "width": 3,
+   "height": 6,
+   "parent": {
+    "$ref": "sbicons"
+   }
+  },
+  "as": "n9"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Signal 2",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "width": 3,
+   "height": 8,
+   "parent": {
+    "$ref": "sbicons"
+   }
+  },
+  "as": "n10"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Signal 3",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1
+   },
+   "width": 3,
+   "height": 10,
+   "parent": {
+    "$ref": "sbicons"
+   }
+  },
+  "as": "n11"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 25,
+   "height": 12,
+   "name": "Battery",
+   "props": {
+    "fill": "none",
+    "cornerRadius": 3.5,
+    "stroke": {
+     "$var": "text-muted"
+    },
+    "strokeWeight": 1,
+    "clip": false
+   },
+   "parent": {
+    "$ref": "sbicons"
+   }
+  },
+  "as": "battery"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 2,
+   "y": 2,
+   "name": "Level",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 1.5
+   },
+   "width": 18,
+   "height": 8,
+   "parent": {
+    "$ref": "battery"
+   }
+  },
+  "as": "n12"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 393,
+   "height": 10,
+   "name": "Body",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 32,
+    "padding": [
+     32,
+     24,
+     0,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "fill"
+   },
+   "parent": {
+    "$ref": "screen"
+   }
+  },
+  "as": "body"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "body"
+    }
+   ],
+   "field": "paddingHorizontal",
+   "variable": "space/screen"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 100,
+   "height": 40,
+   "name": "Brand",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 10,
+    "crossAlign": "center",
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "brand"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 40,
+   "height": 40,
+   "name": "Logo/mark",
+   "props": {
+    "fill": {
+     "$var": "brand"
+    },
+    "cornerRadius": 12,
+    "clip": false
+   },
+   "parent": {
+    "$ref": "brand"
+   }
+  },
+  "as": "mark"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 12,
+   "y": 9,
+   "name": "Stem",
+   "props": {
+    "fill": {
+     "$var": "on-brand"
+    },
+    "cornerRadius": 2.5
+   },
+   "width": 5,
+   "height": 22,
+   "parent": {
+    "$ref": "mark"
+   }
+  },
+  "as": "n13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 12,
+   "y": 9,
+   "name": "Coin",
+   "props": {
+    "fill": "none",
+    "stroke": {
+     "$var": "on-brand"
+    },
+    "strokeWeight": 5,
+    "strokeAlign": "inside"
+   },
+   "width": 17,
+   "height": 17,
+   "parent": {
+    "$ref": "mark"
+   }
+  },
+  "as": "n14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Penny",
+   "name": "Logo/wordmark",
+   "props": {
+    "fontFamily": "Plus Jakarta Sans",
+    "fontStyle": "ExtraBold",
+    "fontSize": 22,
+    "letterSpacing": "-2%",
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "brand"
+   }
+  },
+  "as": "n15"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Heading",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 8,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "heading"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Welcome back",
+   "name": "Headline",
+   "props": {
+    "textStyle": "Display/H1",
+    "fill": {
+     "$var": "text"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "heading"
+   }
+  },
+  "as": "n16"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Sign in to see where this month's money went, and plan where it goes next.",
+   "name": "Subhead",
+   "props": {
+    "textStyle": "Body/md",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "sizingH": "fill",
+    "textAutoResize": "height",
+    "wrapStyle": "pretty"
+   },
+   "parent": {
+    "$ref": "heading"
+   }
+  },
+  "as": "subhead"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Form",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 16,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "form"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "field"
+   },
+   "parent": {
+    "$ref": "form"
+   }
+  },
+  "as": "email"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "email"
+    }
+   ],
+   "properties": {
+    "Label": "Email",
+    "Value": "maya.rao@example.com"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "email"
+    }
+   ],
+   "props": {
+    "name": "Field/Email",
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "field"
+   },
+   "parent": {
+    "$ref": "form"
+   }
+  },
+  "as": "password"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "password"
+    }
+   ],
+   "properties": {
+    "Label": "Password",
+    "Value": "••••••••••••",
+    "Show trailing": true
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "password"
+    }
+   ],
+   "props": {
+    "name": "Field/Password",
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Row/Forgot",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "mainAlign": "max",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "form"
+   }
+  },
+  "as": "forgotrow"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Forgot password?",
+   "name": "Link/Forgot password",
+   "props": {
+    "textStyle": "Label/sm",
+    "fill": {
+     "$var": "brand"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "forgotrow"
+   }
+  },
+  "as": "n17"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Actions",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 16,
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "body"
+   }
+  },
+  "as": "actions"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "btnset"
+   },
+   "parent": {
+    "$ref": "actions"
+   }
+  },
+  "as": "signin"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "signin"
+    }
+   ],
+   "properties": {
+    "Variant": "Primary",
+    "Label": "Sign in"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "signin"
+    }
+   ],
+   "props": {
+    "name": "Button/Sign in",
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 345,
+   "height": 10,
+   "name": "Divider",
+   "props": {
+    "fill": "none",
+    "layout": "horizontal",
+    "gap": 12,
+    "crossAlign": "center",
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "actions"
+   }
+  },
+  "as": "divider"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Rule",
+   "props": {
+    "fill": {
+     "$var": "divider"
+    },
+    "sizingH": "fill"
+   },
+   "width": 100,
+   "height": 1,
+   "parent": {
+    "$ref": "divider"
+   }
+  },
+  "as": "n18"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "or",
+   "name": "or",
+   "props": {
+    "textStyle": "Body/sm",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "divider"
+   }
+  },
+  "as": "n19"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Rule",
+   "props": {
+    "fill": {
+     "$var": "divider"
+    },
+    "sizingH": "fill"
+   },
+   "width": 100,
+   "height": 1,
+   "parent": {
+    "$ref": "divider"
+   }
+  },
+  "as": "n20"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "btnset"
+   },
+   "parent": {
+    "$ref": "actions"
+   }
+  },
+  "as": "apple"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "apple"
+    }
+   ],
+   "properties": {
+    "Variant": "Apple",
+    "Label": "Continue with Apple"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "apple"
+    }
+   ],
+   "props": {
+    "name": "Button/Continue with Apple",
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 393,
+   "height": 10,
+   "name": "Footer",
+   "props": {
+    "fill": "none",
+    "layout": "vertical",
+    "gap": 12,
+    "crossAlign": "center",
+    "padding": [
+     0,
+     24,
+     44,
+     24
+    ],
+    "sizingH": "fill",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "screen"
+   }
+  },
+  "as": "footer"
+ },
+ {
+  "command": "variable.bind",
+  "params": {
+   "ids": [
+    {
+     "$ref": "footer"
+    }
+   ],
+   "field": "paddingHorizontal",
+   "variable": "space/screen"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "New to Penny?",
+   "name": "Footer note",
+   "props": {
+    "textStyle": "Body/sm",
+    "fill": {
+     "$var": "text-muted"
+    },
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "footer"
+   }
+  },
+  "as": "n21"
+ },
+ {
+  "command": "instance.create",
+  "params": {
+   "component": {
+    "$ref": "btnset"
+   },
+   "parent": {
+    "$ref": "footer"
+   }
+  },
+  "as": "create"
+ },
+ {
+  "command": "instance.setProperties",
+  "params": {
+   "ids": [
+    {
+     "$ref": "create"
+    }
+   ],
+   "properties": {
+    "Variant": "Secondary",
+    "Label": "Create an account"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "create"
+    }
+   ],
+   "props": {
+    "name": "Button/Create an account",
+    "sizingH": "fill"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Home indicator",
+   "props": {
+    "fill": {
+     "$var": "text"
+    },
+    "cornerRadius": 3
+   },
+   "width": 134,
+   "height": 5,
+   "parent": {
+    "$ref": "screen"
+   }
+  },
+  "as": "homeind"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "homeind"
+    }
+   ],
+   "props": {
+    "absolute": true,
+    "x": 129.5,
+    "y": 839,
+    "constraints": {
+     "horizontal": "center",
+     "vertical": "bottom"
+    }
+   }
+  }
+ },
+ {
+  "command": "edit.duplicate",
+  "params": {
+   "ids": [
+    {
+     "$ref": "stage"
+    }
+   ]
+  },
+  "as": "dup"
+ },
+ {
+  "command": "variable.setMode",
+  "params": {
+   "ids": [
+    {
+     "$ref": "dup",
+     "field": "ids/0"
+    }
+   ],
+   "collection": "Theme",
+   "mode": "Dark"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "dup",
+     "field": "ids/0"
+    }
+   ],
+   "props": {
+    "name": "Stage — Dark"
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "stage"
+    }
+   ],
+   "props": {
+    "name": "Stage — Light"
+   }
+  }
+ },
+ {
+  "command": "select.none",
+  "params": {}
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "email"
+   },
+   "fields": [
+    "width",
+    "height",
+    "overrides"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "body"
+   },
+   "fields": [
+    "boundVariables",
+    "layout",
+    "height"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "field_input"
+   },
+   "fields": [
+    "boundVariables",
+    "cornerRadius",
+    "height"
+   ]
+  }
+ },
+ {
+  "command": "component.properties",
+  "params": {
+   "id": {
+    "$ref": "password"
+   }
+  }
+ },
+ {
+  "command": "text.missingFonts",
+  "params": {}
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "board"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/penny-signin-light-dark.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "comps"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/check-components.png"
+  }
+ }
+]

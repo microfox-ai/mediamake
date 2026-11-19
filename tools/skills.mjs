@@ -702,10 +702,10 @@ const runSheets = () => {
 const check = () => {
   const hook = flag('hook');
   if (hook === 'edit' && !touchedSkills()) return;
-  const stale = [leaks(), mcpTables(), runSheets(), lessonLogs()].filter(Boolean).join('\n') || null;
+  const stale = [skillLinks(), leaks(), mcpTables(), runSheets(), lessonLogs()].filter(Boolean).join('\n') || null;
   if (!stale) {
     const sheets = allSkills().filter(s => s.hasRunSheet).length;
-    return hook ? undefined : console.log(`✔ ${allSkills().length} skills: no keys, tokens or machine paths, MCP tables and run sheets readable (${sheets} with a run sheet), lessons in notes`);
+    return hook ? undefined : console.log(`✔ ${allSkills().length} skills: their own files (no links out), no keys, tokens or machine paths, MCP tables and run sheets readable (${sheets} with a run sheet), lessons in notes`);
   }
   if (hook === 'session') {
     // a note for Claude at the start of the session, and a line for the user
@@ -760,9 +760,58 @@ export const NOTES_LINE = 'New user feedback goes in your notes (mm notes add), 
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 }).trim();
 
-/** A skill folder's files, without dotfiles, .theirs copies (media sync) or node_modules. */
-const copySkill = (from, to) =>
-  fs.cpSync(from, to, { recursive: true, filter: src => src === from || !(path.basename(src).startsWith('.') || src.endsWith('.theirs') || path.basename(src) === 'node_modules') });
+/**
+ * A skill folder's files, without dotfiles, .theirs copies (media sync) or node_modules. A skill of
+ * yours is often a link (the workspace links the skills of a space), so the folder it points to is
+ * what is copied, never the link; and a skill that still holds a link is refused, since a link in the
+ * repo is a path on this computer for everyone else.
+ */
+export const copySkill = (from, to) => {
+  const real = fs.realpathSync(from);
+  fs.cpSync(real, to, { recursive: true, filter: src => src === real || !(path.basename(src).startsWith('.') || src.endsWith('.theirs') || path.basename(src) === 'node_modules') });
+  const links = linksIn(to);
+  if (links.length) {
+    fs.rmSync(to, { recursive: true, force: true });
+    throw new Error(`${path.basename(to)} holds links (${links.map(l => path.relative(to, l)).join(', ')}): a skill in the repo holds its files. Replace them with the files, then publish again`);
+  }
+};
+
+/** Every link under a folder (the folder itself included when it is one). */
+const linksIn = dir => {
+  const out = [];
+  const walk = p => {
+    const st = fs.lstatSync(p, { throwIfNoEntry: false });
+    if (!st) return;
+    if (st.isSymbolicLink()) return void out.push(p);
+    if (st.isDirectory()) for (const name of fs.readdirSync(p)) walk(path.join(p, name));
+  };
+  walk(dir);
+  return out;
+};
+
+/**
+ * Committed links in .agents/skills (a skill there holds its files) and .claude/skills links that
+ * don't point into .agents/skills, from git's own index (so it holds in CI too), as one message, or null.
+ */
+const skillLinks = () => {
+  let listed;
+  try {
+    listed = git('ls-files', '-s', '--', '.agents/skills', '.claude/skills');
+  } catch {
+    return null;
+  }
+  const found = [];
+  for (const line of listed.split('\n').filter(Boolean)) {
+    const [meta, file] = line.split('\t');
+    const [mode, sha] = meta.split(' ');
+    if (mode !== '120000') continue;
+    const target = git('cat-file', 'blob', sha);
+    const parts = file.split('/');
+    if (parts[0] === '.agents') found.push(`${file} is a link (to ${target}), not the skill's files`);
+    else if (parts.length !== 3 || target !== `../../.agents/skills/${parts[2]}`) found.push(`${file} links to ${target}, not ../../.agents/skills/${parts[2]}`);
+  }
+  return found.length ? `A skill in the repo holds its files, and .claude/skills only links to them:\n${found.map(f => `  ✖ ${f}`).join('\n')}` : null;
+};
 
 const fork = () => {
   const base = find(a1);

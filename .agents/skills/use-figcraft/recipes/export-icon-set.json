@@ -1,0 +1,298 @@
+[
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "icons/bell",
+   "x": 0,
+   "y": 0,
+   "width": 24,
+   "height": 24,
+   "props": {
+    "fill": "none"
+   }
+  },
+  "as": "bell"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "bell"
+   },
+   "x": 0,
+   "y": 0,
+   "name": "Body",
+   "path": "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9",
+   "props": {
+    "fill": "none",
+    "stroke": "#1C1B29",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "parent": {
+    "$ref": "bell"
+   },
+   "x": 0,
+   "y": 0,
+   "name": "Clapper",
+   "path": "M10.3 21a1.94 1.94 0 0 0 3.4 0",
+   "props": {
+    "fill": "none",
+    "stroke": "#1C1B29",
+    "strokeWeight": 1.75,
+    "strokeCap": "round",
+    "strokeJoin": "round"
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "name": "icons/app-calmly",
+   "x": 60,
+   "y": 0,
+   "width": 64,
+   "height": 64,
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#8B7CF6",
+       "#F2A6C0"
+      ]
+     }
+    ],
+    "cornerRadius": 16,
+    "cornerSmoothing": 0.6,
+    "clip": true
+   }
+  },
+  "as": "app"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "app"
+   },
+   "x": 14,
+   "y": 14,
+   "width": 36,
+   "height": 36,
+   "name": "Ring",
+   "props": {
+    "fill": "none",
+    "stroke": "#FFFFFF",
+    "strokeWeight": 4
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "parent": {
+    "$ref": "app"
+   },
+   "x": 27,
+   "y": 27,
+   "width": 10,
+   "height": 10,
+   "name": "Dot",
+   "props": {
+    "fill": "#FFFFFF"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    }
+   ],
+   "setting": {
+    "size": "1x",
+    "format": "svg"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    }
+   ],
+   "setting": {
+    "size": "1x",
+    "format": "png"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    }
+   ],
+   "setting": {
+    "size": "2x",
+    "format": "png",
+    "suffix": "@2x"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "app"
+    }
+   ],
+   "setting": {
+    "size": "1x",
+    "format": "svg"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "app"
+    }
+   ],
+   "setting": {
+    "size": "1x",
+    "format": "png"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "app"
+    }
+   ],
+   "setting": {
+    "size": "2x",
+    "format": "png",
+    "suffix": "@2x"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    }
+   ],
+   "setting": {
+    "size": "1x",
+    "format": "xml",
+    "suffix": "_vd"
+   }
+  }
+ },
+ {
+  "command": "export.add",
+  "params": {
+   "ids": [
+    {
+     "$ref": "app"
+    }
+   ],
+   "setting": {
+    "size": "3x",
+    "format": "png",
+    "suffix": "@3x"
+   }
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "bell"
+   },
+   "fields": [
+    "name",
+    "exports"
+   ]
+  }
+ },
+ {
+  "command": "inspect.assets",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    },
+    {
+     "$ref": "app"
+    }
+   ]
+  }
+ },
+ {
+  "command": "file.exportLayers",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    },
+    {
+     "$ref": "app"
+    }
+   ],
+   "dir": "{{out}}/recipe-icon"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bell"
+    }
+   ],
+   "format": "png",
+   "size": "256w",
+   "path": "{{out}}/_preview-bell-256.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "app"
+    }
+   ],
+   "format": "png",
+   "size": "256w",
+   "path": "{{out}}/_preview-app-256.png"
+  }
+ }
+]

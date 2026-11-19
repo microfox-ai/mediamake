@@ -1,0 +1,1036 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Fraunces-900.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Jost-400.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Jost-600.ttf}}"
+  }
+ },
+ {
+  "command": "text.fonts",
+  "params": {
+   "family": "Fraunces"
+  }
+ },
+ {
+  "command": "text.fonts",
+  "params": {
+   "family": "Jost"
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 1080,
+   "height": 1920,
+   "name": "Story/Ember & Oat opening",
+   "props": {
+    "fill": "#1A0E08",
+    "clip": true
+   }
+  },
+  "as": "story"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Ground",
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       {
+        "color": "#140A06",
+        "position": 0
+       },
+       {
+        "color": "#2A130A",
+        "position": 0.55
+       },
+       {
+        "color": "#5A220C",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0
+      ],
+      "to": [
+       0.5,
+       1
+      ]
+     }
+    ],
+    "effects": [
+     {
+      "type": "noise",
+      "mode": "mono",
+      "color": "#FFFFFF14",
+      "density": 0.5,
+      "size": 0.6
+     }
+    ]
+   },
+   "width": 1080,
+   "height": 1920,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "ground"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -260,
+   "y": 380,
+   "name": "Glow",
+   "props": {
+    "fills": [
+     {
+      "type": "radialGradient",
+      "stops": [
+       {
+        "color": "#F26A2180",
+        "position": 0
+       },
+       {
+        "color": "#F26A2100",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0.5
+      ],
+      "to": [
+       0.5,
+       1.0
+      ]
+     }
+    ]
+   },
+   "width": 1600,
+   "height": 1400,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "glow"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -200,
+   "y": 1500,
+   "name": "Glow/low",
+   "props": {
+    "fills": [
+     {
+      "type": "radialGradient",
+      "stops": [
+       {
+        "color": "#FF8A3D66",
+        "position": 0
+       },
+       {
+        "color": "#FF8A3D00",
+        "position": 1
+       }
+      ],
+      "from": [
+       0.5,
+       0.5
+      ],
+      "to": [
+       0.5,
+       1.0
+      ]
+     }
+    ]
+   },
+   "width": 1480,
+   "height": 900,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "glowlow"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 170,
+   "y": 860,
+   "name": "Spark 1",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 10,
+   "height": 10,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 905,
+   "y": 700,
+   "name": "Spark 2",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 8,
+   "height": 8,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 860,
+   "y": 1010,
+   "name": "Spark 3",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 12,
+   "height": 12,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 230,
+   "y": 1120,
+   "name": "Spark 4",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 7,
+   "height": 7,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 120,
+   "y": 610,
+   "name": "Spark 5",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 6,
+   "height": 6,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 960,
+   "y": 1300,
+   "name": "Spark 6",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 9,
+   "height": 9,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n6"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 700,
+   "y": 1640,
+   "name": "Spark 7",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 10,
+   "height": 10,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n7"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 330,
+   "y": 1720,
+   "name": "Spark 8",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 8,
+   "height": 8,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n8"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 880,
+   "y": 1780,
+   "name": "Spark 9",
+   "props": {
+    "fill": "#FFB067",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF8A3DCC",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 14,
+      "spread": 2
+     }
+    ]
+   },
+   "width": 6,
+   "height": 6,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "n9"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "ground"
+    }
+   ],
+   "props": {
+    "locked": true
+   }
+  }
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 250,
+   "width": 1080,
+   "height": 10,
+   "name": "Type",
+   "props": {
+    "fill": "none",
+    "clip": false,
+    "layout": "vertical",
+    "gap": 0,
+    "crossAlign": "center",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "stack"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "NOW OPENING  ·  KILN LANE",
+   "name": "Kicker",
+   "props": {
+    "fontSize": 30,
+    "letterSpacing": "24%",
+    "fill": "#FFB067",
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n10"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 24,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n11"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Ember",
+   "name": "Title/Ember",
+   "props": {
+    "fontSize": 272,
+    "lineHeight": "92%",
+    "letterSpacing": "-3%",
+    "fill": "#F7ECDD",
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "t_ember"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 28,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n12"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 360,
+   "height": 360,
+   "name": "Mark/Ember",
+   "props": {
+    "fill": "none",
+    "clip": false
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "mark"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": -28,
+   "y": -28,
+   "name": "Heat ring",
+   "props": {
+    "fill": "none",
+    "strokes": [
+     "#FFB06766"
+    ],
+    "strokeWeight": 2
+   },
+   "width": 416,
+   "height": 416,
+   "parent": {
+    "$ref": "mark"
+   }
+  },
+  "as": "n13"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 0,
+   "name": "Ember",
+   "props": {
+    "fills": [
+     {
+      "type": "radialGradient",
+      "stops": [
+       "#FFC27A",
+       "#F26A21",
+       "#B2360C"
+      ],
+      "from": [
+       0.35,
+       0.3
+      ],
+      "to": [
+       0.35,
+       1.1
+      ]
+     }
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#F26A2199",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 80,
+      "spread": 6
+     }
+    ]
+   },
+   "width": 360,
+   "height": 360,
+   "parent": {
+    "$ref": "mark"
+   }
+  },
+  "as": "coal"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "&",
+   "name": "Ampersand",
+   "props": {
+    "fontSize": 250,
+    "fill": "#1A0E08",
+    "textAlign": "center",
+    "textAlignVertical": "middle",
+    "textAutoResize": "none",
+    "height": 360,
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black"
+   },
+   "width": 360,
+   "parent": {
+    "$ref": "mark"
+   }
+  },
+  "as": "amp"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 28,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n14"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Oat",
+   "name": "Title/Oat",
+   "props": {
+    "fontSize": 272,
+    "lineHeight": "92%",
+    "letterSpacing": "-3%",
+    "fill": "#F7ECDD",
+    "fontFamily": "Fraunces",
+    "fontStyle": "Black",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "t_oat"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 56,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n15"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "SATURDAY 5 DECEMBER",
+   "name": "Date",
+   "props": {
+    "fontSize": 50,
+    "letterSpacing": "8%",
+    "fill": "#F7ECDD",
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "date"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 20,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n16"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "Doors 7 am  ·  14 Kiln Lane",
+   "name": "Details",
+   "props": {
+    "fontSize": 36,
+    "fill": "#D9B99A",
+    "fontFamily": "Jost",
+    "fontStyle": "Regular",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n17"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 36,
+   "name": "Space",
+   "props": {
+    "fill": "none"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "n18"
+ },
+ {
+  "command": "frame.create",
+  "params": {
+   "x": 0,
+   "y": 0,
+   "width": 10,
+   "height": 10,
+   "name": "Pill/Offer",
+   "props": {
+    "fill": "#F26A21",
+    "cornerRadius": 48,
+    "layout": "horizontal",
+    "padding": [
+     20,
+     40,
+     22,
+     40
+    ],
+    "sizingH": "hug",
+    "sizingV": "hug"
+   },
+   "parent": {
+    "$ref": "stack"
+   }
+  },
+  "as": "pill"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "x": 0,
+   "y": 0,
+   "text": "First 100 oat flat whites on us",
+   "name": "Offer",
+   "props": {
+    "fontSize": 34,
+    "fill": "#1A0E08",
+    "fontFamily": "Jost",
+    "fontStyle": "SemiBold",
+    "textAutoResize": "widthAndHeight"
+   },
+   "parent": {
+    "$ref": "pill"
+   }
+  },
+  "as": "n19"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 0,
+   "name": "Guide/top 250",
+   "props": {
+    "fill": "#FF00FF40"
+   },
+   "width": 1080,
+   "height": 250,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "gtop"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 0,
+   "y": 1580,
+   "name": "Guide/bottom 340",
+   "props": {
+    "fill": "#FF00FF40"
+   },
+   "width": 1080,
+   "height": 340,
+   "parent": {
+    "$ref": "story"
+   }
+  },
+  "as": "gbot"
+ },
+ {
+  "command": "select.none",
+  "params": {}
+ },
+ {
+  "command": "text.missingFonts",
+  "params": {}
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "t_ember"
+   },
+   "fields": [
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "t_oat"
+   },
+   "fields": [
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "pill"
+   },
+   "fields": [
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "stack"
+   },
+   "fields": [
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "node.get",
+  "params": {
+   "id": {
+    "$ref": "mark"
+   },
+   "fields": [
+    "absoluteBounds"
+   ]
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "story"
+    }
+   ],
+   "format": "png",
+   "scale": 0.5,
+   "path": "{{out}}/check-safe-areas.png"
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "gtop"
+    }
+   ],
+   "props": {
+    "visible": false
+   }
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "gbot"
+    }
+   ],
+   "props": {
+    "visible": false
+   }
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "story"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/ember-and-oat-story.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "story"
+    }
+   ],
+   "format": "jpg",
+   "quality": 92,
+   "scale": 1,
+   "path": "{{out}}/ember-and-oat-story.jpg"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "story"
+    }
+   ],
+   "format": "png",
+   "size": "270w",
+   "path": "{{out}}/check-phone-size.png"
+  }
+ }
+]

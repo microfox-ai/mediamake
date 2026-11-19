@@ -1,0 +1,613 @@
+{
+ "AbrilFatface-400.ttf": {
+  "family": "Abril Fatface",
+  "weight": 400
+ },
+ "AlfaSlabOne-400.ttf": {
+  "family": "Alfa Slab One",
+  "weight": 400
+ },
+ "Anton-400.ttf": {
+  "family": "Anton",
+  "weight": 400
+ },
+ "Antonio-700.ttf": {
+  "family": "Antonio",
+  "weight": 700
+ },
+ "Anybody-900.ttf": {
+  "family": "Anybody",
+  "weight": 900
+ },
+ "Archivo-900.ttf": {
+  "family": "Archivo",
+  "weight": 900
+ },
+ "ArchivoBlack-400.ttf": {
+  "family": "Archivo Black",
+  "weight": 400
+ },
+ "Avenir-300.ttf": {
+  "family": "Avenir",
+  "weight": 300
+ },
+ "Avenir-400.ttf": {
+  "family": "Avenir",
+  "weight": 400
+ },
+ "Avenir-800.ttf": {
+  "family": "Avenir",
+  "weight": 800
+ },
+ "Baloo2-800.ttf": {
+  "family": "Baloo 2",
+  "weight": 800
+ },
+ "Bangers-400.ttf": {
+  "family": "Bangers",
+  "weight": 400
+ },
+ "Barlow-900.ttf": {
+  "family": "Barlow",
+  "weight": 900
+ },
+ "BarlowCondensed-800.ttf": {
+  "family": "Barlow Condensed",
+  "weight": 800
+ },
+ "BebasNeue-400.ttf": {
+  "family": "Bebas Neue",
+  "weight": 400
+ },
+ "BigShouldersDisplay-900.ttf": {
+  "family": "Big Shoulders Display",
+  "weight": 900
+ },
+ "BlackHanSans-400.ttf": {
+  "family": "Black Han Sans",
+  "weight": 400
+ },
+ "BlackOpsOne-400.ttf": {
+  "family": "Black Ops One",
+  "weight": 400
+ },
+ "BodoniModa-900.ttf": {
+  "family": "Bodoni Moda",
+  "weight": 900
+ },
+ "BowlbyOne-400.ttf": {
+  "family": "Bowlby One",
+  "weight": 400
+ },
+ "BricolageGrotesque-800.ttf": {
+  "family": "Bricolage Grotesque",
+  "weight": 800
+ },
+ "Bungee-400.ttf": {
+  "family": "Bungee",
+  "weight": 400
+ },
+ "BungeeShade-400.ttf": {
+  "family": "Bungee Shade",
+  "weight": 400
+ },
+ "Butcherman-400.ttf": {
+  "family": "Butcherman",
+  "weight": 400
+ },
+ "Cairo-900.ttf": {
+  "family": "Cairo",
+  "weight": 900
+ },
+ "Calligraffitti-400.ttf": {
+  "family": "Calligraffitti",
+  "weight": 400
+ },
+ "Caveat-700.ttf": {
+  "family": "Caveat",
+  "weight": 700
+ },
+ "CaveatBrush-400.ttf": {
+  "family": "Caveat Brush",
+  "weight": 400
+ },
+ "ChakraPetch-700.ttf": {
+  "family": "Chakra Petch",
+  "weight": 700
+ },
+ "Chewy-400.ttf": {
+  "family": "Chewy",
+  "weight": 400
+ },
+ "Cinzel-500.ttf": {
+  "family": "Cinzel",
+  "weight": 500
+ },
+ "Cinzel-700.ttf": {
+  "family": "Cinzel",
+  "weight": 700
+ },
+ "Cinzel-900.ttf": {
+  "family": "Cinzel",
+  "weight": 900
+ },
+ "CormorantGaramond-600italic.ttf": {
+  "family": "Cormorant Garamond",
+  "weight": 600,
+  "italic": true
+ },
+ "CormorantGaramond-700.ttf": {
+  "family": "Cormorant Garamond",
+  "weight": 700
+ },
+ "CormorantSC-700.ttf": {
+  "family": "Cormorant SC",
+  "weight": 700
+ },
+ "CourierPrime-400.ttf": {
+  "family": "Courier Prime",
+  "weight": 400
+ },
+ "CourierPrime-700.ttf": {
+  "family": "Courier Prime",
+  "weight": 700
+ },
+ "Creepster-400.ttf": {
+  "family": "Creepster",
+  "weight": 400
+ },
+ "DMSerifDisplay-400.ttf": {
+  "family": "DM Serif Display",
+  "weight": 400
+ },
+ "DelaGothicOne-400.ttf": {
+  "family": "Dela Gothic One",
+  "weight": 400
+ },
+ "DoHyeon-400.ttf": {
+  "family": "Do Hyeon",
+  "weight": 400
+ },
+ "Dongle-700.ttf": {
+  "family": "Dongle",
+  "weight": 700
+ },
+ "EBGaramond-800.ttf": {
+  "family": "EB Garamond",
+  "weight": 800
+ },
+ "Exo2-900.ttf": {
+  "family": "Exo 2",
+  "weight": 900
+ },
+ "Figtree-900.ttf": {
+  "family": "Figtree",
+  "weight": 900
+ },
+ "FiraCode-700.ttf": {
+  "family": "Fira Code",
+  "weight": 700
+ },
+ "FjallaOne-400.ttf": {
+  "family": "Fjalla One",
+  "weight": 400
+ },
+ "Fraunces-900.ttf": {
+  "family": "Fraunces",
+  "weight": 900
+ },
+ "Fredoka-500.ttf": {
+  "family": "Fredoka",
+  "weight": 500
+ },
+ "Fredoka-700.ttf": {
+  "family": "Fredoka",
+  "weight": 700
+ },
+ "FugazOne-400.ttf": {
+  "family": "Fugaz One",
+  "weight": 400
+ },
+ "Geist-900.ttf": {
+  "family": "Geist",
+  "weight": 900
+ },
+ "Gloock-400.ttf": {
+  "family": "Gloock",
+  "weight": 400
+ },
+ "GochiHand-400.ttf": {
+  "family": "Gochi Hand",
+  "weight": 400
+ },
+ "GrenzeGotisch-800.ttf": {
+  "family": "Grenze Gotisch",
+  "weight": 800
+ },
+ "Hind-700.ttf": {
+  "family": "Hind",
+  "weight": 700
+ },
+ "IBMPlexMono-700.ttf": {
+  "family": "IBM Plex Mono",
+  "weight": 700
+ },
+ "IBMPlexSansCondensed-700.ttf": {
+  "family": "IBM Plex Sans Condensed",
+  "weight": 700
+ },
+ "InstrumentSerif-400.ttf": {
+  "family": "Instrument Serif",
+  "weight": 400
+ },
+ "InstrumentSerif-400italic.ttf": {
+  "family": "Instrument Serif",
+  "weight": 400,
+  "italic": true
+ },
+ "Inter-600.ttf": {
+  "family": "Inter",
+  "weight": 600
+ },
+ "InterTight-900.ttf": {
+  "family": "Inter Tight",
+  "weight": 900
+ },
+ "Italiana-400.ttf": {
+  "family": "Italiana",
+  "weight": 400
+ },
+ "JetBrainsMono-400.ttf": {
+  "family": "JetBrains Mono",
+  "weight": 400
+ },
+ "JetBrainsMono-800.ttf": {
+  "family": "JetBrains Mono",
+  "weight": 800
+ },
+ "Jost-400.ttf": {
+  "family": "Jost",
+  "weight": 400
+ },
+ "Jost-600.ttf": {
+  "family": "Jost",
+  "weight": 600
+ },
+ "Jost-800.ttf": {
+  "family": "Jost",
+  "weight": 800
+ },
+ "Kalam-700.ttf": {
+  "family": "Kalam",
+  "weight": 700
+ },
+ "Kanit-900.ttf": {
+  "family": "Kanit",
+  "weight": 900
+ },
+ "Kanit-900italic.ttf": {
+  "family": "Kanit",
+  "weight": 900,
+  "italic": true
+ },
+ "LeagueGothic-400.ttf": {
+  "family": "League Gothic",
+  "weight": 400
+ },
+ "Lexend-800.ttf": {
+  "family": "Lexend",
+  "weight": 800
+ },
+ "LibreBaskerville-700.ttf": {
+  "family": "Libre Baskerville",
+  "weight": 700
+ },
+ "LibreFranklin-900.ttf": {
+  "family": "Libre Franklin",
+  "weight": 900
+ },
+ "LilitaOne-400.ttf": {
+  "family": "Lilita One",
+  "weight": 400
+ },
+ "LobsterTwo-700.ttf": {
+  "family": "Lobster Two",
+  "weight": 700
+ },
+ "LuckiestGuy-400.ttf": {
+  "family": "Luckiest Guy",
+  "weight": 400
+ },
+ "Manrope-800.ttf": {
+  "family": "Manrope",
+  "weight": 800
+ },
+ "MetalMania-400.ttf": {
+  "family": "Metal Mania",
+  "weight": 400
+ },
+ "Metamorphous-400.ttf": {
+  "family": "Metamorphous",
+  "weight": 400
+ },
+ "Michroma-400.ttf": {
+  "family": "Michroma",
+  "weight": 400
+ },
+ "Monoton-400.ttf": {
+  "family": "Monoton",
+  "weight": 400
+ },
+ "Montserrat-500.ttf": {
+  "family": "Montserrat",
+  "weight": 500
+ },
+ "Montserrat-600.ttf": {
+  "family": "Montserrat",
+  "weight": 600
+ },
+ "Montserrat-700.ttf": {
+  "family": "Montserrat",
+  "weight": 700
+ },
+ "Montserrat-800.ttf": {
+  "family": "Montserrat",
+  "weight": 800
+ },
+ "Montserrat-900.ttf": {
+  "family": "Montserrat",
+  "weight": 900
+ },
+ "Mukta-700.ttf": {
+  "family": "Mukta",
+  "weight": 700
+ },
+ "Mukta-800.ttf": {
+  "family": "Mukta",
+  "weight": 800
+ },
+ "Newsreader-800.ttf": {
+  "family": "Newsreader",
+  "weight": 800
+ },
+ "Nosifer-400.ttf": {
+  "family": "Nosifer",
+  "weight": 400
+ },
+ "NotoSansBengali-900.ttf": {
+  "family": "Noto Sans Bengali",
+  "weight": 900
+ },
+ "NotoSansJP-900.ttf": {
+  "family": "Noto Sans JP",
+  "weight": 900
+ },
+ "NotoSansTamil-900.ttf": {
+  "family": "Noto Sans Tamil",
+  "weight": 900
+ },
+ "NovaCut-400.ttf": {
+  "family": "Nova Cut",
+  "weight": 400
+ },
+ "NovaFlat-400.ttf": {
+  "family": "Nova Flat",
+  "weight": 400
+ },
+ "NovaOval-400.ttf": {
+  "family": "Nova Oval",
+  "weight": 400
+ },
+ "NovaRound-400.ttf": {
+  "family": "Nova Round",
+  "weight": 400
+ },
+ "NovaScript-400.ttf": {
+  "family": "Nova Script",
+  "weight": 400
+ },
+ "NovaSlim-400.ttf": {
+  "family": "Nova Slim",
+  "weight": 400
+ },
+ "NovaSquare-400.ttf": {
+  "family": "Nova Square",
+  "weight": 400
+ },
+ "Nunito-900.ttf": {
+  "family": "Nunito",
+  "weight": 900
+ },
+ "OnePiece-400.ttf": {
+  "family": "One Piece",
+  "weight": 400
+ },
+ "Onest-900.ttf": {
+  "family": "Onest",
+  "weight": 900
+ },
+ "Orbitron-900.ttf": {
+  "family": "Orbitron",
+  "weight": 900
+ },
+ "Oswald-700.ttf": {
+  "family": "Oswald",
+  "weight": 700
+ },
+ "Outfit-800.ttf": {
+  "family": "Outfit",
+  "weight": 800
+ },
+ "Pacifico-400.ttf": {
+  "family": "Pacifico",
+  "weight": 400
+ },
+ "PatrickHand-400.ttf": {
+  "family": "Patrick Hand",
+  "weight": 400
+ },
+ "PermanentMarker-400.ttf": {
+  "family": "Permanent Marker",
+  "weight": 400
+ },
+ "PirataOne-400.ttf": {
+  "family": "Pirata One",
+  "weight": 400
+ },
+ "PixelifySans-700.ttf": {
+  "family": "Pixelify Sans",
+  "weight": 700
+ },
+ "PlayfairDisplay-900.ttf": {
+  "family": "Playfair Display",
+  "weight": 900
+ },
+ "PlusJakartaSans-800.ttf": {
+  "family": "Plus Jakarta Sans",
+  "weight": 800
+ },
+ "Poppins-800.ttf": {
+  "family": "Poppins",
+  "weight": 800
+ },
+ "PressStart2P-400.ttf": {
+  "family": "Press Start 2P",
+  "weight": 400
+ },
+ "Qwigley-400.ttf": {
+  "family": "Qwigley",
+  "weight": 400
+ },
+ "RacingSansOne-400.ttf": {
+  "family": "Racing Sans One",
+  "weight": 400
+ },
+ "RedHatDisplay-900.ttf": {
+  "family": "Red Hat Display",
+  "weight": 900
+ },
+ "ReggaeOne-400.ttf": {
+  "family": "Reggae One",
+  "weight": 400
+ },
+ "Righteous-400.ttf": {
+  "family": "Righteous",
+  "weight": 400
+ },
+ "RobotoCondensed-900.ttf": {
+  "family": "Roboto Condensed",
+  "weight": 900
+ },
+ "RobotoSlab-900.ttf": {
+  "family": "Roboto Slab",
+  "weight": 900
+ },
+ "RockSalt-400.ttf": {
+  "family": "Rock Salt",
+  "weight": 400
+ },
+ "RocknRollOne-400.ttf": {
+  "family": "RocknRoll One",
+  "weight": 400
+ },
+ "Rubik-900.ttf": {
+  "family": "Rubik",
+  "weight": 900
+ },
+ "RubikMonoOne-400.ttf": {
+  "family": "Rubik Mono One",
+  "weight": 400
+ },
+ "RussoOne-400.ttf": {
+  "family": "Russo One",
+  "weight": 400
+ },
+ "Rye-400.ttf": {
+  "family": "Rye",
+  "weight": 400
+ },
+ "SairaCondensed-900.ttf": {
+  "family": "Saira Condensed",
+  "weight": 900
+ },
+ "SairaExtraCondensed-900.ttf": {
+  "family": "Saira Extra Condensed",
+  "weight": 900
+ },
+ "ShadowsIntoLight-400.ttf": {
+  "family": "Shadows Into Light",
+  "weight": 400
+ },
+ "ShareTechMono-400.ttf": {
+  "family": "Share Tech Mono",
+  "weight": 400
+ },
+ "Shrikhand-400.ttf": {
+  "family": "Shrikhand",
+  "weight": 400
+ },
+ "Silkscreen-700.ttf": {
+  "family": "Silkscreen",
+  "weight": 700
+ },
+ "Sniglet-800.ttf": {
+  "family": "Sniglet",
+  "weight": 800
+ },
+ "SofiaSansExtraCondensed-900.ttf": {
+  "family": "Sofia Sans Extra Condensed",
+  "weight": 900
+ },
+ "Sora-800.ttf": {
+  "family": "Sora",
+  "weight": 800
+ },
+ "SpaceGrotesk-700.ttf": {
+  "family": "Space Grotesk",
+  "weight": 700
+ },
+ "SpaceMono-700.ttf": {
+  "family": "Space Mono",
+  "weight": 700
+ },
+ "SpecialElite-400.ttf": {
+  "family": "Special Elite",
+  "weight": 400
+ },
+ "SquadaOne-400.ttf": {
+  "family": "Squada One",
+  "weight": 400
+ },
+ "Tajawal-900.ttf": {
+  "family": "Tajawal",
+  "weight": 900
+ },
+ "Teko-700.ttf": {
+  "family": "Teko",
+  "weight": 700
+ },
+ "TenorSans-400.ttf": {
+  "family": "Tenor Sans",
+  "weight": 400
+ },
+ "TitanOne-400.ttf": {
+  "family": "Titan One",
+  "weight": 400
+ },
+ "Unbounded-900.ttf": {
+  "family": "Unbounded",
+  "weight": 900
+ },
+ "YatraOne-400.ttf": {
+  "family": "Yatra One",
+  "weight": 400
+ },
+ "YesevaOne-400.ttf": {
+  "family": "Yeseva One",
+  "weight": 400
+ },
+ "ZillaSlab-700.ttf": {
+  "family": "Zilla Slab",
+  "weight": 700
+ }
+}

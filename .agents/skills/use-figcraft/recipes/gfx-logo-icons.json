@@ -1,0 +1,1563 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-600.ttf}}"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#FFF8F2"
+    ]
+   },
+   "width": 1440,
+   "height": 860,
+   "name": "Lumen brand sheet"
+  },
+  "as": "sheet"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 96,
+   "y": 96,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 760,
+   "height": 260,
+   "name": "Logo lockup"
+  },
+  "as": "lockup"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 0,
+   "y": 30,
+   "props": {
+    "arcInner": 0.6,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "lockup"
+   },
+   "width": 200,
+   "height": 200,
+   "name": "Lring"
+  },
+  "as": "Lring"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "star",
+   "x": 20.0,
+   "y": 50.0,
+   "props": {
+    "pointCount": 4,
+    "innerRadius": 0.22,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "lockup"
+   },
+   "width": 160.0,
+   "height": 160.0,
+   "name": "Lspark"
+  },
+  "as": "Lspark"
+ },
+ {
+  "command": "bool.exclude",
+  "params": {
+   "ids": [
+    {
+     "$ref": "Lring"
+    },
+    {
+     "$ref": "Lspark"
+    }
+   ]
+  },
+  "as": "Lmark"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "Lmark"
+   },
+   "name": "Lumen mark",
+   "fills": [
+    {
+     "type": "linearGradient",
+     "stops": [
+      {
+       "color": "#8C5CFF",
+       "position": 0
+      },
+      {
+       "color": "#FF3D77",
+       "position": 0.38
+      },
+      {
+       "color": "#FF6B4A",
+       "position": 0.68
+      },
+      {
+       "color": "#FFB13B",
+       "position": 1
+      }
+     ],
+     "from": [
+      0.1,
+      0.05
+     ],
+     "to": [
+      0.9,
+      0.95
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "lockup"
+   },
+   "x": 236,
+   "y": 38,
+   "text": "lumen",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "ExtraBold",
+    "fontSize": 150,
+    "letterSpacing": "-5%",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "word"
+  },
+  "as": "word"
+ },
+ {
+  "command": "vector.flatten",
+  "params": {
+   "ids": [
+    {
+     "$ref": "word"
+    }
+   ]
+  },
+  "as": "wordv"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "lockup"
+   },
+   "x": 244,
+   "y": 214,
+   "text": "LIGHT FOR MAKERS",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 18,
+    "letterSpacing": "48%",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "opacity": 0.7,
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "tagline"
+  },
+  "as": "tagline"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 1040,
+   "y": 72,
+   "props": {
+    "cornerRadius": 68,
+    "cornerSmoothing": 0.6,
+    "fills": [
+     "#1B1E3C",
+     {
+      "type": "radialGradient",
+      "stops": [
+       "#3A3F7A",
+       "#1B1E3C00"
+      ],
+      "from": [
+       0.3,
+       0.2
+      ],
+      "to": [
+       0.3,
+       1
+      ]
+     }
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C40",
+      "offset": [
+       0,
+       24
+      ],
+      "radius": 48,
+      "spread": -8
+     },
+     {
+      "type": "innerShadow",
+      "color": "#FFFFFF26",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 0
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 280,
+   "height": 280,
+   "name": "App icon"
+  },
+  "as": "app"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 1090,
+   "y": 122,
+   "props": {
+    "arcInner": 0.6,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "Aring"
+  },
+  "as": "Aring"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "star",
+   "x": 1108.0,
+   "y": 140.0,
+   "props": {
+    "pointCount": 4,
+    "innerRadius": 0.22,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 144.0,
+   "height": 144.0,
+   "name": "Aspark"
+  },
+  "as": "Aspark"
+ },
+ {
+  "command": "bool.exclude",
+  "params": {
+   "ids": [
+    {
+     "$ref": "Aring"
+    },
+    {
+     "$ref": "Aspark"
+    }
+   ]
+  },
+  "as": "Amark"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "Amark"
+   },
+   "name": "Lumen mark",
+   "fills": [
+    {
+     "type": "linearGradient",
+     "stops": [
+      {
+       "color": "#8C5CFF",
+       "position": 0
+      },
+      {
+       "color": "#FF3D77",
+       "position": 0.38
+      },
+      {
+       "color": "#FF6B4A",
+       "position": 0.68
+      },
+      {
+       "color": "#FFB13B",
+       "position": 1
+      }
+     ],
+     "from": [
+      0.1,
+      0.05
+     ],
+     "to": [
+      0.9,
+      0.95
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "Amark"
+   },
+   "effects": [
+    {
+     "type": "dropShadow",
+     "color": "#FF6B4A80",
+     "offset": [
+      0,
+      0
+     ],
+     "radius": 30,
+     "showBehind": true
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 1040,
+   "y": 376,
+   "text": "App icon · 280 px · smoothing 60%",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "fills": [
+     "#1B1E3C"
+    ],
+    "opacity": 0.55,
+    "textAlign": "center",
+    "textAutoResize": "height"
+   },
+   "name": "lab_app",
+   "width": 280
+  },
+  "as": "lab_app"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 96,
+   "y": 470,
+   "props": {
+    "fills": [
+     "#1B1E3C"
+    ],
+    "opacity": 0.12
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 1248,
+   "height": 1,
+   "name": "div"
+  },
+  "as": "div"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 96,
+   "y": 500,
+   "text": "ICON SET  ·  96 PX GRID  ·  6 PX STROKE  ·  ROUND CAPS",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "letterSpacing": "30%",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "opacity": 0.55,
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "sec"
+  },
+  "as": "sec"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 120.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile0"
+  },
+  "as": "tile0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 120.0,
+   "y": 758,
+   "text": "Home",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab0",
+   "width": 180
+  },
+  "as": "lab0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 162.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/home"
+  },
+  "as": "ic0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 324.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile1"
+  },
+  "as": "tile1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 324.0,
+   "y": 758,
+   "text": "Search",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab1",
+   "width": 180
+  },
+  "as": "lab1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 366.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/search"
+  },
+  "as": "ic1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 528.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile2"
+  },
+  "as": "tile2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 528.0,
+   "y": 758,
+   "text": "Favourite",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab2",
+   "width": 180
+  },
+  "as": "lab2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 570.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/favourite"
+  },
+  "as": "ic2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 732.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile3"
+  },
+  "as": "tile3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 732.0,
+   "y": 758,
+   "text": "Messages",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab3",
+   "width": 180
+  },
+  "as": "lab3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 774.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/messages"
+  },
+  "as": "ic3"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 936.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile4"
+  },
+  "as": "tile4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 936.0,
+   "y": 758,
+   "text": "Settings",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab4",
+   "width": 180
+  },
+  "as": "lab4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 978.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/settings"
+  },
+  "as": "ic4"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 1140.0,
+   "y": 560,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "cornerRadius": 36,
+    "cornerSmoothing": 0.6,
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C14",
+      "offset": [
+       0,
+       2
+      ],
+      "radius": 4
+     },
+     {
+      "type": "dropShadow",
+      "color": "#1B1E3C1F",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -6
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 180,
+   "height": 180,
+   "name": "tile5"
+  },
+  "as": "tile5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "sheet"
+   },
+   "x": 1140.0,
+   "y": 758,
+   "text": "Energy",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 15,
+    "textAlign": "center",
+    "fills": [
+     "#1B1E3C"
+    ],
+    "textAutoResize": "height"
+   },
+   "name": "lab5",
+   "width": 180
+  },
+  "as": "lab5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 1182.0,
+   "y": 602,
+   "props": {
+    "fills": []
+   },
+   "parent": {
+    "$ref": "sheet"
+   },
+   "width": 96,
+   "height": 96,
+   "name": "icon/energy"
+  },
+  "as": "ic5"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic0"
+   },
+   "name": "roof",
+   "points": [
+    [
+     10,
+     46
+    ],
+    [
+     48,
+     14
+    ],
+    [
+     86,
+     46
+    ]
+   ],
+   "closed": true
+  },
+  "as": "roof"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 20,
+   "y": 38,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic0"
+   },
+   "width": 56,
+   "height": 46,
+   "name": "body"
+  },
+  "as": "body"
+ },
+ {
+  "command": "bool.union",
+  "params": {
+   "ids": [
+    {
+     "$ref": "roof"
+    },
+    {
+     "$ref": "body"
+    }
+   ]
+  },
+  "as": "house"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "house"
+   },
+   "fills": [],
+   "strokes": [
+    "#1B1E3C"
+   ],
+   "strokeWeight": 6,
+   "strokeAlign": "center",
+   "strokeCap": "round",
+   "strokeJoin": "round"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 39,
+   "y": 58,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ],
+    "cornerRadius": [
+     9,
+     9,
+     0,
+     0
+    ]
+   },
+   "parent": {
+    "$ref": "ic0"
+   },
+   "width": 18,
+   "height": 26,
+   "name": "door"
+  },
+  "as": "door"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 12,
+   "y": 12,
+   "props": {
+    "strokes": [
+     "#1B1E3C"
+    ],
+    "strokeWeight": 6,
+    "strokeAlign": "center",
+    "strokeCap": "round",
+    "strokeJoin": "round",
+    "fills": [
+     "#FF6B4A40"
+    ]
+   },
+   "parent": {
+    "$ref": "ic1"
+   },
+   "width": 52,
+   "height": 52,
+   "name": "lens"
+  },
+  "as": "lens"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 58,
+   "y": 58,
+   "props": {
+    "strokes": [
+     "#1B1E3C"
+    ],
+    "strokeWeight": 8,
+    "strokeAlign": "center",
+    "strokeCap": "round",
+    "strokeJoin": "round",
+    "fills": []
+   },
+   "parent": {
+    "$ref": "ic1"
+   },
+   "name": "handle",
+   "path": "M0 0 L24 24"
+  },
+  "as": "handle"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 12,
+   "y": 18,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic2"
+   },
+   "width": 38,
+   "height": 38,
+   "name": "hl"
+  },
+  "as": "hl"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 46,
+   "y": 18,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic2"
+   },
+   "width": 38,
+   "height": 38,
+   "name": "hr"
+  },
+  "as": "hr"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic2"
+   },
+   "name": "ht",
+   "points": [
+    [
+     14.6,
+     45
+    ],
+    [
+     81.4,
+     45
+    ],
+    [
+     48,
+     84
+    ]
+   ],
+   "closed": true
+  },
+  "as": "ht"
+ },
+ {
+  "command": "bool.union",
+  "params": {
+   "ids": [
+    {
+     "$ref": "hl"
+    },
+    {
+     "$ref": "hr"
+    },
+    {
+     "$ref": "ht"
+    }
+   ]
+  },
+  "as": "heart"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "heart"
+   },
+   "fills": [
+    "#FF6B4A"
+   ],
+   "strokes": [
+    "#1B1E3C"
+   ],
+   "strokeWeight": 6,
+   "strokeAlign": "center",
+   "strokeCap": "round",
+   "strokeJoin": "round"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 10,
+   "y": 14,
+   "props": {
+    "cornerRadius": 18,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic3"
+   },
+   "width": 76,
+   "height": 54,
+   "name": "cb"
+  },
+  "as": "cb"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic3"
+   },
+   "name": "ctail",
+   "points": [
+    [
+     24,
+     60
+    ],
+    [
+     44,
+     66
+    ],
+    [
+     20,
+     86
+    ]
+   ],
+   "closed": true
+  },
+  "as": "ctail"
+ },
+ {
+  "command": "bool.union",
+  "params": {
+   "ids": [
+    {
+     "$ref": "cb"
+    },
+    {
+     "$ref": "ctail"
+    }
+   ]
+  },
+  "as": "chat"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "chat"
+   },
+   "fills": [],
+   "strokes": [
+    "#1B1E3C"
+   ],
+   "strokeWeight": 6,
+   "strokeAlign": "center",
+   "strokeCap": "round",
+   "strokeJoin": "round"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 29,
+   "y": 36,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ]
+   },
+   "parent": {
+    "$ref": "ic3"
+   },
+   "width": 10,
+   "height": 10,
+   "name": "cd0"
+  },
+  "as": "cd0"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 45,
+   "y": 36,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ]
+   },
+   "parent": {
+    "$ref": "ic3"
+   },
+   "width": 10,
+   "height": 10,
+   "name": "cd1"
+  },
+  "as": "cd1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 61,
+   "y": 36,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ]
+   },
+   "parent": {
+    "$ref": "ic3"
+   },
+   "width": 10,
+   "height": 10,
+   "name": "cd2"
+  },
+  "as": "cd2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "star",
+   "x": 8,
+   "y": 8,
+   "props": {
+    "pointCount": 8,
+    "innerRadius": 0.74,
+    "cornerRadius": 6,
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic4"
+   },
+   "width": 80,
+   "height": 80,
+   "name": "gst"
+  },
+  "as": "gst"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 33,
+   "y": 33,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "ic4"
+   },
+   "width": 30,
+   "height": 30,
+   "name": "ghole"
+  },
+  "as": "ghole"
+ },
+ {
+  "command": "bool.subtract",
+  "params": {
+   "ids": [
+    {
+     "$ref": "gst"
+    },
+    {
+     "$ref": "ghole"
+    }
+   ]
+  },
+  "as": "gear"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "gear"
+   },
+   "fills": [],
+   "strokes": [
+    "#1B1E3C"
+   ],
+   "strokeWeight": 6,
+   "strokeAlign": "center",
+   "strokeCap": "round",
+   "strokeJoin": "round"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 41,
+   "y": 41,
+   "props": {
+    "fills": [
+     "#FF6B4A"
+    ]
+   },
+   "parent": {
+    "$ref": "ic4"
+   },
+   "width": 14,
+   "height": 14,
+   "name": "ghub"
+  },
+  "as": "ghub"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "strokes": [
+     "#1B1E3C"
+    ],
+    "strokeWeight": 6,
+    "strokeAlign": "center",
+    "strokeCap": "round",
+    "strokeJoin": "round",
+    "fills": [
+     "#FF6B4A"
+    ]
+   },
+   "parent": {
+    "$ref": "ic5"
+   },
+   "name": "bolt",
+   "points": [
+    [
+     56,
+     8
+    ],
+    [
+     20,
+     54
+    ],
+    [
+     46,
+     54
+    ],
+    [
+     40,
+     88
+    ],
+    [
+     76,
+     40
+    ],
+    [
+     50,
+     40
+    ]
+   ],
+   "closed": true
+  },
+  "as": "bolt"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sheet"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-logo-icons.png"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "sheet"
+    }
+   ],
+   "format": "svg",
+   "path": "{{out}}/recipe-logo-icons.svg"
+  }
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "lockup"
+    }
+   ],
+   "format": "svg",
+   "path": "{{out}}/recipe-logo-lockup.svg"
+  }
+ }
+]

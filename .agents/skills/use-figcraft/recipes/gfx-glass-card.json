@@ -1,0 +1,1084 @@
+[
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-800.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-600.ttf}}"
+  }
+ },
+ {
+  "command": "text.loadFont",
+  "params": {
+   "path": "{{font:Montserrat-500.ttf}}"
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "clip": true,
+    "fills": [
+     "#0A0B1F",
+     {
+      "type": "linearGradient",
+      "stops": [
+       {
+        "color": "#1A1446",
+        "position": 0
+       },
+       {
+        "color": "#0A0B1F00",
+        "position": 1
+       }
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       0.6,
+       1
+      ]
+     }
+    ]
+   },
+   "width": 1200,
+   "height": 960,
+   "name": "Glass player"
+  },
+  "as": "bg"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 640,
+   "y": 70,
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#FFB13B",
+       "#FF3D77"
+      ],
+      "from": [
+       0.2,
+       0
+      ],
+      "to": [
+       0.8,
+       1
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 420,
+   "height": 420,
+   "name": "sun"
+  },
+  "as": "sun"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 150,
+   "y": 520,
+   "props": {
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#22D3EE",
+       "#6D5BFF"
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1,
+       1
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 360,
+   "height": 360,
+   "name": "orb"
+  },
+  "as": "orb"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 90,
+   "y": 90,
+   "props": {
+    "arcInner": 0.82,
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#FF6B4A",
+       "#8C5CFF"
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1,
+       1
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 300,
+   "height": 300,
+   "name": "ringdeco"
+  },
+  "as": "ringdeco"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 780,
+   "y": 640,
+   "props": {
+    "cornerRadius": 60,
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#8C5CFF",
+       "#22D3EE"
+      ],
+      "from": [
+       0,
+       0.5
+      ],
+      "to": [
+       1,
+       0.5
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 340,
+   "height": 120,
+   "name": "pill"
+  },
+  "as": "pill"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 300,
+   "y": 200,
+   "props": {
+    "fills": [
+     "#FF3D77"
+    ],
+    "opacity": 0.45,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 140
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 500,
+   "height": 500,
+   "name": "blob1"
+  },
+  "as": "blob1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 700,
+   "y": 480,
+   "props": {
+    "fills": [
+     "#6D5BFF"
+    ],
+    "opacity": 0.5,
+    "effects": [
+     {
+      "type": "layerBlur",
+      "radius": 140
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 500,
+   "height": 400,
+   "name": "blob2"
+  },
+  "as": "blob2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "frame",
+   "x": 330,
+   "y": 120,
+   "props": {
+    "cornerRadius": 44,
+    "cornerSmoothing": 0.6,
+    "clip": true,
+    "fills": [
+     "#FFFFFF14"
+    ],
+    "strokes": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#FFFFFF99",
+       "#FFFFFF14",
+       "#FFFFFF59"
+      ],
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       1,
+       1
+      ]
+     }
+    ],
+    "strokeWeight": 1.5,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#05061A80",
+      "offset": [
+       0,
+       40
+      ],
+      "radius": 80,
+      "spread": -16
+     },
+     {
+      "type": "glass",
+      "depth": 28,
+      "dispersion": 0.4,
+      "frost": 22,
+      "lightAngle": -45,
+      "lightIntensity": 0.75,
+      "refraction": 0.7,
+      "splay": 0.2
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 540,
+   "height": 720,
+   "name": "Glass card"
+  },
+  "as": "card"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 30,
+   "y": 30,
+   "props": {
+    "cornerRadius": 28,
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#000000"
+     }
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#00000066",
+      "offset": [
+       0,
+       18
+      ],
+      "radius": 36,
+      "spread": -10
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 480,
+   "height": 400,
+   "name": "Album art"
+  },
+  "as": "art"
+ },
+ {
+  "command": "image.place",
+  "params": {
+   "path": "{{image:poster.png}}",
+   "target": {
+    "$ref": "art"
+   },
+   "mode": "crop"
+  },
+  "as": "artimg"
+ },
+ {
+  "command": "fill.set",
+  "params": {
+   "ids": [
+    {
+     "$ref": "art"
+    }
+   ],
+   "index": 1,
+   "paint": {
+    "type": "image",
+    "image": {
+     "$ref": "artimg",
+     "field": "image"
+    },
+    "scale_mode": "crop",
+    "crop": [
+     0.36,
+     0,
+     0,
+     0.535,
+     0.29,
+     0.0
+    ]
+   }
+  }
+ },
+ {
+  "command": "image.adjust",
+  "params": {
+   "ids": [
+    {
+     "$ref": "art"
+    }
+   ],
+   "filters": {
+    "contrast": 0.15,
+    "saturation": 0.1,
+    "temperature": 0.15
+   }
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "card"
+   },
+   "x": 30,
+   "y": 456,
+   "text": "Nocturne",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "ExtraBold",
+    "fontSize": 34,
+    "letterSpacing": "-2%",
+    "fills": [
+     "#FFFFFF"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "title"
+  },
+  "as": "title"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "card"
+   },
+   "x": 30,
+   "y": 500,
+   "text": "Velvet Ruin  ·  Moonlit Records",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "Medium",
+    "fontSize": 17,
+    "fills": [
+     "#FFFFFF"
+    ],
+    "opacity": 0.7,
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "artist"
+  },
+  "as": "artist"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 466,
+   "y": 466,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 22,
+   "height": 22,
+   "name": "hl"
+  },
+  "as": "hl"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 484,
+   "y": 466,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 22,
+   "height": 22,
+   "name": "hr"
+  },
+  "as": "hr"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#000000"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "ht",
+   "points": [
+    [
+     467.6,
+     481
+    ],
+    [
+     504.4,
+     481
+    ],
+    [
+     486,
+     502
+    ]
+   ],
+   "closed": true
+  },
+  "as": "ht"
+ },
+ {
+  "command": "bool.union",
+  "params": {
+   "ids": [
+    {
+     "$ref": "hl"
+    },
+    {
+     "$ref": "hr"
+    },
+    {
+     "$ref": "ht"
+    }
+   ]
+  },
+  "as": "heart"
+ },
+ {
+  "command": "node.set",
+  "params": {
+   "id": {
+    "$ref": "heart"
+   },
+   "fills": [
+    "#FF3D77"
+   ],
+   "effects": [
+    {
+     "type": "dropShadow",
+     "color": "#FF3D7799",
+     "offset": [
+      0,
+      0
+     ],
+     "radius": 14,
+     "showBehind": true
+    }
+   ]
+  }
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 30,
+   "y": 560,
+   "props": {
+    "cornerRadius": 3,
+    "fills": [
+     "#FFFFFF33"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 480,
+   "height": 6,
+   "name": "track"
+  },
+  "as": "track"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 30,
+   "y": 560,
+   "props": {
+    "cornerRadius": 3,
+    "fills": [
+     {
+      "type": "linearGradient",
+      "stops": [
+       "#FFB13B",
+       "#FF3D77"
+      ],
+      "from": [
+       0,
+       0.5
+      ],
+      "to": [
+       1,
+       0.5
+      ]
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 300,
+   "height": 6,
+   "name": "prog"
+  },
+  "as": "prog"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 322,
+   "y": 555,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#FF3D77AA",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10,
+      "spread": 1
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 16,
+   "height": 16,
+   "name": "knob"
+  },
+  "as": "knob"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "card"
+   },
+   "x": 30,
+   "y": 576,
+   "text": "2:14",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "features": {
+     "tnum": true
+    },
+    "fills": [
+     "#FFFFFF"
+    ],
+    "opacity": 0.6,
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "t1"
+  },
+  "as": "t1"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "card"
+   },
+   "x": 30,
+   "y": 576,
+   "text": "-1:32",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 13,
+    "features": {
+     "tnum": true
+    },
+    "fills": [
+     "#FFFFFF"
+    ],
+    "opacity": 0.6,
+    "textAlign": "right",
+    "textAutoResize": "height"
+   },
+   "name": "t2",
+   "width": 480
+  },
+  "as": "t2"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 228,
+   "y": 616,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#00000040",
+      "offset": [
+       0,
+       10
+      ],
+      "radius": 24,
+      "spread": -4
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 84,
+   "height": 84,
+   "name": "play"
+  },
+  "as": "play"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#14152E"
+    ],
+    "strokes": [
+     "#14152E"
+    ],
+    "strokeWeight": 4,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "playtri",
+   "points": [
+    [
+     260,
+     642
+    ],
+    [
+     260,
+     674
+    ],
+    [
+     288,
+     658
+    ]
+   ],
+   "closed": true
+  },
+  "as": "playtri"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 3,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "preva",
+   "points": [
+    [
+     160,
+     644
+    ],
+    [
+     160,
+     672
+    ],
+    [
+     140,
+     658
+    ]
+   ],
+   "closed": true
+  },
+  "as": "preva"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 3,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "prevb",
+   "points": [
+    [
+     142,
+     644
+    ],
+    [
+     142,
+     672
+    ],
+    [
+     122,
+     658
+    ]
+   ],
+   "closed": true
+  },
+  "as": "prevb"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 120,
+   "y": 643,
+   "props": {
+    "cornerRadius": 2,
+    "fills": [
+     "#FFFFFF"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 4,
+   "height": 30,
+   "name": "prevbar"
+  },
+  "as": "prevbar"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 3,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "nexta",
+   "points": [
+    [
+     380,
+     644
+    ],
+    [
+     380,
+     672
+    ],
+    [
+     400,
+     658
+    ]
+   ],
+   "closed": true
+  },
+  "as": "nexta"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "vector",
+   "x": 0,
+   "y": 0,
+   "props": {
+    "fills": [
+     "#FFFFFF"
+    ],
+    "strokes": [
+     "#FFFFFF"
+    ],
+    "strokeWeight": 3,
+    "strokeJoin": "round"
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "name": "nextb",
+   "points": [
+    [
+     398,
+     644
+    ],
+    [
+     398,
+     672
+    ],
+    [
+     418,
+     658
+    ]
+   ],
+   "closed": true
+  },
+  "as": "nextb"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 416,
+   "y": 643,
+   "props": {
+    "cornerRadius": 2,
+    "fills": [
+     "#FFFFFF"
+    ]
+   },
+   "parent": {
+    "$ref": "card"
+   },
+   "width": 4,
+   "height": 30,
+   "name": "nextbar"
+  },
+  "as": "nextbar"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "rectangle",
+   "x": 800,
+   "y": 150,
+   "props": {
+    "cornerRadius": 32,
+    "fills": [
+     "#FFFFFF1A"
+    ],
+    "strokes": [
+     "#FFFFFF4D"
+    ],
+    "strokeWeight": 1,
+    "strokeAlign": "inside",
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#05061A55",
+      "offset": [
+       0,
+       16
+      ],
+      "radius": 32,
+      "spread": -8
+     },
+     {
+      "type": "backgroundBlur",
+      "radius": 24
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 230,
+   "height": 64,
+   "name": "Glass chip"
+  },
+  "as": "chip"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "ellipse",
+   "x": 824,
+   "y": 174,
+   "props": {
+    "fills": [
+     "#3DFFA8"
+    ],
+    "effects": [
+     {
+      "type": "dropShadow",
+      "color": "#3DFFA8AA",
+      "offset": [
+       0,
+       0
+      ],
+      "radius": 10
+     }
+    ]
+   },
+   "parent": {
+    "$ref": "bg"
+   },
+   "width": 16,
+   "height": 16,
+   "name": "chipdot"
+  },
+  "as": "chipdot"
+ },
+ {
+  "command": "node.create",
+  "params": {
+   "type": "text",
+   "parent": {
+    "$ref": "bg"
+   },
+   "x": 852,
+   "y": 171,
+   "text": "LOSSLESS · 24-BIT",
+   "props": {
+    "fontFamily": "Montserrat",
+    "fontStyle": "SemiBold",
+    "fontSize": 14,
+    "letterSpacing": "12%",
+    "fills": [
+     "#FFFFFF"
+    ],
+    "textAutoResize": "widthAndHeight"
+   },
+   "name": "chiptxt"
+  },
+  "as": "chiptxt"
+ },
+ {
+  "command": "file.export",
+  "params": {
+   "ids": [
+    {
+     "$ref": "bg"
+    }
+   ],
+   "format": "png",
+   "scale": 1,
+   "path": "{{out}}/recipe-glass.png"
+  }
+ }
+]

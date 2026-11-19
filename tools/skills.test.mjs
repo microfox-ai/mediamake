@@ -248,3 +248,38 @@ test("folderPaths lists a folder's files, and codeUsed the engine and setup a SK
   ]);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('a skill of yours that lives in a space (the workspace links it) is published as its files, never the link', () => {
+  // a space's skill, linked into the workspace the way `mm space` links it
+  const space = path.join(tmp, 'space', 'skills', 'use-demo');
+  write(path.join(space, 'SKILL.md'), BASE.replaceAll('make-demo', 'use-demo'));
+  write(path.join(space, 'recipes', 'one.json'), '[]\n');
+  fs.symlinkSync(space, path.join(own, 'use-demo'));
+  const before = checkout();
+  const out = ok('publish', 'use-demo', '--yes', '--made=The demo banner');
+  const [, branch] = out.match(/on (skill\/use-demo-\d{8}-\d{4}) /) ?? [];
+  assert.ok(branch, out);
+  assert.equal(checkout(), before);
+  git(repo, 'fetch', '--quiet', 'origin', branch);
+  const at = `origin/${branch}`;
+  assert.equal(git(repo, 'ls-tree', at, '.agents/skills/use-demo').split(/\s/)[0], '040000', 'a folder of files, not a link');
+  assert.equal(git(repo, 'show', `${at}:.agents/skills/use-demo/recipes/one.json`), '[]');
+  assert.equal(git(repo, 'show', `${at}:.claude/skills/use-demo`), '../../.agents/skills/use-demo');
+  fs.rmSync(path.join(own, 'use-demo'));
+});
+
+test('check fails on a skill committed as a link, and on a .claude link that points out of .agents/skills', () => {
+  const link = path.join(repo, '.agents', 'skills', 'linked-out');
+  fs.symlinkSync(path.join(tmp, 'space', 'skills', 'use-demo'), link);
+  const stray = path.join(repo, '.claude', 'skills', 'stray');
+  fs.symlinkSync('/somewhere/else', stray);
+  git(repo, 'add', '.agents/skills/linked-out', '.claude/skills/stray');
+  const r = skills('check');
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /\.agents\/skills\/linked-out is a link \(to .*use-demo\), not the skill's files/);
+  assert.match(r.out, /\.claude\/skills\/stray links to \/somewhere\/else, not \.\.\/\.\.\/\.agents\/skills\/stray/);
+  git(repo, 'rm', '--quiet', '--cached', '.agents/skills/linked-out', '.claude/skills/stray');
+  fs.rmSync(link);
+  fs.rmSync(stray);
+  assert.equal(skills('check').code, 0);
+});
