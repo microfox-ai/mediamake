@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EntryRecord, FieldValue, PlaylistLink, SongPart, StoreLink } from '@/lib/cloud-library';
 import { canChange, clock, dayText, formatBytes, valueLine, type CollectionView, type EntryAnswer, type FieldView, type SpaceView } from '@/lib/cloud-library/view';
+import { ShareNotesCard } from './share-dialog';
 import { libraryApi } from './api';
 import { EntryDialog } from './entry-dialog';
 
@@ -172,7 +173,7 @@ function History({ entry, fields }: { entry: EntryRecord; fields: FieldView[] })
   );
 }
 
-export function EntryView({ space, collection, answer, onChanged, onTrashed }: { space: SpaceView; collection: CollectionView; answer: EntryAnswer; onChanged: (warnings: string[]) => void; onTrashed: () => void }) {
+export function EntryView({ space, home, collection, answer, onChanged, onTrashed }: { space: SpaceView; /** The space the page is in, when the collection is shared with it: its notes are kept there. */ home?: SpaceView; collection: CollectionView; answer: EntryAnswer; onChanged: (warnings: string[]) => void; onTrashed: () => void }) {
   const { entry, statistics } = answer;
   const [editing, setEditing] = React.useState(false);
   const [trashing, setTrashing] = React.useState(false);
@@ -229,6 +230,7 @@ export function EntryView({ space, collection, answer, onChanged, onTrashed }: {
           <TabsTrigger value="files">Files ({fileCount})</TabsTrigger>
           {statistics.length > 0 && <TabsTrigger value="numbers">Numbers</TabsTrigger>}
           <TabsTrigger value="history">History</TabsTrigger>
+          {collection.shared && <TabsTrigger value="notes">This space&apos;s notes</TabsTrigger>}
         </TabsList>
 
         {groups.map(group => (
@@ -285,6 +287,12 @@ export function EntryView({ space, collection, answer, onChanged, onTrashed }: {
         <TabsContent value="history" className="pt-2">
           <History entry={entry} fields={collection.fields} />
         </TabsContent>
+
+        {collection.shared && (
+          <TabsContent value="notes" className="pt-2">
+            <ShareNotesCard space={home ?? space} entryRef={`${entry.collection}/${entry.slug}`} by={collection.shared.by} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <EntryDialog space={space} collection={collection} entry={entry} open={editing} onOpenChange={setEditing} onSaved={(_ref, warnings) => onChanged(warnings)} />
@@ -294,7 +302,7 @@ export function EntryView({ space, collection, answer, onChanged, onTrashed }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Move {entry.title} to the trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              It leaves the {collection.name} collection of the {space.name} space for everyone on it. Its files are not deleted.
+              It leaves the {collection.name} collection for everyone who has it{collection.shared ? `, ${collection.shared.by} too` : ''}. Its files are not deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

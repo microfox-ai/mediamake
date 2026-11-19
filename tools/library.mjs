@@ -54,6 +54,24 @@
  *   mm library headshot <collection> --clear [--yes]                         takes it off
  *   mm library usage [--days=30] [--all]     what you used and its estimated cost (--all: admins, everyone's)
  *
+ * Shared collections. A collection is opened to a project or a person by the owner of its space. They
+ * use the collection itself, never a copy, under the id it has in their Library (`songs`, or
+ * `songs-<who shares it>` when they have a `songs` of their own): every command above takes that id.
+ *
+ *   mm library shares <collection>           who it is opened to, and what each fetched in 30 days
+ *   mm library share <collection> --with=<project> | --to=<email> [--editor] [--internal] [--yes]
+ *                                            the owner's word: invites a project you are on (everyone on
+ *                                            it) or one person. --editor lets them add and change too.
+ *                                            Entries marked "Internal only" stay out unless --internal.
+ *   mm library unshare <collection> --with=<project> | --to=<name as shares lists it> [--yes]
+ *                                            takes it back, at once
+ *   mm library accept <collection> [--from=<who shares it>] [--yes]
+ *                                            says yes to an invitation in --project's Library (or yours)
+ *   mm library leave <collection> [--yes]    declines an invitation, or leaves a shared collection
+ *   mm library notes <collection>/<entry> [--rating=1-5] [--tags=a,b] [--used-in=a,b] [--yes]
+ *                                            your space's own notes on a shared entry. They stay in your
+ *                                            space and never touch the entry.
+ *
  * This computer's own library (its media library, `mm media`), as cards for the Library's page and for
  * cloud sessions. A card says what a file is: never its bytes, never where it is on the disk.
  *
@@ -231,11 +249,13 @@ export function overviewLines(view) {
   const lines = [`${view.space.name} Library${view.space.role === 'viewer' ? ' (you can read it)' : ''}`];
   if (!view.collections.length) lines.push('  No collections yet. Start one from a template: mm library templates');
   for (const c of view.collections) {
-    lines.push(`  ${c.name} (${c.slug}) · ${c.entries} ${c.entries === 1 ? c.noun : `${c.noun}s`}`);
+    const sharing = c.shared ? ` · shared by ${c.shared.by} (${c.shared.role === 'editor' ? 'you can add and change' : 'read and fetch'})` : c.sharedWith ? ` · shared with ${c.sharedWith}` : '';
+    lines.push(`  ${c.name} (${c.slug}) · ${c.entries} ${c.entries === 1 ? c.noun : `${c.noun}s`}${sharing}`);
     lines.push(`      fields: ${c.fields.map(f => f.key).join(', ')}`);
     lines.push(`      files:  ${c.slots.map(s => (s.many ? `${s.key} (many)` : s.key)).join(', ')}`);
     for (const [list, values] of Object.entries(c.learned ?? {})) if (values.length) lines.push(`      known ${list}s: ${values.slice(0, 12).join(', ')}${values.length > 12 ? ', …' : ''}`);
   }
+  for (const i of view.invitations ?? []) lines.push(`  Invitation: ${i.by} shares ${i.name} (${i.entries} ${i.entries === 1 ? i.noun : `${i.noun}s`}). ${i.says}\n      mm library accept ${i.collection}`);
   return lines;
 }
 
@@ -543,14 +563,14 @@ async function save(env, [collection, entry], flags) {
   }
 
   if (local.length) {
-    const started = await api(env, 'POST', '/files', { action: 'start', space: space.id, files: local.map(f => ({ sha256: f.sha256, size: f.size, name: f.name })) });
+    const started = await api(env, 'POST', '/files', { action: 'start', space: space.id, collection, files: local.map(f => ({ sha256: f.sha256, size: f.size, name: f.name })) });
     for (const upload of started.uploads) {
       const file = local.find(f => f.sha256 === upload.sha256);
       console.error(`  ↑ ${file.name} (${sizeOf(file.size)})`);
       const res = await fetch(upload.uploadUrl, { method: 'PUT', headers: { ...upload.headers, 'Content-Length': String(file.size) }, body: Readable.toWeb(fs.createReadStream(file.path)), duplex: 'half', signal: AbortSignal.timeout(6 * 60 * 60 * 1000) });
       if (!res.ok) throw new Error(`Storage refused ${file.name} (${res.status}). Nothing was saved to the entry: run it again, files that arrived are not sent twice.`);
     }
-    await api(env, 'POST', '/files', { action: 'finish', space: space.id, sha256s: local.map(f => f.sha256), device: placeName(env) });
+    await api(env, 'POST', '/files', { action: 'finish', space: space.id, collection, sha256s: local.map(f => f.sha256), device: placeName(env) });
   }
   const shaOfSlot = slot => local.find(f => f.slot === slot)?.sha256;
   let existing = null;
@@ -753,6 +773,106 @@ async function headshot(env, [collection, source], flags) {
   return 0;
 }
 
+/* ---------- shared collections ---------- */
+
+const collectionOf = raw => {
+  const slug = String(raw ?? '').toLowerCase();
+  if (!SLUG.test(slug)) throw new Error('Which collection? mm library lists them.');
+  return slug;
+};
+const NOTHING = what => `Nothing was ${what}. After the person agrees: add --yes.`;
+
+/** How a share reads in a list. */
+export const shareLine = s =>
+  `  ${s.name} (${s.kind === 'project' ? 'a project' : 'a person'}) · ${s.state === 'accepted' ? (s.role === 'editor' ? 'can add and change' : 'reads and fetches') : 'invited, not accepted yet'}${s.internal ? ' · sees Internal only' : ''}${s.fetches ? ` · fetched ${sizeOf(s.fetchedBytes)} in ${s.fetches} ${s.fetches === 1 ? 'fetch' : 'fetches'} by ${s.people} ${s.people === 1 ? 'person' : 'people'}` : ''}`;
+
+async function shares(env, [raw], flags) {
+  const collection = collectionOf(raw);
+  const space = await spaceFor(env, flags);
+  const got = await api(env, 'GET', `/shares${query({ space: space.id, collection })}`);
+  if (flags.json) return console.log(JSON.stringify(got, null, 2)), 0;
+  if (!got.shares.length) return console.log(`${collection} of the ${space.name} space is shared with nobody.\n  mm library share ${collection} --with=<project> | --to=<email>`), 0;
+  console.log(`${collection} of the ${space.name} space is shared with (fetches since ${got.since}):`);
+  for (const share of got.shares) console.log(shareLine(share));
+  return 0;
+}
+
+async function share(env, [raw], flags) {
+  const collection = collectionOf(raw);
+  const { spaces } = await api(env, 'GET', '');
+  const space = pickSpace(spaces, typeof flags.project === 'string' ? flags.project : undefined);
+  const withProject = typeof flags.with === 'string' ? pickSpace(spaces, flags.with) : null;
+  const email = typeof flags.to === 'string' ? flags.to.trim() : '';
+  if (!withProject === !email) throw new Error('Share it with one project you are on (--with=<project>) or one person (--to=<email>).');
+  if (withProject?.personal) throw new Error('A personal space takes a share by its owner\'s email: --to=<email>.');
+  const role = flags.editor ? 'editor' : 'viewer';
+  const who = withProject ? `everyone on the ${withProject.name} project` : email;
+  if (!flags.yes) {
+    console.log(`Share the ${collection} collection of the ${space.name} space (cloud) with ${who}? They use the collection itself, live: they ${role === 'editor' ? 'read, fetch, add and change' : 'read and fetch'}${flags.internal ? ', entries marked Internal only too' : ''}. Its files stay in the ${space.name} space's storage.`);
+    return console.log(NOTHING('shared')), 0;
+  }
+  const done = await api(env, 'POST', '/shares', { action: 'share', space: space.id, collection, ...(withProject ? { project: withProject.id } : { email }), role, internal: flags.internal === true });
+  console.log(done.invited ? `✔ ${done.shared.name} is invited to ${collection}. It shows in their Library once they accept (mm library accept ${collection}).` : `✔ ${done.shared.name} now ${role === 'editor' ? 'can add and change' : 'reads and fetches'} in ${collection}.`);
+  return 0;
+}
+
+async function unshare(env, [raw], flags) {
+  const collection = collectionOf(raw);
+  const space = await spaceFor(env, flags);
+  const wanted = String(typeof flags.with === 'string' ? flags.with : typeof flags.to === 'string' ? flags.to : '').trim().toLowerCase();
+  if (!wanted) throw new Error('Take it back from whom? --with=<project> or --to=<name> (mm library shares lists them).');
+  const { shares: list } = await api(env, 'GET', `/shares${query({ space: space.id, collection })}`);
+  const hits = list.filter(s => s.to === wanted || s.name.toLowerCase() === wanted);
+  if (hits.length !== 1) throw new Error(`${hits.length ? 'Several shares are' : 'No share is'} called "${wanted}". ${collection} is shared with: ${list.map(s => s.name).join(', ') || 'nobody'}.`);
+  if (!flags.yes) return console.log(`Stop sharing the ${collection} collection of the ${space.name} space with ${hits[0].name}? It leaves their Library at once. Files already inside their productions stay.\n${NOTHING('changed')}`), 0;
+  await api(env, 'POST', '/shares', { action: 'unshare', space: space.id, collection, to: hits[0].to });
+  console.log(`✔ ${hits[0].name} no longer has ${collection}.`);
+  return 0;
+}
+
+async function accept(env, [raw], flags) {
+  const collection = collectionOf(raw);
+  const space = await spaceFor(env, flags);
+  const view = await api(env, 'GET', query({ space: space.id }));
+  const from = typeof flags.from === 'string' ? flags.from.trim().toLowerCase() : '';
+  const hits = (view.invitations ?? []).filter(i => i.collection === collection && (!from || i.by.toLowerCase() === from || i.from === from));
+  if (hits.length !== 1) throw new Error(hits.length ? `Several people share a ${collection} with the ${space.name} space: name one with --from=<who>. ${hits.map(i => i.by).join(', ')}` : `No invitation to a ${collection} collection in the ${space.name} space. Waiting: ${(view.invitations ?? []).map(i => `${i.collection} from ${i.by}`).join(', ') || 'none'}.`);
+  const [invitation] = hits;
+  if (!flags.yes) return console.log(`Accept ${invitation.name} (${invitation.entries} ${invitation.noun}s), shared by ${invitation.by}, into the ${space.name} space (cloud)? ${invitation.says}\n${NOTHING('accepted')}`), 0;
+  const done = await api(env, 'POST', '/shares', { action: 'accept', space: space.id, from: invitation.from, collection });
+  console.log(`✔ ${done.name} is in the ${space.name} space as ${done.as}.\n  mm library search --collection=${done.as}${space.personal ? '' : ` --project="${space.name}"`}`);
+  return 0;
+}
+
+async function leave(env, [raw], flags) {
+  const slug = collectionOf(raw);
+  const space = await spaceFor(env, flags);
+  const view = await api(env, 'GET', query({ space: space.id }));
+  const mine = view.collections.find(c => c.slug === slug && c.shared);
+  const invited = (view.invitations ?? []).find(i => i.collection === slug);
+  const at = mine ? { from: mine.shared.from, collection: mine.shared.collection, by: mine.shared.by } : invited ? { from: invited.from, collection: invited.collection, by: invited.by } : null;
+  if (!at) throw new Error(`The ${space.name} space has no shared collection or invitation called ${slug}.`);
+  if (!flags.yes) return console.log(`${mine ? 'Leave' : 'Decline'} the ${slug} collection that ${at.by} shares with the ${space.name} space? ${mine ? 'It leaves this Library, with the notes this space kept on it. Files already inside productions stay.' : ''}\n${NOTHING('changed')}`), 0;
+  await api(env, 'POST', '/shares', { action: 'leave', space: space.id, from: at.from, collection: at.collection });
+  console.log(`✔ ${slug} is no longer in the ${space.name} space.`);
+  return 0;
+}
+
+async function notes(env, [raw], flags) {
+  const ref = refOf(raw);
+  const space = await spaceFor(env, flags);
+  const list = value => (typeof value === 'string' ? value.split(',').map(item => item.trim()).filter(Boolean) : undefined);
+  const change = { ...(flags.rating !== undefined && { rating: Number(flags.rating) }), ...(list(flags.tags) && { tags: list(flags.tags) }), ...(list(flags['used-in']) && { usedIn: list(flags['used-in']) }) };
+  const { notes: now } = await api(env, 'GET', `/shares${query({ space: space.id, notes: ref })}`);
+  const line = n => `rating ${n.rating ?? 'none'} · tags: ${n.tags.join(', ') || 'none'} · used in: ${n.usedIn.join(', ') || 'none'}`;
+  if (!Object.keys(change).length) return console.log(flags.json ? JSON.stringify(now, null, 2) : `The ${space.name} space's notes on ${ref}: ${line(now)}`), 0;
+  const next = { ...now, ...change };
+  if (!flags.yes) return console.log(`Save the ${space.name} space's notes on ${ref} (${line(next)})? They stay in this space and never touch the entry.\n${NOTHING('saved')}`), 0;
+  const saved = await api(env, 'POST', '/shares', { action: 'notes', space: space.id, ref, ...next });
+  console.log(`✔ Notes on ${ref}: ${line(saved.notes)}`);
+  return 0;
+}
+
 async function usage(env, flags) {
   const got = await api(env, 'GET', `/usage${query({ days: flags.days, all: flags.all ? 1 : undefined })}`);
   if (flags.json || flags.all) return console.log(JSON.stringify(got, null, 2)), 0;
@@ -806,6 +926,18 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return report(env, rest, flags);
     case 'devices':
       return devices(env, rest, flags);
+    case 'shares':
+      return shares(env, rest, flags);
+    case 'share':
+      return share(env, rest, flags);
+    case 'unshare':
+      return unshare(env, rest, flags);
+    case 'accept':
+      return accept(env, rest, flags);
+    case 'leave':
+      return leave(env, rest, flags);
+    case 'notes':
+      return notes(env, rest, flags);
     default:
       if (REF.test(cmd.toLowerCase())) return get(env, [cmd], flags);
       throw new Error(`No "${cmd}". mm library help lists the commands.`);

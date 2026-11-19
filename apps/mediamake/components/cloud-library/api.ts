@@ -1,4 +1,5 @@
 import type { DeviceFile, DeviceView } from '@/lib/cloud-library/devices';
+import type { ShareNotes, ShareRole, ShareView } from '@/lib/cloud-library/shares';
 import type { CollectionView, EntryAnswer, EntryRow, SpaceOverview, TemplateCard } from '@/lib/cloud-library/view';
 
 /** The Library's routes, as the page calls them. A refusal is thrown with the route's own words. */
@@ -36,6 +37,13 @@ export const libraryApi = {
   trash: (space: string, ref: string) => call<{ ok: true; title: string }>(`/api/library/entries?space=${space}&ref=${ref}`, { method: 'DELETE' }),
   links: (space: string, ref: string, slot?: string) =>
     call<{ files: { slot: string; name: string; sha256: string; size: number; url: string }[] }>(`/api/library/files?space=${space}&ref=${ref}${slot ? `&slots=${slot}` : ''}&device=web`),
+  shares: (space: string, collection: string) => call<{ shares: ShareView[]; since: string }>(`/api/library/shares?space=${space}&collection=${collection}`),
+  share: (body: { space: string; collection: string; project?: string; email?: string; role: ShareRole; internal?: boolean }) => call<{ shared: ShareView; invited: boolean }>('/api/library/shares', post({ action: 'share', ...body })),
+  unshare: (space: string, collection: string, to: string) => call<object>('/api/library/shares', post({ action: 'unshare', space, collection, to })),
+  acceptShare: (space: string, from: string, collection: string) => call<{ as: string; name: string }>('/api/library/shares', post({ action: 'accept', space, from, collection })),
+  leaveShare: (space: string, from: string, collection: string) => call<object>('/api/library/shares', post({ action: 'leave', space, from, collection })),
+  notes: (space: string, ref: string) => call<{ notes: ShareNotes }>(`/api/library/shares?space=${space}&notes=${ref}`),
+  setNotes: (space: string, ref: string, notes: ShareNotes) => call<{ notes: ShareNotes }>('/api/library/shares', post({ action: 'notes', space, ref, ...notes })),
   devices: (space: string) => call<{ devices: DeviceView[] }>(`/api/library/devices?space=${space}`),
   deviceFiles: (space: string, device: string, ask: { q?: string; kind?: string; where?: string; limit?: number }) => {
     const query = new URLSearchParams({ space, of: device });
@@ -54,9 +62,10 @@ async function sha256Of(file: File): Promise<string> {
 
 /**
  * Sends files to a space's storage and answers with each one's SHA-256, in order. A content the
- * space already stores is not sent again. `onStep` says what is happening, for the dialog.
+ * space already stores is not sent again. `collection` is named when the files are for an entry, so a
+ * shared collection's files go to its owner's storage. `onStep` says what is happening, for the dialog.
  */
-export async function uploadFiles(space: string, files: File[], onStep: (text: string) => void): Promise<string[]> {
+export async function uploadFiles(space: string, files: File[], onStep: (text: string) => void, collection?: string): Promise<string[]> {
   const shas: string[] = [];
   for (const [index, file] of files.entries()) {
     if (file.size > MAX_BROWSER_FILE) throw new Error(`${file.name} is too large to send from the browser: add it from a computer with mm library save`);
@@ -65,7 +74,7 @@ export async function uploadFiles(space: string, files: File[], onStep: (text: s
   }
   const started = await call<{ uploads: { sha256: string; uploadUrl: string; headers: Record<string, string> }[] }>(
     '/api/library/files',
-    post({ action: 'start', space, files: files.map((file, index) => ({ sha256: shas[index], size: file.size, name: file.name, ...(file.type && { contentType: file.type }) })) }),
+    post({ action: 'start', space, collection, files: files.map((file, index) => ({ sha256: shas[index], size: file.size, name: file.name, ...(file.type && { contentType: file.type }) })) }),
   );
   for (const [index, upload] of started.uploads.entries()) {
     const file = files[shas.indexOf(upload.sha256)];
@@ -74,6 +83,6 @@ export async function uploadFiles(space: string, files: File[], onStep: (text: s
     if (!put.ok) throw new Error(`${file.name}: the upload failed (${put.status})`);
   }
   onStep('Checking the files arrived');
-  await call<object>('/api/library/files', post({ action: 'finish', space, sha256s: [...new Set(shas)], device: 'web' }));
+  await call<object>('/api/library/files', post({ action: 'finish', space, collection, sha256s: [...new Set(shas)], device: 'web' }));
   return shas;
 }

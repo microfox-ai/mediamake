@@ -279,6 +279,11 @@ upload, download and search is counted. The media library above stays the comput
 - Before paying for a result again, ask what was made from the file: `mm library made-from <file>
   [--slot=transcript]`. Saving a result, say what it was made from (`--made-from=transcript=master:<tool>`).
   `mm library use <collection>/<entry> --into=<project>` puts an entry's files in a production's input.
+- A collection is shared by the owner of its space only, and only on their word, in this session:
+  `mm library share <collection> --with=<project> | --to=<email>` prints the sentence to ask, `--yes`
+  after they agree; the same for `unshare`, `accept`, `leave` and `notes`. The others use the owner's
+  live collection, never a copy, under its id in their Library (`songs`, or `songs-<who shares it>`).
+  Never share one to make a step work, and never pass on a collection another space shared.
 - A computer tells the Library what its media library holds only after its owner turns that on:
   `mm library report` shows what would go (a card a file: name, kind, size, SHA-256; never the file or
   its folder), `mm library report on` is the owner's word, in this session. Never turn it on for them.

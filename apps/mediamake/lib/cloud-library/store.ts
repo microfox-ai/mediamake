@@ -52,6 +52,8 @@ import {
 } from './index';
 import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storageReady, storedSize } from './storage';
 import { madeFrom, type MadeFromAsk } from './reuse';
+import { shareDB, type SharedPlace } from './share-store';
+import { cardThrough, visibleThrough } from './shares';
 import { TEMPLATES } from './templates';
 
 const COLLECTIONS = 'library_collections';
@@ -106,6 +108,10 @@ async function database(): Promise<Db> {
 }
 
 type Fail = { error: string; status: number };
+/** Who is asking, for the usage line. `via`: the space a shared collection was reached through. */
+export type Who = { clientId: string; device?: string; via?: string };
+/** A shared collection, with the space it was opened to. */
+type SharedIn = SharedPlace & { to: LibrarySpace };
 const fail = (error: string, status = 400): Fail => ({ error, status });
 
 async function event(db: Db, space: string, kind: string, by: string, what: { collection?: string; entry?: string }) {
@@ -161,13 +167,27 @@ export const libraryDB = {
       db.collection(ENTRIES).aggregate<{ _id: string; n: number }>([{ $match: { space: space.id, ...LIVE } }, { $group: { _id: '$collection', n: { $sum: 1 } } }]).toArray(),
     ]);
     const byCollection = new Map(counts.map(row => [row._id, row.n]));
+    const [opened, sharedIn, invitations] = await Promise.all([space.role === 'owner' ? shareDB.counts(space.id) : new Map<string, number>(), shareDB.into([space]), shareDB.invitations(space)]);
     const collections = await Promise.all(
       docs.map(async doc => {
         const headshot = await headshotOf(doc);
-        return { ...collectionView(doc, byCollection.get(doc.slug) ?? 0, full), ...(headshot && { headshot }) };
+        return { ...collectionView(doc, byCollection.get(doc.slug) ?? 0, full), ...(headshot && { headshot }), ...(opened.get(doc.slug) && { sharedWith: opened.get(doc.slug) }) };
       }),
     );
-    return { space: { id: space.id, name: space.name, personal: space.personal, role: space.role }, collections };
+    // the collections other spaces opened to this one: the owner's own, live, under their id here
+    const shared = await Promise.all(
+      sharedIn.map(async ({ share, by, space: source }) => {
+        const doc = await db.collection<CollectionRecord>(COLLECTIONS).findOne({ space: share.from, slug: share.collection, ...LIVE }, noId);
+        if (!doc) return null;
+        const [entries, headshot] = await Promise.all([db.collection(ENTRIES).countDocuments({ space: share.from, collection: share.collection, ...LIVE, ...visibleThrough(share) }), headshotOf(doc)]);
+        return { ...collectionView(doc, entries, full), slug: share.as!, ...(headshot && { headshot }), shared: { by, from: share.from, collection: share.collection, role: source.role } };
+      }),
+    );
+    return {
+      space: { id: space.id, name: space.name, personal: space.personal, role: space.role },
+      collections: [...collections, ...shared.filter((item): item is NonNullable<typeof item> => !!item).sort((a, b) => a.name.localeCompare(b.name))],
+      ...(invitations.length && { invitations }),
+    };
   },
 
   async collection(space: string, slug: string): Promise<CollectionRecord | null> {
@@ -182,6 +202,7 @@ export const libraryDB = {
     const slug = slugOf(title, template.id);
     if (!SLUG.test(slug)) return fail('That name has no letters or digits to make an id from');
     const db = await database();
+    if (await shareDB.aliasTaken(space.id, slug)) return fail(`The ${space.name} space already has a shared collection with the id ${slug}: give this one another name`, 409);
     const at = new Date().toISOString();
     const doc: CollectionRecord = { schema: LIBRARY_SCHEMA, space: space.id, slug, name: title, template, prefs: '', learned: {}, createdAt: at, createdBy: by, updatedAt: at };
     try {
@@ -303,31 +324,47 @@ export const libraryDB = {
   },
 
   /** Entries that answer a search, newest first, as cards. Exact filters and plain words: search by meaning comes with the index. */
-  async search(spaces: LibrarySpace[], ask: SearchAsk) {
+  async search(spaces: LibrarySpace[], ask: SearchAsk, shared: SharedIn[] = []) {
     const db = await database();
     const names = new Map(spaces.map(space => [space.id, space.name]));
+    // a shared collection is searched where it lives, under the id it has in the space it was opened to
+    const through = shared.filter(item => !names.has(item.share.from) && (!ask.collection || item.share.as === ask.collection));
     const docs = await db
       .collection<EntryRecord>(ENTRIES)
-      .find({ space: { $in: [...names.keys()] }, ...(ask.collection && { collection: ask.collection }), ...LIVE }, { projection: { _id: 0, history: 0 } })
+      .find({ $or: [{ space: { $in: [...names.keys()] }, ...(ask.collection && { collection: ask.collection }) }, ...through.map(item => ({ space: item.share.from, collection: item.share.collection, ...visibleThrough(item.share) }))], ...LIVE }, { projection: { _id: 0, history: 0 } })
       .sort({ updatedAt: -1 })
       .limit(5000)
       .toArray();
     const hits = docs.filter(entry => matches(entry, ask));
     const limit = ask.limit ?? 10;
     const from = ask.offset ?? 0;
-    return { total: hits.length, results: hits.slice(from, from + limit).map(entry => ({ ...entryView(entry as EntryRecord, false), space: names.get(entry.space), spaceId: entry.space })) };
+    return {
+      total: hits.length,
+      results: hits.slice(from, from + limit).map(entry => {
+        const view = entryView(entry as EntryRecord, false);
+        if (names.has(entry.space)) return { ...view, space: names.get(entry.space), spaceId: entry.space };
+        const item = through.find(one => one.share.from === entry.space && one.share.collection === entry.collection)!;
+        return { ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by };
+      }),
+    };
   },
 
   /** The files, in the spaces given, that were made from one exact file (./reuse): a transcript of this master. Cards only, no links. */
-  async madeFrom(spaces: LibrarySpace[], ask: MadeFromAsk, usage: { clientId: string; device?: string }) {
+  async madeFrom(spaces: LibrarySpace[], ask: MadeFromAsk, usage: Who, shared: SharedIn[] = []) {
     const db = await database();
     const names = new Map(spaces.map(space => [space.id, space.name]));
+    const through = shared.filter(item => !names.has(item.share.from));
     const docs = await db
       .collection<EntryRecord>(ENTRIES)
-      .find({ space: { $in: [...names.keys()] }, ...LIVE }, { projection: { _id: 0, space: 1, collection: 1, slug: 1, title: 1, slots: 1 } })
+      .find({ $or: [{ space: { $in: [...names.keys()] } }, ...through.map(item => ({ space: item.share.from, collection: item.share.collection, ...visibleThrough(item.share) }))], ...LIVE }, { projection: { _id: 0, space: 1, collection: 1, slug: 1, title: 1, slots: 1 } })
       .limit(5000)
       .toArray();
-    const results = [...names.keys()].flatMap(id => madeFrom(docs.filter(doc => doc.space === id), ask).map(hit => ({ ...hit, space: names.get(id), spaceId: id })));
+    const results = [
+      ...[...names.keys()].flatMap(id => madeFrom(docs.filter(doc => doc.space === id), ask).map(hit => ({ ...hit, space: names.get(id), spaceId: id }))),
+      ...through.flatMap(item =>
+        madeFrom(docs.filter(doc => doc.space === item.share.from && doc.collection === item.share.collection), ask).map(hit => ({ ...hit, ref: `${item.share.as}/${hit.ref.split('/')[1]}`, space: item.to.name, spaceId: item.to.id, sharedBy: item.by })),
+      ),
+    ];
     await logUsage({ ...usage, action: 'search', space: spaces.length === 1 ? spaces[0].id : '' });
     return { results: results.sort((a, b) => b.addedAt.localeCompare(a.addedAt)) };
   },
@@ -364,7 +401,7 @@ export const libraryDB = {
   },
 
   /** Marks the files stored once their bytes are in storage at the size that was said. */
-  async finishUploads(space: LibrarySpace, shas: unknown[], usage: { clientId: string; device?: string }) {
+  async finishUploads(space: LibrarySpace, shas: unknown[], usage: Who) {
     const db = await database();
     const col = db.collection<FileRecord>(FILES);
     const stored: string[] = [];
@@ -393,7 +430,7 @@ export const libraryDB = {
   },
 
   /** Signed links to an entry's files (all, or the slots asked for), counted as a download for whoever asked. */
-  async links(space: LibrarySpace, collection: string, slug: string, slots: string[], usage: { clientId: string; device?: string }) {
+  async links(space: LibrarySpace, collection: string, slug: string, slots: string[], usage: Who) {
     const entry = await this.entry(space.id, collection, slug);
     if (!entry) return fail(`No ${collection}/${slug} in the ${space.name} space`, 404);
     const wanted = Object.entries(entry.slots).filter(([slot]) => !slots.length || slots.includes(slot));
@@ -404,7 +441,7 @@ export const libraryDB = {
   },
 
   /** A field's text, or a text or JSON file's content, whole or in part. Audio, video and pictures are fetched, not read. */
-  async read(space: LibrarySpace, collection: string, slug: string, what: string, ask: ReadAsk, usage: { clientId: string; device?: string }) {
+  async read(space: LibrarySpace, collection: string, slug: string, what: string, ask: ReadAsk, usage: Who) {
     const entry = await this.entry(space.id, collection, slug);
     if (!entry) return fail(`No ${collection}/${slug} in the ${space.name} space`, 404);
     const field = entry.fields[what] ?? entry.extra[what];

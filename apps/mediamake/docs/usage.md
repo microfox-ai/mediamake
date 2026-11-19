@@ -168,6 +168,7 @@ and the mail when a fix ships) is in [feedback.md](feedback.md).
 
 Using the Cloud Library is counted on the server, apart from everything above: one line per upload,
 download, read, search, save and AI fill, with who, from which place (this computer's random label
-or the cloud environment's name), which space and collection, and how many bytes. Never a file's
+or the cloud environment's name), which space and collection, and how many bytes. In a collection another space shares, the line also
+names the space it was reached through, so its owner sees how much each share fetched (never what). Never a file's
 content and never a search's words. It is what lets admins see what the Library costs and who uses
 how much; `mm library usage` shows a member their own. The details are in [library.md](library.md).

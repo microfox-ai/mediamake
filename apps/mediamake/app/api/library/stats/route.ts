@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { parseRef } from '@/lib/cloud-library';
-import { answer, caller, failed, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { answer, caller, failed, placeOf, refuse } from '@/lib/cloud-library/http';
 import { libraryDB } from '@/lib/cloud-library/store';
 
 /**
@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
   const ref = parseRef(body?.ref);
   if (!ref) return refuse('ref is <collection>/<entry>');
   try {
-    const at = await spaceOf(clientId, body?.space, 'write');
-    return 'response' in at ? at.response : answer(await libraryDB.putStats(at.space, ref.collection, ref.entry, Array.isArray(body.rows) ? body.rows : []));
+    const at = await placeOf(clientId, body?.space, ref.collection, 'write');
+    return 'response' in at ? at.response : answer(await libraryDB.putStats(at.space, at.collection, ref.entry, Array.isArray(body.rows) ? body.rows : []));
   } catch (error) {
     return failed('save the numbers', error);
   }

@@ -245,14 +245,57 @@ Cards live in `library_device_files`, a computer's sums in `library_devices`.
   cache when it has them) and notes each file's SHA-256 in `input/library.json`, so a later render
   can say exactly which file it was made with.
 
+## Shared collections
+
+A collection belongs to the space it was made in and never moves. Its owner can open it to a
+project (everyone on it) or to one person. They use the collection itself, never a copy, so every
+change the owner makes reaches them at once.
+
+- **Only the owner shares.** The owner of the collection's space, from the collection's Share
+  button or with `mm library share <collection> --with=<project> | --to=<email> [--editor]
+  [--internal]`. A project is one the owner is on; a person is found by the email address they sign
+  in with, and gets it in their personal Library. A space that received a collection cannot pass it on.
+- **An invitation, then a yes.** Nothing shows on the other side until someone there accepts
+  (a project's owner or an editor, or the person). The invitation says what accepting means: "This
+  is the owner's live collection. It changes when they change it." `mm library accept <collection>`
+  and `leave` do the same from a session, each after the person's yes.
+- **Its id on the other side.** In the receiving Library the collection keeps its id (`songs`)
+  when that is free, else it gets the sharer's name (`songs-anime-music-zone`). Every route and
+  every `mm library` command takes that id with the receiving space, so a shared collection is
+  searched, read, fetched and used like any other. Search, `made-from` and `mm transcribe`'s
+  look-up cover it.
+- **What the others can do.** Search, read, preview and fetch. With an editor share, the receiving
+  space's owner and editors also add, change and delete; its viewers still only read. The owner's
+  guide and preferences come with the collection, and only the owner changes them.
+- **Internal only stays home.** Entries whose Use is "Internal only" are left out for the others
+  unless the owner ticks "Also show the ones marked Internal only" (`--internal`).
+- **Whose storage, whose downloads.** The files stay in the owner's space and count against its
+  storage, also what an editor adds. Every fetch and read is counted for whoever asked, with the
+  space it was reached through (`via` on the usage line). The Share dialog and `mm library shares
+  <collection>` show what each share fetched in 30 days and by how many people.
+- **A space's own notes.** On a shared entry a receiving space keeps its own rating, tags and
+  "used in" (the entry's "This space's notes" tab, `mm library notes <collection>/<entry>`). They
+  stay in that space, the owner does not see them, and they never touch the entry.
+- **Ending it.** The owner stops sharing, or the other side leaves: the collection is gone from
+  that Library at once, with the notes kept on it. So is it for someone who leaves the project it
+  was opened to. Files already inside their productions stay where they are.
+
+`library_shares` holds one document per collection and space it is opened to, `library_notes` a
+receiving space's notes. `GET /api/library/shares?space=&collection=` lists a collection's shares
+for its owner, and `POST` takes `share`, `unshare`, `accept`, `leave` and `notes`. A space's
+overview (`GET /api/library?space=`) lists the shared collections beside its own, each with
+`shared: { by, role }`, and its open `invitations`.
+
 ## Not built yet
 
 `mm analyze` and `media cache get` asking the Library, a skill naming the slots it reads
 (`mm library use --for=<skill>`), a device library's own collections, "Fetch to this device" from the page, the older Library page
-(`/library`, the Mac's media library) folded into Computers, shared collections, the tools in the Spaces MCP, search
+(`/library`, the Mac's media library) folded into Computers, for shared collections a monthly limit per project
+or person, a mail when one is shared, a collection's rights and its listing in Explore with "Request access",
+and keeping a removed file's bytes for 30 days (nothing deletes stored bytes yet), the tools in the Spaces MCP, search
 by meaning, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
 Tests: `npx tsx --test lib/cloud-library/*.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet, the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet.
+have not been run against the live database yet (sharing too: no collection has been shared for real), the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet.
