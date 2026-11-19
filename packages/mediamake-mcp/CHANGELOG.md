@@ -1,5 +1,11 @@
 # @microfox/mediamake-mcp
 
+## 0.9.1
+
+### Patch Changes
+
+- c8dddd0: Changes from PR #621: store-listing-editor
+
 ## 0.9.0
 
 ### Minor Changes
