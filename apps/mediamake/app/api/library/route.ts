@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { librarySpaces } from '@/lib/cloud-library/access';
 import { answer, caller, failed, mayUseLibrary, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { meaningReady } from '@/lib/cloud-library/meaning-store';
 import { libraryDB } from '@/lib/cloud-library/store';
 import { templateList } from '@/lib/cloud-library/templates';
 import { getDatabase } from '@/lib/mongodb';
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     const spaceId = req.nextUrl.searchParams.get('space');
     if (spaceId) {
       const at = await spaceOf(clientId, spaceId, 'read');
-      return 'response' in at ? at.response : NextResponse.json(await libraryDB.overview(at.space, true));
+      return 'response' in at ? at.response : NextResponse.json({ ...(await libraryDB.overview(at.space, true)), byMeaning: meaningReady() });
     }
     const locked = await mayUseLibrary(clientId);
     if (locked) return locked;

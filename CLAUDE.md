@@ -268,6 +268,9 @@ upload, download and search is counted. The media library above stays the comput
   from, what is never guessed, the owner's preferences, the spellings its lists already use).
 - Read before fetching: `mm library search` answers with cards, `get` and `read` give fields and text
   with no download, and only `fetch` moves a file.
+- A question about what something is about ("the sad sea song") is `mm library search "<words>" --meaning`
+  (`byMeaning` in the MCPs): best first, with the piece of the lyrics or transcript that fits. An exact
+  question (every unreleased song) stays a plain search with `--where`, `--has` and `--lacks`.
 - Never save without the person's yes. `mm library save …` without `--yes` saves nothing and prints the
   one sentence to ask ("Add the new song "…" to the Songs collection of the … space (cloud)?"): show it
   with what would change, and add `--yes` only after they agree. The same for `new`, `trash` and `prefs`.

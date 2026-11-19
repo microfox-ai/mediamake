@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ArrowDownIcon, ArrowUpIcon, BotIcon, CheckIcon, FolderIcon, LayoutGridIcon, ListIcon, SheetIcon, FoldersIcon } from 'lucide-react';
-import { cellText, dayText, foldersOf, sheetColumns, sortRows, type CollectionView, type EntryRow, type LibraryView, type SheetColumn } from '@/lib/cloud-library/view';
+import { cellText, clockOf, dayText, foldersOf, sheetColumns, sortRows, type CollectionView, type EntryRow, type LibraryView, type SheetColumn } from '@/lib/cloud-library/view';
 
 /**
  * A collection's entries, four ways. Each view does its own thing:
@@ -67,6 +67,12 @@ export function EntryCard({ row, collection, href, showCollection }: { row: Entr
       </div>
       {showCollection && collection && <p className="text-xs text-muted-foreground">{collection.name}</p>}
       {line && <p className="truncate text-xs text-muted-foreground">{line}</p>}
+      {row.found && (
+        <p className="line-clamp-2 border-l-2 pl-2 text-xs italic text-muted-foreground">
+          {row.found.from !== undefined && <span className="not-italic tabular-nums">{clockOf(row.found.from)} </span>}
+          {row.found.text}
+        </p>
+      )}
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {tags.map(tag => (

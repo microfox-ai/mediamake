@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { shareLine, cachePath, cardOfItem, inputFolder, takenNote, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
+import { foundLine, shareLine, cachePath, cardOfItem, inputFolder, takenNote, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
 
 test('arguments: positionals, repeated flags and switches', () => {
   const { args, flags } = parseArgs(['save', 'songs', 'nakama', '--set', 'title=Nakama! = fun', '--set', 'use=Released', '--file', 'master=a b.wav', '--project=Get Into Zone', '--yes', '--has=transcript', '--has=stems']);
@@ -415,4 +415,10 @@ test('a collection is shared, accepted and left only on a yes, and a space keeps
     await site.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('a hit found by meaning says where in the entry, with its time in the song', () => {
+  assert.equal(foundLine({ card: 'x' }), '');
+  assert.equal(foundLine({ found: { what: 'transcript', text: 'the sea\nis grey', from: 65, to: 95 } }), '\nfound in transcript at 1:05: "the sea is grey"');
+  assert.equal(foundLine({ found: { what: 'lyrics', text: 'far away' } }), '\nfound in lyrics: "far away"');
 });

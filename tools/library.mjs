@@ -15,8 +15,12 @@
  *   mm library guide <collection>            how to fill it: the template's guide and the owner's preferences.
  *                                            Read it before the first save of a session.
  *   mm library search ["<words>"] [--collection=songs] [--where=use=released]… [--has=transcript]
- *        [--lacks=stems] [--limit=10] [--all]
+ *        [--lacks=stems] [--limit=10] [--all] [--meaning]
  *                                            cards of the entries that fit. --all: every space you can open.
+ *                                            --meaning: by what an entry is about ("the sad sea song"), best
+ *                                            first, each with the piece of its words that fits.
+ *   mm library reindex [<collection>]        rebuild the search index of a collection (or of every collection of
+ *                                            the space) from its records. Changes no entry.
  *   mm library get <collection>/<entry>      one entry: fields, files by slot, latest numbers
  *   mm library read <collection>/<entry> <field or slot> [--lines=1-40] [--from=60 --to=90]
  *                                            a field's text, or a text or JSON file's content, whole or a
@@ -379,11 +383,45 @@ async function guide(env, [collection], flags) {
 
 async function search(env, args, flags) {
   const space = flags.all ? null : await spaceFor(env, flags);
-  const found = await api(env, 'GET', `/entries${query({ q: args.join(' '), space: space?.id, collection: flags.collection, where: listOf(flags.where), has: listOf(flags.has), lacks: listOf(flags.lacks), limit: flags.limit, device: placeName(env) })}`);
+  const found = await api(env, 'GET', `/entries${query({ q: args.join(' '), space: space?.id, collection: flags.collection, where: listOf(flags.where), has: listOf(flags.has), lacks: listOf(flags.lacks), limit: flags.limit, meaning: flags.meaning === true ? 1 : undefined, device: placeName(env) })}`);
   if (flags.json) return console.log(JSON.stringify(found, null, 2)), 0;
   if (!found.results.length) return console.log(`Nothing fits in ${space ? `the ${space.name} Library` : 'your Libraries'}.`), 0;
   console.log(`${found.total} fit${found.total > found.results.length ? `, the newest ${found.results.length}` : ''}:\n`);
-  for (const hit of found.results) console.log(`${hit.card}${flags.all ? `\nspace: ${hit.space}` : ''}\n`);
+  for (const hit of found.results) console.log(`${hit.card}${flags.all ? `\nspace: ${hit.space}` : ''}${foundLine(hit)}\n`);
+  return 0;
+}
+
+/** Where a search by meaning found it: the piece of the entry's words, with its time in the song when it has one. */
+export function foundLine(hit) {
+  if (!hit.found) return '';
+  const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const where = hit.found.from !== undefined ? ` at ${clock(hit.found.from)}` : '';
+  return `\nfound in ${hit.found.what ?? 'its words'}${where}: "${hit.found.text.replace(/\s+/g, ' ').slice(0, 160)}"`;
+}
+
+async function reindex(env, [raw], flags) {
+  const space = await spaceFor(env, flags);
+  const view = await api(env, 'GET', query({ space: space.id }));
+  const own = view.collections.filter(c => !c.shared);
+  const wanted = raw ? own.filter(c => c.slug === String(raw).toLowerCase()) : own;
+  if (!wanted.length) throw new Error(raw ? `No collection ${raw} of the ${space.name} space (one another space shares is rebuilt by its owner). It has: ${own.map(c => c.slug).join(', ') || 'none'}.` : `The ${space.name} space has no collections yet.`);
+  const done = [];
+  for (const collection of wanted) {
+    let from = 0;
+    let records = 0;
+    let total = 0;
+    for (;;) {
+      const page = await api(env, 'POST', '/reindex', { space: space.id, collection: collection.slug, from });
+      records += page.records;
+      total = page.total;
+      if (flags.json !== true) console.error(`  ${collection.slug}: ${page.done} of ${page.total}`);
+      if (page.next === undefined) break;
+      from = page.next;
+    }
+    done.push({ collection: collection.slug, entries: total, records });
+  }
+  if (flags.json === true) return console.log(JSON.stringify({ space: space.name, rebuilt: done }, null, 2)), 0;
+  for (const d of done) console.log(`✔ ${d.collection}: ${d.entries} ${d.entries === 1 ? 'entry' : 'entries'} in the search index (${d.records} pieces).`);
   return 0;
 }
 
@@ -898,6 +936,8 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return guide(env, rest, flags);
     case 'search':
       return search(env, rest, flags);
+    case 'reindex':
+      return reindex(env, rest, flags);
     case 'get':
       return get(env, rest, flags);
     case 'read':

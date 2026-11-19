@@ -2,10 +2,11 @@ import { readFile, rename, rm, stat } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { MediamakeApiError, type MediamakeClient } from '../../../mediamake-mcp/src/client.js';
+import type { MediamakeClient } from '../../../mediamake-mcp/src/client.js';
+import { LIBRARY_ROUTE, libraryAsk, libraryAt, libraryProjectId, libraryRef, librarySlug, registerLibraryReadTools } from '../../../mediamake-mcp/src/tools/library.js';
 import { json, safe } from '../../../mediamake-mcp/src/util.js';
 import { downloadFile, mapLimit, putFile, sha256File, within } from '../files.js';
-import { READ, WRITE } from './annotations.js';
+import { WRITE } from './annotations.js';
 
 /**
  * The Cloud Library (apps/mediamake/lib/cloud-library, docs/library.md): what a space reuses, kept as
@@ -13,38 +14,16 @@ import { READ, WRITE } from './annotations.js';
  * The routes are /api/library, /api/library/entries and /api/library/files; `mm library` does the
  * same on a computer with the MediaMake repo, and also shares, trashes and starts collections.
  */
-const ROUTE = '/api/library';
-const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
-const REF = /^[a-z0-9][a-z0-9-]{0,79}\/[a-z0-9][a-z0-9-]{0,79}$/;
+const ROUTE = LIBRARY_ROUTE;
 /** Text files are looked through for private details before they go up, up to this size. */
 const TEXT_EXT = new Set(['json', 'txt', 'md', 'srt', 'vtt', 'lrc', 'csv']);
 const SCAN_BYTES = 5_000_000;
 
-const projectId = z.string().describe('The space whose Library it is (list_projects, or list_library). Your personal space has one too.');
-const slug = (what: string) => z.string().regex(SLUG, `${what}: lowercase letters, digits and dashes`);
-const ref = z
-  .string()
-  .regex(REF, 'an entry: <collection>/<entry>, e.g. songs/nakama')
-  .describe('The entry, as its card names it after "id": <collection>/<entry>, e.g. songs/nakama. A collection another space shares goes by its id here (songs, or songs-<who shares it>)');
-
-/** The route with its query. A list is sent once per value (where, has, lacks). */
-function at(route: string, params: Record<string, unknown> = {}): string {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) for (const v of [value].flat()) if (v !== undefined && v !== null && v !== '' && v !== false) query.append(key, String(v));
-  const text = query.toString();
-  return `${ROUTE}${route}${text ? `?${text}` : ''}`;
-}
-
-/** The Library's own words for a refusal, without the request line in front. */
-async function ask<T = any>(run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (error) {
-    const said = error instanceof MediamakeApiError ? (error.body as { error?: string } | undefined)?.error : undefined;
-    if (said) throw new Error(said);
-    throw error;
-  }
-}
+const projectId = libraryProjectId;
+const slug = librarySlug;
+const ref = libraryRef;
+const at = libraryAt;
+const ask = libraryAsk;
 
 /**
  * Private details a text or JSON file should not carry into a shared place: what was found, never
@@ -74,81 +53,7 @@ interface StoredFile {
 const shaAt = async (abs: string) => ((await stat(abs).catch(() => null))?.isFile() ? sha256File(abs) : null);
 
 export function registerLibraryTools(server: McpServer, client: MediamakeClient) {
-  server.registerTool(
-    'list_library',
-    {
-      title: 'List the Library',
-      description:
-        "The Cloud Library: what a space reuses, kept as collections of entries (a channel's songs with their masters, lyrics, transcripts, release details and links). Without projectId: every space whose Library you can open, with its collections and how many entries each holds. With projectId: that space's collections in full, and with `collection` only that one: its fields (which are never guessed), its file slots, the spellings its lists already use, its guide and the owner's preferences. Read a collection this way before saving to it. A collection marked `shared` is another space's live collection, not a copy.",
-      inputSchema: { projectId: projectId.optional(), collection: slug("A collection's id").optional().describe('Only this collection, in full (needs projectId)') },
-      annotations: READ,
-    },
-    safe(async ({ projectId, collection }) => {
-      if (!projectId) {
-        if (collection) throw new Error('Which space is that collection in? Give projectId too.');
-        return json(await ask(() => client.get(at(''))));
-      }
-      const view = await ask(() => client.get(at('', { space: projectId })));
-      if (!collection) return json(view);
-      const found = (view.collections as { slug: string }[]).find(c => c.slug === collection);
-      if (!found) throw new Error(`No collection ${collection} in the ${view.space?.name ?? ''} space. It has: ${(view.collections as { slug: string }[]).map(c => c.slug).join(', ') || 'none yet'}.`);
-      return json({ space: view.space, collection: found });
-    }),
-  );
-
-  server.registerTool(
-    'search_library',
-    {
-      title: 'Search the Library',
-      description:
-        'Search the Library by words and by what an entry has. Answers with cards (a few lines each: title, id, the short fields, which files it holds): nothing is downloaded. Without projectId it looks through every space you can open. Then get_library_entry for one entry, read_library_entry for a text, and fetch_library_files only for the files the work really needs. Every search is counted.',
-      inputSchema: {
-        query: z.string().max(200).optional().describe('Words from the title, the fields or the lyrics'),
-        projectId: projectId.optional(),
-        collection: slug("A collection's id").optional(),
-        where: z.record(z.string(), z.string()).optional().describe('Fields that must be exactly this: { "use": "released", "language": "english" }'),
-        has: z.array(slug('A file slot')).optional().describe('File slots that must hold a file: ["transcript"]'),
-        lacks: z.array(slug('A file slot')).optional().describe('File slots that must be empty: ["stems"]'),
-        limit: z.number().int().min(1).max(200).optional(),
-        place: z.string().max(60).optional().describe('This computer, by the name its owner gave it (for the usage lines)'),
-      },
-      annotations: READ,
-    },
-    safe(async ({ query, projectId, collection, where, has, lacks, limit, place }) =>
-      json(await ask(() => client.get(at('/entries', { q: query ?? '', space: projectId, collection, where: Object.entries(where ?? {}).map(([key, value]) => `${key}=${value}`), has, lacks, limit, device: place })))),
-    ),
-  );
-
-  server.registerTool(
-    'get_library_entry',
-    {
-      title: 'Get a Library entry',
-      description: "One entry in full: every field, its files by slot (name, size, SHA-256, what each was made from), its history and its latest numbers. No file is downloaded and no link is made.",
-      inputSchema: { projectId, ref },
-      annotations: READ,
-    },
-    safe(async ({ projectId, ref }) => json(await ask(() => client.get(at('/entries', { space: projectId, ref }))))),
-  );
-
-  server.registerTool(
-    'read_library_entry',
-    {
-      title: 'Read a text of a Library entry',
-      description:
-        "Read a field's text (lyrics) or a text or JSON file in a slot (transcript), whole or a part of it: lines, or the seconds of a timed transcript. Nothing is downloaded to this computer. Use this instead of fetching a file only to read it.",
-      inputSchema: {
-        projectId,
-        ref,
-        what: slug('A field or a file slot').describe('The field (lyrics) or the file slot (transcript) to read'),
-        lines: z.string().regex(/^\d+-\d+$/, 'lines as first-last: 1-40').optional().describe('Only these lines: "1-40"'),
-        fromSeconds: z.number().min(0).optional().describe('Of a timed transcript: from this second'),
-        toSeconds: z.number().min(0).optional().describe('Of a timed transcript: to this second'),
-        place: z.string().max(60).optional(),
-      },
-      annotations: READ,
-    },
-    safe(async ({ projectId, ref, what, lines, fromSeconds, toSeconds, place }) => json(await ask(() => client.get(at('/files', { space: projectId, ref, read: what, lines, from: fromSeconds, to: toSeconds, device: place }))))),
-  );
+  registerLibraryReadTools(server, client, { localFiles: true });
 
   server.registerTool(
     'fetch_library_files',
@@ -189,31 +94,6 @@ export function registerLibraryTools(server: McpServer, client: MediamakeClient)
         }
       });
       return json({ ref, title: got.title, saveTo: resolve(saveTo), saved, failed });
-    }),
-  );
-
-  server.registerTool(
-    'library_made_from',
-    {
-      title: 'What was made from a file',
-      description:
-        "Ask the Library what was already made from an exact file, before paying to make it again: the transcript of this master, the stems of this mix. Give the file on this computer (or its SHA-256); the answer lists the entries that hold such a result, with the tool and settings it was made with. Without `settings` only results made with the tool's default settings fit. Cards only: fetch_library_files brings one down.",
-      inputSchema: {
-        filePath: z.string().optional().describe('The source file on this computer'),
-        sha256: z.string().regex(/^[0-9a-f]{64}$/i).optional().describe("The source file's SHA-256, instead of filePath"),
-        slot: slug('A file slot').optional().describe('Only results in this slot: "transcript"'),
-        tool: z.string().max(80).optional().describe('Only results made with this tool'),
-        settings: z.string().max(200).optional().describe('The settings the result must have been made with'),
-        projectId: projectId.optional().describe('Only this space. Left out: every space you can open'),
-        place: z.string().max(60).optional(),
-      },
-      annotations: READ,
-    },
-    safe(async ({ filePath, sha256, slot, tool, settings, projectId, place }) => {
-      if (!filePath === !sha256) throw new Error('Made from which file? Give filePath or sha256, one of the two.');
-      const source = sha256?.toLowerCase() ?? (await shaAt(resolve(filePath!)));
-      if (!source) throw new Error(`Not a file: ${filePath}`);
-      return json({ sha256: source, ...(await ask(() => client.get(at('/files', { madeFrom: source, space: projectId, slot, tool, params: settings, device: place })))) });
     }),
   );
 

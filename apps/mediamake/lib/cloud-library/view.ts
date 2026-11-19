@@ -56,6 +56,8 @@ export interface SpaceOverview {
   collections: CollectionView[];
   /** Collections opened to this space that nobody accepted yet. */
   invitations?: InvitationView[];
+  /** The server has the search index: the page offers search by meaning. */
+  byMeaning?: boolean;
 }
 export interface TemplateCard {
   id: string;
@@ -79,6 +81,9 @@ export interface EntryRow {
   spaceId?: string;
   /** The entry is in a collection another space shares. */
   sharedBy?: string;
+  /** From a search by meaning: how well it fits (0 to 1) and the piece of its text that fits. */
+  score?: number;
+  found?: { what?: string; text: string; from?: number; to?: number };
 }
 export interface EntryAnswer {
   entry: EntryRecord;
@@ -215,10 +220,12 @@ export function filtersOf(collection: Pick<CollectionView, 'fields' | 'slots'>):
 }
 
 /** The query of an entries list, from what is typed and picked. */
-export function listQuery(at: { space: string; collection?: string | null; q?: string; where?: Record<string, string>; files?: string; limit?: number }): string {
+export function listQuery(at: { space: string; collection?: string | null; q?: string; where?: Record<string, string>; files?: string; limit?: number; meaning?: boolean }): string {
   const params = new URLSearchParams({ space: at.space, limit: String(at.limit ?? 200) });
   if (at.collection) params.set('collection', at.collection);
   if (at.q?.trim()) params.set('q', at.q.trim());
+  // by meaning only with words: without them it is the plain list
+  if (at.meaning && at.q?.trim()) params.set('meaning', '1');
   for (const [key, value] of Object.entries(at.where ?? {})) if (value) params.append('where', `${key}=${value}`);
   // files: "has:<slot>" or "lacks:<slot>"
   const files = /^(has|lacks):([a-z0-9-]+)$/.exec(at.files ?? '');
@@ -343,3 +350,6 @@ export function applyFill(fields: FieldView[], values: Record<string, unknown>, 
   }
   return { values: next, filled };
 }
+
+/** `1:05` for 65 seconds: where in a song a piece was found. */
+export const clockOf = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;

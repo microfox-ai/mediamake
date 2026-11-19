@@ -51,6 +51,7 @@ import {
   type UsageSum,
 } from './index';
 import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storageReady, storedSize } from './storage';
+import { NO_INDEX, meaningIndex, meaningReady } from './meaning-store';
 import { madeFrom, type MadeFromAsk } from './reuse';
 import { shareDB, type SharedPlace } from './share-store';
 import { cardThrough, visibleThrough } from './shares';
@@ -305,6 +306,7 @@ export const libraryDB = {
       const learned = relearn(collection.learned ?? {}, collection.template, current?.fields ?? null, result.entry.fields);
       await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug: collectionSlug }, { $set: { learned, updatedAt: result.entry.updatedAt } });
       await event(db, space.id, result.created ? 'entry-new' : 'entry-changed', by, { collection: collectionSlug, entry: result.entry.slug });
+      await meaningIndex.put(space.id, collection, result.entry);
       return { entry: result.entry, created: result.created, changed: true, warnings: result.warnings };
     }
     return fail('It keeps changing: read it again, then save', 409);
@@ -320,10 +322,11 @@ export const libraryDB = {
     const doc = await this.collection(space.id, collection);
     if (doc) await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug: collection }, { $set: { learned: relearn(doc.learned ?? {}, doc.template, entry.fields, null) } });
     await event(db, space.id, 'entry-trashed', by, { collection, entry: slug });
+    await meaningIndex.forget(space.id, collection, slug);
     return { ok: true as const, title: entry.title };
   },
 
-  /** Entries that answer a search, newest first, as cards. Exact filters and plain words: search by meaning comes with the index. */
+  /** Entries that answer a search, newest first, as cards. Exact filters and plain words: `searchByMeaning` ranks by what an entry is about. */
   async search(spaces: LibrarySpace[], ask: SearchAsk, shared: SharedIn[] = []) {
     const db = await database();
     const names = new Map(spaces.map(space => [space.id, space.name]));
@@ -347,6 +350,66 @@ export const libraryDB = {
         return { ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by };
       }),
     };
+  },
+
+  /**
+   * Entries by meaning ("the sad sea song"), best first. The index only ranks: every entry it names
+   * is read again here, so the filters, the trash and what a share keeps back hold as in `search`.
+   */
+  async searchByMeaning(spaces: LibrarySpace[], ask: SearchAsk, shared: SharedIn[] = []) {
+    if (!meaningReady()) return fail(NO_INDEX, 503);
+    if (!ask.q) return fail('Search by meaning needs words: what the entry is about');
+    const db = await database();
+    const names = new Map(spaces.map(space => [space.id, space.name]));
+    const own = await db
+      .collection<CollectionRecord>(COLLECTIONS)
+      .find({ space: { $in: [...names.keys()] }, ...(ask.collection && { slug: ask.collection }) }, { projection: { _id: 0, space: 1, slug: 1 } })
+      .limit(40)
+      .toArray();
+    const through = shared.filter(item => !names.has(item.share.from) && (!ask.collection || item.share.as === ask.collection));
+    const places = [...own.map(doc => ({ space: doc.space, collection: doc.slug, item: undefined as SharedIn | undefined })), ...through.map(item => ({ space: item.share.from, collection: item.share.collection, item }))].slice(0, 40);
+    const limit = ask.limit ?? 10;
+    const filters = { ...ask, q: undefined };
+    const found = await Promise.all(
+      places.map(async place => {
+        const ranked = await meaningIndex.ask(place.space, place.collection, ask.q!, Math.min(100, limit * 4));
+        if (!ranked.length) return [];
+        const docs = await db
+          .collection<EntryRecord>(ENTRIES)
+          .find({ space: place.space, collection: place.collection, slug: { $in: ranked.map(hit => hit.entry) }, ...(place.item && visibleThrough(place.item.share)), ...LIVE }, { projection: { _id: 0, history: 0 } })
+          .toArray();
+        const bySlug = new Map(docs.filter(entry => matches(entry, filters)).map(entry => [entry.slug, entry]));
+        return ranked.flatMap(hit => {
+          const entry = bySlug.get(hit.entry);
+          if (!entry) return [];
+          const view = { ...entryView(entry as EntryRecord, false), score: Math.round(hit.score * 1000) / 1000, ...(hit.found && { found: hit.found }) };
+          if (!place.item) return [{ ...view, space: names.get(entry.space), spaceId: entry.space }];
+          const { item } = place;
+          return [{ ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by }];
+        });
+      }),
+    );
+    const hits = found.flat().sort((a, b) => b.score - a.score);
+    return { total: hits.length, byMeaning: true as const, results: hits.slice(0, limit) };
+  },
+
+  /**
+   * Rebuilds a collection's part of the search index from its records, a page of entries a call
+   * (`from` is how many were done). The first page empties it first.
+   */
+  async reindex(space: LibrarySpace, collectionSlug: string, from = 0, page = 25) {
+    if (!meaningReady()) return fail(NO_INDEX, 503);
+    const collection = await this.collection(space.id, collectionSlug);
+    if (!collection) return fail(`No collection ${collectionSlug} in the ${space.name} space`, 404);
+    const db = await database();
+    const query = { space: space.id, collection: collectionSlug, ...LIVE };
+    const total = await db.collection(ENTRIES).countDocuments(query);
+    if (from <= 0) await meaningIndex.clear(space.id, collectionSlug);
+    const entries = await db.collection<EntryRecord>(ENTRIES).find(query, noId).sort({ slug: 1 }).skip(Math.max(0, from)).limit(page).toArray();
+    let records = 0;
+    for (const entry of entries) records += await meaningIndex.put(space.id, collection, entry);
+    const done = Math.max(0, from) + entries.length;
+    return { collection: collectionSlug, total, done, records, ...(done < total && entries.length > 0 && { next: done }) };
   },
 
   /** The files, in the spaces given, that were made from one exact file (./reuse): a transcript of this master. Cards only, no links. */

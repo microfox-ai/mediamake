@@ -98,7 +98,7 @@ The MediaMake routes it calls, in `apps/mediamake` (code in `lib/projectsync/`):
 | `GET/POST/DELETE /api/project/media`, `POST …/upload` | List and search, record uploaded files, move to the trash; `upload` hands out upload links |
 | `GET/PUT /api/channel-sync`, `GET/PUT …/items`, `POST/PUT/DELETE …/files` | Shared assets (code in `lib/channel-sync/`): the project's limit and role, each asset's details, upload links, confirmations and withdrawals |
 | `GET/POST /api/space/todos`, `GET /api/space/places` | A project's to-do queue and its register (code in `lib/space/todos.ts`, `lib/space/register.ts`; `docs/cloud-device-runs.md`) |
-| `GET /api/library`, `GET/POST /api/library/entries`, `GET/POST /api/library/files` | The Cloud Library (code in `lib/cloud-library/`; `docs/library.md`): spaces and collections, search and entries, signed links, text reads and uploads |
+| `GET /api/library`, `GET/POST /api/library/entries` (`meaning=1` to search by meaning), `GET/POST /api/library/files` | The Cloud Library (code in `lib/cloud-library/`; `docs/library.md`): spaces and collections, search and entries, signed links, text reads and uploads |
 | `GET/POST/PUT /api/project`, `/api/project/brand-kit` | Projects and brand kits (owners and editors may rename a project) |
 
 ## Development
