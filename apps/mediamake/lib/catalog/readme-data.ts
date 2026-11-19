@@ -17,7 +17,8 @@ export function skillReadmeBase(skill: Pick<RegistrySkill, 'path'>): ReadmeBase 
   return { links: `https://github.com/${SKILLS_REPO}/blob/main/${skill.path}/`, files: `${RAW}/${skill.path}/` };
 }
 
-async function skillReadmeText(skill: RegistrySkill): Promise<string | null> {
+/** A repo skill's README.md as written, or null when it has none. */
+export async function skillReadmeText(skill: RegistrySkill): Promise<string | null> {
   if (!skill.readme) return null;
   try {
     const res = await fetch(`${RAW}/${skill.path}/README.md`, { next: { revalidate: 300 } });

@@ -347,6 +347,9 @@ export const readmeListing = dir => {
     tags: tags.length ? [...new Set(tags)].slice(0, 12) : undefined,
     headshot: headshot || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : undefined),
     video,
+    // who it is for and how it sits among other skills, until someone sets them on its page
+    nature: ['private-use', 'shared-use'].includes(fm.nature) ? fm.nature : undefined,
+    type: /^[a-z][a-z0-9-]{1,30}$/.test(fm.type ?? '') ? fm.type : undefined,
   };
   return Object.fromEntries(Object.entries(listing).filter(([, v]) => v !== undefined));
 };
@@ -363,6 +366,54 @@ export const folderSize = dir => {
   };
   walk(dir);
   return { bytes, files };
+};
+
+/** How many files of one folder the registry names: a skill's page lists them (its file browser). */
+const MAX_PATHS = 300;
+
+/** Every file under a folder, as paths inside it, folders' files after the folder's own; dotfiles and node_modules left out. */
+export const folderPaths = (dir, max = MAX_PATHS) => {
+  const paths = [];
+  const walk = (d, prefix) => {
+    const entries = fs.readdirSync(d, { withFileTypes: true }).filter(e => !e.name.startsWith('.') && e.name !== 'node_modules').sort((a, b) => a.name.localeCompare(b.name));
+    for (const e of entries) if (e.isFile() && paths.length < max) paths.push(prefix + e.name);
+    for (const e of entries) if (e.isDirectory() && paths.length < max) walk(path.join(d, e.name), `${prefix}${e.name}/`);
+  };
+  if (fs.existsSync(dir)) walk(dir, '');
+  return paths;
+};
+
+const STUDIO = 'apps/studio';
+const SETUP_FILE = /(?<![\w/.@-])(?:apps\/studio\/)?(scripts\/[\w./-]+\.(?:ts|mjs|py))(?![\w-])/g;
+
+/**
+ * The framework code a skill's SKILL.md names, for its page's file browser: the engine folders
+ * (apps/studio/engine.json's names, written as `@mediamake/engine/<name>` or by their folder, `src/amv`)
+ * and the studio scripts (`scripts/amv.ts`). Only what exists in `root`.
+ */
+export const codeUsed = (dir, root = ROOT) => {
+  let text = '';
+  let names = {};
+  try {
+    text = fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8');
+    names = JSON.parse(fs.readFileSync(path.join(root, STUDIO, 'engine.json'), 'utf8')).names ?? {};
+  } catch {
+    return [];
+  }
+  const used = [];
+  for (const [name, folder] of Object.entries(names)) {
+    const byFolder = folder.includes('/') ? folder : `${STUDIO}/${folder}`;
+    const named = new RegExp(`@mediamake/engine/${name}(?![\\w-])|(?<![\\w/.-])${byFolder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(text);
+    const at = path.join(root, STUDIO, folder);
+    if (named && fs.statSync(at, { throwIfNoEntry: false })?.isDirectory()) used.push({ kind: 'engine', label: folder, path: `${STUDIO}/${folder}`, files: folderPaths(at, 120) });
+  }
+  const seen = new Set();
+  for (const [, file] of text.matchAll(SETUP_FILE)) {
+    if (seen.has(file) || !fs.statSync(path.join(root, STUDIO, file), { throwIfNoEntry: false })?.isFile()) continue;
+    seen.add(file);
+    used.push({ kind: 'setup', label: file, path: `${STUDIO}/${file}` });
+  }
+  return used.slice(0, 20);
 };
 
 /**
@@ -546,6 +597,12 @@ export const checks = skill => {
   for (const m of skill.mcps) {
     if (!listed.has(m.id) && !OUR_MCPS.has(m.id)) notes.push(`uses ${m.id}, which isn't one of ours or in ${rel(THIRD_PARTY)}: list it there so installs can offer it`);
   }
+  // a skill here is shared use: its README follows the guide (apps/mediamake/docs/item-readme.md)
+  const readme = path.join(skill.dir, 'README.md');
+  if (fs.existsSync(readme)) {
+    const sections = [...fs.readFileSync(readme, 'utf8').replace(/```[\s\S]*?```/g, '').matchAll(/^##\s+(.+?)\s*$/gm)].map(m => m[1].toLowerCase());
+    if (sections.at(-1) !== 'what the skill outputs') notes.push(`${rel(readme)} should end with "## What the skill outputs", with examples (apps/mediamake/docs/item-readme.md)`);
+  }
   const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   for (const file of walk(skill.dir)) {
     const size = fs.statSync(file).size;
@@ -585,6 +642,9 @@ export const registry = (skills = allSkills()) => {
       readme: s.listing ? true : undefined,
       listing: s.listing && Object.keys(s.listing).length ? s.listing : undefined,
       ...folderSize(s.dir),
+      // its page's file browser: its own files, and the engine and setup its SKILL.md names
+      paths: folderPaths(s.dir),
+      uses: codeUsed(s.dir).length ? codeUsed(s.dir) : undefined,
     };
     return Object.fromEntries(Object.entries(e).filter(([, v]) => v !== undefined && v !== ''));
   };

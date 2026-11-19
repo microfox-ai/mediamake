@@ -1,4 +1,4 @@
-import { BoxIcon, HardDriveIcon, LayersIcon, ShieldCheckIcon, TagIcon, UsersIcon } from 'lucide-react';
+import { BoxIcon, HardDriveIcon, LayersIcon, ShapesIcon, Share2Icon, ShieldCheckIcon, TagIcon, UsersIcon } from 'lucide-react';
 import { VideoThumb, YouTubeEmbed } from '@/components/catalog/video';
 import { placeholderBackground } from '@/lib/catalog/video';
 import { sizeLabel, type ListingBadge } from '@/lib/catalog/listing';
@@ -144,7 +144,18 @@ export function AboutCard({
   description?: string;
   tags?: string[];
   rating?: React.ReactNode;
-  facts: { ready?: boolean; tier?: string; version?: string; size?: { bytes: number; files?: number }; deps?: number; people?: string };
+  facts: {
+    ready?: boolean;
+    tier?: string;
+    version?: string;
+    size?: { bytes: number; files?: number };
+    deps?: number;
+    people?: string;
+    /** A skill's nature and type (lib/catalog/skill-profile): the word, and what it means. */
+    nature?: { label: string; about: string };
+    /** `of`: a subset's superset skill, and its page when it has one. */
+    type?: { label: string; about: string; of?: string; ofHref?: string };
+  };
   children?: React.ReactNode;
 }) {
   const KIND = { skill: 'Skill', mcp: 'MCP', app: 'App' }[kind];
@@ -167,6 +178,30 @@ export function AboutCard({
           {KIND}
           {facts.version && <span className="text-muted-foreground"> · v{facts.version.replace(/^v/, '')}</span>}
         </AboutRow>
+        {facts.nature && (
+          <AboutRow icon={Share2Icon} label="Nature">
+            <span title={facts.nature.about}>{facts.nature.label}</span>
+          </AboutRow>
+        )}
+        {facts.type && (
+          <AboutRow icon={ShapesIcon} label="Type">
+            <span title={facts.type.about}>{facts.type.label}</span>
+            {facts.type.of ? (
+              <>
+                {' of '}
+                {facts.type.ofHref ? (
+                  <a href={facts.type.ofHref} className="font-mono text-[13px] font-medium underline-offset-4 hover:underline">
+                    {facts.type.of}
+                  </a>
+                ) : (
+                  <span className="font-mono text-[13px] font-medium">{facts.type.of}</span>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground"> · {facts.type.about}</span>
+            )}
+          </AboutRow>
+        )}
         {facts.ready !== undefined && (
           <AboutRow icon={ShieldCheckIcon} label="Status">
             {facts.ready ? 'Ready' : 'Beta'}

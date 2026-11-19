@@ -2,6 +2,7 @@ import { galleryTiles, proofTile, type GalleryTile } from '@/lib/catalog/gallery
 import { INSTALL_GUIDE_URL, SETUP_PROMPT } from '@/lib/catalog/install-prompt';
 import { headshotOf, listingBadges, type ListingBadge } from '@/lib/catalog/listing';
 import type { ItemReadme } from '@/lib/catalog/readme';
+import { needDependencies, type ReadmeCheck, type SkillDependency, type SkillDetailsView, type SkillFiles } from '@/lib/catalog/skill-profile';
 import type { RatingSummary } from '@/lib/ratings/ratings';
 import { itemPath } from '@/lib/catalog/summary';
 import { slugOf } from '@/lib/catalog/types';
@@ -112,6 +113,14 @@ export interface ItemDetails {
   video?: { youtubeId: string; title?: string };
   /** Its README, the left side of its page (lib/catalog/readme). Added where the details are loaded (./details-data). */
   readme?: ItemReadme;
+  /** The viewer may change a skill's details (its tags, nature and type): an admin for a store skill, its owner or an editor for a private one. */
+  canEdit?: boolean;
+  /** What it depends on: MCPs, apps and other skills. */
+  depends?: SkillDependency[];
+  /** A skill's details, its files and how its README stands against the guide. Added where the details are loaded (./details-data). */
+  skill?: SkillDetailsView;
+  files?: SkillFiles;
+  readmeChecks?: ReadmeCheck[];
 }
 
 export { detailsKey } from './details-key';
@@ -494,6 +503,7 @@ function ofCatalog(
       ...(item.rating && { rating: item.rating }),
     },
     ...(item.video?.youtubeId && { video: { youtubeId: item.video.youtubeId, title: item.video.title } }),
+    ...(item.kind === 'skill' && ctx.input.viewer?.isAdmin && { canEdit: true }),
   };
 }
 
@@ -589,6 +599,8 @@ function ofSpaceItem(
     ),
     install: { command: join, setup: setup(join) },
     outputs: made(ctx, item.kind, item.name),
+    ...(item.kind === 'skill' && owner.mayRelease && { canEdit: true }),
+    depends: needDependencies(item.needs),
   };
 }
 
@@ -637,6 +649,8 @@ function ofLinked(ctx: Context, item: LinkedItemView): ItemDetails {
     devices: spaceDevices(ctx, own, item.space, 'mm space sync', own?.needs ?? []),
     install: { command: 'mm space sync', setup: setup('mm space sync') },
     outputs: made(ctx, item.kind, item.name),
+    ...(item.kind === 'skill' && (mine || item.role === 'editor') && { canEdit: true }),
+    depends: needDependencies(own?.needs),
   };
 }
 

@@ -1,8 +1,10 @@
 import { getEntitlements } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
-import { itemReadme } from '@/lib/catalog/readme-data';
+import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
 import type { ItemReadme } from '@/lib/catalog/readme';
-import { catalogListingDB } from '@/lib/catalog/store';
+import { catalogListingDB, skillProfilesDB } from '@/lib/catalog/store';
+import { natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, spaceItemFiles, suggestedType, typeOf } from '@/lib/catalog/skill-profile';
+import { SKILLS_GITHUB } from '@/lib/skills/registry';
 import { registry, skillNamed } from '@/lib/skills/registry';
 import { spaceItemReadme, spaceOfKey } from '@/lib/space/item-readme';
 import { spaceDB } from '@/lib/space/store';
@@ -38,25 +40,66 @@ function registryNeeds(): Map<string, string[]> {
  */
 export async function itemDetailsFor(viewer: { clientId: string | null }, key: string): Promise<ItemDetails | null> {
   const details = await detailsFor(viewer, key);
-  return details ? { ...details, readme: await readmeOf(key, details) } : null;
+  if (!details) return null;
+  const { readme, markdown } = await readmeOf(key, details);
+  return { ...details, readme, ...(details.kind === 'skill' && (await skillParts(viewer, key, details, markdown))) };
+}
+
+/** The details alone, without the README: what a route needs to know who may change an item. */
+export const itemDetailsBare = (viewer: { clientId: string | null }, key: string) => detailsFor(viewer, key);
+
+/**
+ * A skill's own parts of its page (lib/catalog/skill-profile): its nature, type and tags, its files
+ * (a store skill's from the registry, a private one's from its space's file list) and what it depends
+ * on. Whoever may change it also gets how its README stands against the guide.
+ */
+async function skillParts(viewer: { clientId: string | null }, key: string, details: ItemDetails, markdown: string | null): Promise<Partial<ItemDetails>> {
+  const store = key.startsWith('catalog:');
+  const skill = store ? skillNamed(details.name) : null;
+  const inSpace = spaceOfKey(key, details);
+  const [profile, code] = await Promise.all([
+    key.startsWith('local:') ? null : skillProfilesDB.get(key).catch(() => null),
+    inSpace && viewer.clientId ? spaceDB.code(inSpace.spaceId, viewer.clientId).catch(() => null) : null,
+  ]);
+  const depends = skill ? registryDependencies(skill, name => skillNamed(name)?.summary) : (details.depends ?? []);
+  // a store skill's own tags come with it (its category, its README's); the ones added on its listing can be changed
+  const own = skill ? [...new Set([skill.category, ...(skill.listing?.tags ?? [])])] : [];
+  const view = skillDetailsView({
+    key,
+    profile,
+    stated: { nature: natureOf(skill?.listing?.nature), type: typeOf(skill?.listing?.type), ...readmeProfile(markdown) },
+    suggested: suggestedType(skill, !!skill && (registry?.skills ?? []).some(other => other.variantOf === skill.name)),
+    variantOf: skill?.variantOf,
+    tags: details.listing?.tags,
+    ownTags: own,
+  });
+  const files = skill ? registrySkillFiles(skill, SKILLS_GITHUB) : code && inSpace ? spaceItemFiles(code, 'skill', inSpace.name) : null;
+  if (view.superset && skillNamed(view.superset)) view.supersetHref = `/skills/${view.superset}`;
+  return {
+    skill: view,
+    depends,
+    ...(files && { files }),
+    ...(details.canEdit && { readmeChecks: readmeChecks(markdown, view.nature, depends.length > 0) }),
+  };
 }
 
 /**
  * The README its page shows on its left: the item's own (an item in a space: its README.md as its space
  * reported it; a store item: lib/catalog/readme-data), else the default one. The page only has details
- * for what the viewer may see: a space item for who can see that space.
+ * for what the viewer may see: a space item for who can see that space. `markdown` is the README as
+ * written, null when the page shows the default one.
  */
-async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> {
+async function readmeOf(key: string, details: ItemDetails): Promise<{ readme: ItemReadme; markdown: string | null }> {
   const inSpace = spaceOfKey(key, details);
   if (inSpace) {
     const own = await spaceDB.itemReadme(inSpace.spaceId, inSpace.kind, inSpace.name).catch(() => null);
-    if (own?.text.trim()) return spaceItemReadme(inSpace.spaceId, own);
+    if (own?.text.trim()) return { readme: await spaceItemReadme(inSpace.spaceId, own), markdown: own.text };
   }
   const id = key.startsWith('catalog:') ? key.slice('catalog:'.length) : null;
   const skill = id?.startsWith('skill/') ? skillNamed(details.name) : null;
   // a locked item's README stays the default: its listing is for who can open it
   const listing = id && !details.locked ? await catalogListingDB.get(id).catch(() => null) : null;
-  return itemReadme({
+  const readme = await itemReadme({
     facts: {
       kind: details.kind,
       name: details.name,
@@ -70,6 +113,8 @@ async function readmeOf(key: string, details: ItemDetails): Promise<ItemReadme> 
     skill: details.locked ? null : skill,
     listingReadme: listing?.readme,
   });
+  const markdown = !readme.written ? null : listing?.readme?.trim() ? listing.readme : skill && !details.locked ? await skillReadmeText(skill) : null;
+  return { readme, markdown };
 }
 
 async function detailsFor(viewer: { clientId: string | null }, key: string): Promise<ItemDetails | null> {

@@ -10,7 +10,8 @@ import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
-import { MadeByLine, NeedBadge } from '@/components/catalog/uses';
+import { DependsOn, SkillFilesCard, SkillOwnerTools } from '@/components/catalog/skill-details';
+import { MadeByLine } from '@/components/catalog/uses';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { SkillActions } from '@/components/skills/skill-actions';
 import { detailsKey } from '@/lib/app-shell/details-key';
@@ -18,15 +19,15 @@ import { getCatalogRecord } from '@/lib/catalog/records';
 import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { skillHeadshot } from '@/lib/catalog/items';
 import { listingBadges } from '@/lib/catalog/listing';
-import { itemPagePath } from '@/lib/catalog/paths';
-import { itemReadme } from '@/lib/catalog/readme-data';
+import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
+import { natureInfo, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, suggestedType, typeInfo, typeOf } from '@/lib/catalog/skill-profile';
 import { itemPath } from '@/lib/catalog/summary';
-import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
-import { proofOf, slugOf } from '@/lib/catalog/types';
+import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB, skillProfilesDB } from '@/lib/catalog/store';
+import { proofOf } from '@/lib/catalog/types';
 import type { RegistrySkill } from '@/lib/library/types';
 import { ratingsDB } from '@/lib/ratings/store';
 import { skillMarkdownHtml } from '@/lib/skills/skill-md';
-import { registry, skillMdUrl, skillNamed, skillRelations } from '@/lib/skills/registry';
+import { registry, skillMdUrl, skillNamed, skillRelations, SKILLS_GITHUB } from '@/lib/skills/registry';
 
 /**
  * /skills/<name>: one skill's own page, the link to share, laid out as GitHub lays out a repo. On the
@@ -72,15 +73,21 @@ export default async function SkillPage({ params }: Props) {
   }
 
   const id = `skill/${skill.name}`;
-  const [video, archived, readiness, listing, markdown, rating] = await Promise.all([
+  const key = detailsKey.catalog(id);
+  const { variants: forks, usedBy } = skillRelations(skill);
+  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named] = await Promise.all([
     catalogVideosDB.get(id).catch(() => null),
     catalogArchiveDB.get(id).catch(() => null),
     catalogReadinessDB.get(id).catch(() => null),
     catalogListingDB.get(id).catch(() => null),
     skillMarkdownHtml(skill),
     ratingsDB.summary(id).catch(() => null),
+    skillProfilesDB.get(key).catch(() => null),
+    skillReadmeText(skill),
+    skillProfilesDB.subsetsOf(skill.name).catch(() => []),
   ]);
-  const { variants, usedBy } = skillRelations(skill);
+  // its subset skills: its variants, and the store skills that name it as their superset
+  const variants = [...forks, ...named.map(skillNamed).filter((found): found is RegistrySkill => !!found && !forks.includes(found))];
   const category = registry?.categories.find(c => c.id === skill.category);
   const [owner] = skill.upstream?.split('/') ?? [];
   const proof = proofOf(readiness);
@@ -88,7 +95,22 @@ export default async function SkillPage({ params }: Props) {
   // what an admin set on the listing wins over what the README.md says
   const description = listing?.description ?? skill.listing?.description ?? skill.summary;
   const headshot = listing?.headshot ?? skillHeadshot(skill) ?? video?.thumbnail;
-  const tags = [...new Set([skill.category, ...(skill.listing?.tags ?? []), ...(listing?.tags ?? [])])];
+  const ownTags = [...new Set([skill.category, ...(skill.listing?.tags ?? [])])];
+  const tags = [...new Set([...ownTags, ...(listing?.tags ?? [])])];
+  // its details (lib/catalog/skill-profile): what was set on this page, else what its README.md states, else the likely type
+  const written = listing?.readme?.trim() ? listing.readme : readmeText;
+  const details = skillDetailsView({
+    key,
+    profile,
+    stated: { nature: natureOf(skill.listing?.nature), type: typeOf(skill.listing?.type), ...readmeProfile(readmeText) },
+    suggested: suggestedType(skill, variants.length > 0),
+    variantOf: skill?.variantOf,
+    tags: listing?.tags,
+    ownTags,
+  });
+  if (details.superset && skillNamed(details.superset)) details.supersetHref = `/skills/${details.superset}`;
+  const depends = registryDependencies(skill, name => skillNamed(name)?.summary);
+  const files = registrySkillFiles(skill, SKILLS_GITHUB);
   const size = skill.bytes !== undefined ? { bytes: skill.bytes, files: skill.files } : undefined;
   const deps = (skill.dependsOn?.length ?? 0) + (skill.mcps?.length ?? 0);
   const title = skill.title && skill.title.toLowerCase() !== skill.name.replace(/-/g, ' ') ? skill.title : skill.name;
@@ -116,7 +138,12 @@ export default async function SkillPage({ params }: Props) {
               {
                 id: 'readme',
                 label: 'README',
-                content: <ReadmeView id={id} kind="skill" title={title} readme={readme} badges={listingBadges({ beta: !ready, tier: 'public', version: skill.version, size, deps })} video={video} headshot={headshot} />,
+                content: (
+                  <div className="flex min-w-0 flex-col gap-5">
+                    {files && <SkillFilesCard files={files} />}
+                    <ReadmeView id={id} kind="skill" title={title} readme={readme} badges={listingBadges({ beta: !ready, tier: 'public', version: skill.version, size, deps })} video={video} headshot={headshot} />
+                  </div>
+                ),
               },
               {
                 id: 'how',
@@ -165,7 +192,7 @@ export default async function SkillPage({ params }: Props) {
             description={description}
             tags={tags}
             rating={<ItemRating itemId={id} title={skill.name} version={skill.version} initial={rating} />}
-            facts={{ ready, tier: 'Public · open to everyone', version: skill.version, size, deps }}
+            facts={{ ready, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: { ...typeInfo(details.type), of: details.superset, ofHref: details.supersetHref } }) }}
           >
             {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
             {skill.variantOf && (
@@ -174,6 +201,7 @@ export default async function SkillPage({ params }: Props) {
                 {skill.variantRef && <> · modelled on {skill.variantRef}</>}
               </p>
             )}
+            <SkillOwnerTools itemKey={key} title={title} view={details} checks={readmeChecks(written, details.nature, depends.length > 0)} />
           </AboutCard>
 
           <section className="flex flex-col gap-3 border-t pt-5">
@@ -187,24 +215,13 @@ export default async function SkillPage({ params }: Props) {
             </div>
           </section>
 
-          {skill.mcps && skill.mcps.length > 0 && (
-            <Related title="Works with">
-              {skill.mcps.map(mcp => (
-                <li key={mcp.id} className="flex flex-col gap-1 py-2">
-                  <div className="flex items-center gap-2">
-                    <DetailsButton detailsKey={detailsKey.catalog(mcp.id)} href={itemPagePath(mcp.id)} className="font-mono text-sm font-medium">
-                      {slugOf(mcp.id)}
-                    </DetailsButton>
-                    <NeedBadge need={mcp.need} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{mcp.for}</p>
-                </li>
-              ))}
-            </Related>
+          {depends.length > 0 && (
+            <div className="border-t pt-5">
+              <DependsOn depends={depends} />
+            </div>
           )}
-          {skill.dependsOn && skill.dependsOn.length > 0 && <SkillList title="Runs these skills too" names={skill.dependsOn} />}
           {usedBy.length > 0 && <SkillList title="Used by" names={usedBy.map(s => s.name)} skills={usedBy} />}
-          {variants.length > 0 && <SkillList title="Variants" names={variants.map(s => s.name)} skills={variants} />}
+          {variants.length > 0 && <SkillList title="Subset skills" names={variants.map(s => s.name)} skills={variants} />}
         </aside>
       </main>
     </ItemShell>

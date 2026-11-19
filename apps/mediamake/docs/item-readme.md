@@ -9,20 +9,30 @@ steps Claude follows. On a skill's page, SKILL.md is the next tab, "How it works
 
 ## The format
 
-Every README has the same four parts, in this order:
+A README is written so someone gets what the skill is, and how to use it, in under a minute. Its
+parts, in this order:
 
-1. **A video**: a YouTube link (or an https MP4 or WebM) alone on the first line.
+1. **A video**: a YouTube link (or an https MP4 or WebM) alone on the first line. A shared-use skill
+   usually has one; leave it out when there is none.
 2. **The title**: one `# Heading`.
-3. **What it does**, in a line or two.
-4. **`## How to use`**: the few steps a person takes. Not the steps Claude takes.
+3. **What it is**, in a line or two.
+4. **`## How to use`**: the few steps a person takes, and what to say to Claude. Not the steps Claude
+   takes.
+5. **`## What it uses`**, when it depends on anything: the skills it runs and the MCPs and apps it
+   works with, one line each, saying the part each one plays and what happens without it.
+6. **`## What the skill outputs`**, always the last section: what you end up with and where it lands,
+   with examples (a picture, a video or a link). Nobody should have to guess what to expect.
 
-After those, anything that helps someone decide: pictures, more videos, examples, what it needs.
+Between "How to use" and the end, anything that helps someone decide: pictures, more videos, what it
+needs.
 
 ```markdown
 ---
 description: Turn a logo into a full brand kit: colours, type, intros and end screens.
 tags: branding, logo, youtube
 headshot: headshot.jpg
+nature: shared-use
+type: superset
 ---
 
 https://youtu.be/XXXXXXXXXXX
@@ -37,8 +47,47 @@ Give it a logo, or only a name. It builds the kit your channel needs to go live.
 2. Say to Claude: **make a brand kit for this logo**
 3. Pick from the boards it shows you.
 
+## What it uses
+
+- `create-thumbnail`: makes the kit's thumbnail profile.
+- `mcp/browse-hack` (required): pulls the inspiration boards from Pinterest. Without it, you bring
+  the references.
+
+## What the skill outputs
+
+A folder, `brands/<name>/`: the logo in every size, the colours and fonts, three intros, two end
+screens and a visual guide.
+
 ![The finished guide](shots/guide.png)
 ```
+
+### Shared use and private use
+
+A skill's **nature** says who it is for (`nature` in the frontmatter, or Edit details on its page):
+
+| Nature | Who it is for | Its README | "Made with this" |
+| --- | --- | --- | --- |
+| `shared-use` | Other people: it can be listed in the store (Public, Plus, Pro). Every store skill is shared use. | Every part above, in that order. `node tools/skills.mjs check` notes a README that doesn't end with "What the skill outputs". | Needed: the finished production that proves it |
+| `private-use` | You or your team. The default for a skill in a space. | Loose: write what helps you. The parts above are only suggestions. | Not needed, and its page shows none |
+
+Its **type** says how it sits among other skills (`type` in the frontmatter, or Edit details):
+`internal` (other skills run it, or it looks after the computer), `superset` (the main skill of a
+family), `subset` (one style or one part of a superset skill) and `mcp-use` (mostly drives one MCP or
+app). More types are added in `lib/catalog/skill-profile.ts` (`SKILL_TYPES`).
+
+Every subset names its superset (`superset: make-kinetictype` in the frontmatter, or Edit details):
+`make-kinetictype-like-screamingtowin` is a subset of `make-kinetictype`. Its page says "Subset of"
+with a link, and the superset's page lists its subset skills. A variant made with `skills.mjs fork`
+is a subset of the skill it was forked from until someone says otherwise.
+
+Collect these when a skill is made or released (ask its maker, never guess): its nature, its type,
+a subset's superset, its tags and description, and for a shared-use skill the production that proves
+it. `mm space new skill` starts the README with them.
+
+Whoever may change the skill (an admin for a store skill; the owner or an editor of its space for a
+private one) sees two buttons on its page: **Edit details** (tags, nature, type) and **README
+guide**, which ticks the parts this README has and copies a template to start from. What is set on
+the page wins over the frontmatter.
 
 The page draws the header itself, the same for every item: the video, the title, then the badges
 (Beta or Ready, the membership that opens it, its version, its size, how many items it works with).
@@ -52,6 +101,21 @@ Badges are never written in the README: they come from what MediaMake knows, so 
 | `tags` | Words people look for it by, with commas between them (12 at most). | Only the skill's category |
 | `headshot` | Its 16:9 picture, the one its cards show: a file in the item's folder, or an https link. | The thumbnail of the video the README opens with, else of its intro video, else its title on a colour |
 | `video` | The video, when it isn't the README's first line. | The video on the first line |
+| `nature` | `shared-use` or `private-use` (above). | A store skill is shared use; a skill in a space is private use |
+| `type` | `internal`, `superset`, `subset` or `mcp-use` (above). | What the registry suggests: internal for an internal skill, subset for a variant, superset for a skill with variants |
+| `superset` | A subset's superset: that skill's name. | The skill a variant was forked from |
+
+## Its files and what it depends on
+
+Above the README, a skill's page lists its files as GitHub lists a folder: folders open in place, a
+file opens on GitHub. A repo skill's are its folder (`paths` in `skills.json`), then the engine
+folders its SKILL.md names (`uses`: `@mediamake/engine/<name>` or `src/<folder>`) and one `scripts`
+folder, which opens onto the studio scripts the skill names (`scripts/<file>`). A skill in a space lists its folder from the space's file list, its own
+`engine/` with it.
+
+In the right column, **Depends on** lists the MCPs, apps and skills it needs: five, then "+N more".
+A repo skill's come from its MCP table and `depends-on`; a space skill's from what its run sheet
+needs (`mcp:<id>`, `app:<name>`).
 
 ## Pictures and videos
 

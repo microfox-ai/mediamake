@@ -71,6 +71,21 @@ export interface RegistrySkill {
   /** Its folder's size: every file in it. */
   bytes?: number;
   files?: number;
+  /** Its folder's files, as paths inside it (the first 300): its page's file browser. */
+  paths?: string[];
+  /** The framework code its SKILL.md names: engine folders (apps/studio/engine.json) and studio scripts. */
+  uses?: SkillCode[];
+}
+
+/** An engine folder or a setup script a skill names. */
+export interface SkillCode {
+  kind: 'engine' | 'setup';
+  /** As the studio names it: `src/amv`, `scripts/amv.ts`. */
+  label: string;
+  /** Its path in the repo. */
+  path: string;
+  /** A folder's files, as paths inside it. Left out for a single file. */
+  files?: string[];
 }
 
 /** A skill's store listing as its README.md gives it. */
@@ -81,6 +96,9 @@ export interface SkillListing {
   headshot?: string;
   /** The video the README opens with. */
   video?: string;
+  /** Who it is for (`private-use`, `shared-use`) and its type, as the frontmatter states them (lib/catalog/skill-profile). */
+  nature?: string;
+  type?: string;
 }
 
 /** One step of a skill's run sheet. */

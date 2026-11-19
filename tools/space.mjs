@@ -1978,10 +1978,10 @@ async function create(args, flags, env) {
   fs.mkdirSync(at, { recursive: true });
   if (kind === 'skill') {
     fs.writeFileSync(path.join(at, 'SKILL.md'), `---\nname: ${name}\ndescription: <What it does, and when Claude should use it: "Use when the user says …">\nmetadata:\n  version: 0.1.0\n---\n\n# ${humanize(name)}\n\n<The steps.>\n\n${RUN_SHEET}`);
-    // its store listing (apps/mediamake/docs/item-readme.md): a video first, the title, what it does, how to use it
+    // its store listing (apps/mediamake/docs/item-readme.md): its details in the frontmatter, then the guide's parts, ending with what it outputs
     fs.writeFileSync(
       path.join(at, 'README.md'),
-      `---\ndescription: <What it is, for people, in a line or two>\ntags: <words people look for it by, with commas between them>\n---\n\n<A YouTube link to its video, alone on this line. None yet: delete this line.>\n\n# ${humanize(name)}\n\n<What it does, in a line or two.>\n\n## How to use\n\n1. <What to say to Claude>\n2. <What happens next>\n`,
+      `---\ndescription: <What it is, for people, in a line or two>\ntags: <words people look for it by, with commas between them>\nnature: private-use\n# nature: shared-use when it is for other people (it can then be listed in the store, and needs every part below)\n# type: internal | superset | subset | mcp-use (ask its maker; leave out when none fits)\n# superset: <the skill this one is a style or a part of> (every subset names one)\n---\n\n<A YouTube link to its video, alone on this line. None yet: delete this line.>\n\n# ${humanize(name)}\n\n<What it does, in a line or two.>\n\n## How to use\n\n1. <What to say to Claude>\n2. <What happens next>\n\n## What it uses\n\n<The skills it runs and the MCPs and apps it works with, a line each: the part it plays. Uses none: delete this section.>\n\n## What the skill outputs\n\n<What you end up with and where it lands, with an example: a picture, a video or a link.>\n`,
     );
   } else {
     writeJson(path.join(at, 'item.json'), { title: humanize(name), summary: `<What this ${kind === 'mcp' ? 'MCP' : 'app'} does, in one line>`, version: '0.1.0', needs: [], media: [] });
