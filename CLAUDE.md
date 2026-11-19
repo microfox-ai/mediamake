@@ -276,6 +276,11 @@ upload, download and search is counted. The media library above stays the comput
 - When a save stops on private details in a file, tell the user what was found. `--private-ok` only on
   their word. Never a key or a password in a field or a file.
 - A song has one master, one lyrics and one transcript. Replacing one is the owner's decision.
+- A computer tells the Library what its media library holds only after its owner turns that on:
+  `mm library report` shows what would go (a card a file: name, kind, size, SHA-256; never the file or
+  its folder), `mm library report on` is the owner's word, in this session. Never turn it on for them.
+  `mm library devices "<words>"` finds a file on a computer from anywhere; one that is only there is
+  added on that computer (`mm library save <collection> --item <slot>=<id>`), or asked for with a to-do.
 
 ## Transcription: the ElevenLabs MCP first
 
@@ -422,6 +427,9 @@ pictures it shows (its store listing, shown in its dialog to who can see the spa
 paths, its README.md and its last 30 commits (short id, time, author's name, subject), never another file (`mm space
 report --dry` shows it, the same switch stops it). A computer and a cloud session also report what they can do for
 the register: a random label, the name its owner gave, the run sheets' words, the limit written beside a key, and a
-cloud environment's space repos (`mm access --dry` shows it, `mm access forget` removes it). When
+cloud environment's space repos (`mm access --dry` shows it, `mm access forget` removes it). A computer
+whose owner turned it on also reports a card for each file of its media library: name, title, kind, subject,
+tags, size, length and SHA-256, never the file or its folder (`mm library report` shows it,
+`mm library report forget` removes it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

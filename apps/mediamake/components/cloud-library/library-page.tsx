@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, FolderIcon, Loader2Icon, PlusIcon, SearchIcon, UserIcon } from 'lucide-react';
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPage } from '@/components/app-shell/app-page';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { canChange, filtersOf, folderFields, libraryHref, listQuery, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
 import { CollectionCard } from './collection-card';
+import { DeviceLibrary, computersHref } from './device-library';
 import { EntryDialog } from './entry-dialog';
 import { EntryView } from './entry-view';
 import { EntryViews, ViewSwitch } from './entry-views';
@@ -25,6 +26,7 @@ import { EntryViews, ViewSwitch } from './entry-views';
  * is chosen). With no collection open, the space's collections are cards; with one open, a
  * breadcrumb sits under the search, its filters at the right end, and the entries are cards; an
  * entry opens in tabs. The address holds the place (?space=&c=&e=), so a link opens the same view.
+ * A switch beside the space picks the cloud or the computers (?on=computers, ./device-library).
  */
 
 const ANY = '__any__';
@@ -83,6 +85,23 @@ function SpacePicker({ spaces, current, onPick }: { spaces: SpaceView[]; current
         </Command>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Cloud: what the space keeps. Computers: what each computer holds, from the cards it reported. */
+function SideSwitch({ space, computers }: { space: string; computers: boolean }) {
+  const item = (on: boolean) => `inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-medium ${on ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`;
+  return (
+    <nav aria-label="Cloud or computers" className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
+      <Link href={libraryHref({ space })} className={item(!computers)} aria-current={!computers ? 'page' : undefined}>
+        <CloudIcon className="size-4" />
+        Cloud
+      </Link>
+      <Link href={computersHref(space)} className={item(computers)} aria-current={computers ? 'page' : undefined}>
+        <MonitorIcon className="size-4" />
+        Computers
+      </Link>
+    </nav>
   );
 }
 
@@ -229,7 +248,8 @@ export function LibraryPage() {
   const router = useRouter();
   const params = useSearchParams();
   const spaceParam = params.get('space');
-  const collectionSlug = params.get('c');
+  const computers = params.get('on') === 'computers';
+  const collectionSlug = computers ? null : params.get('c');
   const entrySlug = collectionSlug ? params.get('e') : null;
   // folders view: the field entries are grouped by, and the folder that is open
   const byParam = params.get('by');
@@ -359,7 +379,7 @@ export function LibraryPage() {
       window.localStorage.setItem(REMEMBER, id);
     } catch {}
     setTyped('');
-    router.push(libraryHref({ space: id }));
+    router.push(computers ? computersHref(id) : libraryHref({ space: id }));
   };
   const saved = (ref: string, warnings: string[]) => {
     for (const warning of warnings) toast.warning(warning);
@@ -388,7 +408,12 @@ export function LibraryPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Library</h1>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">The files a space reuses, kept once and found from every computer.</p>
           </div>
-          {spaces && spaces.length > 0 && <SpacePicker spaces={spaces.map(s => s.space)} current={space} onPick={pick} />}
+          {spaces && spaces.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {space && <SideSwitch space={space.id} computers={computers} />}
+              <SpacePicker spaces={spaces.map(s => s.space)} current={space} onPick={pick} />
+            </div>
+          )}
         </div>
 
         {problem && (
@@ -403,7 +428,8 @@ export function LibraryPage() {
           </p>
         )}
 
-        {space && (
+        {space && computers && <DeviceLibrary space={space} deviceId={params.get('d')} />}
+        {space && !computers && (
           <>
             {!entrySlug && (
               <div className="relative">

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { cachePath, entryLines, fieldsFrom, filesFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, sha256Of, sizeOf } from './library.mjs';
+import { cachePath, cardOfItem, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
 
 test('arguments: positionals, repeated flags and switches', () => {
   const { args, flags } = parseArgs(['save', 'songs', 'nakama', '--set', 'title=Nakama! = fun', '--set', 'use=Released', '--file', 'master=a b.wav', '--project=Get Into Zone', '--yes', '--has=transcript', '--has=stems']);
@@ -116,6 +116,8 @@ async function standIn() {
       const files = Object.entries(state.entry.slots).flatMap(([slot, list]) => list.map(f => ({ slot, name: f.name, size: state.blobs.get(f.sha256).length, sha256: f.sha256, url: `${origin}/blob/${f.sha256}${state.damage ? '?damage' : ''}` })));
       return send({ ref: 'songs/nakama', title: 'Nakama!', files });
     }
+    if (url.pathname === '/api/library/devices' && req.method === 'POST') return send({ saved: body.cards.length, ...(body.done && { files: state.calls.filter(c => c.path === '/api/library/devices' && c.method === 'POST' && c.body.run === body.run).reduce((n, c) => n + c.body.cards.length, 0) }) });
+    if (url.pathname === '/api/library/devices' && req.method === 'DELETE') return send({ forgotten: 2 });
     send({ error: 'not in the stand-in' }, 404);
   });
   await new Promise(done => server.listen(0, '127.0.0.1', done));
@@ -197,6 +199,94 @@ test('save asks first, uploads only on --yes, and fetch checks what arrives', as
     await assert.rejects(run(['fetch', 'songs/nakama', '--project=Get Into Zone', `--to=${path.join(dir, 'third')}`], env), /arrived damaged/);
     assert.equal(fs.existsSync(cachePath(sha, env)), false);
     assert.equal(fs.existsSync(path.join(dir, 'third', 'nakama.wav')), false);
+  } finally {
+    await site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* ---------- this computer's library ---------- */
+
+test('a card says what a file is, never where it is', () => {
+  const sha = 'a'.repeat(64);
+  assert.deepEqual(cardOfItem({ id: sha, path: '/Users/someone/Downloads/_LIBRARY/music/zone/Sample Song.wav', kind: 'music', subject: 'zone', title: 'Sample Song', ext: 'wav', bytes: 64_000_000, duration: 182.4, width: null, height: null, status: 'online' }, ['final', 'master']), {
+    sha256: sha,
+    name: 'Sample Song.wav',
+    title: 'Sample Song',
+    kind: 'music',
+    subject: 'zone',
+    bytes: 64_000_000,
+    duration: 182.4,
+    tags: ['final', 'master'],
+  });
+  assert.equal(cardOfItem({ id: sha, path: 'a.mp4', kind: '_unsorted', bytes: 1, status: 'cold' }).cold, true);
+  assert.equal(cardOfItem({ id: sha, path: 'a.mp4', kind: '_unsorted', bytes: 1, status: 'cold' }).kind, 'unsorted');
+  // a teammate's item with no copy here, a file that is gone, and an id that is not a content's
+  assert.equal(cardOfItem({ id: sha, path: 'a.mp4', kind: 'footage', bytes: 1, status: 'remote' }), null);
+  assert.equal(cardOfItem({ id: sha, path: 'a.mp4', kind: 'footage', bytes: 1, status: 'missing' }), null);
+  assert.equal(cardOfItem({ id: 'not-a-sha', path: 'a.mp4', kind: 'footage', bytes: 1, status: 'online' }), null);
+  assert.match(reportLines([{ kind: 'music', bytes: 2e6 }, { kind: 'music', bytes: 1e6 }, { kind: 'footage', bytes: 5e6 }]).join('\n'), /^3 files, 8 MB on this computer\.\n {2}music: 2\n {2}footage: 1\n/);
+});
+
+test('--item names a slot and the start of a media library id', () => {
+  assert.deepEqual(itemsFrom(['master=ABCDEF012345']), [{ slot: 'master', id: 'abcdef012345' }]);
+  assert.throws(() => itemsFrom(['master=abc']), /at least its first 8 characters/);
+  assert.throws(() => itemsFrom(['master=/Users/someone/a.wav']), /--item takes/);
+});
+
+test('a computer reports only after its owner turns it on, and --item takes a file from its library', async t => {
+  let sqlite;
+  try {
+    sqlite = await import('node:sqlite');
+  } catch {
+    return t.skip('this Node has no node:sqlite');
+  }
+  const site = await standIn();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-library-'));
+  const root = path.join(dir, 'lib');
+  fs.mkdirSync(path.join(root, '.catalog'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'music'), { recursive: true });
+  const song = path.join(root, 'music', 'sample-song.wav');
+  fs.writeFileSync(song, Buffer.alloc(3000, 3));
+  const sha = await sha256Of(song);
+  const db = new sqlite.DatabaseSync(path.join(root, '.catalog', 'library.db'));
+  db.exec('CREATE TABLE items (id TEXT PRIMARY KEY, path TEXT, kind TEXT, subject TEXT, title TEXT, ext TEXT, bytes INTEGER, width INTEGER, height INTEGER, duration REAL, status TEXT); CREATE TABLE tags (item_id TEXT, tag TEXT);');
+  db.prepare('INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(sha, 'music/sample-song.wav', 'music', 'zone', 'Sample Song', 'wav', 3000, null, null, 12.5, 'online');
+  db.prepare('INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run('c'.repeat(64), '/elsewhere/gone.mp4', 'footage', null, null, 'mp4', 10, null, null, null, 'missing');
+  db.prepare('INSERT INTO tags VALUES (?, ?)').run(sha, 'final');
+  db.close();
+  const config = path.join(dir, 'config.json');
+  fs.writeFileSync(config, JSON.stringify({ library: { root } }));
+  const env = { MEDIAMAKE_API_URL: site.url, MEDIAMAKE_API_KEY: 'test-key', MEDIAMAKE_CONFIG: config, MEDIAMAKE_LIBRARY_CACHE: path.join(dir, 'cache') };
+  const reports = () => site.state.calls.filter(call => call.path === '/api/library/devices');
+  try {
+    // off: it says what would go, and sends nothing, even with --yes
+    const dry = await run(['report'], env);
+    assert.match(dry.out, /Reporting is off for this computer/);
+    assert.match(dry.out, /1 file, 3 KB on this computer\./);
+    assert.match(dry.out, /Nothing was sent\. Turning it on is the computer's owner's word: mm library report on\./);
+    await run(['report', '--yes'], env);
+    assert.equal(reports().length, 0);
+
+    // on: the cards go, with no folder in them
+    const on = await run(['report', 'on'], env);
+    assert.match(on.out, /✔ 1 card\(s\) sent as /);
+    assert.equal(JSON.parse(fs.readFileSync(config, 'utf8')).libraryReport, 'on');
+    const [sent] = reports();
+    assert.equal(sent.body.done, true);
+    assert.deepEqual(sent.body.cards, [{ sha256: sha, name: 'sample-song.wav', title: 'Sample Song', kind: 'music', subject: 'zone', bytes: 3000, duration: 12.5, tags: ['final'] }]);
+    assert.ok(!JSON.stringify(sent.body).includes(root));
+
+    // a file is added from the media library by the start of its id
+    const asked = await run(['save', 'songs', '--project=Get Into Zone', '--set', 'title=Nakama!', '--item', `master=${sha.slice(0, 12)}`, '--yes'], env);
+    assert.equal(asked.code, 0);
+    assert.deepEqual(site.state.calls.at(-1).body.files, [{ slot: 'master', sha256: sha, name: 'sample-song.wav' }]);
+    await assert.rejects(run(['save', 'songs', '--project=Get Into Zone', '--item', 'master=0000000000'], env), /No file in this computer's media library has an id that starts 0000000000/);
+
+    // forget takes the cards out and turns reporting off
+    const gone = await run(['report', 'forget'], env);
+    assert.match(gone.out, /✔ Forgotten: 2 card\(s\)/);
+    assert.equal(JSON.parse(fs.readFileSync(config, 'utf8')).libraryReport, 'off');
   } finally {
     await site.close();
     fs.rmSync(dir, { recursive: true, force: true });

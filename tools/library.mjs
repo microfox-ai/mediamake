@@ -28,10 +28,13 @@
  *                                            the files, checked against their SHA-256. A file this computer
  *                                            fetched before comes from its cache, not the network.
  *   mm library save <collection> [<entry>] [--set <field>=<value>]… [--json=<fields.json>]
- *        [--file <slot>=<path>]… [--made-from=<slot>=<source slot>[:<tool>]] [--rev=<n>] [--private-ok] [--yes]
+ *        [--file <slot>=<path>]… [--item <slot>=<media library id>]… [--made-from=<slot>=<source slot>[:<tool>]]
+ *        [--rev=<n>] [--private-ok] [--yes]
  *                                            adds an entry (no <entry>: a new one, named by its title) or
  *                                            changes one. Without --yes nothing is saved: it prints the one
  *                                            sentence to ask the person. Add --yes after they agree.
+ *                                            --item takes the file from this computer's media library by
+ *                                            its id (or the id's start): the file stays where it is.
  *   mm library stats <collection>/<entry> --platform=<name> [--day=2026-11-19] --set <number>=<value>…
  *                                            a platform's numbers for a day
  *   mm library trash <collection>/<entry> [--yes]
@@ -40,12 +43,26 @@
  *   mm library headshot <collection> --clear [--yes]                         takes it off
  *   mm library usage [--days=30] [--all]     what you used and its estimated cost (--all: admins, everyone's)
  *
+ * This computer's own library (its media library, `mm media`), as cards for the Library's page and for
+ * cloud sessions. A card says what a file is: never its bytes, never where it is on the disk.
+ *
+ *   mm library report                        whether this computer reports, and what a report would send
+ *   mm library report on                     its owner's word: turns reporting on and sends the cards
+ *   mm library report --yes                  sends the cards again (after the media library changed)
+ *   mm library report off                    stops reporting. What was sent stays until forget.
+ *   mm library report forget                 takes this computer's cards out of MediaMake
+ *   mm library devices [--project=<name or id>]
+ *                                            the computers you may look into from that space
+ *   mm library devices "<words>" [--on=<computer>] [--kind=music] [--where=device|both] [--limit=20]
+ *                                            their files that fit, and whether each is also in the cloud
+ *
  * --json prints the server's answer as JSON. A value for --set that starts with [ or { is read as JSON:
  *   --set 'storeLinks=[{"platform":"Spotify","url":"https://…"}]'
  * Never a key or a password in a field or a file: everyone on the space reads them.
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -68,8 +85,8 @@ export function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith('--')) args.push(arg);
-    else if (arg.includes('=') && !['--set', '--file'].includes(arg)) add(arg.slice(2, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1));
-    else if (['--set', '--file'].includes(arg)) add(arg.slice(2), argv[++i] ?? '');
+    else if (arg.includes('=') && !['--set', '--file', '--item'].includes(arg)) add(arg.slice(2, arg.indexOf('=')), arg.slice(arg.indexOf('=') + 1));
+    else if (['--set', '--file', '--item'].includes(arg)) add(arg.slice(2), argv[++i] ?? '');
     else add(arg.slice(2), true);
   }
   return { args, flags };
@@ -115,6 +132,51 @@ export function madeFromOf(value) {
     return { slot, source, ...(tool && { tool }) };
   });
 }
+
+/** `--item` pairs as { slot, id }: a slot and the start of a media library id (a SHA-256). */
+export function itemsFrom(pairs) {
+  return pairs.map(pair => {
+    const at = pair.indexOf('=');
+    const slot = pair.slice(0, at).trim().toLowerCase();
+    const id = pair.slice(at + 1).trim().toLowerCase();
+    if (at < 1 || !SLUG.test(slot) || !/^[0-9a-f]{8,64}$/.test(id)) throw new Error(`--item takes <slot>=<media library id, at least its first 8 characters>, not "${pair}"`);
+    return { slot, id };
+  });
+}
+
+/** A media library item as the card a report sends: what it is, its file's name without the folder. Null for what isn't a file's content. */
+export function cardOfItem(item, tags = []) {
+  if (!/^[0-9a-f]{64}$/.test(String(item.id ?? '')) || !['online', 'cold'].includes(item.status)) return null;
+  const positive = value => (typeof value === 'number' && value > 0 ? value : undefined);
+  return {
+    sha256: item.id,
+    name: String(item.path ?? '').split(/[\\/]/).pop() || `${item.id.slice(0, 12)}.${item.ext ?? 'bin'}`,
+    ...(item.title && { title: String(item.title) }),
+    kind: String(item.kind ?? 'other').replace(/^_/, ''),
+    ...(item.subject && { subject: String(item.subject) }),
+    bytes: Number(item.bytes) || 0,
+    ...(positive(item.duration) && { duration: item.duration }),
+    ...(positive(item.width) && { width: item.width }),
+    ...(positive(item.height) && { height: item.height }),
+    tags: tags.slice(0, 20),
+    ...(item.status === 'cold' && { cold: true }),
+  };
+}
+
+/** What a report would send, in a few lines: how many files, how much, of which kinds. */
+export function reportLines(cards) {
+  const kinds = {};
+  for (const card of cards) kinds[card.kind] = (kinds[card.kind] ?? 0) + 1;
+  const bytes = cards.reduce((sum, card) => sum + card.bytes, 0);
+  return [
+    `${cards.length} file${cards.length === 1 ? '' : 's'}, ${sizeOf(bytes)} on this computer.`,
+    ...Object.entries(kinds).sort((a, b) => b[1] - a[1]).map(([kind, n]) => `  ${kind}: ${n}`),
+    'A card is a file\'s name, title, kind, subject, tags, size, length and SHA-256. Never the file, never its folder.',
+  ];
+}
+
+/** Whether this computer reports its cards: its owner's `libraryReport` in the config, off until they say so. */
+export const reportSetting = (env = process.env) => readConfig(env).libraryReport === 'on';
 
 /** Private details a text or JSON file should not carry into a shared place: what was found, never the value. */
 export function privateDetails(content) {
@@ -366,7 +428,9 @@ async function save(env, [collection, entry], flags) {
   const fields = { ...(typeof flags.json === 'string' ? JSON.parse(fs.readFileSync(flags.json, 'utf8')) : {}), ...fieldsFrom(listOf(flags.set)) };
   const local = [];
   const findings = [];
-  for (const file of filesFrom(listOf(flags.file))) {
+  const picked = [];
+  for (const item of itemsFrom(listOf(flags.item))) picked.push({ slot: item.slot, ...(await localItem(env, item.id)) });
+  for (const file of [...filesFrom(listOf(flags.file)), ...picked]) {
     const stat = fs.statSync(file.path, { throwIfNoEntry: false });
     if (!stat?.isFile()) throw new Error(`No file at ${file.path}`);
     const name = path.basename(file.path);
@@ -374,7 +438,7 @@ async function save(env, [collection, entry], flags) {
       const found = privateDetails(fs.readFileSync(file.path, 'utf8'));
       if (found.length) findings.push(`${name}: ${found.join(', ')}`);
     }
-    local.push({ ...file, name, size: stat.size, sha256: await sha256Of(file.path) });
+    local.push({ slot: file.slot, path: file.path, name, size: stat.size, sha256: await sha256Of(file.path) });
   }
   const made = madeFromOf(flags['made-from']);
   const body = { space: space.id, collection, ...(entry && { slug: entry }), fields, files: local.map(f => ({ slot: f.slot, sha256: f.sha256, name: f.name, size: f.size })), ...(Number.isInteger(Number(flags.rev)) && flags.rev !== undefined && { rev: Number(flags.rev) }), agent: flags.agent === true || env.CLAUDECODE === '1', device: placeName(env) };
@@ -414,6 +478,130 @@ async function save(env, [collection, entry], flags) {
   if (flags.json === true) return console.log(JSON.stringify(saved, null, 2)), 0;
   console.log(`✔ ${saved.created ? 'Added' : saved.changed ? 'Changed' : 'Nothing to change in'} ${saved.entry.title} (${saved.ref}) in the ${space.name} space, revision ${saved.entry.rev}.`);
   for (const warning of saved.warnings) console.log(`  ! ${warning}`);
+  return 0;
+}
+
+/* ---------- this computer's media library ---------- */
+
+function readConfig(env = process.env) {
+  try {
+    const value = JSON.parse(fs.readFileSync(configFile(env), 'utf8'));
+    return value && typeof value === 'object' ? value : {};
+  } catch {
+    return {};
+  }
+}
+function saveConfig(patch, env = process.env) {
+  const file = configFile(env);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify({ ...readConfig(env), ...patch }, null, 2)}\n`);
+}
+
+/** The media library's catalog, opened for reading (apps/studio/scripts/library/db.ts made it). */
+async function catalog(env) {
+  const library = readConfig(env).library;
+  const set = typeof library === 'string' ? library : typeof library?.root === 'string' ? library.root : '';
+  const root = set.replace(/^~(?=[\\/]|$)/, os.homedir());
+  const file = root && path.join(root, '.catalog', 'library.db');
+  if (!file || !fs.existsSync(file)) throw new Error('This computer has no media library yet (mm media help). A cloud session has none.');
+  let sqlite;
+  try {
+    sqlite = await import('node:sqlite');
+  } catch {
+    throw new Error('Reading the media library needs Node 22.13 or newer (mm doctor).');
+  }
+  return { root, db: new sqlite.DatabaseSync(file, { readOnly: true }) };
+}
+
+async function localCards(env) {
+  const { db } = await catalog(env);
+  try {
+    const tags = new Map();
+    for (const row of db.prepare('SELECT item_id, tag FROM tags').all()) tags.set(row.item_id, [...(tags.get(row.item_id) ?? []), row.tag]);
+    return db.prepare('SELECT id, path, kind, subject, title, ext, bytes, width, height, duration, status FROM items').all().map(item => cardOfItem(item, tags.get(item.id))).filter(Boolean);
+  } finally {
+    db.close();
+  }
+}
+
+/** The file a media library id (or its start) names on this computer. */
+async function localItem(env, id) {
+  const { root, db } = await catalog(env);
+  try {
+    const rows = db.prepare('SELECT id, path FROM items WHERE id LIKE ? LIMIT 2').all(`${id}%`);
+    if (!rows.length) throw new Error(`No file in this computer's media library has an id that starts ${id} (mm media find).`);
+    if (rows.length > 1) throw new Error(`More than one file's id starts ${id}: give more of it.`);
+    return { id: rows[0].id, path: path.isAbsolute(rows[0].path) ? rows[0].path : path.join(root, rows[0].path) };
+  } finally {
+    db.close();
+  }
+}
+
+const PART = 500;
+async function sendReport(env, cards) {
+  const run = crypto.randomBytes(8).toString('hex');
+  const device = deviceLabel(env);
+  let last = null;
+  for (let at = 0; at < cards.length || at === 0; at += PART) last = await api(env, 'POST', '/devices', { device, run, cards: cards.slice(at, at + PART), done: at + PART >= cards.length });
+  return { device, files: last?.files ?? cards.length };
+}
+
+async function report(env, [word], flags) {
+  if (env.MEDIAMAKE_PLACE) throw new Error('A cloud session has no library of its own: mm library devices shows what the computers hold.');
+  const on = reportSetting(env);
+  if (word === 'off') {
+    saveConfig({ libraryReport: 'off' }, env);
+    console.log('✔ Off: this computer no longer reports what it holds. What it sent before stays until mm library report forget.');
+    return 0;
+  }
+  if (word === 'forget') {
+    const gone = await api(env, 'DELETE', `/devices${query({ label: deviceLabel(env) })}`);
+    saveConfig({ libraryReport: 'off' }, env);
+    console.log(`✔ Forgotten: ${gone.forgotten} card(s) of this computer were taken out of MediaMake, and reporting is off. Your files are untouched.`);
+    return 0;
+  }
+  if (word !== undefined && word !== 'on') throw new Error('mm library report [on | off | forget] [--yes]');
+  const cards = await localCards(env);
+  if (word !== 'on' && !(on && flags.yes)) {
+    if (flags.json === true) return console.log(JSON.stringify({ on, device: deviceLabel(env), cards: cards.length, sample: cards.slice(0, 3) }, null, 2)), 0;
+    console.log(on ? `Reporting is on for this computer (${deviceLabel(env)}).` : `Reporting is off for this computer (${deviceLabel(env)}): nothing is sent.`);
+    console.log('A report would send:');
+    for (const line of reportLines(cards)) console.log(`  ${line}`);
+    console.log("You see the cards, and so do the people of the projects this computer is open to (mm access).");
+    console.log(on ? '\nNothing was sent. To send them now: mm library report --yes.' : "\nNothing was sent. Turning it on is the computer's owner's word: mm library report on.");
+    return 0;
+  }
+  saveConfig({ libraryReport: 'on' }, env);
+  const sent = await sendReport(env, cards);
+  console.log(`✔ ${sent.files} card(s) sent as ${sent.device}. Reporting is on: run mm library report --yes after the media library changes, mm library report off to stop.`);
+  return 0;
+}
+
+async function devices(env, [words], flags) {
+  const space = await spaceFor(env, flags);
+  const { devices: list } = await api(env, 'GET', `/devices${query({ space: space.id })}`);
+  const named = typeof flags.on === 'string' ? flags.on.toLowerCase() : '';
+  const picked = named ? list.filter(d => d.label.toLowerCase() === named || d.name.toLowerCase() === named) : list;
+  if (named && !picked.length) throw new Error(`No computer "${flags.on}" here. There ${list.length === 1 ? 'is' : 'are'}: ${list.map(d => d.name).join(', ') || 'none'}.`);
+  const searching = words !== undefined || flags.kind !== undefined || flags.where !== undefined || !!named;
+  if (!searching) {
+    if (flags.json === true) return console.log(JSON.stringify(list, null, 2)), 0;
+    if (!list.length) return console.log(`No computer reports what it holds to the ${space.name} space yet. On a computer, its owner turns it on: mm library report on.`), 0;
+    for (const d of list) console.log(`${d.name}${d.mine ? ' (yours)' : ` (${d.owner}'s)`} · ${d.files} files · ${sizeOf(d.bytes)} · ${d.linked} also in the cloud · reported ${d.reportedAt.slice(0, 10)}`);
+    console.log('\nmm library devices "<words>" searches them.');
+    return 0;
+  }
+  const found = [];
+  for (const d of picked) {
+    const got = await api(env, 'GET', `/devices${query({ space: space.id, of: d.id, q: words, kind: flags.kind, where: flags.where, limit: flags.limit ?? 20 })}`);
+    found.push({ device: d, total: got.total, results: got.results });
+  }
+  if (flags.json === true) return console.log(JSON.stringify(found, null, 2)), 0;
+  for (const { device: d, total, results } of found) {
+    console.log(`${d.name}${d.mine ? ' (yours)' : ` (${d.owner}'s)`}: ${total} file(s) fit${total > results.length ? `, the first ${results.length}` : ''}`);
+    for (const file of results) console.log(`  ${file.sha256.slice(0, 12)} · ${file.title ?? file.name} · ${file.kind} · ${sizeOf(file.bytes)} · ${file.cloud ? `also in the cloud: ${file.cloud.ref} (${file.cloud.slot})` : 'on this computer only'}`);
+  }
+  if (found.some(f => f.results.some(file => !file.cloud))) console.log("\nA file that is only on a computer is added from that computer: mm library save <collection> --item <slot>=<id>. From elsewhere, post a to-do for it (mm todo, needs media:library).");
   return 0;
 }
 
@@ -523,6 +711,10 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return headshot(env, rest, flags);
     case 'usage':
       return usage(env, flags);
+    case 'report':
+      return report(env, rest, flags);
+    case 'devices':
+      return devices(env, rest, flags);
     default:
       if (REF.test(cmd.toLowerCase())) return get(env, [cmd], flags);
       throw new Error(`No "${cmd}". mm library help lists the commands.`);
