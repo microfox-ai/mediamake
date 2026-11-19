@@ -94,6 +94,9 @@ does. An MCP that isn't ours goes in `third-party.json` first (who makes it, and
 says in it where new lessons go, so sessions never edit the committed file: the block every skill
 uses (copy one from `pack-brand-kit`), with `mm notes add <name> "…"` and `mm notes <name>`.
 `add` and `check` fail on a log without it, or on an old "append to the log at the bottom" rule.
+What the skill and its log say are general rules: one run's details (a prompt that worked once, the
+fix for one picture, timings, seeds, file names, a computer's GPU, drives or paths) come out, or
+become the rule they teach.
 
 ## 3. Ask what was made with it
 

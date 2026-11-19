@@ -74,6 +74,8 @@ An MCP or an app needs an `item.json` with a real `title`, `summary` and `versio
 (`mm space new` writes a placeholder summary: replace it). A skill's come from its SKILL.md. A
 skill that calls MCP tools needs its `## First: check the MCPs` table (`publish-skill` has the
 format), and one that keeps a feedback log sends new lessons to `mm notes`, not into the file.
+Its steps and its log hold general rules only: one run's details (a prompt that worked once, timings,
+seeds, file names, this computer's GPU, drives or paths) come out, or become the rule they teach.
 
 ## 3. Ask what was made with it
 

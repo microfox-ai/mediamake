@@ -36,7 +36,8 @@ as a pull request (step 6, and `publish-skill`).
    `mm notes <variant>` shows those and the base's, so general lessons logged for the base still reach it.
 3. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
    section, transitions, type, sound, colour, what the user praised and rejected), each with where
-   it came from. Then edit the body only where the variant really differs; the rest stays the base
+   it came from. Each is a rule the next project in this style can follow, never this project's
+   one-offs (its file names, timings, the fix for one shot). Then edit the body only where the variant really differs; the rest stays the base
    as of today. When the variant's steps need something else (another key, a sign-in, a device), change
    its run sheet too (`## Where it runs`; a base with none yet needs one written before the variant is
    published).
