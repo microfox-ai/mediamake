@@ -251,4 +251,31 @@ describe("an item's details", () => {
     assert.equal(out.manage, undefined);
     assert.equal(out.install?.setup, 'Set up skill/make-lyrics-video from MediaMake');
   });
+
+  it('says what an item depends on and what uses it, the other way round', () => {
+    const items = [
+      appItem('mcp/elevenlabs'),
+      appItem('skill/make-lyrics-video', { uses: [{ id: 'mcp/elevenlabs', need: 'required', for: 'Timed words', without: 'No words' }] }),
+      appItem('app/studio', { uses: [{ id: 'mcp/elevenlabs', need: 'optional', for: 'Voice takes', without: 'No voice' }] }),
+    ];
+    const details = viewerDetails({ items, now: NOW });
+    assert.deepEqual(details[detailsKey.catalog('mcp/elevenlabs')].usedBy, [
+      { kind: 'skill', name: 'make-lyrics-video', need: 'required', note: 'Timed words' },
+      { kind: 'app', name: 'studio', need: 'optional', note: 'Voice takes' },
+    ]);
+    assert.deepEqual(details[detailsKey.catalog('app/studio')].depends, [{ kind: 'mcp', name: 'elevenlabs', need: 'optional', note: 'Voice takes' }]);
+    assert.deepEqual(details[detailsKey.catalog('app/studio')].usedBy, []);
+  });
+
+  it('lets whoever can use an item add what they made with it, and an admin remove any', () => {
+    const items = [appItem('skill/make-lyrics-video'), appItem('mcp/pro-only', { locked: true, opensWith: 'Pro', tier: 'pro' })];
+    const member = viewerDetails({ items, mine: MINE, spaces: SPACES, viewer: { signedIn: true, isAdmin: false }, now: NOW });
+    assert.equal(member[detailsKey.catalog('skill/make-lyrics-video')].canAddMade, true);
+    assert.equal(member[detailsKey.catalog('skill/make-lyrics-video')].canRemoveMade, undefined);
+    assert.equal(member[detailsKey.catalog('mcp/pro-only')].canAddMade, undefined);
+    assert.equal(member[detailsKey.space('project:p1', 'skill/kids-intro')].canAddMade, true);
+    assert.equal(member[detailsKey.local('make-lyrics-video-like-nakama-2')].canAddMade, undefined);
+    assert.equal(viewerDetails({ items, viewer: { signedIn: true, isAdmin: true }, now: NOW })[detailsKey.catalog('skill/make-lyrics-video')].canRemoveMade, true);
+    assert.equal(viewerDetails({ items, viewer: { signedIn: false, isAdmin: false }, now: NOW })[detailsKey.catalog('skill/make-lyrics-video')].canAddMade, undefined);
+  });
 });

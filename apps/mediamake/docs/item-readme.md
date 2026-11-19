@@ -12,10 +12,12 @@ steps Claude follows. On a skill's page, SKILL.md is the next tab, "How it works
 A README is written so someone gets what the skill is, and how to use it, in under a minute. Its
 parts, in this order:
 
-1. **A video**: a YouTube link (or an https MP4 or WebM) alone on the first line. A shared-use skill
-   usually has one; leave it out when there is none.
+1. **A video**, only when there is one: a YouTube link (or an https MP4 or WebM) alone on the first
+   line. An intro video is an optional decoration: no skill needs one.
 2. **The title**: one `# Heading`.
-3. **What it is**, in a line or two.
+3. **What it is**, in a line or two, and **a picture that explains it**: the `headshot` in the
+   frontmatter, and an infographic right under the intro when one helps (how it works at a glance).
+   A headshot and an infographic are the best way for a skill to explain itself.
 4. **`## How to use`**: the few steps a person takes, and what to say to Claude. Not the steps Claude
    takes.
 5. **`## What it uses`**, when it depends on anything: the skills it runs and the MCPs and apps it
@@ -35,11 +37,11 @@ nature: shared-use
 type: superset
 ---
 
-https://youtu.be/XXXXXXXXXXX
-
 # Pack brand kit
 
 Give it a logo, or only a name. It builds the kit your channel needs to go live.
+
+![From a logo to the whole kit](shots/how-it-works.png)
 
 ## How to use
 
@@ -49,8 +51,8 @@ Give it a logo, or only a name. It builds the kit your channel needs to go live.
 
 ## What it uses
 
-- `create-thumbnail`: makes the kit's thumbnail profile.
-- `mcp/browse-hack` (required): pulls the inspiration boards from Pinterest. Without it, you bring
+- [[create-thumbnail]]: makes the kit's thumbnail profile.
+- [[mcp/browse-hack]] (required): pulls the inspiration boards from Pinterest. Without it, you bring
   the references.
 
 ## What the skill outputs
@@ -67,12 +69,12 @@ A skill's **nature** says who it is for (`nature` in the frontmatter, or Edit de
 
 | Nature | Who it is for | Its README | "Made with this" |
 | --- | --- | --- | --- |
-| `shared-use` | Other people: it can be listed in the store (Public, Plus, Pro). Every store skill is shared use. | Every part above, in that order. `node tools/skills.mjs check` notes a README that doesn't end with "What the skill outputs". | Needed: the finished production that proves it |
+| `shared-use` | Other people: it can be listed in the store (Public, Plus, Pro). Every store skill is shared use. | Every part above, in that order (the video and the picture are never required). `node tools/skills.mjs check` notes a README that doesn't end with "What the skill outputs". | Asked for when it is published: the finished production that proves it. Anyone who can use it adds theirs on its page |
 | `private-use` | You or your team. The default for a skill in a space. | Loose: write what helps you. The parts above are only suggestions. | Not needed, and its page shows none |
 
 Its **type** says how it sits among other skills (`type` in the frontmatter, or Edit details):
 `internal` (other skills run it, or it looks after the computer), `superset` (the main skill of a
-family), `subset` (one style or one part of a superset skill) and `mcp-use` (mostly drives one MCP or
+family, much like a plugin), `subset` (one style or one part of a superset skill) and `mcp-use` (mostly drives one MCP or
 app). More types are added in `lib/catalog/skill-profile.ts` (`SKILL_TYPES`).
 
 Every subset names its superset (`superset: make-kinetictype` in the frontmatter, or Edit details):
@@ -89,7 +91,8 @@ private one) sees two buttons on its page: **Edit details** (tags, nature, type)
 guide**, which ticks the parts this README has and copies a template to start from. What is set on
 the page wins over the frontmatter.
 
-The page draws the header itself, the same for every item: the video, the title, then the badges
+The page draws the header itself, the same for every item: the video when it has one (else its
+headshot), the title, then the badges
 (Beta or Ready, the membership that opens it, its version, its size, how many items it works with).
 Badges are never written in the README: they come from what MediaMake knows, so they stay true.
 
@@ -115,7 +118,24 @@ folder, which opens onto the studio scripts the skill names (`scripts/<file>`). 
 
 In the right column, **Depends on** lists the MCPs, apps and skills it needs: five, then "+N more".
 A repo skill's come from its MCP table and `depends-on`; a space skill's from what its run sheet
-needs (`mcp:<id>`, `app:<name>`).
+needs (`mcp:<id>`, `app:<name>`); an MCP's or an app's from what its catalog entry works with
+(`uses`). Under it, **Uses this** lists the other way round: the skills, MCPs and apps that depend
+on this one (`itemUsers` in `lib/catalog/skill-profile.ts`). Every name in both lists opens that
+item's page.
+
+## Links to other items
+
+Name another skill, MCP or app in a README and it becomes a link to that item's page:
+
+| Write | It links to |
+| --- | --- |
+| `[[make-lyrics-video]]` | the skill `/skills/make-lyrics-video` |
+| `[[mcp/browse-hack]]`, `[[app/studio]]` | the MCP, the app |
+| `[[mcp/browse-hack\|Browse Hack]]` | the same, shown as "Browse Hack" |
+| `[the remix skill](skill:make-video-music-remix)` | a Markdown link by name (`skill:`, `mcp:`, `app:`) |
+| `` `mcp/elevenlabs` `` | a kind and a name in code links as it is |
+
+Use them under "What it uses", so the list reads as links. Nothing inside a code block is linked.
 
 ## Pictures and videos
 

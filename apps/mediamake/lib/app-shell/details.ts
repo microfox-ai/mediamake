@@ -2,7 +2,8 @@ import { galleryTiles, proofTile, type GalleryTile } from '@/lib/catalog/gallery
 import { INSTALL_GUIDE_URL, SETUP_PROMPT } from '@/lib/catalog/install-prompt';
 import { headshotOf, listingBadges, type ListingBadge } from '@/lib/catalog/listing';
 import type { ItemReadme } from '@/lib/catalog/readme';
-import { needDependencies, type ReadmeCheck, type SkillDependency, type SkillDetailsView, type SkillFiles } from '@/lib/catalog/skill-profile';
+import type { MadeShown } from '@/lib/catalog/made';
+import { itemUsers, needDependencies, useDependencies, type ReadmeCheck, type SkillDependency, type SkillDetailsView, type SkillFiles } from '@/lib/catalog/skill-profile';
 import type { RatingSummary } from '@/lib/ratings/ratings';
 import { itemPath } from '@/lib/catalog/summary';
 import { adviceInfo, levelInfo, slugOf } from '@/lib/catalog/types';
@@ -117,6 +118,14 @@ export interface ItemDetails {
   canEdit?: boolean;
   /** What it depends on: MCPs, apps and other skills. */
   depends?: SkillDependency[];
+  /** What uses it: the skills, MCPs and apps that depend on it, the other way round. */
+  usedBy?: SkillDependency[];
+  /** What members made with it (lib/catalog/made), beside `outputs`. Added where the details are loaded (./details-data). */
+  made?: MadeShown[];
+  /** The viewer may add what they made with it: signed in, and it is theirs to use. */
+  canAddMade?: boolean;
+  /** The viewer may remove anything members added (an admin). */
+  canRemoveMade?: boolean;
   /** A skill's details, its files and how its README stands against the guide. Added where the details are loaded (./details-data). */
   skill?: SkillDetailsView;
   files?: SkillFiles;
@@ -499,6 +508,9 @@ function ofCatalog(
     },
     ...(item.video?.youtubeId && { video: { youtubeId: item.video.youtubeId, title: item.video.title } }),
     ...(item.kind === 'skill' && ctx.input.viewer?.isAdmin && { canEdit: true }),
+    // a skill's dependencies come from the registry (./details-data); an MCP's or an app's from what it works with
+    ...(item.kind !== 'skill' && { depends: useDependencies(item.uses) }),
+    usedBy: itemUsers(item.id, ctx.input.items),
   };
 }
 
@@ -791,5 +803,12 @@ export function viewerDetails(input: DetailsInput): Record<string, ItemDetails> 
   }
   for (const item of spaces?.linked ?? [])
     details[detailsKey.linked(item.id)] = ofLinked(ctx, item);
+  // whoever can use an item may add what they made with it (a skill that is only on a computer is in no space: it has no page others see)
+  if (input.viewer?.signedIn)
+    for (const [key, entry] of Object.entries(details))
+      if (!entry.locked && !key.startsWith('local:')) {
+        entry.canAddMade = true;
+        if (input.viewer.isAdmin) entry.canRemoveMade = true;
+      }
   return details;
 }

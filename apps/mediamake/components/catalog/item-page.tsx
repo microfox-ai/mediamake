@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowUpRightIcon, BookOpenIcon, LockIcon } from 'lucide-react';
-import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
 import { detailsKey } from '@/lib/app-shell/details-key';
 import { HeroInstall } from '@/components/catalog/access-actions';
@@ -18,9 +17,13 @@ import { tierLabel, type MemberTier } from '@/lib/memberships/tiers';
 import { ratingsDB } from '@/lib/ratings/store';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
-import { MadeByLine, NeedBadge, UsesList } from '@/components/catalog/uses';
+import { MadeByLine } from '@/components/catalog/uses';
+import { DependsOn, UsesThis } from '@/components/catalog/skill-details';
+import { madeShown } from '@/lib/catalog/made';
+import { madeDB } from '@/lib/catalog/made-store';
+import { itemUsers, useDependencies } from '@/lib/catalog/skill-profile';
 import { accessLevel, getEntitlements, getViewer, viewerTier } from '@/lib/access';
-import { directoryUrlOf, installPromptFor, isInstallable, toCard, toEntry, type ItemUse } from '@/lib/catalog';
+import { directoryUrlOf, installPromptFor, isInstallable, listCatalog, toCard, toEntry, type ItemUse } from '@/lib/catalog';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf } from '@/lib/catalog/releases';
@@ -52,7 +55,8 @@ export async function viewableItem(kind: CatalogKind, slug: string) {
  * top its icon, title, what it is in a line, its badges (its level first) and the install button
  * (ItemHero), a warning when it is not recommended or deprecated (AdviceBanner), then its video or
  * headshot and tabs for its README, what was made with it, its release notes and feedback; on the right
- * a narrow column with what it is, its tags, its rating, what it works with and the skills that use it,
+ * a narrow column with what it is, its tags, its rating, what it depends on and what uses it (each a
+ * link to that item's page),
  * inside the app's sidebar (ItemShell). Who can see it follows the catalog: a locked item shows only
  * what its card shows and which membership opens it, and one hidden from the viewer is not found.
  */
@@ -72,13 +76,15 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
     );
   }
 
-  const [video, archived, readiness, listing, rating, pendingIds] = await Promise.all([
+  const key = detailsKey.catalog(item.id);
+  const [video, archived, readiness, listing, rating, pendingIds, members] = await Promise.all([
     catalogVideosDB.get(item.id).catch(() => null),
     catalogArchiveDB.get(item.id).catch(() => null),
     catalogReadinessDB.get(item.id).catch(() => null),
     catalogListingDB.get(item.id).catch(() => null),
     ratingsDB.summary(item.id).catch(() => null),
     viewer.clientId ? accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => []) : Promise.resolve([] as string[]),
+    madeDB.list(key).then(entries => madeShown(entries, viewer.clientId)).catch(() => []),
   ]);
   // its own tags, then the ones an admin added to its listing
   const tags = [...new Set([...(item.tags ?? []), ...(listing?.tags ?? [])])];
@@ -94,12 +100,12 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
       return used && accessLevel(entitlements, used) !== 'locked' ? { ...use, title: used.title, href: itemPagePath(use.id) } : use;
     }),
   );
-  // the repo's skills that work with this MCP
-  const usedBy = kind === 'mcp' ? (registry?.skills ?? []).flatMap(skill => skill.mcps?.filter(m => m.id === item.id).map(m => ({ skill, use: m })) ?? []) : [];
+  // what uses it, the other way round: the repo's skills that name it, and the catalog items that work with it
+  const usedBy = itemUsers(item.id, await listCatalog(viewer, undefined, { entitlements }).catch(() => []), registry?.skills ?? []);
 
   const proof = proofOf(readiness);
-  const ready = proof.length > 0;
-  const level: Readiness = ready ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
+  // Production is the admin's mark; the productions made with it are shown when there are any
+  const level: Readiness = readiness?.readiness === 'ready' ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
   // what to use instead, named and linked when this viewer can open it
   const insteadRecord = listing?.advice && listing.insteadOf ? await getCatalogRecord(listing.insteadOf).catch(() => null) : null;
   const instead = insteadRecord ? { title: insteadRecord.title, ...(accessLevel(entitlements, insteadRecord) !== 'locked' && { href: itemPagePath(insteadRecord.id) }) } : undefined;
@@ -114,7 +120,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
     facts: { kind, name: slug, title: item.title, summary: description, youtubeId: video?.youtubeId, open: opens },
     listingReadme: listing?.readme,
   });
-  const made = proof.length + (listing?.media.length ?? 0);
+  const made = proof.length + members.length + (listing?.media.length ?? 0);
   const title = readme.title ?? item.title;
   const icon = listing?.icon ?? item.icon;
 
@@ -188,7 +194,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
                   count: made,
                   content: (
                     <div className="flex flex-col gap-6">
-                      <MadeWithThis itemId={item.id} mark={readiness} />
+                      <MadeWithThis itemId={item.id} itemKey={key} title={item.title} mark={readiness} members={members} loginHref={loginHref} />
                       <ListingScreenshots itemId={item.id} media={listing?.media} />
                     </div>
                   ),
@@ -243,28 +249,14 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
             </AboutCard>
   
             {uses.length > 0 && (
-              <section className="border-t pt-5">
-                <UsesList uses={uses} />
-              </section>
+              <div className="border-t pt-5">
+                <DependsOn depends={useDependencies(uses)} />
+              </div>
             )}
-  
             {usedBy.length > 0 && (
-              <section className="flex flex-col gap-1 border-t pt-5">
-                <h2 className="text-sm font-semibold">Skills that use it</h2>
-                <ul className="divide-y">
-                  {usedBy.map(({ skill, use }) => (
-                    <li key={skill.name} className="flex flex-col gap-1 py-2">
-                      <div className="flex items-center gap-2">
-                        <DetailsButton detailsKey={detailsKey.catalog(`skill/${skill.name}`)} href={`/skills/${skill.name}`} className="font-mono text-sm font-medium">
-                          {skill.name}
-                        </DetailsButton>
-                        <NeedBadge need={use.need} />
-                      </div>
-                      <p className="text-xs text-muted-foreground">{use.for}</p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <div className="border-t pt-5">
+                <UsesThis users={usedBy} />
+              </div>
             )}
           </aside>
         </div>

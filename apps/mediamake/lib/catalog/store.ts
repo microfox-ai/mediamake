@@ -427,15 +427,18 @@ export const catalogReadinessDB = {
     return db.collection<ReadinessMark>(COL.readiness).findOne({ id }, { projection: { _id: 0 } });
   },
 
-  /** Marks the items Ready with their proof. */
-  async setReady(ids: string[], proof: ReadyProof[], actor?: string, note?: string) {
+  /** Marks the items Ready. `proof` replaces the productions on the mark (an empty list clears them); left out, the mark keeps what it had. */
+  async setReady(ids: string[], proof: ReadyProof[] | undefined, actor?: string, note?: string) {
     const db = await getDatabase();
     const at = nowISO();
     await db.collection<ReadinessMark>(COL.readiness).bulkWrite(
       ids.map(id => ({
-        replaceOne: {
+        updateOne: {
           filter: { id },
-          replacement: withoutUndefined({ id, readiness: 'ready' as const, proof, note, at, by: actor }) as ReadinessMark,
+          update: {
+            $set: withoutUndefined({ id, readiness: 'ready' as const, proof, note, at, by: actor }) as Partial<ReadinessMark>,
+            ...(note === undefined && { $unset: { note: '' } }),
+          },
           upsert: true,
         },
       })),

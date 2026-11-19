@@ -474,9 +474,10 @@ export function isFailed(item: { health?: ItemHealth }): boolean {
  * People see it as the item's level (see LEVELS): Alpha, Beta or Production.
  *  - alpha: still being tried by its makers; Explore keeps it behind a filter.
  *  - beta:  everything starts here: published, not yet proven.
- *  - ready: Production, battle tested. An admin marks it, with the proof on
- *    record: at least one real production made with it (see ReadyProof). An
- *    MCP also needs to be shown in use: a skill that uses it, or a video on it.
+ *  - ready: Production, battle tested. An admin marks it, usually with the proof
+ *    on record: the real productions made with it (see ReadyProof). The proof is
+ *    not a hard gate: an admin may take any item to Production without one, and
+ *    its page then says none is on record yet.
  * Kept in MongoDB `catalog_readiness`, apart from the items like health, so
  * an item the repo defines can be marked too. `ready` is the stored word for
  * Production; the API takes `production` too (parseReadiness).
@@ -488,7 +489,7 @@ export const READINESS: Readiness[] = ['alpha', 'beta', 'ready'];
 export const LEVELS: { id: Readiness; label: string; about: string }[] = [
   { id: 'alpha', label: 'Alpha', about: 'Still being tried by its makers. Hidden in Explore unless the Alpha filter is on.' },
   { id: 'beta', label: 'Beta', about: 'Published, not yet proven by a finished production made with it.' },
-  { id: 'ready', label: 'Production', about: 'Proven: a finished production was made with it.' },
+  { id: 'ready', label: 'Production', about: 'Ready for real work. What was made with it is on its page.' },
 ];
 
 export const levelInfo = (readiness: Readiness | undefined) => LEVELS.find(level => level.id === (readiness ?? 'beta'))!;
@@ -502,14 +503,14 @@ export function parseReadiness(value: unknown): Readiness | null {
 /**
  * What MediaMake says about using an item, set on its listing (see ItemListing):
  *  - recommended: the default, nothing is shown.
- *  - not-recommended: it works, but there is a better way; its card and page warn, with why.
+ *  - not-recommended: it works, but there is a better way; hidden in Explore unless the Not recommended filter is on, and its page warns, with why.
  *  - deprecated: on its way out; hidden in Explore unless the Deprecated filter is on, still installs by its link.
  * A non-default one says why (adviceNote) and can name the item to use instead (insteadOf).
  */
 export type ItemAdvice = 'recommended' | 'not-recommended' | 'deprecated';
 export const ADVICE: { id: ItemAdvice; label: string; about: string }[] = [
   { id: 'recommended', label: 'Recommended', about: 'The default: nothing is shown.' },
-  { id: 'not-recommended', label: 'Not recommended', about: 'It works, but there is a better way. Its card and page warn, with why.' },
+  { id: 'not-recommended', label: 'Not recommended', about: 'It works, but there is a better way. Hidden in Explore unless the Not recommended filter is on; its page warns, with why.' },
   { id: 'deprecated', label: 'Deprecated', about: 'On its way out. Hidden in Explore unless the Deprecated filter is on; it still installs by its link.' },
 ];
 
@@ -521,14 +522,15 @@ export function parseAdvice(value: unknown): ItemAdvice | null {
 
 /**
  * The rule MediaMake is run by, in the owner's words. Readiness is how it is
- * kept: an item is Ready only with a finished production made with it, shown
+ * kept: an item goes to Production with the finished productions made with it
+ * (an admin may mark one without, their call), shown
  * on its page as "Made with this", a gallery like a store listing's
  * (components/catalog/made-with.tsx, tiles from ./gallery). Also in
  * the README, CLAUDE.md, the pull request template and publish-skill.
  */
 export const RULE = "We publish nothing we don't use.";
 
-/** A finished production made with the item: what makes it Ready. */
+/** A finished production made with the item: what proves it. */
 export interface ReadyProof {
   /** What was made, e.g. "The Microfox brand kit". */
   title: string;
@@ -549,18 +551,18 @@ export interface ReadinessMark {
   by?: string;
 }
 
-/** Each item with its readiness: Ready with its proof when an admin marked it so, Alpha when marked so, else Beta. */
+/** Each item with its readiness: Ready when an admin marked it so (with its proof, when it has any), Alpha when marked so, else Beta. */
 export function withReadiness<T extends { id: string; readiness?: Readiness; readyProof?: ReadyProof[] }>(items: T[], marks: ReadinessMark[]): T[] {
   const byId = new Map(marks.map(mark => [mark.id, mark]));
   return items.map(item => {
     const mark = byId.get(item.id);
-    if (mark?.readiness === 'ready' && mark.proof?.length) return { ...item, readiness: 'ready' as const, readyProof: mark.proof };
     const { readyProof: _proof, ...rest } = item;
+    if (mark?.readiness === 'ready') return { ...rest, readiness: 'ready' as const, ...(savedProofOf(mark).length && { readyProof: savedProofOf(mark) }) } as T;
     return { ...rest, readiness: mark?.readiness === 'alpha' ? ('alpha' as const) : ('beta' as const) } as T;
   });
 }
 
-/** The productions that make an item Ready, from its mark; none while it is Alpha or Beta. */
+/** The productions on record for a Ready item, from its mark; none while it is Alpha or Beta. */
 export function proofOf(mark: ReadinessMark | null | undefined): ReadyProof[] {
   return mark?.readiness === 'ready' ? savedProofOf(mark) : [];
 }
@@ -572,21 +574,11 @@ export function savedProofOf(mark: ReadinessMark | null | undefined): ReadyProof
 
 /**
  * What stops an item from being marked Ready, in words; none when it can be.
- * The rule: we publish nothing we don't use, so Ready needs a real production
- * made with it, and an MCP needs to be shown in use as well.
+ * Only being failed does. A production made with it is asked for, not required:
+ * an admin may take any item to Production without one.
  */
-export function readyProblems(
-  item: { kind: CatalogKind; health?: ItemHealth; video?: unknown },
-  proof: ReadyProof[] | undefined,
-  usedByCount: number,
-): string[] {
-  const problems: string[] = [];
-  if (!proof?.some(entry => entry.title.trim())) problems.push('Ready needs proof: at least one finished production made with it (its title, and a link when it has one)');
-  if (item.kind === 'mcp' && usedByCount === 0 && !item.video) {
-    problems.push('An MCP is Ready once it is shown in use: a skill that uses it, or a video on it');
-  }
-  if (isFailed(item)) problems.push('It is marked failed: fix it and set its health first');
-  return problems;
+export function readyProblems(item: { health?: ItemHealth }): string[] {
+  return isFailed(item) ? ['It is marked failed: fix it and set its health first'] : [];
 }
 
 /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ExternalLinkIcon, PlayIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GalleryTile } from '@/lib/catalog/gallery';
@@ -11,9 +11,10 @@ import { onYouTubeThumbnailLoad, placeholderBackground, youtubeEmbedUrl } from '
  * store listing's first screenshot, and a strip of the others under it. A
  * YouTube link plays in place when pressed,
  * a picture is shown whole, an uploaded clip plays, and a production with
- * only a link is a titled tile that opens it.
+ * only a link is a titled tile that opens it. What members added (lib/catalog/made)
+ * sits in the same gallery, after the productions on record.
  */
-export function ProofGallery({ itemId, tiles }: { itemId: string; tiles: GalleryTile[] }) {
+export function ProofGallery({ itemId, tiles, actions }: { itemId: string; tiles: GalleryTile[]; /** What can be done with the tile on the stage, beside its title (a member's own: Remove). */ actions?: (tile: GalleryTile) => ReactNode }) {
   const [selected, setSelected] = useState(0);
   const [playing, setPlaying] = useState(false);
   const tile = tiles[Math.min(selected, tiles.length - 1)];
@@ -38,6 +39,7 @@ export function ProofGallery({ itemId, tiles }: { itemId: string; tiles: Gallery
               {tile.kind === 'youtube' ? 'On YouTube' : 'See it'} <ExternalLinkIcon className="size-3" />
             </a>
           )}
+          {actions?.(tile)}
         </p>
         {tile.description && <p className="line-clamp-3 whitespace-pre-line text-xs text-muted-foreground">{tile.description}</p>}
       </div>

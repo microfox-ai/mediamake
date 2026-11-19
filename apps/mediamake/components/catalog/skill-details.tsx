@@ -183,17 +183,26 @@ const NEED_STYLE = {
   optional: 'bg-muted text-muted-foreground',
 } as const;
 
-/** The MCPs, apps and skills a skill depends on: the first five, then "+N more". */
+/** The MCPs, apps and skills an item depends on: the first five, then "+N more". Each name opens that item's page. */
 export function DependsOn({ depends }: { depends: SkillDependency[] }) {
+  return <ItemLinks title="Depends on" about="What it needs or works with" items={depends} />;
+}
+
+/** The skills, MCPs and apps that use an item: its dependencies the other way round, linked the same way. */
+export function UsesThis({ users }: { users: SkillDependency[] }) {
+  return <ItemLinks title="Uses this" about="What runs it or works with it" items={users} />;
+}
+
+function ItemLinks({ title, about, items }: { title: string; about: string; items: SkillDependency[] }) {
   const [all, setAll] = React.useState(false);
-  if (!depends.length) return null;
-  const shown = all ? depends : depends.slice(0, DEPENDENCIES_SHOWN);
-  const more = depends.length - shown.length;
+  if (!items.length) return null;
+  const shown = all ? items : items.slice(0, DEPENDENCIES_SHOWN);
+  const more = items.length - shown.length;
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
-        Depends on
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">{depends.length}</span>
+      <h2 className="flex items-center gap-2 text-sm font-semibold" title={about}>
+        {title}
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">{items.length}</span>
       </h2>
       <ul className="flex flex-col gap-2.5">
         {shown.map(entry => {

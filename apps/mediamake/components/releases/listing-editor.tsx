@@ -329,7 +329,7 @@ export function StatusSection({ detail, tier, state, onChanged }: { detail: Item
   );
 }
 
-/** Its level, saved at once. Production asks for what was made with it (the rule), filled with what it had before. */
+/** Its level, saved at once. Production asks for what was made with it (the rule), filled with what it had before; an admin may leave it empty. */
 function LevelSelect({ detail, onChanged }: { detail: ItemDetail; onChanged: () => void }) {
   const { item } = detail;
   const level: Readiness = item.readiness ?? 'beta';

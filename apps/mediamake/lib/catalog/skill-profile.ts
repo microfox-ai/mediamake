@@ -25,7 +25,7 @@ export type SkillNature = (typeof SKILL_NATURES)[number]['id'];
 /** How a skill sits among other skills. Add a line here for a new type: the page, the dialog and the route read this list. */
 export const SKILL_TYPES = [
   { id: 'internal', label: 'Internal', about: 'Other skills run it as a step, or it looks after the computer. People rarely start it themselves.' },
-  { id: 'superset', label: 'Superset', about: 'The main skill of a family: its subset skills are narrower takes on it.' },
+  { id: 'superset', label: 'Superset', about: 'The main skill of a family, much like a plugin: its subset skills are narrower takes on it.' },
   { id: 'subset', label: 'Subset', about: 'One style or one part of a superset skill. Every subset names its superset.' },
   { id: 'mcp-use', label: 'MCP use', about: 'Mostly drives one MCP or app, and says how to use it well.' },
 ] as const;
@@ -231,14 +231,14 @@ export function registrySkillFiles(skill: Pick<RegistrySkill, 'name' | 'path' | 
 
 /* ---------- what it depends on ---------- */
 
-/** One thing a skill depends on: an MCP, an app or another skill. */
+/** One thing an item depends on, or one thing that uses it: an MCP, an app or a skill. */
 export interface SkillDependency {
   kind: 'mcp' | 'app' | 'skill';
   /** Its slug: `browse-hack`, `revise-video`. */
   name: string;
   /** `required`, `recommended` or `optional`, when the skill says. */
   need?: 'required' | 'recommended' | 'optional';
-  /** What the skill uses it for, in a line. */
+  /** What it is used for, in a line. */
   note?: string;
 }
 
@@ -253,6 +253,46 @@ export function registryDependencies(skill: Pick<RegistrySkill, 'mcps' | 'depend
     .map((use): SkillDependency => ({ kind: use.id.startsWith('app/') ? 'app' : 'mcp', name: slugOf(use.id), need: use.need, note: use.for }));
   const skills = (skill.dependsOn ?? []).map((name): SkillDependency => ({ kind: 'skill', name, ...(summaryOf(name) && { note: summaryOf(name) }) }));
   return [...uses, ...skills];
+}
+
+/** An MCP's or an app's dependencies, from what its catalog entry works with (`uses`). */
+export function useDependencies(uses: { id: string; need?: SkillDependency['need']; for?: string }[] | undefined): SkillDependency[] {
+  return (uses ?? []).flatMap((use): SkillDependency[] => {
+    const [kind, ...rest] = use.id.split('/');
+    const name = rest.join('/');
+    return (kind === 'mcp' || kind === 'app' || kind === 'skill') && name ? [{ kind, name, ...(use.need && { need: use.need }), ...(use.for && { note: use.for }) }] : [];
+  });
+}
+
+/**
+ * What uses an item, the other way round from its dependencies: the catalog items that work with it
+ * (their `uses`), the registry skills that name it among their MCPs and apps, and, for a skill, the
+ * skills that run it as a step (their `depends-on`). Each one once, skills first, by name.
+ */
+export function itemUsers(
+  id: string,
+  items: { id: string; uses?: { id: string; need?: SkillDependency['need']; for?: string }[] }[] = [],
+  skills: Pick<RegistrySkill, 'name' | 'summary' | 'mcps' | 'dependsOn'>[] = [],
+): SkillDependency[] {
+  const found = new Map<string, SkillDependency>();
+  const add = (userId: string, rest: Pick<SkillDependency, 'need' | 'note'>) => {
+    const [kind, ...parts] = userId.split('/');
+    const name = parts.join('/');
+    if (userId === id || !name || (kind !== 'skill' && kind !== 'mcp' && kind !== 'app') || found.has(userId)) return;
+    found.set(userId, { kind, name, ...(rest.need && { need: rest.need }), ...(rest.note && { note: rest.note }) });
+  };
+  const slug = slugOf(id);
+  for (const skill of skills) {
+    const use = skill.mcps?.find(entry => entry.id === id);
+    if (use) add(`skill/${skill.name}`, { need: use.need, note: use.for });
+    else if (id.startsWith('skill/') && skill.dependsOn?.includes(slug)) add(`skill/${skill.name}`, { note: skill.summary });
+  }
+  for (const item of items) {
+    const use = item.uses?.find(entry => entry.id === id);
+    if (use) add(item.id, { need: use.need, note: use.for });
+  }
+  const rank = { skill: 0, mcp: 1, app: 2 };
+  return [...found.values()].sort((a, b) => rank[a.kind] - rank[b.kind] || a.name.localeCompare(b.name));
 }
 
 /** The dependencies a space's item states in what it needs to run (`mcp:<id>`, `app:<name>`): the run sheet's words. */
@@ -270,7 +310,7 @@ export function needDependencies(needs: string[] | undefined): SkillDependency[]
 
 /** One part a README should have, and whether this one has it. */
 export interface ReadmeCheck {
-  id: 'title' | 'what' | 'how' | 'uses' | 'outputs';
+  id: 'title' | 'what' | 'picture' | 'how' | 'uses' | 'outputs';
   label: string;
   /** What to write there. */
   about: string;
@@ -287,7 +327,9 @@ const heading = (line: string) => line.match(/^##\s+(.+?)\s*#*$/)?.[1].trim().to
 /**
  * A README against the guide (docs/item-readme.md): its title, what the skill is, how to use it, what
  * it uses (when it depends on anything) and, last, what it outputs with examples. All of it is required
- * of a shared-use skill; a private-use one only gets them as suggestions.
+ * of a shared-use skill; a private-use one only gets them as suggestions. A picture that explains it (a
+ * headshot, or an infographic before the outputs) is the best start and only ever a suggestion; an
+ * intro video is a decoration no skill needs, so nothing here asks for one.
  */
 export function readmeChecks(markdown: string | null | undefined, nature: SkillNature, hasDependencies = false): ReadmeCheck[] {
   const body = readmeBody(markdown ?? '').replace(/```[\s\S]*?```/g, '');
@@ -302,9 +344,13 @@ export function readmeChecks(markdown: string | null | undefined, nature: SkillN
   // an example is a picture, a video or a link after the heading
   const example = outputsAt >= 0 && lines.slice(outputsAt + 1).some(line => /!\[[^\]]*\]\([^)]+\)|https?:\/\/\S+/.test(line));
   const strict = nature === 'shared-use';
+  // a picture that explains it: a headshot in the frontmatter, or a picture before the outputs
+  const headshot = /^---\n[\s\S]*?^headshot:\s*\S/m.test((markdown ?? '').replace(/\r\n/g, '\n').match(/^---\n[\s\S]*?\n---/)?.[0] ?? '');
+  const pictured = headshot || lines.slice(0, outputsAt < 0 ? undefined : outputsAt).some(line => /!\[[^\]]*\]\([^)]+\)/.test(line));
   const checks: ReadmeCheck[] = [
     { id: 'title', label: 'A title', about: 'One `# Heading`: the skill’s name as people say it.', ok: titleAt >= 0, required: strict },
     { id: 'what', label: 'What the skill is', about: 'A line or two under the title, so someone gets it at a glance.', ok: titleAt >= 0 && intro, required: strict },
+    { id: 'picture', label: 'A picture that explains it', about: 'A `headshot` in the frontmatter, or an infographic near the top: how it works at a glance. An intro video is optional.', ok: pictured, required: false },
     { id: 'how', label: 'How to use', about: '`## How to use`: the few steps a person takes, and what to say to Claude.', ok: sections.includes('how to use'), required: strict },
   ];
   if (hasDependencies)
@@ -332,12 +378,14 @@ export function readmeTemplate(title: string, hasDependencies = true): string {
     '',
     'What it is, in a line or two.',
     '',
+    '![How it works, in one picture](shots/how-it-works.png)',
+    '',
     '## How to use',
     '',
     '1. Say to Claude: **…**',
     '2. …',
     '',
-    ...(hasDependencies ? ['## What it uses', '', '- `skill-name`: the part it plays', '- `mcp/name` (required): what it is used for, and what happens without it', ''] : []),
+    ...(hasDependencies ? ['## What it uses', '', '- [[skill-name]]: the part it plays', '- [[mcp/name]] (required): what it is used for, and what happens without it', ''] : []),
     `## ${OUTPUTS_HEADING}`,
     '',
     'What you end up with, and where it lands.',

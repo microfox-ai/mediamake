@@ -255,16 +255,18 @@ describe('catalog admin tools', () => {
     expect(calls[1].body).toEqual({ type: 'set_listing', itemId: 'skill/x', tags: [] });
   });
 
-  it('marks items Ready only with proof, and Beta without', async () => {
+  it('marks items Ready with proof or without, and Beta without', async () => {
     const calls = stubApi(() => ({}));
-    expect((await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'ready' })).out).toContain('proof');
-    expect(calls).toHaveLength(0);
     const proof = [{ title: 'The Microfox brand kit', url: 'https://youtu.be/x' }];
     const { out } = await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'ready', proof });
     expect(calls[0].body).toEqual({ type: 'set_readiness', itemIds: ['skill/x'], readiness: 'ready', proof });
     expect(out.items).toEqual([{ id: 'skill/x', page: 'http://mm.test/core/releases/skill/x' }]);
     await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'beta' });
     expect(calls[1].body).toEqual({ type: 'set_readiness', itemIds: ['skill/x'], readiness: 'beta' });
+    // a production is asked for, not required: without one the mark keeps what it had
+    await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'production' });
+    expect(calls[2].body).toEqual({ type: 'set_readiness', itemIds: ['skill/x'], readiness: 'ready' });
+    expect((await call('catalog_set_readiness', { items: ['skill/x'], readiness: 'beta', proof })).out).toContain('takes no proof');
   });
 
   it('lists an MCP made by others with where it installs from', async () => {

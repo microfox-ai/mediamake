@@ -15,10 +15,11 @@ import { adminCall, type ItemDetail } from './model';
 
 /**
  * "Made with this" for one item, as an admin edits it: the finished
- * productions that make it Ready, each with a title, a link (a YouTube link
+ * productions made with it, each with a title, a link (a YouTube link
  * plays in the gallery), an uploaded picture and an uploaded clip. Saving
- * takes the item to Production with them (set_readiness ready); with none it
- * can only go back to Beta. The preview is the gallery its page shows (never the trailer, which plays above the README).
+ * takes the item to Production with them (set_readiness ready). They are
+ * asked for, not required: with none it still goes to Production, and its
+ * page says no production is on record yet. The preview is the gallery its page shows (never the trailer, which plays above the README).
  */
 
 type Draft = { title: string; url: string; image: string; video: string };
@@ -68,7 +69,8 @@ export function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; o
 
   const proof = useMemo(() => proofFrom(drafts), [drafts]);
   const problems = drafts.map(problemOf);
-  const valid = proof.length > 0 && problems.every(problem => !problem);
+  // a production is asked for, not required: an admin may go to Production with none
+  const valid = problems.every(problem => !problem);
   const tiles = useMemo(() => galleryTiles(proof), [proof]);
 
   const change = (i: number, patch: Partial<Draft>) => setDrafts(list => list.map((draft, at) => (at === i ? { ...draft, ...patch } : draft)));
@@ -84,7 +86,7 @@ export function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; o
     setBusy(true);
     try {
       await adminCall({ type: 'set_readiness', itemIds: [item.id], readiness, ...(readiness === 'ready' && { proof }) });
-      toast.success(readiness === 'beta' ? 'Back to Beta' : ready ? 'Productions saved' : 'Level: Production');
+      toast.success(readiness === 'beta' ? 'Back to Beta' : ready ? 'Productions saved' : proof.length ? 'Level: Production' : 'Level: Production, with no production on record');
       onDone();
       onClose();
     } catch (e) {
@@ -100,7 +102,7 @@ export function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; o
         <DialogHeader>
           <DialogTitle>Made with this: {item.title}</DialogTitle>
           <DialogDescription>
-            {RULE} Add the finished productions made with it: they are what take it to Production, and its page shows them as a gallery under Made with this. Its trailer is separate: it plays above the README.
+            {RULE} Add the finished productions made with it: its page shows them as a gallery under Made with this. You can take it to Production with none and add them later. Its trailer is separate: it plays above the README.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,7 +154,7 @@ export function ProofDialog({ detail, onClose, onDone }: { detail: ItemDetail; o
             </Button>
             <Button disabled={!valid || busy} onClick={() => save('ready')}>
               {busy && <Loader2 className="animate-spin" />}
-              {ready ? 'Save' : 'Take it to Production'}
+              {ready ? 'Save' : proof.length ? 'Take it to Production' : 'Take it to Production without one'}
             </Button>
           </div>
         </DialogFooter>

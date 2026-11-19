@@ -122,8 +122,8 @@ Admins run MediaMake's releases from Claude with mm-release's catalog tools; for
 403. `catalog_items` lists every skill, MCP, app, tutorial and course with the lowest membership that opens it,
 whether it is Beta or Ready, its health, where it comes from and whether it is archived; `catalog_item` shows one in full. `catalog_archive` takes unused items off
 the homepage (they stay public and installable by their link), `catalog_set_health` says whether items of any kind work (healthy,
-inactive, archived, or failed with the reason, shown on their cards and pages), `catalog_set_readiness` marks items
-Ready with the finished productions that prove it (or back to Beta), `catalog_set_stage` sets the lowest
+inactive, archived, or failed with the reason, shown on their cards and pages), `catalog_set_readiness` sets items'
+level (Alpha, Beta or Production, with the finished productions made with it when there are any), `catalog_set_stage` sets the lowest
 membership that opens one of our apps, MCPs, tutorials, courses or packaged skills (public, plus, pro, cohort or
 the vault), `catalog_add_third_party`
 lists an open-source or hosted MCP or skill made by others. There are no invite links: a membership is applied

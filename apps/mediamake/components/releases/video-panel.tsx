@@ -251,7 +251,7 @@ export function VideoPanel({ detail, onSaved }: { detail: ItemDetail; onSaved: (
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">{tutorial ? 'No video yet.' : 'No launch video yet. Its page and card show none.'}</p>
+        <p className="text-sm text-muted-foreground">{tutorial ? 'No video yet.' : 'No intro video. It is optional: the headshot and the pictures in its README explain it first.'}</p>
       )}
       <LaunchVideoGaps detail={detail} />
       {tutorial && (

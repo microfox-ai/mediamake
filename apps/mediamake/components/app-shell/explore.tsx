@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeftIcon, ChevronRightIcon, LockIcon, SearchIcon, SlidersHorizontalIcon, StarIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, SearchIcon, SlidersHorizontalIcon, StarIcon, XIcon } from 'lucide-react';
 import { HealthBadge } from '@/components/catalog/health';
 import { RunsBadges } from '@/components/catalog/runs';
 import { MadeByLine } from '@/components/catalog/uses';
@@ -26,7 +26,7 @@ function writeFilters(f: ExploreFilters) {
   if (f.q.trim()) url.searchParams.set('q', f.q.trim());
   if (f.kind) url.searchParams.set('kind', f.kind);
   if (f.category) url.searchParams.set('category', f.category);
-  const show = [f.failed && 'failed', f.internal && 'internal', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.admin && 'admin'].filter(Boolean).join(',');
+  const show = [f.failed && 'failed', f.internal && 'internal', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.notRecommended && 'not-recommended', f.admin && 'admin'].filter(Boolean).join(',');
   if (show) url.searchParams.set('show', show);
   if (!f.locked) url.searchParams.set('locked', '0');
   // the list with nothing asked of it: say so, or the address would open the store front
@@ -44,8 +44,9 @@ const ALL = 'all';
  * row a tag, each with See all. All, Skills, MCPs and Apps are the list:
  * every skill, MCP and app the member's membership opens, and the ones a
  * higher membership would open, locked and saying which (the cohort's never
- * reach this page: lib/app-shell/member › appItems), by category, with failed,
- * internal, archived, Alpha, deprecated and admin-only items behind Filters.
+ * reach this page: lib/app-shell/member › appItems), by tag (one row of tags,
+ * More opens the rest), with failed, internal, archived, Alpha, deprecated,
+ * not recommended and admin-only items behind Filters.
  * A search always shows the list.
  * A card's picture or name opens the item's page (./item-details).
  */
@@ -94,11 +95,12 @@ export function Explore({
   const failedCount = useMemo(() => items.filter(item => item.failed).length, [items]);
   const alphaCount = useMemo(() => items.filter(item => item.alpha).length, [items]);
   const deprecatedCount = useMemo(() => items.filter(item => item.deprecated).length, [items]);
+  const notRecommendedCount = useMemo(() => items.filter(item => item.notRecommended).length, [items]);
   // only admins see the vault's items: the filter is theirs alone
   const adminCount = useMemo(() => items.filter(item => item.adminOnly).length, [items]);
   const filtered = !!(filters.q.trim() || filters.category);
   const hiddenTotal = Object.values(result.hidden).reduce((sum, n) => sum + n, 0);
-  const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived, filters.alpha, filters.deprecated, filters.admin].filter(Boolean).length;
+  const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.admin].filter(Boolean).length;
 
   const tab = filters.view === 'store' ? FEATURED : (filters.kind ?? ALL);
   const openTab = (next: string) => {
@@ -144,9 +146,10 @@ export function Explore({
             <StoreFront front={front} onSeeAll={category => update({ view: 'list', kind: null, category })} onSeeNew={() => update({ view: 'list', kind: null, category: null })} />
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" role="group" aria-label="Category">
-                  {result.categories.map(category => (
+              <div className="flex items-start gap-1.5">
+                <TagRow>
+                  {/* the picked tag first, so it is in sight while the row is closed */}
+                  {[...result.categories].sort((a, b) => Number(b.id === filters.category) - Number(a.id === filters.category)).map(category => (
                     <Chip
                       key={category.id}
                       small
@@ -157,10 +160,10 @@ export function Explore({
                       {category.id} <Count n={category.count} />
                     </Chip>
                   ))}
-                </div>
+                </TagRow>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
+                    <Button variant="outline" size="sm" className="h-8 shrink-0">
                       <SlidersHorizontalIcon /> Filters {filtersOn > 0 && <Count n={filtersOn} />}
                     </Button>
                   </DropdownMenuTrigger>
@@ -185,6 +188,9 @@ export function Explore({
                     <DropdownMenuCheckboxItem checked={filters.deprecated} onCheckedChange={on => update({ deprecated: !!on })} onSelect={e => e.preventDefault()} title="On their way out: each page says what to use instead">
                       Deprecated {deprecatedCount > 0 && <Count n={deprecatedCount} />}
                     </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={filters.notRecommended} onCheckedChange={on => update({ notRecommended: !!on })} onSelect={e => e.preventDefault()} title="They work, but there is a better way: each says why">
+                      Not recommended {notRecommendedCount > 0 && <Count n={notRecommendedCount} />}
+                    </DropdownMenuCheckboxItem>
                     {adminCount > 0 && (
                       <DropdownMenuCheckboxItem checked={filters.admin} onCheckedChange={on => update({ admin: !!on })} onSelect={e => e.preventDefault()} title="The vault: admins and the people granted them only">
                         Admin only <Count n={adminCount} />
@@ -206,6 +212,7 @@ export function Explore({
                         result.hidden.archived > 0 && <HiddenLink key="a" n={result.hidden.archived} label="archived" onClick={() => update({ archived: true })} />,
                         result.hidden.alpha > 0 && <HiddenLink key="al" n={result.hidden.alpha} label="alpha" onClick={() => update({ alpha: true })} />,
                         result.hidden.deprecated > 0 && <HiddenLink key="d" n={result.hidden.deprecated} label="deprecated" onClick={() => update({ deprecated: true })} />,
+                        result.hidden.notRecommended > 0 && <HiddenLink key="nr" n={result.hidden.notRecommended} label="not recommended" onClick={() => update({ notRecommended: true })} />,
                         result.hidden.admin > 0 && <HiddenLink key="ad" n={result.hidden.admin} label="admin only" onClick={() => update({ admin: true })} />,
                       ]
                         .filter(Boolean)
@@ -439,6 +446,47 @@ function ExploreCard({ item }: { item: AppItem }) {
   );
 }
 
+/**
+ * The tags, one row of them: the ones that don't fit stay folded away until More is pressed, and Less
+ * folds them back. The row is as tall as one tag, so nothing shifts as the list under it changes.
+ */
+function TagRow({ children }: { children: React.ReactNode }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    // more than one row of tags: the last tag sits lower than the first
+    const measure = () => {
+      const tags = el.children;
+      setOverflows(tags.length > 1 && (tags[tags.length - 1] as HTMLElement).offsetTop > (tags[0] as HTMLElement).offsetTop);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [children]);
+  return (
+    <div className="flex min-w-0 flex-1 items-start gap-1.5 py-1">
+      {/* closed, it is exactly one tag tall */}
+      <div ref={row} role="group" aria-label="Tags" className={cn('flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-2', !open && 'max-h-6 overflow-hidden')}>
+        {children}
+      </div>
+      {(overflows || open) && (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(current => !current)}
+          className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-0.5 rounded-full px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          {open ? 'Less' : 'More'} <ChevronDownIcon className={cn('size-3.5 transition-transform', open && 'rotate-180')} aria-hidden />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Chip({ active, small, onClick, title, children }: { active: boolean; small?: boolean; onClick: () => void; title?: string; children: React.ReactNode }) {
   return (
     <button
@@ -448,7 +496,7 @@ function Chip({ active, small, onClick, title, children }: { active: boolean; sm
       onClick={onClick}
       className={cn(
         'inline-flex cursor-pointer items-center gap-1.5 rounded-full border transition-colors',
-        small ? 'px-2.5 py-0.5 text-xs' : 'px-3 py-1 text-sm',
+        small ? 'h-6 px-2.5 text-xs' : 'px-3 py-1 text-sm',
         active ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:border-foreground/40 hover:text-foreground',
       )}
     >
