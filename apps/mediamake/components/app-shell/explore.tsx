@@ -294,7 +294,7 @@ function StoreMeta({ item, note }: { item: AppItem; note?: string }) {
 /** The first editors' pick, large: its picture beside what it is. All of it opens the item's page. */
 function Hero({ item }: { item: AppItem }) {
   return (
-    <section aria-label="Editors' pick" className="relative grid overflow-hidden rounded-2xl border bg-card transition-shadow hover:shadow-md md:grid-cols-[3fr_2fr]">
+    <section aria-label="Editors' pick" className="relative grid overflow-hidden rounded-2xl border bg-card transition-shadow hover:shadow-md md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <VideoThumb id={item.id} title={item.video?.title || item.title} src={headshotOf(item)} className="max-md:border-b md:border-r" />
       <div className="flex flex-col justify-center gap-3 p-5 lg:p-8">
         <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
