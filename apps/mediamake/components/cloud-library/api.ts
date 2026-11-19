@@ -1,3 +1,4 @@
+import type { DeviceFile, DeviceView } from '@/lib/cloud-library/devices';
 import type { CollectionView, EntryAnswer, EntryRow, SpaceOverview, TemplateCard } from '@/lib/cloud-library/view';
 
 /** The Library's routes, as the page calls them. A refusal is thrown with the route's own words. */
@@ -35,6 +36,12 @@ export const libraryApi = {
   trash: (space: string, ref: string) => call<{ ok: true; title: string }>(`/api/library/entries?space=${space}&ref=${ref}`, { method: 'DELETE' }),
   links: (space: string, ref: string, slot?: string) =>
     call<{ files: { slot: string; name: string; sha256: string; size: number; url: string }[] }>(`/api/library/files?space=${space}&ref=${ref}${slot ? `&slots=${slot}` : ''}&device=web`),
+  devices: (space: string) => call<{ devices: DeviceView[] }>(`/api/library/devices?space=${space}`),
+  deviceFiles: (space: string, device: string, ask: { q?: string; kind?: string; where?: string; limit?: number }) => {
+    const query = new URLSearchParams({ space, of: device });
+    for (const [key, value] of Object.entries(ask)) if (value) query.set(key, String(value));
+    return call<{ total: number; results: DeviceFile[] }>(`/api/library/devices?${query}`);
+  },
 };
 
 /** A browser hashes a file in memory, so past this size a file goes up with `mm library save` instead. */

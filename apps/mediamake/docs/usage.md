@@ -110,6 +110,16 @@ those words. The same switch stops it (`mm usage off`), `mm access --dry`
 shows it, and `mm access forget` deletes it. `mm usage forget` does not: it
 deletes runs, skill lists and app opens.
 
+## What a computer holds
+
+Off until the computer's owner turns it on (`mm library report on`,
+`docs/library.md` › Device libraries): a card for each file of its media
+library, with the file's name, title, kind, subject, tags, size, length and
+SHA-256 (`POST /api/library/devices`, stored in `library_device_files`). Never
+the file and never its folder. The owner sees the cards, and so do the people
+of a project the computer is open to. `mm library report` shows what would go,
+`off` stops it and `forget` deletes what was sent.
+
 ## To-dos
 
 A project's to-do queue (`mm todo`, `docs/cloud-device-runs.md` › The to-do

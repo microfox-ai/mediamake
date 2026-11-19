@@ -195,13 +195,45 @@ each space stores, and an estimated cost for each. The estimate uses prices an a
 (`PUT /api/library/usage`). They start as rough figures, not read from any bill: correct them to what
 is really paid before trusting the numbers. `mm library usage` shows a member their own.
 
+## Device libraries: what each computer holds
+
+A computer's media library (`mm media`) stays on that computer. The Library's page has a switch
+beside the space, Cloud or Computers, and Computers shows each computer as a card and its files as a
+list. Each file is marked "On this computer only" or "Also in the cloud", with a link to the entry
+that holds it. A file on a computer and a file in the Cloud Library are the same file when their
+SHA-256 is the same: nothing else links them, and nothing is written to the computer's catalog.
+
+- **Off until the owner says so.** `mm library report` only shows what a report would send.
+  `mm library report on` is the owner's word: it turns reporting on and sends the cards.
+  `mm library report --yes` sends them again after the media library changed, `off` stops, and
+  `forget` takes the cards out of MediaMake. Never turn it on for them.
+- **A card, never the file.** A card is a file's name, title, kind, subject, tags, size, length and
+  SHA-256. Never its bytes and never its folder (`cardOfItem` in `tools/library.mjs`, checked again
+  by `cleanCard` in `lib/cloud-library/devices.ts`).
+- **Who sees them.** The owner, in every space. On a project, also its people, for a computer its
+  owner opened to that project (`mm access open`). Someone who leaves the project takes their
+  computers with them.
+- **Looking from anywhere.** `mm library devices` lists the computers of a space, and
+  `mm library devices "<words>"` their files that fit, so a cloud session can find that the stems
+  are on the studio Mac.
+- **Uploading links, it does not move.** `mm library save <collection> --item <slot>=<id>` takes a
+  file from this computer's media library by its id (or the id's start). The file stays where it
+  is, and from then on the page shows it as also in the cloud. A file that is only on someone
+  else's computer is asked for with a to-do for that computer (`mm todo`, needs `media:library`).
+  The page copies the words to ask Claude with for both.
+
+`GET /api/library/devices?space=` lists the computers, `&of=<owner>/<label>` one computer's files
+(`q`, `kind`, `where=device|both`), `POST` takes a report's part and `DELETE ?label=` forgets one.
+Cards live in `library_device_files`, a computer's sums in `library_devices`.
+
 ## Not built yet
 
-Device libraries and linking a device's file to its cloud copy, reuse of paid
+A device library's own collections, "Fetch to this device" from the page, the older Library page
+(`/library`, the Mac's media library) folded into Computers, reuse of paid
 results by `mm transcribe` and `mm analyze`, shared collections, the tools in the Spaces MCP, search
 by meaning, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
 Tests: `npx tsx --test lib/cloud-library/*.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet, the page has only been opened with sample data, and filling with Claude has never called the API.
+have not been run against the live database yet, the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet.
