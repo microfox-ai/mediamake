@@ -699,7 +699,7 @@ export interface Prices {
   fillPerMillionTokensIn: number;
   fillPerMillionTokensOut: number;
 }
-export const DEFAULT_PRICES: Prices = { storagePerGbMonth: 0.02, downloadPerGb: 0.01, searchPer1000: 0.05, fillPerMillionTokensIn: 3, fillPerMillionTokensOut: 15 };
+export const DEFAULT_PRICES: Prices = { storagePerGbMonth: 0.02, downloadPerGb: 0.01, searchPer1000: 0.05, fillPerMillionTokensIn: 4, fillPerMillionTokensOut: 20 };
 
 export interface UsageSum {
   uploads: number;

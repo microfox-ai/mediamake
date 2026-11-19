@@ -112,6 +112,7 @@ key works the same.
 | `GET /api/library` | The spaces whose Library the account can open, and the templates |
 | `GET /api/library?space=` | One space's collections in full, with guide and preferences |
 | `POST /api/library` | `new-collection` from a template, the owner's `prefs`, or `headshot` (a stored picture's `sha256`, an https `url`, neither to remove it) |
+| `POST /api/library/fill` | Claude's suggestion for an entry's fields from the files dropped on its form. Saves nothing |
 | `GET /api/library/entries?space=&ref=` | One entry in full |
 | `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it |
 | `POST /api/library/entries` | Save an entry. `dry: true` answers with the sentence and the changes |
@@ -156,6 +157,30 @@ key works the same.
   (`addPrompt` in `lib/cloud-library/view.ts`), so files are added from a session instead of the page.
 - Whoever can only read a space sees no Add, Change or trash.
 
+### Filling with Claude
+
+When files are dropped on Add or Change, Claude reads them and fills the fields that are still empty
+(`lib/cloud-library/fill.ts`, `POST /api/library/fill`). Nothing is saved by it: the form says what was
+filled, marks each field "Filled by Claude", and Undo puts back what was there.
+
+- What Claude gets: the collection's fields, its guide, the owner's preferences, the spellings its
+  lists have learned, the names of the fields the form already holds, each file's name, and the text
+  of the small text files (a transcript, lyrics, a release pack; read in the browser, up to 1 MB a
+  file, 200,000 characters a file and 400,000 a call on the server). A longer file goes by name only
+  and the form says so: it is never cut. Audio, video and pictures go by name only.
+- What comes back is checked before the form sees it (`checkFill`): nothing for a field the form
+  holds, a choice only from its options, a date only as a date, and a never-guess field (ISRC,
+  release date, store links, playlists) only when its exact value is written in a file that was read.
+- What it costs: one usage line a call with its tokens (never a file's name or words). Each person
+  has a monthly ceiling, 2 US dollars unless `LIBRARY_FILL_MONTHLY_USD` says otherwise, counted at
+  the prices on the usage page. Past it, and without a key, the form stays quiet and works as before.
+
+| Variable | For |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | The call. Without it nothing is filled |
+| `LIBRARY_FILL_MODEL` | The model. Default `claude-opus-5-5` |
+| `LIBRARY_FILL_MONTHLY_USD` | One person's ceiling a month, in US dollars. Default 2 |
+
 `/app/library-usage` (admins) shows the sums below as tabs: People, Computers, Spaces, Collections,
 Stored, and Prices, where the prices behind the estimate are set.
 
@@ -174,9 +199,9 @@ is really paid before trusting the numbers. `mm library usage` shows a member th
 
 Device libraries and linking a device's file to its cloud copy, reuse of paid
 results by `mm transcribe` and `mm analyze`, shared collections, the tools in the Spaces MCP, search
-by meaning, filling fields with Claude when files are dropped, previews, and uploads that resume
+by meaning, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
-Tests: `npx tsx --test lib/cloud-library/library.test.ts lib/cloud-library/view.test.ts` (in `apps/mediamake`) and
+Tests: `npx tsx --test lib/cloud-library/*.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet, and the page has only been opened with sample data.
+have not been run against the live database yet, the page has only been opened with sample data, and filling with Claude has never called the API.

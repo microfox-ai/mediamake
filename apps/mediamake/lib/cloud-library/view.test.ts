@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { factsOf } from './index';
 import { SONGS } from './templates';
-import { NOT_SET, addPrompt, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
+import { NOT_SET, addPrompt, applyFill, listOf, readsAsText, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
 
 const slots: SlotView[] = SONGS.slots;
 const fields: FieldView[] = SONGS.fields;
@@ -111,4 +111,13 @@ test('the prompt to add names the place, the guide and the ask before saving', (
   const mine = addPrompt({ id: 'p1', name: 'Personal', personal: true }, view);
   assert.ok(!mine.includes('--project'));
   assert.match(mine, /Add a song to .* the Personal space/);
+});
+
+test('a suggestion fills only what the form left empty', () => {
+  const { values, filled } = applyFill(fields, { title: 'Sea Song', artist: ' ', genres: ['Rock'] }, { title: 'Other', artist: 'Sample Artist', genres: ['Pop'], lyrics: 'la' });
+  assert.deepEqual(filled, ['artist', 'lyrics']);
+  assert.deepEqual(values, { title: 'Sea Song', artist: 'Sample Artist', genres: ['Rock'], lyrics: 'la' });
+  assert.equal(listOf(['Artist', 'Genres', 'Lyrics']), 'Artist, Genres and Lyrics');
+  assert.equal(listOf(['Artist']), 'Artist');
+  assert.ok(readsAsText({ name: 'words.lrc' }) && readsAsText({ name: 'pack', type: 'application/json' }) && !readsAsText({ name: 'master.wav', type: 'audio/wav' }));
 });

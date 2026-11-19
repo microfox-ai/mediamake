@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { CheckIcon, ClipboardIcon, Loader2Icon, UploadIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ClipboardIcon, Loader2Icon, SparklesIcon, UploadIcon, XIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EntryRecord, FieldValue } from '@/lib/cloud-library';
-import { addPrompt, changedFields, formatBytes, placeFiles, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
+import { MAX_FILL_READ_BYTES, addPrompt, applyFill, changedFields, formatBytes, listOf, placeFiles, readsAsText, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
 import { libraryApi, uploadFiles } from './api';
 import { FieldInput } from './field-input';
 
@@ -14,6 +14,10 @@ import { FieldInput } from './field-input';
  * Add an entry to a collection, or change one: its files first (dropped files go to the slot their
  * type and name say, and each can be moved), then its fields under the template's headings. Nothing
  * is required but the title. Only what changed is sent.
+ *
+ * When files are dropped, Claude reads their names and the small text files among them and fills
+ * the fields that are still empty. What it filled is marked and can be undone; nothing is saved
+ * until the person saves.
  */
 
 const button = 'inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50';
@@ -48,6 +52,13 @@ export function EntryDialog({
   const [over, setOver] = React.useState(false);
   const picker = React.useRef<HTMLInputElement>(null);
   const [copied, setCopied] = React.useState(false);
+  // what Claude filled from the dropped files: the fields, what they held before, and what it said
+  const [fill, setFill] = React.useState<{ keys: string[]; before: Record<string, unknown>; notes?: string; unread: string[] } | null>(null);
+  const [filling, setFilling] = React.useState(false);
+  const fillOff = React.useRef(false);
+  const fillRun = React.useRef(0);
+  const valuesNow = React.useRef(values);
+  valuesNow.current = values;
 
   // a fresh form each time the dialog opens
   React.useEffect(() => {
@@ -57,6 +68,9 @@ export function EntryDialog({
     setRemoved([]);
     setBusy(null);
     setError(null);
+    setFill(null);
+    setFilling(false);
+    fillRun.current += 1;
   }, [open, entry]);
 
   const groups = [...new Set(collection.fields.map(field => field.group))];
@@ -70,8 +84,54 @@ export function EntryDialog({
     // a single slot that already holds a file, here or in this drop, is not filled again by a guess
     const filled = new Set([...collection.slots.filter(slot => !slot.many && kept(slot.key).length).map(slot => slot.key), ...added.filter(a => collection.slots.some(slot => slot.key === a.slot && !slot.many)).map(a => a.slot)]);
     const slots = placeFiles(files, collection.slots, filled);
-    setAdded(current => [...current, ...files.map((file, index) => ({ file, slot: slots[index] }))]);
+    const all = [...added, ...files.map((file, index) => ({ file, slot: slots[index] }))];
+    setAdded(all);
+    void fillFrom(all);
   };
+
+  // Claude reads the files' names and the small text files, and fills what is still empty
+  const fillFrom = async (files: Added[]) => {
+    if (fillOff.current) return;
+    const run = ++fillRun.current;
+    setFilling(true);
+    try {
+      const tooLarge: string[] = [];
+      const sent = await Promise.all(
+        files.map(async ({ file, slot }) => {
+          if (!readsAsText(file)) return { name: file.name, slot };
+          if (file.size > MAX_FILL_READ_BYTES) return tooLarge.push(file.name), { name: file.name, slot };
+          return { name: file.name, slot, text: await file.text() };
+        }),
+      );
+      const answer = await libraryApi.fill({ space: space.id, collection: collection.slug, files: sent, have: valuesNow.current });
+      if (run !== fillRun.current) return;
+      if (answer.off) {
+        fillOff.current = true;
+        return;
+      }
+      const applied = applyFill(collection.fields, valuesNow.current, answer.fields ?? {});
+      const unread = [...tooLarge, ...(answer.unread ?? [])];
+      if (!applied.filled.length && !answer.notes && !unread.length) return;
+      setFill(current => ({
+        keys: [...new Set([...(current?.keys ?? []), ...applied.filled])],
+        before: { ...Object.fromEntries(applied.filled.map(key => [key, valuesNow.current[key]])), ...current?.before },
+        notes: answer.notes,
+        unread,
+      }));
+      setValues(applied.values);
+    } catch {
+      // filling is a help, never a step: the form works without it
+    } finally {
+      if (run === fillRun.current) setFilling(false);
+    }
+  };
+
+  const undoFill = () => {
+    if (!fill) return;
+    setValues(current => ({ ...current, ...Object.fromEntries(fill.keys.map(key => [key, fill.before[key]])) }));
+    setFill(null);
+  };
+  const labelOf = (key: string) => collection.fields.find(field => field.key === key)?.label ?? key;
 
   // the same add, done by Claude from a computer: the prompt names this space and collection
   const copyPrompt = async () => {
@@ -192,6 +252,27 @@ export function EntryDialog({
                 ))}
               </ul>
             )}
+            {(filling || fill) && (
+              <div className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm" role="status">
+                {filling ? <Loader2Icon className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" /> : <SparklesIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
+                <div className="min-w-0 flex-1">
+                  {filling && !fill && <p>Claude is reading the files…</p>}
+                  {fill && fill.keys.length > 0 && (
+                    <p>
+                      Claude filled {listOf(fill.keys.map(labelOf))}. Check {fill.keys.length === 1 ? 'it' : 'them'} before you save.
+                    </p>
+                  )}
+                  {fill && !fill.keys.length && !filling && <p>Claude found nothing to fill in these files.</p>}
+                  {fill?.notes && <p className="text-xs text-muted-foreground">{fill.notes}</p>}
+                  {fill && fill.unread.length > 0 && <p className="text-xs text-muted-foreground">Too large to read: {listOf(fill.unread)}.</p>}
+                </div>
+                {fill && fill.keys.length > 0 && (
+                  <button type="button" className="shrink-0 rounded-md border bg-background px-2 py-1 text-xs font-medium hover:bg-muted" onClick={undoFill}>
+                    Undo
+                  </button>
+                )}
+              </div>
+            )}
             {added.some(a => collection.slots.some(slot => slot.key === a.slot && !slot.many && kept(slot.key).length)) && (
               <p className="text-xs text-muted-foreground">A {collection.noun} has one of each of these. The new file takes the place of the one there, which stays in its history.</p>
             )}
@@ -225,7 +306,15 @@ export function EntryDialog({
                 .filter(field => field.group === group)
                 .map(field => (
                   <div key={field.key} className="flex flex-col gap-1.5">
-                    <p className="text-sm font-medium">{field.label}</p>
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      {field.label}
+                      {fill?.keys.includes(field.key) && (
+                        <span className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
+                          <SparklesIcon className="size-3" />
+                          Filled by Claude
+                        </span>
+                      )}
+                    </p>
                     {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
                     <FieldInput field={field} value={values[field.key]} onChange={value => setValues(current => ({ ...current, [field.key]: value }))} learned={collection.learned} />
                   </div>

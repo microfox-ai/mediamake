@@ -300,3 +300,30 @@ export function addPrompt(space: Pick<SpaceView, 'id' | 'name' | 'personal'>, co
     `Fill only what the files or I tell you.${never.length ? ` Never guess: ${never.join(', ')}.` : ''} Leave the rest empty.`,
   ].join('\n');
 }
+
+/* ---------- filling with Claude ---------- */
+
+const TEXT_NAMES = /\.(txt|json|lrc|srt|vtt|md|csv|tsv|ya?ml)$/i;
+/** The most a browser reads of one file to send to Claude: past it the file goes by name only. */
+export const MAX_FILL_READ_BYTES = 1_000_000;
+
+/** Whether a dropped file is text a browser can read for Claude (a transcript, lyrics, a release pack). */
+export const readsAsText = (file: { name: string; type?: string }) => /^text\//.test(file.type ?? '') || file.type === 'application/json' || TEXT_NAMES.test(file.name);
+
+/** "Artist", "Artist and Genres", "Artist, Genres and Lyrics". */
+export function listOf(names: string[]): string {
+  return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** What Claude suggested, put only where the form is still empty. Answers the new values and the fields it filled. */
+export function applyFill(fields: FieldView[], values: Record<string, unknown>, suggested: Record<string, unknown>): { values: Record<string, unknown>; filled: string[] } {
+  const next = { ...values };
+  const filled: string[] = [];
+  for (const field of fields) {
+    if (!(field.key in suggested)) continue;
+    if (!isEmpty(tidyValue(field.kind, values[field.key]))) continue;
+    next[field.key] = suggested[field.key];
+    filled.push(field.key);
+  }
+  return { values: next, filled };
+}
