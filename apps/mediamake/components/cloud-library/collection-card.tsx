@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ImageIcon, LibraryBigIcon, Loader2Icon } from 'lucide-react';
+import { ImageIcon, LibraryBigIcon, Loader2Icon, UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -91,7 +91,13 @@ export function CollectionCard({ space, collection, href, may, onChanged }: { sp
   return (
     <div className="group relative">
       <Link href={href} className="flex h-full flex-col overflow-hidden rounded-xl border bg-card text-left transition-colors hover:bg-muted/50">
-        <div className="flex aspect-video w-full items-center justify-center bg-muted">
+        <div className="relative flex aspect-video w-full items-center justify-center bg-muted">
+          {(collection.shared || !!collection.sharedWith) && (
+            <span className="absolute bottom-2 left-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-md border bg-background/90 px-2 py-1 text-xs font-medium shadow-sm">
+              <UsersIcon className="size-3.5 shrink-0" />
+              <span className="truncate">{collection.shared ? `Shared by ${collection.shared.by}` : `Shared with ${collection.sharedWith}`}</span>
+            </span>
+          )}
           {collection.headshot ? (
             // a member's own picture, by a signed or outside link: next/image cannot optimise it
             // eslint-disable-next-line @next/next/no-img-element

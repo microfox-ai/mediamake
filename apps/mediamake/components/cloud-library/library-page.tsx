@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, UserIcon } from 'lucide-react';
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, UserIcon, UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPage } from '@/components/app-shell/app-page';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -13,13 +13,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { canChange, filtersOf, folderFields, libraryHref, listQuery, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
+import { canChange, filtersOf, folderFields, libraryHref, listQuery, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
 import { CollectionCard } from './collection-card';
 import { DeviceLibrary, computersHref } from './device-library';
 import { EntryDialog } from './entry-dialog';
 import { EntryView } from './entry-view';
 import { EntryViews, ViewSwitch } from './entry-views';
+import { Invitations, ShareDialog, SharedInfo } from './share-dialog';
 
 /**
  * /app/library: the Cloud Library. The space is picked at the top right (Personal when no project
@@ -27,6 +28,8 @@ import { EntryViews, ViewSwitch } from './entry-views';
  * breadcrumb sits under the search, its filters at the right end, and the entries are cards; an
  * entry opens in tabs. The address holds the place (?space=&c=&e=), so a link opens the same view.
  * A switch beside the space picks the cloud or the computers (?on=computers, ./device-library).
+ * A collection another space shares sits beside the space's own, marked with who shares it
+ * (./share-dialog).
  */
 
 const ANY = '__any__';
@@ -268,6 +271,7 @@ export function LibraryPage() {
   const [adding, setAdding] = React.useState(false);
   const [making, setMaking] = React.useState(false);
   const [guide, setGuide] = React.useState(false);
+  const [sharing, setSharing] = React.useState(false);
   const [view, setView] = React.useState<LibraryView>('grid');
   React.useEffect(() => {
     try {
@@ -397,6 +401,9 @@ export function LibraryPage() {
     return `/app/library?${query}`;
   };
   const may = canChange(space);
+  // in a collection another space shares, what this space may do is what its owner allowed
+  const here = space ? spaceFor(space, collection) : null;
+  const mayHere = canChange(here);
   const filters = collection ? filtersOf(collection) : null;
   const filtered = !!q.trim() || Object.values(where).some(Boolean) || !!files;
 
@@ -519,7 +526,13 @@ export function LibraryPage() {
                       <BookOpenIcon className="size-4" />
                       Guide
                     </button>
-                    {may && (
+                    {(collection.shared || space.role === 'owner') && (
+                      <button type="button" className={button} onClick={() => setSharing(true)}>
+                        <UsersIcon className="size-4" />
+                        {collection.shared ? `Shared by ${collection.shared.by}` : collection.sharedWith ? `Shared with ${collection.sharedWith}` : 'Share'}
+                      </button>
+                    )}
+                    {mayHere && (
                       <button type="button" className={primary} onClick={() => setAdding(true)}>
                         <PlusIcon className="size-4" />
                         Add a {collection.noun}
@@ -531,7 +544,7 @@ export function LibraryPage() {
             )}
 
             {/* an entry */}
-            {collection && entrySlug && (answer ? <EntryView space={space} collection={collection} answer={answer} onChanged={warnings => (warnings.forEach(w => toast.warning(w)), reload())} onTrashed={() => (reload(), go({ collection: collection.slug }))} /> : <p className="text-sm text-muted-foreground">Opening it</p>)}
+            {collection && here && entrySlug && (answer ? <EntryView space={here} home={space} collection={collection} answer={answer} onChanged={warnings => (warnings.forEach(w => toast.warning(w)), reload())} onTrashed={() => (reload(), go({ collection: collection.slug }))} /> : <p className="text-sm text-muted-foreground">Opening it</p>)}
 
             {/* a collection's entries, or what a search of the whole space found */}
             {listing && rows && rows.results.length > 0 && (
@@ -557,9 +570,9 @@ export function LibraryPage() {
             {listing && rows && !rows.results.length && (
               <Empty
                 title={filtered ? 'Nothing matches' : `No ${collection?.noun ?? 'item'}s yet`}
-                about={filtered ? 'Try fewer words, or clear a filter.' : may ? `Add the first one here, or ask Claude to add your ${collection?.noun ?? 'item'}s from a computer.` : 'The owner or an editor of this space adds them.'}
+                about={filtered ? 'Try fewer words, or clear a filter.' : mayHere ? `Add the first one here, or ask Claude to add your ${collection?.noun ?? 'item'}s from a computer.` : collection?.shared ? `${collection.shared.by} adds them.` : 'The owner or an editor of this space adds them.'}
               >
-                {!filtered && may && collection && (
+                {!filtered && mayHere && collection && (
                   <button type="button" className={primary} onClick={() => setAdding(true)}>
                     <PlusIcon className="size-4" />
                     Add a {collection.noun}
@@ -572,10 +585,11 @@ export function LibraryPage() {
             {/* the space's collections */}
             {!collectionSlug && !q.trim() && (
               <>
+                {!!full?.invitations?.length && <Invitations space={space} invitations={full.invitations} onAccepted={slug => (reload(), go({ collection: slug }))} onChanged={reload} />}
                 {collections.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {collections.map(item => (
-                      <CollectionCard key={item.slug} space={space} collection={item} href={libraryHref({ space: space.id, collection: item.slug })} may={may} onChanged={reload} />
+                      <CollectionCard key={item.slug} space={space} collection={item} href={libraryHref({ space: space.id, collection: item.slug })} may={may && !item.shared} onChanged={reload} />
                     ))}
                     {may && (
                       <button type="button" className={`${card} min-h-40 items-center justify-center border-dashed text-sm font-medium text-muted-foreground`} onClick={() => setMaking(true)}>
@@ -598,8 +612,10 @@ export function LibraryPage() {
               </>
             )}
 
-            {collection && <EntryDialog space={space} collection={collection} open={adding} onOpenChange={setAdding} onSaved={saved} />}
-            {collection && <Guide space={space} collection={collection} open={guide} onOpenChange={setGuide} onSaved={reload} />}
+            {collection && here && <EntryDialog space={here} collection={collection} open={adding} onOpenChange={setAdding} onSaved={saved} />}
+            {collection && here && <Guide space={here} collection={collection} open={guide} onOpenChange={setGuide} onSaved={reload} />}
+            {collection && !collection.shared && space.role === 'owner' && <ShareDialog space={space} collection={collection} projects={(spaces ?? []).map(s => s.space)} open={sharing} onOpenChange={setSharing} onChanged={reload} />}
+            {collection?.shared && <SharedInfo space={space} collection={collection} open={sharing} onOpenChange={setSharing} onLeft={() => (reload(), go({}))} />}
             <NewCollection space={space} templates={templates} taken={collections.map(item => item.name.toLowerCase())} open={making} onOpenChange={setMaking} onMade={slug => (reload(), go({ collection: slug }))} />
           </>
         )}

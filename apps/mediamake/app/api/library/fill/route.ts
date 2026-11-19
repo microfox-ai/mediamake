@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SLUG } from '@/lib/cloud-library';
 import { FillRefused, fillCeiling, fillConfigured, fillCost, fillFields, fitFiles, type FillFile } from '@/lib/cloud-library/fill';
-import { caller, failed, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { caller, failed, refuse, placeOf, through } from '@/lib/cloud-library/http';
 import { libraryDB, logUsage } from '@/lib/cloud-library/store';
 
 /**
@@ -27,10 +27,10 @@ export async function POST(req: NextRequest) {
     .map((file: FillFile) => ({ name: file.name.slice(0, 300), ...(typeof file.slot === 'string' && SLUG.test(file.slot) && { slot: file.slot }), ...(typeof file.text === 'string' && { text: file.text }) }));
   if (!sent.length) return refuse('No files to read');
   try {
-    const at = await spaceOf(clientId, body?.space, 'write');
+    const at = await placeOf(clientId, body?.space, body?.collection, 'write');
     if ('response' in at) return at.response;
     if (!fillConfigured()) return NextResponse.json({ off: 'Filling with Claude is not set up' });
-    const collection = await libraryDB.collection(at.space.id, body.collection);
+    const collection = await libraryDB.collection(at.space.id, at.collection);
     if (!collection) return refuse('No such collection', 404);
 
     const month = `${new Date().toISOString().slice(0, 7)}-01`;
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     const { files, unread } = fitFiles(sent);
     const { template } = collection;
     const learned = Object.fromEntries(Object.entries(collection.learned ?? {}).map(([list, values]) => [list, Object.entries(values).sort((a, b) => b[1] - a[1]).map(([value]) => value)]));
-    const line = { ...usage, space: at.space.id, collection: collection.slug, action: 'fill' as const };
+    const line = { ...through(usage, at), space: at.space.id, collection: collection.slug, action: 'fill' as const };
     try {
       const filled = await fillFields({
         collection: { name: collection.name, noun: template.noun, titleField: template.titleField, fields: template.fields, guide: template.guide, prefs: collection.prefs, learned },

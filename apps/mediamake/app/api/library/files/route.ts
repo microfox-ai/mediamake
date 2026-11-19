@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { parseRef, type ReadAsk } from '@/lib/cloud-library';
 import { librarySpaces } from '@/lib/cloud-library/access';
-import { answer, caller, failed, mayUseLibrary, refuse, spaceOf } from '@/lib/cloud-library/http';
+import { answer, caller, failed, keptBack, mayUseLibrary, placeOf, refuse, seen, spaceOf, through } from '@/lib/cloud-library/http';
+import { shareDB } from '@/lib/cloud-library/share-store';
 import { parseMadeFromAsk } from '@/lib/cloud-library/reuse';
 import { storageReady } from '@/lib/cloud-library/storage';
 import { libraryDB } from '@/lib/cloud-library/store';
@@ -14,6 +15,7 @@ import { libraryDB } from '@/lib/cloud-library/store';
  * POST  { action: "start", space, files: [{ sha256, size, name, contentType? }] }
  *            → { uploads: [{ sha256, uploadUrl, headers }], alreadyStored: [sha256…] }. PUT each file to its
  *              link with those headers. A content the space already stores is not sent again.
+ *       Both take `collection` too when the files are for a collection another space shares with an editor role.
  *       { action: "finish", space, sha256s: [...], device? }
  *            checks the bytes arrived, then they can be put in an entry's slot (/api/library/entries).
  * GET   ?space=<id>&ref=<collection>/<entry> [&slots=master,artwork] [&device=…]
@@ -31,10 +33,11 @@ export async function POST(req: NextRequest) {
   if (!clientId) return refuse('Sign in first', 401);
   if (!storageReady()) return refuse('File storage is not set up on this server', 503);
   try {
-    const at = await spaceOf(clientId, body?.space, 'write');
+    // an editor of a shared collection names it, so the bytes go to its owner's storage
+    const at = await placeOf(clientId, body?.space, body?.collection, 'write');
     if ('response' in at) return at.response;
     if (body?.action === 'start') return answer(await libraryDB.startUploads(at.space, Array.isArray(body.files) ? body.files : [], clientId));
-    if (body?.action === 'finish') return answer(await libraryDB.finishUploads(at.space, Array.isArray(body.sha256s) ? body.sha256s : [], usage));
+    if (body?.action === 'finish') return answer(await libraryDB.finishUploads(at.space, Array.isArray(body.sha256s) ? body.sha256s : [], through(usage, at)));
     return refuse('action is "start" or "finish"');
   } catch (error) {
     return failed('store the files', error);
@@ -51,10 +54,12 @@ export async function GET(req: NextRequest) {
     try {
       if (params.get('space')) {
         const at = await spaceOf(clientId, params.get('space'), 'read');
-        return 'response' in at ? at.response : answer(await libraryDB.madeFrom([at.space], ask, usage));
+        return 'response' in at ? at.response : answer(await libraryDB.madeFrom([at.space], ask, usage, await shareDB.into([at.space])));
       }
       const locked = await mayUseLibrary(clientId);
-      return locked ?? answer(await libraryDB.madeFrom(await librarySpaces(await getDatabase(), clientId), ask, usage));
+      if (locked) return locked;
+      const spaces = await librarySpaces(await getDatabase(), clientId);
+      return answer(await libraryDB.madeFrom(spaces, ask, usage, await shareDB.into(spaces)));
     } catch (error) {
       return failed('look for the result', error);
     }
@@ -62,18 +67,20 @@ export async function GET(req: NextRequest) {
   const ref = parseRef(params.get('ref'));
   if (!ref) return refuse('ref is <collection>/<entry>, e.g. songs/nakama');
   try {
-    const at = await spaceOf(clientId, params.get('space'), 'read');
+    const at = await placeOf(clientId, params.get('space'), ref.collection, 'read');
     if ('response' in at) return at.response;
+    const kept = await keptBack(at, ref.entry);
+    if (kept) return kept;
     if (params.has('read')) {
       const ask: ReadAsk = {};
       const lines = /^(\d+)-(\d+)$/.exec(params.get('lines') ?? '');
       if (lines) ask.lines = [Number(lines[1]), Number(lines[2])];
       if (params.has('from') || params.has('to')) ask.time = [Number(params.get('from')) || 0, Number(params.get('to')) || Number.MAX_SAFE_INTEGER];
-      return answer(await libraryDB.read(at.space, ref.collection, ref.entry, String(params.get('read')), ask, usage));
+      return answer(seen(at, await libraryDB.read(at.space, at.collection, ref.entry, String(params.get('read')), ask, through(usage, at))));
     }
     if (!storageReady()) return refuse('File storage is not set up on this server', 503);
     const slots = (params.get('slots') ?? '').split(',').map(slot => slot.trim().toLowerCase()).filter(Boolean);
-    return answer(await libraryDB.links(at.space, ref.collection, ref.entry, slots, usage));
+    return answer(seen(at, await libraryDB.links(at.space, at.collection, ref.entry, slots, through(usage, at))));
   } catch (error) {
     return failed('get the files', error);
   }

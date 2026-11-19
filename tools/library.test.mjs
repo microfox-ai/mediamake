@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { cachePath, cardOfItem, inputFolder, takenNote, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
+import { shareLine, cachePath, cardOfItem, inputFolder, takenNote, entryLines, fieldsFrom, filesFrom, itemsFrom, listOf, madeFromOf, overviewLines, parseArgs, pickSpace, privateDetails, reportLines, sha256Of, sizeOf } from './library.mjs';
 
 test('arguments: positionals, repeated flags and switches', () => {
   const { args, flags } = parseArgs(['save', 'songs', 'nakama', '--set', 'title=Nakama! = fun', '--set', 'use=Released', '--file', 'master=a b.wav', '--project=Get Into Zone', '--yes', '--has=transcript', '--has=stems']);
@@ -82,6 +82,7 @@ import http from 'node:http';
 import { main } from './library.mjs';
 
 const SPACE = 'b'.repeat(24);
+const TEAM = 'c'.repeat(24);
 
 /** A small stand-in: it keeps what was asked, stores PUT bodies by sha256 and serves them back. */
 async function standIn() {
@@ -101,7 +102,15 @@ async function standIn() {
     }
     const body = raw.length ? JSON.parse(raw.toString()) : null;
     state.calls.push({ method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), body, auth: req.headers.authorization });
-    if (url.pathname === '/api/library' && req.method === 'GET') return send({ spaces: [{ space: { id: SPACE, name: 'Get Into Zone', personal: false, role: 'owner' }, collections: [] }], templates: [] });
+    if (url.pathname === '/api/library' && req.method === 'GET' && url.searchParams.has('space') && state.view) return send(state.view);
+    if (url.pathname === '/api/library' && req.method === 'GET') return send({ spaces: [{ space: { id: SPACE, name: 'Get Into Zone', personal: false, role: 'owner' }, collections: [] }, ...(state.team ? [{ space: { id: TEAM, name: 'Sample Team', personal: false, role: 'editor' }, collections: [] }] : [])], templates: [] });
+    if (url.pathname === '/api/library/shares' && req.method === 'GET') return send(url.searchParams.has('notes') ? { notes: state.notes ?? { tags: [], usedIn: [] } } : { since: '2026-10-21', shares: state.shares ?? [] });
+    if (url.pathname === '/api/library/shares' && req.method === 'POST') {
+      if (body.action === 'share') return send({ invited: true, shared: { to: body.project ?? 'p', kind: body.project ? 'project' : 'person', name: body.project ? 'Sample Team' : 'Sample Person', role: body.role, state: 'invited' } });
+      if (body.action === 'accept') return send({ as: 'songs-get-into-zone', name: 'Songs' });
+      if (body.action === 'notes') return send({ notes: (state.notes = { ...(body.rating && { rating: body.rating }), tags: body.tags ?? [], usedIn: body.usedIn ?? [] }) });
+      return send({ ok: true });
+    }
     if (url.pathname === '/api/library/files' && req.method === 'POST') {
       if (body.action === 'start') return send({ uploads: body.files.filter(f => !state.stored.has(f.sha256)).map(f => ({ sha256: f.sha256, name: f.name, size: f.size, uploadUrl: `${origin}/blob/${f.sha256}`, headers: { 'Content-Type': 'application/octet-stream' } })), alreadyStored: body.files.filter(f => state.stored.has(f.sha256)).map(f => f.sha256) });
       for (const sha of body.sha256s) if (state.blobs.has(sha)) state.stored.add(sha);
@@ -347,6 +356,61 @@ test('a result is found by the file it was made from, and an entry goes into a p
     // a second time moves nothing
     const again = await run(['use', 'songs/nakama', 'master', '--project=Get Into Zone', '--into=nakama-video'], env);
     assert.match(again.out, /= nakama\.wav \(master, already there\)/);
+  } finally {
+    await site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a collection is shared, accepted and left only on a yes, and a space keeps its own notes', async () => {
+  const site = await standIn();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-library-'));
+  const env = { MEDIAMAKE_API_URL: site.url, MEDIAMAKE_API_KEY: 'test-key', MEDIAMAKE_CONFIG: path.join(dir, 'config.json'), MEDIAMAKE_PLACE: 'test-place' };
+  site.state.team = true;
+  const posts = () => site.state.calls.filter(c => c.path === '/api/library/shares' && c.method === 'POST');
+  try {
+    // without --yes the owner is asked, and nothing is sent
+    const asked = await run(['share', 'songs', '--project=Get Into Zone', '--with=Sample Team'], env);
+    assert.match(asked.out, /Share the songs collection of the Get Into Zone space \(cloud\) with everyone on the Sample Team project\? They use the collection itself, live: they read and fetch\./);
+    assert.match(asked.out, /Nothing was shared/);
+    assert.equal(posts().length, 0);
+    const shared = await run(['share', 'songs', '--project=Get Into Zone', '--with=Sample Team', '--editor', '--yes'], env);
+    assert.match(shared.out, /Sample Team is invited to songs/);
+    assert.deepEqual(posts().at(-1).body, { action: 'share', space: SPACE, collection: 'songs', project: TEAM, role: 'editor', internal: false });
+    await run(['share', 'songs', '--project=Get Into Zone', '--to=sample@example.com', '--internal', '--yes'], env);
+    assert.deepEqual(posts().at(-1).body, { action: 'share', space: SPACE, collection: 'songs', email: 'sample@example.com', role: 'viewer', internal: true });
+    await assert.rejects(run(['share', 'songs', '--project=Get Into Zone'], env), /one project you are on .* or one person/);
+
+    // who has it, and taking it back by the name the list shows
+    site.state.shares = [{ to: TEAM, kind: 'project', name: 'Sample Team', role: 'editor', state: 'accepted', internal: false, fetchedBytes: 12_000_000, fetches: 3, people: 2 }, { to: 'p', kind: 'person', name: 'Sample Person', role: 'viewer', state: 'invited', internal: true, fetchedBytes: 0, fetches: 0, people: 0 }];
+    const list = await run(['shares', 'songs', '--project=Get Into Zone'], env);
+    assert.match(list.out, /Sample Team \(a project\) · can add and change · fetched 12 MB in 3 fetches by 2 people/);
+    assert.match(list.out, /Sample Person \(a person\) · invited, not accepted yet · sees Internal only/);
+    assert.match((await run(['unshare', 'songs', '--project=Get Into Zone', '--with=sample team'], env)).out, /Stop sharing .* with Sample Team\? It leaves their Library at once/);
+    await run(['unshare', 'songs', '--project=Get Into Zone', '--with=sample team', '--yes'], env);
+    assert.deepEqual(posts().at(-1).body, { action: 'unshare', space: SPACE, collection: 'songs', to: TEAM });
+
+    // the other side: the invitation says what accepting means, and waits for a yes
+    site.state.view = { space: { id: TEAM, name: 'Sample Team', personal: false, role: 'editor' }, collections: [], invitations: [{ from: SPACE, collection: 'songs', name: 'Songs', by: 'Get Into Zone', noun: 'song', entries: 70, role: 'viewer', says: "This is the owner's live collection. It changes when they change it." }] };
+    assert.match(overviewLines(site.state.view).join('\n'), /Invitation: Get Into Zone shares Songs \(70 songs\)\. This is the owner's live collection/);
+    const before = posts().length;
+    const invited = await run(['accept', 'songs', '--project=Sample Team'], env);
+    assert.match(invited.out, /Accept Songs \(70 songs\), shared by Get Into Zone, into the Sample Team space \(cloud\)\? This is the owner's live collection\. It changes when they change it\./);
+    assert.equal(posts().length, before);
+    const accepted = await run(['accept', 'songs', '--project=Sample Team', '--yes'], env);
+    assert.match(accepted.out, /Songs is in the Sample Team space as songs-get-into-zone/);
+    assert.deepEqual(posts().at(-1).body, { action: 'accept', space: TEAM, from: SPACE, collection: 'songs' });
+
+    // a shared collection reads as one in the overview, and leaving it names where it really is
+    site.state.view = { space: site.state.view.space, collections: [{ slug: 'songs-get-into-zone', name: 'Songs', noun: 'song', entries: 70, fields: [], slots: [], learned: {}, shared: { by: 'Get Into Zone', from: SPACE, collection: 'songs', role: 'viewer' } }] };
+    assert.match(overviewLines(site.state.view)[1], /Songs \(songs-get-into-zone\) · 70 songs · shared by Get Into Zone \(read and fetch\)/);
+    await run(['notes', 'songs-get-into-zone/nakama', '--project=Sample Team', '--rating=4', '--tags=drums, hook'], env);
+    assert.equal(posts().at(-1).body.action, 'accept', 'notes wait for a yes too');
+    const noted = await run(['notes', 'songs-get-into-zone/nakama', '--project=Sample Team', '--rating=4', '--tags=drums, hook', '--yes'], env);
+    assert.match(noted.out, /Notes on songs-get-into-zone\/nakama: rating 4 · tags: drums, hook · used in: none/);
+    await run(['leave', 'songs-get-into-zone', '--project=Sample Team', '--yes'], env);
+    assert.deepEqual(posts().at(-1).body, { action: 'leave', space: TEAM, from: SPACE, collection: 'songs' });
+    assert.equal(shareLine({ name: 'Sample Team', kind: 'project', state: 'accepted', role: 'viewer', fetches: 0 }), '  Sample Team (a project) · reads and fetches');
   } finally {
     await site.close();
     fs.rmSync(dir, { recursive: true, force: true });

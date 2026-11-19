@@ -157,7 +157,7 @@ export function EntryDialog({
     }
     try {
       setBusy('Starting');
-      const shas = added.length ? await uploadFiles(space.id, added.map(a => a.file), setBusy) : [];
+      const shas = added.length ? await uploadFiles(space.id, added.map(a => a.file), setBusy, collection.slug) : [];
       setBusy('Saving');
       const saved = await libraryApi.save({
         space: space.id,

@@ -681,6 +681,8 @@ export interface UsageLine {
   device?: string;
   space: string;
   collection?: string;
+  /** A shared collection: the space it was reached through. `space` is the owner's, whose storage it is. */
+  via?: string;
   action: UsageAction;
   bytes?: number;
   /** fill: the model's tokens. */

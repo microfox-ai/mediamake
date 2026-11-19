@@ -3,6 +3,7 @@
  * it reads, where a dropped file goes, which fields a form changed, and how things are worded.
  * Pure, so the page and the tests share it.
  */
+import type { InvitationView, ShareRole } from './shares';
 import { fileTypeOf, type EntryRecord, type FieldKind, type FieldValue, type FileType, type Prices, type UsageSum } from './index';
 
 export interface FieldView {
@@ -39,6 +40,10 @@ export interface CollectionView {
   headshot?: string;
   guide?: string;
   prefs?: string;
+  /** The owner sees how many spaces it is opened to. */
+  sharedWith?: number;
+  /** Another space's collection, opened to this one: who shares it, and what this space may do in it. */
+  shared?: { by: string; from: string; collection: string; role: ShareRole };
 }
 export interface SpaceView {
   id: string;
@@ -49,6 +54,8 @@ export interface SpaceView {
 export interface SpaceOverview {
   space: SpaceView;
   collections: CollectionView[];
+  /** Collections opened to this space that nobody accepted yet. */
+  invitations?: InvitationView[];
 }
 export interface TemplateCard {
   id: string;
@@ -70,6 +77,8 @@ export interface EntryRow {
   has: Record<string, number>;
   space?: string;
   spaceId?: string;
+  /** The entry is in a collection another space shares. */
+  sharedBy?: string;
 }
 export interface EntryAnswer {
   entry: EntryRecord;
@@ -93,6 +102,13 @@ export interface UsageAll {
 }
 
 export const canChange = (space: Pick<SpaceView, 'role'> | null | undefined): boolean => space?.role === 'owner' || space?.role === 'editor';
+
+/**
+ * The space as it stands for one collection. In a shared collection nobody here is its owner: an
+ * editor share lets this space's owner and editors change it, and everyone else reads.
+ */
+export const spaceFor = (space: SpaceView, collection: Pick<CollectionView, 'shared'> | null | undefined): SpaceView =>
+  collection?.shared ? { ...space, role: collection.shared.role === 'editor' && canChange(space) ? 'editor' : 'viewer' } : space;
 
 /** The page's address for a space, a collection and an entry: what the breadcrumb links to. */
 export function libraryHref(at: { space?: string | null; collection?: string | null; entry?: string | null }): string {
