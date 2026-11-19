@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
       headshot: listings.get(id)?.headshot,
       icon: listings.get(id)?.icon,
       readme: listings.get(id)?.readme,
+      editorsPick: !!listings.get(id)?.editorsPick,
       // a repo skill's README.md is a file in its folder: it is edited there, not here
       readmeFile: isRepoSkill(id) && !!skillNamed(slugOf(id))?.readme,
     },

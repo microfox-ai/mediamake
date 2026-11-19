@@ -90,7 +90,7 @@ export interface ItemDetail {
   /** A skill's whole description (its card's summary is the first sentence). */
   description?: string;
   /** Its store listing: the tags an admin added (item.tags has its own too) and its screenshots. */
-  listing?: { tags: string[]; media: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string; readmeFile?: boolean };
+  listing?: { tags: string[]; media: ListingMedia[]; description?: string; headshot?: string; icon?: string; readme?: string; readmeFile?: boolean; editorsPick?: boolean };
   /** Its video as stored: a skill's intro, a tutorial, a course and its lessons. */
   video: CatalogVideo | null;
   /** A course: every tutorial it can play. */
