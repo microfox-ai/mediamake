@@ -24,8 +24,8 @@
  *   schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
  *   unschedule <itemId>
  *   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
- *   ready <itemId> [<itemId>...] --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
- *                                                    (Ready needs a finished production made with it)
+ *   ready <itemId> [<itemId>...] [--proof "<what was made>"] [--url https://...] [--image https://...] [--video https://...] [--note "..."]
+ *                                                    (Production: name the finished production made with it when there is one)
  *   beta <itemId> [<itemId>...]                      (back to Beta; any proof stays on the mark for later)
  *   alpha <itemId> [<itemId>...]                     (Alpha: still being tried; Explore keeps it behind a filter)
  *   health <itemId> [<itemId>...] <healthy|inactive|archived|failed|default> [--note "why"]
@@ -77,8 +77,8 @@ const USAGE = `Usage: npm run catalog -- <command> [...]
   schedule <itemId> [--days 30 | --at 2026-12-01]   (keeps its tier now, public by itself then)
   unschedule <itemId>
   vault <itemId> [--off]                           (never publish: admins and explicit grants only)
-  ready <itemId>... --proof "<what was made>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]
-                                              (Ready needs a production made with it; the link, picture and clip fill its page's gallery)
+  ready <itemId>... [--proof "<what was made>"] [--url https://...] [--image https://...] [--video https://...] [--note "..."]
+                                              (Production; name the production made with it when there is one: the link, picture and clip fill its page's gallery)
   beta <itemId>...                                 (back to Beta; any proof stays on the mark for later)
   alpha <itemId>...                                (Alpha: still being tried; Explore keeps it behind a filter)
   health <itemId>... <healthy|inactive|archived|failed|default> [--note "why"]   (any kind; failed needs --note)
@@ -384,15 +384,17 @@ async function main() {
 
     case 'ready': {
       const proofTitle = flag(flags, 'proof');
-      if (!positional.length || !proofTitle) fail('ready <itemId> [<itemId>...] --proof "<what was made with it>" [--url https://...] [--image https://...] [--video https://...] [--note "..."]');
+      if (!positional.length) fail('ready <itemId> [<itemId>...] [--proof "<what was made with it>"] [--url https://...] [--image https://...] [--video https://...] [--note "..."]');
+      if (!proofTitle && (flag(flags, 'url') || flag(flags, 'image') || flag(flags, 'video'))) fail('--url, --image and --video go with --proof "<what was made with it>"');
       await admin({
         type: 'set_readiness',
         itemIds: positional,
         readiness: 'ready',
-        proof: [{ title: proofTitle, url: flag(flags, 'url'), image: flag(flags, 'image'), video: flag(flags, 'video') }],
+        // without --proof the productions already on its mark stay
+        ...(proofTitle && { proof: [{ title: proofTitle, url: flag(flags, 'url'), image: flag(flags, 'image'), video: flag(flags, 'video') }] }),
         note: flag(flags, 'note'),
       });
-      console.log(`✅ Production, with its proof: ${proofTitle}`);
+      console.log(proofTitle ? `✅ Production, with its proof: ${proofTitle}` : '✅ Production. No production named: add one on its release page when there is one.');
       for (const itemId of positional) console.log(page(itemId));
       return;
     }

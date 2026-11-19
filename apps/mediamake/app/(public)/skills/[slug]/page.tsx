@@ -10,7 +10,7 @@ import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
-import { DependsOn, SkillFilesCard, SkillOwnerTools } from '@/components/catalog/skill-details';
+import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/components/catalog/skill-details';
 import { MadeByLine } from '@/components/catalog/uses';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { SkillActions } from '@/components/skills/skill-actions';
@@ -20,7 +20,9 @@ import { installPromptFor } from '@/lib/catalog/install-prompt';
 import { skillHeadshot } from '@/lib/catalog/items';
 import { listingBadges } from '@/lib/catalog/listing';
 import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
-import { natureInfo, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, suggestedType, typeInfo, typeOf } from '@/lib/catalog/skill-profile';
+import { madeShown } from '@/lib/catalog/made';
+import { madeDB } from '@/lib/catalog/made-store';
+import { itemUsers, natureInfo, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, suggestedType, typeInfo, typeOf } from '@/lib/catalog/skill-profile';
 import { itemPagePath } from '@/lib/catalog/paths';
 import { itemPath } from '@/lib/catalog/summary';
 import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB, skillProfilesDB } from '@/lib/catalog/store';
@@ -36,7 +38,7 @@ import { registry, skillMdUrl, skillNamed, skillRelations, SKILLS_GITHUB } from 
  * (ItemHero), a warning when it is not recommended or deprecated; then its video or headshot and tabs
  * for its README (the skill's store listing, components/catalog/item-listing), how it works (its
  * SKILL.md), what was made with it and feedback. On the right a narrow column: what it is, its tags,
- * its rating, its size, and what it works with. Every skill in skills.json is public, so the page is the same
+ * its rating, its size, what it depends on and what uses it (each a link to that item's page). Every skill in skills.json is public, so the page is the same
  * for everyone, inside the app's sidebar (ItemShell: signed out, the sidebar holds a Sign in button;
  * admins get a Release page button). The list of skills is the homepage's Skills tab (/?tab=skills).
  */
@@ -76,8 +78,10 @@ export default async function SkillPage({ params }: Props) {
 
   const id = `skill/${skill.name}`;
   const key = detailsKey.catalog(id);
-  const { variants: forks, usedBy } = skillRelations(skill);
-  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named] = await Promise.all([
+  const { variants: forks } = skillRelations(skill);
+  // what uses it: the skills that run it as a step
+  const usedBy = itemUsers(id, [], registry?.skills ?? []);
+  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named, members] = await Promise.all([
     catalogVideosDB.get(id).catch(() => null),
     catalogArchiveDB.get(id).catch(() => null),
     catalogReadinessDB.get(id).catch(() => null),
@@ -87,14 +91,16 @@ export default async function SkillPage({ params }: Props) {
     skillProfilesDB.get(key).catch(() => null),
     skillReadmeText(skill),
     skillProfilesDB.subsetsOf(skill.name).catch(() => []),
+    // what members made with it; the page is the same for everyone, so nobody's own is marked here
+    madeDB.list(key).then(entries => madeShown(entries)).catch(() => []),
   ]);
   // its subset skills: its variants, and the store skills that name it as their superset
   const variants = [...forks, ...named.map(skillNamed).filter((found): found is RegistrySkill => !!found && !forks.includes(found))];
   const category = registry?.categories.find(c => c.id === skill.category);
   const [owner] = skill.upstream?.split('/') ?? [];
   const proof = proofOf(readiness);
-  const ready = proof.length > 0;
-  const level: Readiness = ready ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
+  // Production is the admin's mark; the productions made with it are shown when there are any
+  const level: Readiness = readiness?.readiness === 'ready' ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
   // what to use instead, when its listing says not to use this one
   const insteadId = listing?.advice ? listing.insteadOf : undefined;
   const insteadRecord = insteadId ? await getCatalogRecord(insteadId).catch(() => null) : null;
@@ -126,7 +132,7 @@ export default async function SkillPage({ params }: Props) {
     skill,
     listingReadme: listing?.readme,
   });
-  const made = proof.length + (listing?.media.length ?? 0);
+  const made = proof.length + members.length + (listing?.media.length ?? 0);
 
   return (
     <ItemShell back={{ href: '/?tab=skills', label: 'All skills' }} releasePath={itemPath(id)}>
@@ -200,7 +206,7 @@ export default async function SkillPage({ params }: Props) {
                   count: made,
                   content: (
                     <div className="flex flex-col gap-6">
-                      <MadeWithThis itemId={id} mark={readiness} />
+                      <MadeWithThis itemId={id} itemKey={key} title={title} mark={readiness} members={members} loginHref={`/login?redirectTo=${encodeURIComponent(`/skills/${skill.name}`)}`} />
                       <ListingScreenshots itemId={id} media={listing?.media} />
                     </div>
                   ),
@@ -235,7 +241,11 @@ export default async function SkillPage({ params }: Props) {
                 <DependsOn depends={depends} />
               </div>
             )}
-            {usedBy.length > 0 && <SkillList title="Used by" names={usedBy.map(s => s.name)} skills={usedBy} />}
+            {usedBy.length > 0 && (
+              <div className="border-t pt-5">
+                <UsesThis users={usedBy} />
+              </div>
+            )}
             {variants.length > 0 && <SkillList title="Subset skills" names={variants.map(s => s.name)} skills={variants} />}
           </aside>
         </div>

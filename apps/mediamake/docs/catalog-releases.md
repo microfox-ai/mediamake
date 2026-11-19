@@ -222,7 +222,8 @@ are uploaded there (`create_thumbnail_upload`) or pasted by link.
   the others in the Editors' picks row (`storefront` in `lib/app-shell/member.ts`).
 - `{ type: 'set_listing', itemId, advice, adviceNote?, insteadOf? }`: what MediaMake says about
   using it (`ItemAdvice`). `recommended` is the default and shows nothing. `not-recommended`: it
-  works, but there is a better way; its card and page warn, with why. `deprecated`: on its way out;
+  works, but there is a better way; Explore hides it behind the Not recommended filter, and its
+  page warns, with why. `deprecated`: on its way out;
   Explore hides it behind the Deprecated filter, and it still installs by its link. The last two
   need `adviceNote` (why, shown with it) and may name `insteadOf`, the item to use instead.
 
@@ -426,10 +427,11 @@ Every item of every kind, ours or made by others, has both, shown as badges:
 - **Readiness** is the item's level: **Alpha**, **Beta** or **Production** (stored as `ready`;
   the API and mm-release take `production` too). Everything starts as **Beta**. **Alpha** means
   still being tried by its makers: Explore keeps it behind the Alpha filter. **Production**
-  means battle tested, and an admin can mark it only with proof on record: at
-  least one finished production made with it (`readyProof`: a title, and a
-  link when it has one). An MCP also needs to be shown in use: a skill that
-  uses it, or a video on it (`readyProblems`). Marks live in
+  means battle tested. An admin marks it, usually with proof on record: the
+  finished productions made with it (`readyProof`: a title, and a
+  link when it has one). The proof is asked for, not required: an admin may take
+  any skill, MCP or app to Production without one (only a failed item is stopped,
+  `readyProblems`), and its page then says no production is on record yet. Marks live in
   `catalog_readiness`. Moving an item back to Beta or Alpha keeps its proof on
   the mark, so taking it to Production again starts from it.
   This is how the rule, "We publish nothing we don't use." (`RULE` in
@@ -443,8 +445,12 @@ Every item of every kind, ours or made by others, has both, shown as badges:
   or WebM). An admin adds them on the item's release page (picking Production
   as its level asks for them; the Made with this tab edits them: uploads go through `create_proof_upload`, public once
   uploaded), or as links with `catalog_set_readiness` and
-  `npm run catalog -- ready … --url --image --video`. A Beta item shows the
-  note that no production is on record yet. A skill's
+  `npm run catalog -- ready … --url --image --video`. An item with none shows the
+  note that no production is on record yet. **Anyone who can use an item adds what they made with
+  it** (Add yours, on its page and in the app: a title, a link, a picture link; `POST
+  /api/catalog/made`, kept in `catalog_made` by the item's details key, `lib/catalog/made.ts`):
+  their entries sit in the same gallery after the admin's, each adder can take their own back and
+  an admin can remove any. Nobody is shown who added what. A skill's
   production is asked for when it is published
   (`node tools/skills.mjs publish <name> --yes --made="…"`) and in every pull
   request (`.github/pull_request_template.md`).
@@ -463,8 +469,9 @@ Where an item is shown follows from tier, readiness and health
 | Admin | shown | shown | shown | shown |
 
 Explore also keeps a deprecated item (its listing's advice) behind the Deprecated filter and the
-vault's items (admin only, which only admins see) behind the Admin only filter; a not recommended
-item shows with its warning.
+vault's items (admin only, which only admins see) behind the Admin only filter, and a not
+recommended item behind the Not recommended filter (`show=not-recommended`). The list's tags are
+one row; More opens the rest.
 
 In Explore an item a higher membership would open is shown locked, saying
 which one; Cohort and vault items stay out of sight of everyone below them.

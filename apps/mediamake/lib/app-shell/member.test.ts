@@ -49,7 +49,7 @@ const ENTRIES = [
 ];
 
 const items = appItems(ENTRIES, SKILLS, ['cleanup']);
-const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, alpha: false, deprecated: false, admin: false, locked: true, view: 'list' };
+const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, alpha: false, deprecated: false, notRecommended: false, admin: false, locked: true, view: 'list' };
 const ids = (list: { id: string }[]) => list.map(item => item.id).sort();
 
 describe('the items the app lists', () => {
@@ -89,12 +89,12 @@ describe('Explore', () => {
   it('keeps failed and internal items behind their filters, and counts them', () => {
     const result = explore(items, ALL);
     assert.deepEqual(ids(result.shown), ['app/skill-library', 'mcp/browse-hack', 'mcp/elevenlabs', 'skill/make-lyrics-video', 'skill/pack-brand-kit']);
-    assert.deepEqual(result.hidden, { failed: 1, internal: 1, archived: 0, alpha: 0, deprecated: 0, admin: 0 });
+    assert.deepEqual(result.hidden, { failed: 1, internal: 1, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 });
     assert.deepEqual(ids(explore(items, { ...ALL, failed: true }).shown).includes('mcp/broken'), true);
     assert.deepEqual(ids(explore(items, { ...ALL, internal: true }).shown).includes('skill/cleanup-out'), true);
   });
 
-  it('keeps Alpha, deprecated and admin-only items behind their filters, and counts them', () => {
+  it('keeps Alpha, deprecated, not recommended and admin-only items behind their filters, and counts them', () => {
     const more = appItems(
       [
         entry('skill/make-lyrics-video', { readiness: 'ready' }),
@@ -113,13 +113,15 @@ describe('Explore', () => {
     assert.equal(byId.get('mcp/old-way')!.deprecated, true);
     assert.equal(byId.get('mcp/vault')!.adminOnly, true);
     const result = explore(more, ALL);
-    // not recommended still shows, with its warning on the card
-    assert.deepEqual(ids(result.shown), ['mcp/meh', 'skill/make-lyrics-video']);
-    assert.deepEqual(result.hidden, { failed: 0, internal: 0, archived: 0, alpha: 1, deprecated: 1, admin: 1 });
-    assert.deepEqual(ids(explore(more, { ...ALL, alpha: true, deprecated: true, admin: true }).shown), ['mcp/meh', 'mcp/old-way', 'mcp/vault', 'skill/make-lyrics-video', 'skill/make-trial']);
+    assert.equal(byId.get('mcp/meh')!.notRecommended, true);
+    // not recommended stays out until its filter is on, like the rest
+    assert.deepEqual(ids(result.shown), ['skill/make-lyrics-video']);
+    assert.deepEqual(result.hidden, { failed: 0, internal: 0, archived: 0, alpha: 1, deprecated: 1, notRecommended: 1, admin: 1 });
+    assert.deepEqual(ids(explore(more, { ...ALL, notRecommended: true }).shown), ['mcp/meh', 'skill/make-lyrics-video']);
+    assert.deepEqual(ids(explore(more, { ...ALL, alpha: true, deprecated: true, notRecommended: true, admin: true }).shown), ['mcp/meh', 'mcp/old-way', 'mcp/vault', 'skill/make-lyrics-video', 'skill/make-trial']);
     // and the store front never shows them
     const front = storefront(more.map(item => ({ ...item, editorsPick: true })));
-    assert.deepEqual(ids([front.hero!, ...front.picks]), ['mcp/meh', 'skill/make-lyrics-video']);
+    assert.deepEqual(ids([front.hero!, ...front.picks]), ['skill/make-lyrics-video']);
   });
 
   it('filters by kind, category and search, with counts for the chips', () => {
@@ -143,7 +145,7 @@ describe('Explore', () => {
   });
 
   it('reads its filters from the address', () => {
-    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived,alpha,deprecated,admin', locked: '0' }), {
+    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived,alpha,deprecated,not-recommended,admin', locked: '0' }), {
       q: 'amv',
       kind: 'skill',
       category: null,
@@ -152,6 +154,7 @@ describe('Explore', () => {
       archived: true,
       alpha: true,
       deprecated: true,
+      notRecommended: true,
       admin: true,
       locked: false,
       view: 'list',
@@ -165,6 +168,7 @@ describe('Explore', () => {
     assert.equal(exploreFiltersFrom({ category: 'make' }).view, 'list');
     assert.equal(exploreFiltersFrom({ show: 'failed' }).view, 'list');
     assert.equal(exploreFiltersFrom({ show: 'deprecated' }).view, 'list');
+    assert.equal(exploreFiltersFrom({ show: 'not-recommended' }).view, 'list');
   });
 });
 

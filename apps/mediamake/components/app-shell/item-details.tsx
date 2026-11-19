@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon, CheckIcon, ChevronRightIcon, CloudIcon, CopyIcon, ExternalLinkIcon, ImagesIcon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
-import { DependsOn, SkillFilesCard, SkillOwnerTools } from '@/components/catalog/skill-details';
+import { AddMadeButton, RemoveMade, useMade, type Made } from '@/components/catalog/made-members';
+import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/components/catalog/skill-details';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { Poster } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
@@ -24,9 +25,11 @@ import { youtubeEmbedUrl } from '@/lib/catalog/video';
  * public, laid out as a space's Code tab is. A breadcrumb at the top says
  * where it was opened and goes back there. On the left the command that puts
  * it on the computer picked, its README (the item's store listing: a video
- * first, its title, its badges and how to use it) and what was made with it;
- * on the right what it is, its tags, its rating, its link in the store, what
- * it belongs to and which computers have it.
+ * when it has one, its title, its badges and how to use it) and what was made
+ * with it, where anyone who can use it adds theirs; on the right what it is,
+ * its tags, its rating, what it depends on and what uses it (each a link to
+ * that item's page), its link in the store, what it belongs to and which
+ * computers have it.
  *
  * DetailsButton is the link every list uses; ItemDetailsProvider marks where
  * it goes to the app's page (outside it, the link is `href` or plain text).
@@ -131,7 +134,7 @@ function Devices({ devices }: { devices: DetailsDevice[] }) {
 }
 
 /** One thing made with the item, small: it plays or opens in place. */
-function OutputTile({ itemId, tile }: { itemId: string; tile: GalleryTile }) {
+function OutputTile({ itemId, tile, made }: { itemId: string; tile: GalleryTile; made: Made }) {
   const [playing, setPlaying] = React.useState(false);
   let stage: React.ReactNode;
   if (tile.kind === 'video' && tile.src) {
@@ -176,16 +179,17 @@ function OutputTile({ itemId, tile }: { itemId: string; tile: GalleryTile }) {
         {tile.title}
       </p>
       {tile.description && <p className="truncate text-[11px] text-muted-foreground">{tile.description}</p>}
+      <RemoveMade made={made} tile={tile} className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive" />
     </li>
   );
 }
 
 /** What was made with the item, as a grid. Its trailer is not here: it plays above the README. */
-function Outputs({ itemId, tiles }: { itemId: string; tiles: GalleryTile[] }) {
+function Outputs({ itemId, tiles, made }: { itemId: string; tiles: GalleryTile[]; made: Made }) {
   return (
     <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
       {tiles.map(tile => (
-        <OutputTile key={tile.key} itemId={itemId} tile={tile} />
+        <OutputTile key={tile.key} itemId={itemId} tile={tile} made={made} />
       ))}
     </ul>
   );
@@ -271,8 +275,12 @@ function badgesOf(item: ItemDetails): ListingBadge[] {
  */
 export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: ItemDetails; crumbs: Crumb[] }) {
   const notes = item.status.filter(status => status.note && status.tone !== 'good' && status.tone !== 'plain');
+  // what members who use it added themselves, after the productions on record and what the viewer's projects made
+  const members = useMade(itemKey, item.made, { canAdd: !!item.canAddMade, canRemoveAny: !!item.canRemoveMade, signedIn: item.used !== undefined });
+  const tiles = [...item.outputs, ...members.tiles];
   // a private-use skill needs no production to prove it: its page has no "Made with it"
-  const made = item.skill?.nature === 'private-use' ? 0 : item.outputs.length;
+  const privateUse = item.skill?.nature === 'private-use';
+  const made = privateUse ? 0 : tiles.length;
   const readme = item.readme ?? { html: '', written: false };
   const back = [...crumbs].reverse().find(crumb => crumb.href);
   return (
@@ -320,15 +328,14 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
               <ReadmeView id={itemKey} kind={item.kind} title={item.title} readme={readme} badges={badgesOf(item)} video={item.video} headshot={item.listing?.headshot} icon={item.listing?.icon} heading="h1" />
             </div>
           </section>
-          {made > 0 && (
+          {(made > 0 || (members.canAdd && !privateUse)) && (
             <section id="made" className="overflow-hidden rounded-xl border bg-card">
-              <div className="flex items-center gap-2 border-b px-4 py-2.5 text-sm font-semibold">
+              <div className="flex items-center gap-2 border-b px-4 py-1.5 text-sm font-semibold">
                 <ImagesIcon className="size-4 text-muted-foreground" aria-hidden /> Made with it
-                <span className="rounded-full bg-muted px-1.5 text-[11px] font-normal tabular-nums text-muted-foreground">{made}</span>
+                {made > 0 && <span className="rounded-full bg-muted px-1.5 text-[11px] font-normal tabular-nums text-muted-foreground">{made}</span>}
+                <AddMadeButton made={members} title={item.title} className="ml-auto h-7" />
               </div>
-              <div className="p-4">
-                <Outputs itemId={itemKey} tiles={item.outputs} />
-              </div>
+              <div className="p-4">{made > 0 ? <Outputs itemId={itemKey} tiles={tiles} made={members} /> : <p className="text-sm text-muted-foreground">Nothing here yet. Made something with it? Add yours.</p>}</div>
             </section>
           )}
         </div>
@@ -361,6 +368,7 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
           </section>
 
           {item.depends && item.depends.length > 0 && <DependsOn depends={item.depends} />}
+          {item.usedBy && item.usedBy.length > 0 && <UsesThis users={item.usedBy} />}
 
           {item.manage && (
             <section>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { defaultReadme, renderReadme, usePhrase, videoOf } from './readme';
+import { defaultReadme, itemHref, renderReadme, usePhrase, videoOf } from './readme';
 
 const ID = 'dQw4w9WgXcQ';
 const BASE = { links: 'https://github.com/o/r/blob/main/skills/x/', files: 'https://raw.githubusercontent.com/o/r/main/skills/x/' };
@@ -104,5 +104,27 @@ describe('usePhrase', () => {
     assert.equal(usePhrase('analyze-video', 'Use when the user says "/analyze-video <file>"'), '/analyze-video');
     assert.equal(usePhrase('analyze-video', 'No trigger here.'), '/analyze-video');
     assert.equal(usePhrase('make-lyrics-video', 'Use when the user says "make a lyric video from <folder>"'), 'make a lyric video');
+  });
+});
+
+describe('links to other items', () => {
+  it('links a skill, an MCP or an app by its name', async () => {
+    const { html } = await renderReadme('Runs [[revise-video]] and [[mcp/browse-hack|Browse Hack]], see [the remix skill](skill:make-video-music-remix) and `app/studio`.');
+    assert.match(html, /<a href="\/skills\/revise-video" class="readme-item" data-item="skill\/revise-video">revise-video<\/a>/);
+    assert.match(html, /<a href="\/mcps\/browse-hack" class="readme-item" data-item="mcp\/browse-hack">Browse Hack<\/a>/);
+    assert.match(html, /<a href="\/skills\/make-video-music-remix" class="readme-item">the remix skill<\/a>/);
+    assert.match(html, /<a href="\/apps\/studio"[^>]*><code>app\/studio<\/code><\/a>/);
+    // a link to another item stays in the page: it opens no new tab
+    assert.doesNotMatch(html, /target=/);
+  });
+
+  it('leaves code blocks, other code and other schemes alone', async () => {
+    const { html } = await renderReadme('`npm run mm` [x](javascript:alert(1))\n\n```\n[[not-a-link]] mcp/none\n```\n');
+    assert.doesNotMatch(html, /readme-item/);
+    assert.doesNotMatch(html, /javascript/);
+    assert.equal(itemHref('mcp:figcraft'), '/mcps/figcraft');
+    assert.equal(itemHref('/skills/pack-brand-kit'), '/skills/pack-brand-kit');
+    assert.equal(itemHref('/app/admin'), null);
+    assert.equal(itemHref('tutorial:x'), null);
   });
 });

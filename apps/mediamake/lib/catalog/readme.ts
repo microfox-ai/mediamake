@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import { unified } from 'unified';
+import { itemPagePath } from './paths';
 import { parseYouTubeId, youtubeEmbedUrl, youtubeUrl } from './video';
 
 /**
@@ -22,7 +23,10 @@ import { parseYouTubeId, youtubeEmbedUrl, youtubeUrl } from './video';
  * YouTube link or an MP4 or WebM link alone on a line plays in place, as a
  * video dropped into a README does on GitHub. A run of two or more pictures
  * (one per line, or one paragraph each) is a grid of example outputs, each
- * captioned with its alt text (`div.readme-gallery`). Pure but for nothing: no
+ * captioned with its alt text (`div.readme-gallery`). Another skill, MCP or app
+ * is linked by its name (itemLinks): `[[make-lyrics-video]]`, `[[mcp/browse-hack]]`,
+ * `[the remix skill](skill:make-video-music-remix)` or `mcp/browse-hack` in code,
+ * each a link to that item's page. Pure but for nothing: no
  * network, so the pages, the dialog and the tests share it.
  */
 
@@ -184,8 +188,61 @@ function galleries(parent: HastNode) {
   parent.children = out;
 }
 
+/* ---------- links to other items ---------- */
+
+const SLUG = '[a-z0-9][a-z0-9-]{0,63}';
+const ITEM_HREF = new RegExp(`^(skill|mcp|app)[:/](${SLUG})$`);
+const ITEM_PAGE = new RegExp(`^/(skills|mcps|apps)/${SLUG}(#[\\w-]*)?$`);
+const ITEM_CODE = new RegExp(`^(skill|mcp|app)/(${SLUG})$`);
+const WIKI = new RegExp(`\\[\\[(?:(skill|mcp|app)/)?(${SLUG})(?:\\|([^\\]\\n]{1,120}))?\\]\\]`, 'g');
+
+/** The page of the item a link names (`skill:make-my-intro`, `mcp/browse-hack`, `/skills/make-my-intro`), or null. */
+export function itemHref(url: string): string | null {
+  const named = url.match(ITEM_HREF);
+  if (named) return itemPagePath(`${named[1]}/${named[2]}`);
+  return ITEM_PAGE.test(url) ? url : null;
+}
+
+const itemAnchor = (id: string, children: HastNode[]): HastNode => ({
+  type: 'element',
+  tagName: 'a',
+  properties: { href: itemPagePath(id), className: ['readme-item'], dataItem: id },
+  children,
+});
+
+/**
+ * Other items named in the text become links to their pages: `[[name]]` is a skill, `[[mcp/name]]` an
+ * MCP, `[[app/name]]` an app (`[[name|words]]` shows the words), and a kind and a name in code
+ * (`mcp/browse-hack`) links as it is. Nothing inside a link or a code block is touched.
+ */
+function itemLinks(parent: HastNode) {
+  if (parent.type === 'element' && (parent.tagName === 'a' || parent.tagName === 'pre')) return;
+  parent.children = parent.children?.flatMap((child): HastNode[] => {
+    if (child.type === 'element' && child.tagName === 'code') {
+      const named = textOf(child).trim().match(ITEM_CODE);
+      return named ? [itemAnchor(`${named[1]}/${named[2]}`, [child])] : [child];
+    }
+    if (child.type !== 'text' || !child.value?.includes('[[')) {
+      itemLinks(child);
+      return [child];
+    }
+    const out: HastNode[] = [];
+    let at = 0;
+    for (const found of child.value.matchAll(WIKI)) {
+      const [whole, kind = 'skill', name, words] = found;
+      if (found.index > at) out.push({ type: 'text', value: child.value.slice(at, found.index) });
+      out.push(itemAnchor(`${kind}/${name}`, [{ type: 'text', value: words?.trim() || name }]));
+      at = found.index + whole.length;
+    }
+    if (at < child.value.length) out.push({ type: 'text', value: child.value.slice(at) });
+    return out;
+  });
+}
+
 function resolve(url: string, base: ReadmeBase | undefined, file: boolean): string | null {
   if (url.startsWith('#')) return url;
+  // another item, by its name or its page
+  if (!file && itemHref(url)) return itemHref(url);
   if (/^(https?:|mailto:)/i.test(url)) return url;
   if (/^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//') || !base) return null;
   try {
@@ -211,6 +268,7 @@ function fixLinks(node: HastNode, base: ReadmeBase | undefined) {
       const resolved = resolve(value, base, attr === 'src');
       if (resolved === null) delete node.properties[attr];
       else node.properties[attr] = resolved;
+      if (attr === 'href' && resolved && value !== resolved && itemHref(value)) node.properties.className = ['readme-item'];
       if (attr === 'href' && resolved && /^https?:/.test(resolved)) {
         node.properties.target = '_blank';
         node.properties.rel = ['noreferrer'];
@@ -256,6 +314,8 @@ export async function renderReadme(markdown: string, base?: ReadmeBase, written 
       // a run of pictures is a grid of example outputs
       galleries(root);
       fixLinks(root, base);
+      // after the links are fixed: the ones made here are already where they go
+      itemLinks(root);
     })
     .use(rehypeStringify)
     .process(readmeBody(markdown));

@@ -379,7 +379,7 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: "Set items' level: Alpha, Beta or Production (admins)",
       description:
-        "Admins only. Set items' level, how proven they are, for any kind, ours or made by others. Everything starts as beta. alpha: still being tried by its makers; the app's Explore keeps it behind a filter. production (ready is the same): battle tested, and needs proof on record: at least one finished production made with it (its title, and a link when it has one), because we publish nothing we don't use. The item's page shows them as a Made with this gallery, like a store listing, after its trailer (catalog_set_video): give each production a YouTube link, a picture or a clip when there is one (files are uploaded on its release page, this tool takes links). An MCP also needs to be shown in use: a skill that uses it (catalog_items' usedBy) or a video on it. Only Production items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one: never invent it. alpha and beta keep any proof on the mark for when it goes to Production again. Give the user the release page links it answers with.",
+        "Admins only. Set items' level, how proven they are, for any kind, ours or made by others. Everything starts as beta. alpha: still being tried by its makers; the app's Explore keeps it behind a filter. production (ready is the same): battle tested, usually with proof on record: the finished productions made with it (each its title, and a link when it has one), because we publish nothing we don't use. The proof is asked for, not required: an admin may take an item to Production without one, and its page then says none is on record yet. The item's page shows them as a Made with this gallery, like a store listing, apart from its trailer (catalog_set_video): give each production a YouTube link, a picture or a clip when there is one (files are uploaded on its release page, this tool takes links). Only Production items appear on the public site; Beta items appear in the app's Explore with a Beta badge. Ask the user for the production if they didn't name one, and go without only when they say so: never invent it. Without proof the productions already on its mark stay. alpha and beta keep any proof on the mark for when it goes to Production again. Give the user the release page links it answers with.",
       inputSchema: {
         items: z.array(ITEM_ID).min(1).max(200),
         readiness: z.enum(['alpha', 'beta', 'production', 'ready']).describe('production and ready are the same'),
@@ -394,17 +394,16 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
           )
           .max(20)
           .optional()
-          .describe('With production: the finished productions made with it'),
+          .describe('With production: the finished productions made with it. Leave out to keep the ones on record'),
         note: z.string().max(500).optional(),
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
     safe(async ({ items, readiness, proof, note }) => {
       const level = readiness === 'production' ? 'ready' : readiness;
-      if (level === 'ready' && !proof?.length) throw new Error('Production needs proof: at least one finished production made with it (title, and url when it has one)');
       if (level !== 'ready' && proof?.length) throw new Error(`${level} takes no proof: only production does`);
-      await client.post('/api/admin/catalog', { type: 'set_readiness', itemIds: items, readiness: level, proof, note });
-      return json({ readiness: level === 'ready' ? 'production' : level, ...(proof && { proof }), items: items.map(id => ({ id, page: page(id) })) });
+      await client.post('/api/admin/catalog', { type: 'set_readiness', itemIds: items, readiness: level, ...(proof?.length && { proof }), note });
+      return json({ readiness: level === 'ready' ? 'production' : level, ...(proof?.length && { proof }), items: items.map(id => ({ id, page: page(id) })) });
     }),
   );
 

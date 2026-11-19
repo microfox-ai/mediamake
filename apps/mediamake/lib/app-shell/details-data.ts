@@ -3,7 +3,9 @@ import { listCatalog } from '@/lib/catalog';
 import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
 import type { ItemReadme } from '@/lib/catalog/readme';
 import { catalogListingDB, skillProfilesDB } from '@/lib/catalog/store';
-import { natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, spaceItemFiles, suggestedType, typeOf } from '@/lib/catalog/skill-profile';
+import { isMadeKey, madeShown } from '@/lib/catalog/made';
+import { madeDB } from '@/lib/catalog/made-store';
+import { itemUsers, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, spaceItemFiles, suggestedType, typeOf, type SkillDependency } from '@/lib/catalog/skill-profile';
 import { SKILLS_GITHUB } from '@/lib/skills/registry';
 import { registry, skillNamed } from '@/lib/skills/registry';
 import { spaceItemReadme, spaceOfKey } from '@/lib/space/item-readme';
@@ -41,8 +43,22 @@ function registryNeeds(): Map<string, string[]> {
 export async function itemDetailsFor(viewer: { clientId: string | null }, key: string): Promise<ItemDetails | null> {
   const details = await detailsFor(viewer, key);
   if (!details) return null;
-  const { readme, markdown } = await readmeOf(key, details);
-  return { ...details, readme, ...(details.kind === 'skill' && (await skillParts(viewer, key, details, markdown))) };
+  const [{ readme, markdown }, made] = await Promise.all([readmeOf(key, details), isMadeKey(key) ? orEmpty('what members made', () => madeDB.list(key)) : []]);
+  // a store item is also used by the registry's skills: the ones that name it among their MCPs, or run it as a step
+  const usedBy = key.startsWith('catalog:') ? mergeUsers(details.usedBy, itemUsers(`${details.kind}/${details.name}`, [], registry?.skills ?? [])) : details.usedBy;
+  return {
+    ...details,
+    readme,
+    made: madeShown(made, viewer.clientId),
+    ...(usedBy?.length && { usedBy }),
+    ...(details.kind === 'skill' && (await skillParts(viewer, key, details, markdown))),
+  };
+}
+
+/** Two lists of what uses an item as one: each user once, the first list's words kept. */
+function mergeUsers(first: SkillDependency[] = [], second: SkillDependency[] = []): SkillDependency[] {
+  const seen = new Set(first.map(user => `${user.kind}/${user.name}`));
+  return [...first, ...second.filter(user => !seen.has(`${user.kind}/${user.name}`))];
 }
 
 /** The details alone, without the README: what a route needs to know who may change an item. */

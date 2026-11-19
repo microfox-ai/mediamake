@@ -11,6 +11,8 @@ import {
   skillDetailsView,
   spaceItemFiles,
   suggestedType,
+  itemUsers,
+  useDependencies,
 } from './skill-profile';
 
 describe('skillDetailsView', () => {
@@ -151,6 +153,7 @@ describe('readmeChecks', () => {
       [
         ['title', true, true],
         ['what', true, true],
+        ['picture', true, false],
         ['how', true, true],
         ['uses', true, true],
         ['outputs', true, true],
@@ -167,11 +170,47 @@ describe('readmeChecks', () => {
 
   it('asks nothing of a private-use skill, and nothing about uses of one that depends on nothing', () => {
     const checks = readmeChecks(null, 'private-use');
-    assert.deepEqual(checks.map(check => check.id), ['title', 'what', 'how', 'outputs']);
+    assert.deepEqual(checks.map(check => check.id), ['title', 'what', 'picture', 'how', 'outputs']);
     assert.ok(checks.every(check => !check.ok && !check.required));
+  });
+
+  it('suggests a picture that explains it, never a video', () => {
+    const picture = (markdown: string) => readmeChecks(markdown, 'shared-use').find(check => check.id === 'picture')!;
+    assert.equal(picture('# T\n\nWhat.\n\n## How to use\n').ok, false);
+    assert.equal(picture('# T\n\nWhat.\n\n## How to use\n').required, false);
+    assert.equal(picture('---\nheadshot: headshot.jpg\n---\n\n# T\n\nWhat.\n').ok, true);
+    assert.equal(picture('# T\n\nWhat.\n\n![How it works](shots/how.png)\n\n## How to use\n').ok, true);
+    // an example under the outputs is not the picture that explains it
+    assert.equal(picture('# T\n\nWhat.\n\n## What the skill outputs\n\n![One](a.png)\n').ok, false);
+    assert.ok(readmeChecks(null, 'shared-use').every(check => !/video/i.test(check.label)));
   });
 
   it('does not take a video link for what the skill is', () => {
     assert.equal(readmeChecks('https://youtu.be/dQw4w9WgXcQ\n\n# T\n\n## How to use\n', 'shared-use').find(check => check.id === 'what')!.ok, false);
+  });
+});
+
+describe('itemUsers', () => {
+  const skills = [
+    { name: 'make-lyrics-video', summary: 'Lyric videos', mcps: [{ id: 'mcp/elevenlabs', need: 'required' as const, for: 'Timed words', without: 'No words' }], dependsOn: ['revise-video'] },
+    { name: 'revise-video', summary: 'Review rounds' },
+  ];
+
+  it('lists what uses an MCP: the skills that name it, then the catalog items that work with it', () => {
+    const users = itemUsers('mcp/elevenlabs', [{ id: 'app/studio', uses: [{ id: 'mcp/elevenlabs', need: 'optional', for: 'Voice takes' }] }, { id: 'skill/make-lyrics-video', uses: [{ id: 'mcp/elevenlabs', need: 'required', for: 'again' }] }], skills);
+    assert.deepEqual(users, [
+      { kind: 'skill', name: 'make-lyrics-video', need: 'required', note: 'Timed words' },
+      { kind: 'app', name: 'studio', need: 'optional', note: 'Voice takes' },
+    ]);
+  });
+
+  it('lists the skills that run a skill as a step, and never the item itself', () => {
+    assert.deepEqual(itemUsers('skill/revise-video', [{ id: 'skill/revise-video', uses: [{ id: 'skill/revise-video' }] }], skills), [{ kind: 'skill', name: 'make-lyrics-video', note: 'Lyric videos' }]);
+    assert.deepEqual(itemUsers('mcp/nobody', [], skills), []);
+  });
+
+  it("reads an MCP's or an app's dependencies from what it works with", () => {
+    assert.deepEqual(useDependencies([{ id: 'mcp/figcraft', need: 'required', for: 'Editable layers' }, { id: 'tutorial/x' }]), [{ kind: 'mcp', name: 'figcraft', need: 'required', note: 'Editable layers' }]);
+    assert.deepEqual(useDependencies(undefined), []);
   });
 });

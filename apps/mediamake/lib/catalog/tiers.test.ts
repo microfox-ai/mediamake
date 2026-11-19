@@ -87,7 +87,7 @@ describe('an item\'s tier', () => {
 });
 
 describe('readiness', () => {
-  it('starts everything as Beta, and is Ready only with a mark that carries its proof', () => {
+  it('starts everything as Beta, and is Ready with a Ready mark, with its proof or without', () => {
     const items = [record('skill/a'), record('skill/b'), record('skill/c')];
     const [a, b, c] = withReadiness(items, [
       { id: 'skill/a', readiness: 'ready', proof: [{ title: 'A real video', url: 'https://youtu.be/x' }], at: '2026-11-15' },
@@ -95,21 +95,17 @@ describe('readiness', () => {
     ]);
     assert.equal(a.readiness, 'ready');
     assert.deepEqual(a.readyProof, [{ title: 'A real video', url: 'https://youtu.be/x' }]);
-    assert.equal(b.readiness, 'beta');
+    // an admin may take an item to Production with no production on record
+    assert.equal(b.readiness, 'ready');
+    assert.equal('readyProof' in b, false);
     assert.equal(c.readiness, 'beta');
     assert.equal('readyProof' in c, false);
   });
 
-  it('needs a production made with it, and for an MCP a skill that uses it or a video', () => {
-    const proof = [{ title: 'The Microfox brand kit' }];
-    assert.deepEqual(readyProblems(record('skill/a'), proof, 0), []);
-    assert.equal(readyProblems(record('skill/a'), [], 0).length, 1);
-    assert.equal(readyProblems(record('skill/a'), undefined, 3).length, 1);
-    // Gemini is used by no skill: proof alone doesn't make it Ready
-    assert.equal(readyProblems(record('mcp/gemini'), proof, 0).length, 1);
-    assert.deepEqual(readyProblems(record('mcp/elevenlabs'), proof, 10), []);
-    assert.deepEqual(readyProblems(record('mcp/gemini', { video: { title: 'How we use it', description: '' } }), proof, 0), []);
-    assert.equal(readyProblems(record('skill/a', { health: 'failed' }), proof, 0).length, 1);
+  it('is stopped only by being failed: a production, a using skill or a video are not required', () => {
+    assert.deepEqual(readyProblems(record('skill/a')), []);
+    assert.deepEqual(readyProblems(record('mcp/gemini')), []);
+    assert.equal(readyProblems(record('skill/a', { health: 'failed' })).length, 1);
   });
 });
 
@@ -211,7 +207,7 @@ describe('the migration to the ladder', () => {
     assert.deepEqual(Object.keys(READY_DECISIONS), ['skill/pack-brand-kit']);
     assert.deepEqual(plan.ready.map(item => item.id), ['skill/pack-brand-kit']);
     assert.ok(plan.ready[0].proof[0].url?.startsWith('https://'));
-    assert.deepEqual(readyProblems(staticRecord('skill/pack-brand-kit')!, plan.ready[0].proof, 1), []);
+    assert.deepEqual(readyProblems(staticRecord('skill/pack-brand-kit')!), []);
   });
 
   it('plans nothing the second time', () => {

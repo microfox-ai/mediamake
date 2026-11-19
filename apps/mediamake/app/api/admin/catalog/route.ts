@@ -19,7 +19,6 @@ import { catalogIndex } from '@/lib/catalog/admin-index';
 import { MAX_ADVICE_NOTE, MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
 import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
-import { usedByOf } from '@/lib/catalog/summary';
 import { isMembershipSource } from '@/lib/memberships/membership';
 import { changeTier, listKeyHolders, makePermanent, resolveRequest } from '@/lib/memberships/admin';
 import { membershipsDB } from '@/lib/memberships/store';
@@ -332,8 +331,9 @@ function idsFrom(body: { itemIds?: unknown; itemId?: unknown }): string[] | null
  *  { type: 'create_proof_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
  *                             (a signed PUT for a production's picture or clip in the item's gallery,
  *                             public once uploaded; send the same Content-Type and x-amz-acl: public-read)
- *                             (Ready needs proof: at least one finished production made with it; an MCP also
- *                             needs a skill that uses it or a video. Alpha and Beta keep any proof on the mark
+ *                             (Production takes the finished productions made with it as proof, shown on its
+ *                             page; they are asked for, not required. No `proof` keeps what is on the mark, a
+ *                             list replaces it. Alpha and Beta keep any proof on the mark
  *                             for later; Explore hides Alpha behind a filter. Any kind)
  *  { type: 'set_health',      itemIds: string[] (or itemId), health: 'healthy' | 'inactive' | 'archived' | 'failed' | null, note? }
  *                             (any kind; failed needs the reason in note; null clears an admin's mark)
@@ -514,16 +514,20 @@ export async function POST(req: NextRequest) {
       if (readiness !== 'ready') {
         await catalogReadinessDB.setLevel(ids, readiness, adminId);
       } else {
-        const parsed = proofSchema.safeParse(body.proof ?? []);
-        if (!parsed.success) return bad(parsed.error.issues.map(i => `proof.${i.path.join('.')}: ${i.message}`).join('; '));
-        const proof: ReadyProof[] = parsed.data.map(entry => ({
-          title: entry.title,
-          ...(entry.url && { url: entry.url }),
-          ...(entry.image && { image: entry.image }),
-          ...(entry.video && { video: entry.video }),
-        }));
-        // the rule turned into a check: nothing is Ready without a production made with it
-        const problems = ids.flatMap(id => readyProblems(byId.get(id)!, proof, usedByOf(byId.values(), id).length).map(problem => `${id}: ${problem}`));
+        // the productions made with it are asked for, not required: an admin may go to Production without one.
+        // No `proof` given keeps what is on the mark; a list (an empty one too) replaces it.
+        let proof: ReadyProof[] | undefined;
+        if (body.proof !== undefined) {
+          const parsed = proofSchema.safeParse(body.proof);
+          if (!parsed.success) return bad(parsed.error.issues.map(i => `proof.${i.path.join('.')}: ${i.message}`).join('; '));
+          proof = parsed.data.map(entry => ({
+            title: entry.title,
+            ...(entry.url && { url: entry.url }),
+            ...(entry.image && { image: entry.image }),
+            ...(entry.video && { video: entry.video }),
+          }));
+        }
+        const problems = ids.flatMap(id => readyProblems(byId.get(id)!).map(problem => `${id}: ${problem}`));
         if (problems.length) return bad(problems.join('; '));
         await catalogReadinessDB.setReady(ids, proof, adminId, body.note?.trim() || undefined);
       }

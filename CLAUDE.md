@@ -13,6 +13,9 @@ every session:
 - The production is the item's proof: `node tools/skills.mjs publish <name> --yes --made="…"` puts it in
   the pull request, and Ready (`catalog_set_readiness`, `npm run catalog -- ready`) records it, shown on
   the item's page as "Made with this".
+- Production is an admin's call: for any skill, MCP or app the production is asked for, not a hard
+  gate, and an admin may mark one Production without it (never do it unasked; its page then says none
+  is on record). Anyone who can use an item adds what they made with it on its page (Add yours).
 - A pull request that adds or changes a skill, MCP or app names the production in its "Made with this"
   section (`.github/pull_request_template.md`).
 
@@ -350,8 +353,9 @@ Every skill, MCP and app has a README, its store listing: its page and its dialo
 GitHub-style, with the details in a narrow column on the right. `apps/mediamake/docs/item-readme.md` has
 the format.
 
-- A README introduces the item, in this order: a video link alone on the first line, `# Title`, what it
-  does in a line or two, `## How to use`, `## What it uses` (the skills, MCPs and apps it depends on and
+- A README introduces the item, in this order: a video link alone on the first line when it has one
+  (an intro video is an optional decoration; a headshot and an explaining infographic come first),
+  `# Title`, what it does in a line or two, `## How to use`, `## What it uses` (the skills, MCPs and apps it depends on and
   the part each plays) and, always last, `## What the skill outputs` with examples. Never how it works:
   that stays in SKILL.md.
 - That order is strict for a shared-use skill (one that can be listed in the store). A private-use
@@ -359,6 +363,9 @@ the format.
   `shared-use`) and type (`internal`, `superset`, `subset`, `mcp-use`) are set on its page (Edit details)
   or in its README's frontmatter. Every subset names its `superset` (the skill it is a style or a part
   of). Ask the user for these when a skill is made or released; never guess them.
+- Another item is named as a link: `[[skill-name]]`, `[[mcp/name]]`, `[[app/name]]` (or
+  `[words](skill:name)`), each opening that item's page. Its page's right column lists what it depends
+  on and what uses it, linked the same way.
 - A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
   release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`).
