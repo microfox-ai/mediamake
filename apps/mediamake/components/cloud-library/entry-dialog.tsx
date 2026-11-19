@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { Loader2Icon, UploadIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ClipboardIcon, Loader2Icon, UploadIcon, XIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EntryRecord, FieldValue } from '@/lib/cloud-library';
-import { changedFields, formatBytes, placeFiles, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
+import { addPrompt, changedFields, formatBytes, placeFiles, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
 import { libraryApi, uploadFiles } from './api';
 import { FieldInput } from './field-input';
 
@@ -47,6 +47,7 @@ export function EntryDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [over, setOver] = React.useState(false);
   const picker = React.useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = React.useState(false);
 
   // a fresh form each time the dialog opens
   React.useEffect(() => {
@@ -70,6 +71,17 @@ export function EntryDialog({
     const filled = new Set([...collection.slots.filter(slot => !slot.many && kept(slot.key).length).map(slot => slot.key), ...added.filter(a => collection.slots.some(slot => slot.key === a.slot && !slot.many)).map(a => a.slot)]);
     const slots = placeFiles(files, collection.slots, filled);
     setAdded(current => [...current, ...files.map((file, index) => ({ file, slot: slots[index] }))]);
+  };
+
+  // the same add, done by Claude from a computer: the prompt names this space and collection
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(addPrompt(space, collection, String(values[titleField.key] ?? '')));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Could not copy: your browser did not allow it');
+    }
   };
 
   const save = async () => {
@@ -223,9 +235,17 @@ export function EntryDialog({
         </Tabs>
 
         <DialogFooter className="items-center gap-2 sm:justify-between">
-          <p className={`min-w-0 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`} role={error ? 'alert' : undefined}>
-            {error ?? busy ?? ''}
-          </p>
+          <div className="flex min-w-0 items-center gap-3">
+            {!entry && (
+              <button type="button" className={`${button} shrink-0`} disabled={!!busy} onClick={copyPrompt} title={`Give it to Claude on a computer, and it adds the ${collection.noun} for you`}>
+                {copied ? <CheckIcon className="size-4" /> : <ClipboardIcon className="size-4" />}
+                {copied ? 'Copied' : 'Copy prompt to add'}
+              </button>
+            )}
+            <p className={`min-w-0 text-xs ${error ? 'text-destructive' : 'text-muted-foreground'}`} role={error ? 'alert' : undefined}>
+              {error ?? busy ?? ''}
+            </p>
+          </div>
           <div className="flex shrink-0 gap-2">
             <button type="button" className={button} disabled={!!busy} onClick={() => onOpenChange(false)}>
               Cancel

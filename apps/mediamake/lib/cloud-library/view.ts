@@ -35,6 +35,8 @@ export interface CollectionView {
   fields: FieldView[];
   slots: SlotView[];
   learned: Record<string, string[]>;
+  /** Its picture, as a link the page can show (a stored one is signed for an hour). */
+  headshot?: string;
   guide?: string;
   prefs?: string;
 }
@@ -209,3 +211,92 @@ export function listQuery(at: { space: string; collection?: string | null; q?: s
 }
 
 export const dollars = (amount: number): string => (amount > 0 && amount < 0.01 ? '< $0.01' : `$${amount.toFixed(2)}`);
+
+/* ---------- the views of a collection ---------- */
+
+/** How a collection's entries are laid out. Each behaves its own way: a sheet sorts by a column, folders group by a field. */
+export const VIEWS = ['grid', 'list', 'sheet', 'folders'] as const;
+export type LibraryView = (typeof VIEWS)[number];
+export const viewOf = (value: unknown): LibraryView => (VIEWS.includes(value as LibraryView) ? (value as LibraryView) : 'grid');
+
+export interface SheetColumn {
+  /** A field's key, `has:<slot>` for a file slot, or `updatedAt`. */
+  key: string;
+  label: string;
+  kind: 'field' | 'slot' | 'date';
+}
+
+/** A sheet's columns: the title, the other short fields, a column a file slot, then when it last changed. */
+export function sheetColumns(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField'>): SheetColumn[] {
+  const short = collection.fields.filter(field => ['text', 'choice', 'date', 'number', 'tags'].includes(field.kind));
+  const title = short.find(field => field.key === collection.titleField);
+  return [
+    ...(title ? [title] : []).map(field => ({ key: field.key, label: field.label, kind: 'field' as const })),
+    ...short.filter(field => field.key !== collection.titleField).map(field => ({ key: field.key, label: field.label, kind: 'field' as const })),
+    ...collection.slots.map(slot => ({ key: `has:${slot.key}`, label: slot.label, kind: 'slot' as const })),
+    { key: 'updatedAt', label: 'Changed', kind: 'date' as const },
+  ];
+}
+
+/** What a sheet's cell holds, as text ("" when empty). A slot's cell is how many files it has. */
+export function cellText(row: Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title'>, column: SheetColumn, titleField = 'title'): string {
+  if (column.kind === 'date') return dayText(row.updatedAt);
+  if (column.kind === 'slot') return row.has[column.key.slice(4)] ? String(row.has[column.key.slice(4)]) : '';
+  const value = row.facts[column.key] ?? (column.key === titleField ? row.title : undefined);
+  return value === undefined ? '' : Array.isArray(value) ? value.join(', ') : value;
+}
+
+/** Rows in a column's order. Empty cells go last either way, and numbers sort as numbers. */
+export function sortRows<T extends Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title'>>(rows: T[], column: SheetColumn, direction: 'asc' | 'desc', titleField = 'title'): T[] {
+  const keyOf = (row: T) => (column.kind === 'date' ? row.updatedAt : cellText(row, column, titleField));
+  const sign = direction === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const [x, y] = [keyOf(a), keyOf(b)];
+    if (!x || !y) return x ? -1 : y ? 1 : 0;
+    return sign * x.localeCompare(y, 'en', { numeric: true, sensitivity: 'base' });
+  });
+}
+
+/** The fields a collection can be put in folders by: a choice, or a list that learns (an artist, a label, genres). */
+export function folderFields(collection: Pick<CollectionView, 'fields'>): FieldView[] {
+  return collection.fields.filter(field => field.kind === 'choice' || (!!field.learns && (field.kind === 'text' || field.kind === 'tags')));
+}
+
+export const NOT_SET = 'Not set';
+
+/**
+ * Entries as folders by one field, the fullest first and "Not set" last. An entry with several
+ * values (two genres) is in each of their folders.
+ */
+export function foldersOf<T extends Pick<EntryRow, 'facts'>>(rows: T[], field: string): { name: string; rows: T[] }[] {
+  const folders = new Map<string, T[]>();
+  for (const row of rows) {
+    const value = row.facts[field];
+    const names = Array.isArray(value) ? value : value ? [value] : [];
+    for (const name of names.length ? names : [NOT_SET]) folders.set(name, [...(folders.get(name) ?? []), row]);
+  }
+  return [...folders].map(([name, list]) => ({ name, rows: list })).sort((a, b) => Number(a.name === NOT_SET) - Number(b.name === NOT_SET) || b.rows.length - a.rows.length || a.name.localeCompare(b.name));
+}
+
+/**
+ * The prompt a person copies from the Add dialog and gives to Claude, so the entry is added from a
+ * computer with `mm library` instead of through the browser: where it goes, the guide to read
+ * first, the slots, and the rule that nothing is saved before they agree.
+ */
+export function addPrompt(space: Pick<SpaceView, 'id' | 'name' | 'personal'>, collection: Pick<CollectionView, 'slug' | 'name' | 'noun' | 'fields' | 'slots' | 'titleField'>, title = ''): string {
+  const at = space.personal ? '' : ` --project=${space.id}`;
+  const titleKey = collection.titleField;
+  const never = collection.fields.filter(field => field.neverGuess).map(field => field.label.toLowerCase());
+  const named = title.trim();
+  return [
+    `Add ${named ? `the ${collection.noun} "${named}"` : `a ${collection.noun}`} to my MediaMake Cloud Library: the ${collection.name} collection of the ${space.personal ? 'Personal' : space.name} space.`,
+    '',
+    `1. Read how the collection is filled: mm library guide ${collection.slug}${at}`,
+    `2. Ask me for the files or the folder if I have not given them. Each file goes in one slot: ${collection.slots.map(slot => `${slot.key} (${slot.label.toLowerCase()}${slot.many ? ', several' : ''})`).join(', ')}.`,
+    `3. Check it is not there already: mm library search "<the title>" --collection=${collection.slug}${at}`,
+    `4. Run mm library save ${collection.slug}${at} --set ${titleKey}="${named || '<the title>'}" --set <field>=<value> --file <slot>=<path> without --yes, and show me the sentence it prints.`,
+    '5. Add --yes only after I agree.',
+    '',
+    `Fill only what the files or I tell you.${never.length ? ` Never guess: ${never.join(', ')}.` : ''} Leave the rest empty.`,
+  ].join('\n');
+}

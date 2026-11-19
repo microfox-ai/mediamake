@@ -139,6 +139,8 @@ export interface CollectionRecord {
   template: Template;
   /** The owner's corrections for whoever fills it: Markdown, shown under the template's guide. */
   prefs: string;
+  /** Its picture on the collection's card (16:9 reads best): an image this space stores, or an https link. */
+  headshot?: { sha256?: string; name?: string; url?: string };
   /** The lists that learn: list name → value → how often it was used. */
   learned: Record<string, Record<string, number>>;
   createdAt: string;

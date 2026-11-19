@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpenIcon, BotIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, FolderIcon, Loader2Icon, PlusIcon, SearchIcon, UserIcon } from 'lucide-react';
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, FolderIcon, Loader2Icon, PlusIcon, SearchIcon, UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPage } from '@/components/app-shell/app-page';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -13,10 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { canChange, dayText, filtersOf, libraryHref, listQuery, type CollectionView, type EntryAnswer, type EntryRow, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
+import { canChange, filtersOf, folderFields, libraryHref, listQuery, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
+import { CollectionCard } from './collection-card';
 import { EntryDialog } from './entry-dialog';
 import { EntryView } from './entry-view';
+import { EntryViews, ViewSwitch } from './entry-views';
 
 /**
  * /app/library: the Cloud Library. The space is picked at the top right (Personal when no project
@@ -27,6 +29,7 @@ import { EntryView } from './entry-view';
 
 const ANY = '__any__';
 const REMEMBER = 'mediamake.library.space';
+const REMEMBER_VIEW = 'mediamake.library.view';
 const button = 'inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50';
 const primary = 'inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
 const card = 'flex flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50';
@@ -212,39 +215,6 @@ function Guide({ space, collection, open, onOpenChange, onSaved }: { space: Spac
   );
 }
 
-function EntryCard({ row, collection, href, showCollection }: { row: EntryRow; collection: CollectionView | undefined; href: string; showCollection?: boolean }) {
-  const title = collection?.titleField ?? 'title';
-  const lines = (collection?.fields ?? []).filter(field => field.key !== title && field.kind !== 'tags' && typeof row.facts[field.key] === 'string').slice(0, 3);
-  const tags = (collection?.fields ?? []).filter(field => field.kind === 'tags').flatMap(field => (Array.isArray(row.facts[field.key]) ? (row.facts[field.key] as string[]) : [])).slice(0, 4);
-  return (
-    <Link href={href} className={card}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-semibold">{row.title}</p>
-        {row.agent && <BotIcon className="size-4 shrink-0 text-muted-foreground" aria-label="Added by AI" />}
-      </div>
-      {showCollection && collection && <p className="text-xs text-muted-foreground">{collection.name}</p>}
-      {lines.length > 0 && <p className="truncate text-xs text-muted-foreground">{lines.map(field => row.facts[field.key]).join(' · ')}</p>}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {tags.map(tag => (
-            <span key={tag} className="rounded-md border bg-muted px-1.5 py-0.5 text-[11px]">
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="mt-auto flex flex-wrap gap-1 pt-1">
-        {(collection?.slots ?? []).map(slot => (
-          <span key={slot.key} className={`rounded-md border px-1.5 py-0.5 text-[11px] ${row.has[slot.key] ? '' : 'border-dashed text-muted-foreground/60'}`} title={row.has[slot.key] ? `Has its ${slot.label.toLowerCase()}` : `No ${slot.label.toLowerCase()} yet`}>
-            {slot.label}
-            {slot.many && row.has[slot.key] ? ` ${row.has[slot.key]}` : ''}
-          </span>
-        ))}
-      </div>
-    </Link>
-  );
-}
-
 function Empty({ title, about, children }: { title: string; about: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-12 text-center">
@@ -261,6 +231,9 @@ export function LibraryPage() {
   const spaceParam = params.get('space');
   const collectionSlug = params.get('c');
   const entrySlug = collectionSlug ? params.get('e') : null;
+  // folders view: the field entries are grouped by, and the folder that is open
+  const byParam = params.get('by');
+  const folder = collectionSlug && !entrySlug ? params.get('f') : null;
 
   const [spaces, setSpaces] = React.useState<SpaceOverview[] | null>(null);
   const [templates, setTemplates] = React.useState<TemplateCard[]>([]);
@@ -275,6 +248,18 @@ export function LibraryPage() {
   const [adding, setAdding] = React.useState(false);
   const [making, setMaking] = React.useState(false);
   const [guide, setGuide] = React.useState(false);
+  const [view, setView] = React.useState<LibraryView>('grid');
+  React.useEffect(() => {
+    try {
+      setView(viewOf(window.localStorage.getItem(REMEMBER_VIEW)));
+    } catch {}
+  }, []);
+  const pickView = (next: LibraryView) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(REMEMBER_VIEW, next);
+    } catch {}
+  };
   const [tick, setTick] = React.useState(0);
   const reload = () => setTick(n => n + 1);
 
@@ -383,6 +368,14 @@ export function LibraryPage() {
     go({ collection: c, entry: e });
   };
 
+  const groupable = collection ? folderFields(collection) : [];
+  const folderField = groupable.find(field => field.key === byParam)?.key ?? groupable[0]?.key ?? null;
+  const withFolder = (name: string | null, by = folderField) => {
+    const query = new URLSearchParams({ space: spaceId ?? '', c: collectionSlug ?? '' });
+    if (by) query.set('by', by);
+    if (name !== null) query.set('f', name);
+    return `/app/library?${query}`;
+  };
   const may = canChange(space);
   const filters = collection ? filtersOf(collection) : null;
   const filtered = !!q.trim() || Object.values(where).some(Boolean) || !!files;
@@ -426,12 +419,18 @@ export function LibraryPage() {
                     Library
                   </Link>
                   <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-                  {entrySlug ? (
-                    <Link href={libraryHref({ space: space.id, collection: collection.slug })} className="text-muted-foreground hover:text-foreground">
+                  {entrySlug || (view === 'folders' && folder !== null) ? (
+                    <Link href={entrySlug ? libraryHref({ space: space.id, collection: collection.slug }) : withFolder(null)} className="text-muted-foreground hover:text-foreground">
                       {collection.name}
                     </Link>
                   ) : (
                     <span className="font-medium">{collection.name}</span>
+                  )}
+                  {!entrySlug && view === 'folders' && folder !== null && (
+                    <>
+                      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium">{folder}</span>
+                    </>
                   )}
                   {entrySlug && (
                     <>
@@ -475,6 +474,21 @@ export function LibraryPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {view === 'folders' && groupable.length > 1 && (
+                      <Select value={folderField ?? ''} onValueChange={value => router.push(withFolder(null, value))}>
+                        <SelectTrigger className="h-8 w-44" aria-label="Folders by">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {groupable.map(field => (
+                            <SelectItem key={field.key} value={field.key}>
+                              By {field.label.toLowerCase()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <ViewSwitch view={view} onChange={pickView} />
                     <button type="button" className={button} onClick={() => setGuide(true)}>
                       <BookOpenIcon className="size-4" />
                       Guide
@@ -496,12 +510,17 @@ export function LibraryPage() {
             {/* a collection's entries, or what a search of the whole space found */}
             {listing && rows && rows.results.length > 0 && (
               <>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {rows.results.map(row => {
-                    const [c, e] = row.ref.split('/');
-                    return <EntryCard key={row.ref} row={row} collection={collections.find(item => item.slug === c)} href={libraryHref({ space: space.id, collection: c, entry: e })} showCollection={!collection} />;
-                  })}
-                </div>
+                <EntryViews
+                  view={view}
+                  collection={collection}
+                  rows={rows.results}
+                  collectionOf={row => collections.find(item => item.slug === row.ref.split('/')[0])}
+                  hrefOf={row => libraryHref({ space: space.id, collection: row.ref.split('/')[0], entry: row.ref.split('/')[1] })}
+                  showCollection={!collection}
+                  folderField={folderField}
+                  folder={view === 'folders' ? folder : null}
+                  folderHref={name => withFolder(name)}
+                />
                 {rows.total > rows.results.length && (
                   <p className="text-xs text-muted-foreground">
                     Showing {rows.results.length} of {rows.total}. Search or filter to narrow it.
@@ -530,17 +549,10 @@ export function LibraryPage() {
                 {collections.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {collections.map(item => (
-                      <Link key={item.slug} href={libraryHref({ space: space.id, collection: item.slug })} className={card}>
-                        <p className="text-base font-semibold">{item.name}</p>
-                        <p className="line-clamp-2 text-xs text-muted-foreground">{item.about}</p>
-                        <p className="mt-auto pt-2 text-xs text-muted-foreground">
-                          {item.entries} {item.noun}
-                          {item.entries === 1 ? '' : 's'} · changed {dayText(item.updatedAt)}
-                        </p>
-                      </Link>
+                      <CollectionCard key={item.slug} space={space} collection={item} href={libraryHref({ space: space.id, collection: item.slug })} may={may} onChanged={reload} />
                     ))}
                     {may && (
-                      <button type="button" className={`${card} items-center justify-center border-dashed text-sm font-medium text-muted-foreground`} onClick={() => setMaking(true)}>
+                      <button type="button" className={`${card} min-h-40 items-center justify-center border-dashed text-sm font-medium text-muted-foreground`} onClick={() => setMaking(true)}>
                         <PlusIcon className="size-5" />
                         New collection
                       </button>

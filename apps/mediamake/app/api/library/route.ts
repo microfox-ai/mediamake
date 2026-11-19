@@ -16,6 +16,8 @@ import { ensurePersonalProject } from '@/lib/projects/personal';
  *                       the template's guide and the owner's preferences. Read this before filling one.
  * POST  { action: "new-collection", space, template, name? }   a collection from a template.
  *       { action: "prefs", space, collection, prefs }          the owner's preferences (Markdown, whole).
+ *       { action: "headshot", space, collection, sha256? | url? } the collection's picture: an image the space
+ *                                                              stores, or an https link. Neither takes it off.
  */
 export async function GET(req: NextRequest) {
   const { clientId } = caller(req);
@@ -50,7 +52,8 @@ export async function POST(req: NextRequest) {
       if (at.space.role !== 'owner') return refuse("Only the space's owner writes a collection's preferences", 403);
       return answer(await libraryDB.setPrefs(at.space, String(body.collection ?? ''), String(body.prefs ?? '')));
     }
-    return refuse('action is "new-collection" or "prefs"');
+    if (body?.action === 'headshot') return answer(await libraryDB.setHeadshot(at.space, String(body.collection ?? ''), { sha256: body.sha256, url: body.url }));
+    return refuse('action is "new-collection", "prefs" or "headshot"');
   } catch (error) {
     return failed('change the Library', error);
   }

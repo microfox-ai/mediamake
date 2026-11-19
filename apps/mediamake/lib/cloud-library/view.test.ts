@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { factsOf } from './index';
 import { SONGS } from './templates';
-import { changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
+import { NOT_SET, addPrompt, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
 
 const slots: SlotView[] = SONGS.slots;
 const fields: FieldView[] = SONGS.fields;
@@ -66,4 +66,49 @@ test('a list row carries the short facts and the filled slots', () => {
   });
   assert.deepEqual(row.facts, { title: 'Nakama!', use: 'Released', genres: ['Anime', 'Rock'] });
   assert.deepEqual(row.has, { master: 1 });
+});
+
+const view = { slug: 'songs', name: 'Songs', noun: 'song', titleField: 'title', fields, slots };
+const rowOf = (title: string, facts: Record<string, string | string[]>, has: Record<string, number> = {}, updatedAt = '2026-11-19T00:00:00Z') => ({ title, facts: { title, ...facts }, has, updatedAt });
+
+test('a sheet has the title first, the short fields, a column a slot, then the day', () => {
+  const columns = sheetColumns(view);
+  assert.deepEqual(columns.slice(0, 3).map(c => c.key), ['title', 'titleLatin', 'artist']);
+  assert.ok(!columns.some(c => c.key === 'lyrics' || c.key === 'storeLinks'));
+  assert.deepEqual(columns.slice(-3).map(c => c.key), ['has:artwork', 'has:distrokid-pack', 'updatedAt']);
+  const row = rowOf('Sea Song', { genres: ['Rock', 'Pop'] }, { stems: 3 });
+  assert.equal(cellText(row, columns.find(c => c.key === 'genres')!), 'Rock, Pop');
+  assert.equal(cellText(row, columns.find(c => c.key === 'has:stems')!), '3');
+  assert.equal(cellText(row, columns.find(c => c.key === 'has:master')!), '');
+});
+
+test('a sheet sorts by a column, empty cells last', () => {
+  const rows = [rowOf('b', { artist: 'Zed' }), rowOf('a', {}), rowOf('c', { artist: 'amy' }, { stems: 10 }), rowOf('d', { artist: 'Bob' }, { stems: 9 })];
+  const artist = sheetColumns(view).find(c => c.key === 'artist')!;
+  assert.deepEqual(sortRows(rows, artist, 'asc').map(r => r.title), ['c', 'd', 'b', 'a']);
+  assert.deepEqual(sortRows(rows, artist, 'desc').map(r => r.title), ['b', 'd', 'c', 'a']);
+  const stems = sheetColumns(view).find(c => c.key === 'has:stems')!;
+  assert.deepEqual(sortRows(rows, stems, 'desc').map(r => r.title).slice(0, 2), ['c', 'd']);
+});
+
+test('folders group by a choice or a learned list, an entry in each of its values', () => {
+  assert.deepEqual(folderFields(view).map(f => f.key), ['artist', 'label', 'use', 'genres']);
+  const rows = [rowOf('a', { use: 'Released', genres: ['Rock', 'Anime'] }), rowOf('b', { use: 'Released', genres: ['Anime'] }), rowOf('c', {})];
+  assert.deepEqual(foldersOf(rows, 'use').map(f => [f.name, f.rows.length]), [['Released', 2], [NOT_SET, 1]]);
+  assert.deepEqual(foldersOf(rows, 'genres').map(f => [f.name, f.rows.length]), [['Anime', 2], ['Rock', 1], [NOT_SET, 1]]);
+  assert.equal(viewOf('sheet'), 'sheet');
+  assert.equal(viewOf('nope'), 'grid');
+});
+
+test('the prompt to add names the place, the guide and the ask before saving', () => {
+  const prompt = addPrompt({ id: 'abc123', name: 'Sample Channel', personal: false }, view, 'Sea Song');
+  assert.match(prompt, /the song "Sea Song" .* the Songs collection of the Sample Channel space/);
+  assert.match(prompt, /mm library guide songs --project=abc123/);
+  assert.match(prompt, /mm library save songs --project=abc123 --set title="Sea Song"/);
+  assert.match(prompt, /stems \(stems, several\)/);
+  assert.match(prompt, /Add --yes only after I agree/);
+  assert.match(prompt, /Never guess: isrc, release date, store links, playlists\./);
+  const mine = addPrompt({ id: 'p1', name: 'Personal', personal: true }, view);
+  assert.ok(!mine.includes('--project'));
+  assert.match(mine, /Add a song to .* the Personal space/);
 });

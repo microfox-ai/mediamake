@@ -50,7 +50,7 @@ import {
   type UsageLine,
   type UsageSum,
 } from './index';
-import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storedSize } from './storage';
+import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storageReady, storedSize } from './storage';
 import { TEMPLATES } from './templates';
 
 const COLLECTIONS = 'library_collections';
@@ -141,6 +141,13 @@ function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
   };
 }
 
+/** A collection's picture as a link a page can show: its own link, or a signed one to the stored image. */
+async function headshotOf(doc: CollectionRecord): Promise<string | undefined> {
+  if (doc.headshot?.url) return doc.headshot.url;
+  if (!doc.headshot?.sha256 || !storageReady()) return undefined;
+  return createReadUrl(blobKey(doc.space, doc.headshot.sha256), doc.headshot.name ?? 'headshot').catch(() => undefined);
+}
+
 const entryView = (entry: EntryRecord, full: boolean) =>
   full ? entry : { ref: `${entry.collection}/${entry.slug}`, title: entry.title, card: entry.card, rev: entry.rev, updatedAt: entry.updatedAt, ...(entry.agent && { agent: true }), ...factsOf(entry) };
 
@@ -153,7 +160,13 @@ export const libraryDB = {
       db.collection(ENTRIES).aggregate<{ _id: string; n: number }>([{ $match: { space: space.id, ...LIVE } }, { $group: { _id: '$collection', n: { $sum: 1 } } }]).toArray(),
     ]);
     const byCollection = new Map(counts.map(row => [row._id, row.n]));
-    return { space: { id: space.id, name: space.name, personal: space.personal, role: space.role }, collections: docs.map(doc => collectionView(doc, byCollection.get(doc.slug) ?? 0, full)) };
+    const collections = await Promise.all(
+      docs.map(async doc => {
+        const headshot = await headshotOf(doc);
+        return { ...collectionView(doc, byCollection.get(doc.slug) ?? 0, full), ...(headshot && { headshot }) };
+      }),
+    );
+    return { space: { id: space.id, name: space.name, personal: space.personal, role: space.role }, collections };
   },
 
   async collection(space: string, slug: string): Promise<CollectionRecord | null> {
@@ -185,6 +198,27 @@ export const libraryDB = {
     const db = await database();
     const saved = await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug, ...LIVE }, { $set: { prefs: prefs.slice(0, 20_000), updatedAt: new Date().toISOString() } });
     return saved.matchedCount ? { ok: true as const } : fail(`No collection ${slug} in the ${space.name} space`, 404);
+  },
+
+  /**
+   * A collection's picture: an image the space already stores (by its SHA-256, uploaded like any
+   * file) or an https link. Neither: the picture is taken off.
+   */
+  async setHeadshot(space: LibrarySpace, slug: string, ask: { sha256?: unknown; url?: unknown }) {
+    const db = await database();
+    let headshot: CollectionRecord['headshot'] | null = null;
+    if (typeof ask.sha256 === 'string' && ask.sha256) {
+      const sha256 = ask.sha256.toLowerCase();
+      const file = SHA256.test(sha256) ? await db.collection<FileRecord>(FILES).findOne({ space: space.id, sha256, state: 'stored' }, noId) : null;
+      if (!file) return fail('Upload the picture first (/api/library/files), then name it by its sha256');
+      if (fileTypeOf(file.name, file.contentType) !== 'image') return fail(`${file.name} is not a picture`);
+      headshot = { sha256, name: file.name };
+    } else if (typeof ask.url === 'string' && ask.url) {
+      if (!/^https:\/\/[^\s"'<>]{4,2000}$/.test(ask.url)) return fail('The link to a picture starts with https://');
+      headshot = { url: ask.url };
+    }
+    const saved = await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug, ...LIVE }, headshot ? { $set: { headshot, updatedAt: new Date().toISOString() } } : { $unset: { headshot: '' }, $set: { updatedAt: new Date().toISOString() } });
+    return saved.matchedCount ? { ok: true as const, headshot: headshot ? 'set' : 'removed' } : fail(`No collection ${slug} in the ${space.name} space`, 404);
   },
 
   async entry(space: string, collection: string, slug: string): Promise<EntryRecord | null> {
