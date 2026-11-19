@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { applySave, askSentence, parseRef, parseSearch, type SaveAsk } from '@/lib/cloud-library';
+import { applySave, askSentence, fileTypeOf, parseRef, parseSearch, type SaveAsk } from '@/lib/cloud-library';
 import { librarySpaces } from '@/lib/cloud-library/access';
+import { DISTROKID_FIELD, DISTROKID_PACK_SLOT, fromDistrokidPack, withPack } from '@/lib/cloud-library/distrokid';
 import { answer, caller, failed, keptBack, mayUseLibrary, placeOf, refuse, seen, spaceOf, through } from '@/lib/cloud-library/http';
 import { shareDB } from '@/lib/cloud-library/share-store';
 import { libraryDB, logUsage } from '@/lib/cloud-library/store';
@@ -12,13 +13,17 @@ import { getDatabase } from '@/lib/mongodb';
  * GET    ?space=<id>&ref=<collection>/<entry>   one entry in full: fields, files by slot, history, latest numbers.
  *        ?q=<words> [&space=<id>] [&collection=songs] [&where=use=released]… [&has=transcript] [&lacks=stems] [&limit=10]
  *                                               a search, answered with cards. Without a space it runs over every
- *                                               space the account can open. With &meaning=1 the words are matched
+ *                                               space the account can open. `where` takes a group whole
+ *                                               (distrokid=<album UUID>) or one of its keys (distrokid.link=…).
+ *                                               With &meaning=1 the words are matched
  *                                               by what an entry is about (lib/cloud-library/meaning), best first,
  *                                               each hit with its score and the piece it was found in.
  * POST   { space, collection, slug?, fields?, files?: [{ slot, sha256, name?, madeFrom? }], removeFiles?, rev?, agent?, dry? }
  *                                               saves an entry. No slug: a new one, named by its title. `dry: true`
  *                                               changes nothing and answers with what would change and the sentence
  *                                               to ask the person. Files are uploaded first (/api/library/files).
+ *                                               A DistroKid pack in the `distrokid-pack` slot copies its release's
+ *                                               details into the entry (lib/cloud-library/distrokid).
  * DELETE ?space=<id>&ref=<collection>/<entry>   to the trash.
  */
 export async function GET(req: NextRequest) {
@@ -68,8 +73,17 @@ export async function POST(req: NextRequest) {
       if (!collection) return refuse(`No collection ${collectionSlug} in the ${here} space`, 404);
       const current = ask.slug ? await libraryDB.entry(at.space.id, collectionSlug, ask.slug) : null;
       // a dry run names the files by what the caller says of them: nothing is uploaded yet
-      const files: NonNullable<SaveAsk['files']> = ask.files.map((f: { slot?: string; sha256?: string; name?: string; size?: number }) => ({ slot: String(f.slot ?? 'other'), file: { sha256: String(f.sha256 ?? ''), name: String(f.name ?? 'file'), size: Number(f.size) || 0, type: 'other', contentType: '', addedAt: '', by: clientId } }));
-      const result = applySave(collection, current, { ...ask, files }, clientId);
+      const files: NonNullable<SaveAsk['files']> = ask.files.map((f: { slot?: string; sha256?: string; name?: string; size?: number }) => ({ slot: String(f.slot ?? 'other'), file: { sha256: String(f.sha256 ?? ''), name: String(f.name ?? 'file'), size: Number(f.size) || 0, type: fileTypeOf(String(f.name ?? 'file')), contentType: '', addedAt: '', by: clientId } }));
+      // a DistroKid pack brings its release's details: read when the space stores it already, else said
+      const notes: string[] = [];
+      let fieldsAsked = ask.fields;
+      const pack = files.filter(f => f.slot === DISTROKID_PACK_SLOT && /\.json$/i.test(f.file.name)).pop();
+      if (pack && collection.template.fields.some(field => field.key === DISTROKID_FIELD)) {
+        const text = await libraryDB.storedText(at.space.id, pack.file.sha256.toLowerCase()).catch(() => null);
+        if (text !== null) fieldsAsked = withPack(ask.fields, fromDistrokidPack(text, current?.fields ?? {}));
+        else notes.push(`When it is saved, the DistroKid pack's release details (its DistroKid link, album UUID, UPC and dates, and a single's ISRC and release date where the ${collection.template.noun} has none) are copied in from ${pack.file.name}`);
+      }
+      const result = applySave(collection, current, { ...ask, fields: fieldsAsked, files }, clientId);
       if ('error' in result) return refuse(result.error, result.status);
       const fields = result.changes.filter(change => !change.what.startsWith('file:'));
       return NextResponse.json({
@@ -77,7 +91,7 @@ export async function POST(req: NextRequest) {
         created: result.created,
         ref: `${at.shared?.as ?? collectionSlug}/${result.entry.slug}`,
         changes: result.changes,
-        warnings: result.warnings,
+        warnings: [...result.warnings, ...notes],
         ask: askSentence({ noun: collection.template.noun, title: result.entry.title, collection: collection.name, space: at.shared ? `${at.space.name} (shared with ${here})` : here, created: result.created, uploads: files.map(f => ({ slot: f.slot, size: f.file.size })), fields: fields.map(change => (result.created ? change.what : `${change.what}: ${change.from ?? 'empty'} → ${change.to ?? 'empty'}`)) }),
       });
     }

@@ -55,8 +55,9 @@ import { listingDB } from './listing-store';
 import { NO_INDEX, meaningIndex, meaningReady } from './meaning-store';
 import { madeFrom, type MadeFromAsk } from './reuse';
 import { shareDB, type SharedPlace } from './share-store';
+import { DISTROKID_FIELD, DISTROKID_PACK_SLOT, fromDistrokidPack, withPack } from './distrokid';
 import { cardThrough, visibleThrough } from './shares';
-import { TEMPLATES } from './templates';
+import { TEMPLATES, upgradeTemplate } from './templates';
 
 const COLLECTIONS = 'library_collections';
 const ENTRIES = 'library_entries';
@@ -131,9 +132,12 @@ export async function logUsage(line: Omit<UsageLine, 'at' | 'day'>): Promise<voi
   }
 }
 
+/** A collection as it is read: its template at the template's latest version (./templates › upgradeTemplate). */
+export const upgraded = <T extends CollectionRecord | null>(doc: T): T => (doc ? { ...doc, template: upgradeTemplate(doc.template) } : doc);
+
 /** A collection as an overview gives it: what it is, how to fill it, and what its lists have learned. */
 function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
-  const { template } = doc;
+  const { template } = upgraded(doc);
   return {
     slug: doc.slug,
     name: doc.name,
@@ -143,7 +147,7 @@ function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
     about: template.about,
     entries,
     updatedAt: doc.updatedAt,
-    fields: template.fields.map(f => ({ key: f.key, label: f.label, kind: f.kind, group: f.group, ...(f.options && { options: f.options }), ...(f.learns && { learns: f.learns }), ...(f.neverGuess && { neverGuess: true }), ...(full && f.hint && { hint: f.hint }) })),
+    fields: template.fields.map(f => ({ key: f.key, label: f.label, kind: f.kind, group: f.group, ...(f.options && { options: f.options }), ...(f.learns && { learns: f.learns }), ...(f.neverGuess && { neverGuess: true }), ...(f.keys?.length && { keys: f.keys.map(k => ({ key: k.key, label: k.label, ...(k.kind && { kind: k.kind }), ...(full && k.hint && { hint: k.hint }) })) }), ...(full && f.hint && { hint: f.hint }) })),
     slots: template.slots.map(s => ({ key: s.key, label: s.label, accepts: s.accepts, many: s.many, ...(full && s.hint && { hint: s.hint }) })),
     learned: Object.fromEntries(Object.entries(doc.learned ?? {}).map(([list, values]) => [list, learnedOptions(values)])),
     ...(full && { guide: template.guide, prefs: doc.prefs }),
@@ -165,7 +169,12 @@ export const libraryDB = {
   async overview(space: LibrarySpace, full = false) {
     const db = await database();
     const [docs, counts] = await Promise.all([
-      db.collection<CollectionRecord>(COLLECTIONS).find({ space: space.id, ...LIVE }, noId).sort({ name: 1 }).toArray(),
+      db
+        .collection<CollectionRecord>(COLLECTIONS)
+        .find({ space: space.id, ...LIVE }, noId)
+        .sort({ name: 1 })
+        .toArray()
+        .then(list => list.map(upgraded)),
       db.collection(ENTRIES).aggregate<{ _id: string; n: number }>([{ $match: { space: space.id, ...LIVE } }, { $group: { _id: '$collection', n: { $sum: 1 } } }]).toArray(),
     ]);
     const byCollection = new Map(counts.map(row => [row._id, row.n]));
@@ -180,7 +189,7 @@ export const libraryDB = {
     // the collections other spaces opened to this one: the owner's own, live, under their id here
     const shared = await Promise.all(
       sharedIn.map(async ({ share, by, space: source }) => {
-        const doc = await db.collection<CollectionRecord>(COLLECTIONS).findOne({ space: share.from, slug: share.collection, ...LIVE }, noId);
+        const doc = upgraded(await db.collection<CollectionRecord>(COLLECTIONS).findOne({ space: share.from, slug: share.collection, ...LIVE }, noId));
         if (!doc) return null;
         const [entries, headshot] = await Promise.all([db.collection(ENTRIES).countDocuments({ space: share.from, collection: share.collection, ...LIVE, ...visibleThrough(share) }), headshotOf(doc)]);
         return { ...collectionView(doc, entries, full), slug: share.as!, ...(headshot && { headshot }), shared: { by, from: share.from, collection: share.collection, role: source.role } };
@@ -194,7 +203,14 @@ export const libraryDB = {
   },
 
   async collection(space: string, slug: string): Promise<CollectionRecord | null> {
-    return (await database()).collection<CollectionRecord>(COLLECTIONS).findOne({ space, slug, ...LIVE }, noId);
+    return upgraded(await (await database()).collection<CollectionRecord>(COLLECTIONS).findOne({ space, slug, ...LIVE }, noId));
+  },
+
+  /** A small text file the space stores (a DistroKid pack), by its SHA-256: its text, or null. */
+  async storedText(space: string, sha256: string): Promise<string | null> {
+    if (!SHA256.test(sha256) || !storageReady()) return null;
+    const file = await (await database()).collection<FileRecord>(FILES).findOne({ space, sha256, state: 'stored' }, noId);
+    return file ? readText(blobKey(space, sha256), file.size) : null;
   },
 
   /** A new collection from a template. Its name is the template's unless one is given; a second one of the same template needs its own name. */
@@ -277,12 +293,16 @@ export const libraryDB = {
       const madeFrom = wanted.madeFrom && SHA256.test(wanted.madeFrom.sha256 ?? '') ? { sha256: wanted.madeFrom.sha256, ...(wanted.madeFrom.tool && { tool: String(wanted.madeFrom.tool).slice(0, 80) }), ...(wanted.madeFrom.params && { params: String(wanted.madeFrom.params).slice(0, 300) }) } : undefined;
       files.push({ slot: String(wanted.slot ?? 'other').toLowerCase(), file: { sha256: stored.sha256, name, size: stored.size, type: fileTypeOf(name, stored.contentType), contentType: stored.contentType, addedAt: new Date().toISOString(), by, ...(madeFrom && { madeFrom }) } });
     }
+    // a DistroKid pack put in the entry brings its release's details with it (./distrokid)
+    const pack = files.filter(item => item.slot === DISTROKID_PACK_SLOT && item.file.type === 'json').pop();
+    const packText = pack ? await this.storedText(space.id, pack.file.sha256).catch(() => null) : null;
     for (let tries = 0; tries < 4; tries++) {
       const collection = await this.collection(space.id, collectionSlug);
       if (!collection) return fail(`No collection ${collectionSlug} in the ${space.name} space`, 404);
       const slug = ask.slug && SLUG.test(ask.slug) ? ask.slug : undefined;
       const current = slug ? await entries.findOne({ space: space.id, collection: collectionSlug, slug, ...LIVE }, noId) : null;
-      const result = applySave(collection, current, { ...ask, slug, files }, by);
+      const fromPack = packText && collection.template.fields.some(field => field.key === DISTROKID_FIELD) ? fromDistrokidPack(packText, current?.fields ?? {}) : {};
+      const result = applySave(collection, current, { ...ask, fields: withPack(ask.fields, fromPack), slug, files }, by);
       if ('error' in result) return result;
       if (!result.created && !result.changes.length) return { entry: result.entry, created: false, changed: false, warnings: result.warnings };
       try {

@@ -31,10 +31,15 @@ doesn't know is kept under `extra`, and a file that fits no slot is kept under t
 
 **Songs** is the first template: song title (and the title in Latin letters, for a title in another
 script), artist, record label, use (internal only, unreleased, released), ISRC, release date, genres,
-DistroKid details (a free group, key by key), store links (one a platform), playlists (many a
-platform), lyrics, a part-by-part description, and the slots master, transcript, stems, release
-artwork and DistroKid pack. A song has one master, one lyrics and one transcript: a new one replaces
-the old, which the entry's history names.
+DistroKid details (a group, key by key: the release's own keys below, then whatever the pack holds),
+store links (one a platform), playlists (many a platform), lyrics, a part-by-part description, and the
+slots master, transcript, stems, release artwork and DistroKid pack. A song has one master, one lyrics
+and one transcript: a new one replaces the old, which the entry's history names.
+
+**Versions.** A collection keeps the template it was made from. When that template gets a new version
+(Songs is at 2: the DistroKid group's keys), the collection reads as the new one (`upgradeTemplate`):
+its fields, slots and guide are the new version's, and a field only the collection has is kept after
+them. Nothing is written back and no entry changes; a template only guides.
 
 **Lists that learn.** Platform, genre, label and artist are learning lists. A value used once in a
 collection is offered next time, most used first, and a new spelling of a known value is saved as the
@@ -58,6 +63,38 @@ licence, a credit and a source are never guessed. None of the three has been fil
 yet.
 
 A new template is one more entry in `TEMPLATES`.
+
+## The DistroKid link
+
+A song is linked to its release on DistroKid by `distrokid.link` in its DistroKid details: the release
+page, `https://distrokid.com/dashboard/album/?albumuuid=<album UUID>` (`lib/cloud-library/distrokid.ts`).
+Beside it in the group, as DistroKid shows them: `albumUuid`, `upc`, `uploadDate`, `releaseDate` and
+`recordLabel`. The template names these keys (a group field's `keys`), so the page shows them by their
+labels with the link clickable, and `mm library guide songs` lists them. There is no top-level `link`
+field: one home for one fact.
+
+- **From the pack.** `pack-distrokid` (and `distrokid-release-info`) end with Browse Hack's
+  `distrokid_record_packs` once the release is submitted: it writes those keys into the release
+  folder's info.json under `"distrokid"`, with each track's ISRC (`isrc` for a single). Putting that
+  info.json in a song's DistroKid pack slot copies them into the group (the pack's values win), with the
+  ISRC of a single and the release date only when the song has none. The page does it when the file is
+  dropped (an info.json is known by what it holds and goes in that slot when it is free), before Claude
+  reads anything, and says so with Undo; every other save (`mm library save`,
+  an MCP) does it on the server when the pack is stored. A dry run reads a pack the space already
+  stores, else says what will be copied. A pack before `distrokid_record_packs` brings nothing.
+- **Store links later.** The stores go live days after the upload. Browse Hack's Sync links button on
+  the release page (or `distrokid_sync_links`) finds the songs linked to the release with
+  `GET /api/library/entries?collection=songs&where=distrokid=<album UUID>` over every space the account
+  can open, and saves to each: `storeLinks` (one a platform), the group merged with DistroKid's keys, the
+  ISRC and release date where the song has none, `agent: true`.
+- **Searching.** `where=` matches a group as its JSON, without case (`distrokid=<album UUID>`), one key
+  of it as `field.key` (`distrokid.link=…`, `distrokid.upc=…`), and a key the template doesn't know in
+  the entry's `extra` (so a `link` saved before the template named one is still found by `where=link=`).
+- **Who may.** The extension calls with its OAuth access token; the middleware turns it into the
+  account (`x-client-id`) like an API key. The Library's Cohort gate then holds: below Cohort, the search
+  over every space and the save are refused (403, "The Library is open to Cohort members for now").
+  The save also needs the song's space to be the caller's own or one they edit (a collection shared to
+  them, only as an editor); a project's viewer can find a song but not change it.
 
 ## Read first, fetch last
 
@@ -127,7 +164,7 @@ key works the same.
 | `POST /api/library` | `new-collection` from a template, the owner's `prefs`, or `headshot` (a stored picture's `sha256`, an https `url`, neither to remove it) |
 | `POST /api/library/fill` | Claude's suggestion for an entry's fields from the files dropped on its form. Saves nothing |
 | `GET /api/library/entries?space=&ref=` | One entry in full |
-| `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it |
+| `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it. `where=` takes a field, a group's key (`distrokid.link=`) or an extra value |
 | `GET /api/library/entries?q=…&meaning=1` | The same search by what an entry is about, best first. Each hit also carries `score` and `found` (the piece that fits, with its seconds in a transcript). 503 when the index is not set up |
 | `POST /api/library/reindex` | `{ space, collection, from? }`: rebuilds a collection's part of the search index, a page of entries a call (`next` goes back as `from`). Owners and editors |
 | `POST /api/library/entries` | Save an entry. `dry: true` answers with the sentence and the changes |
@@ -164,7 +201,8 @@ key works the same.
   "Folders by"), each folder with its count, opening to its entries (`&by=<field>&f=<folder>` in the
   address). A search of the whole space is always cards.
 - An entry: a tab per heading of the template, then Files, Numbers (when a platform sent some) and
-  History. Change opens the same dialog as Add.
+  History. Change opens the same dialog as Add. A song with a DistroKid link shows "On DistroKid" under
+  its title, with a button per store link beside it; a group shows its known keys first, by their labels.
 - Add and Change: dropped files go to the slot their type and name say (`placeFiles` in
   `lib/cloud-library/view.ts`) and each can be moved. A file is hashed in the browser, sent straight
   to storage on a signed link, then the entry is saved with only the fields that changed. A file
@@ -397,4 +435,4 @@ part by part (a file goes up in one request today, 5 GB at most).
 
 Tests: `npx tsx --test lib/cloud-library/*.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet (sharing too: no collection has been shared for real), the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet. Search by meaning has never run against a real Upstash Vector index, the MCPs' Library tools only against a stand-in server, and listing and requests only with sample data.
+have not been run against the live database yet (sharing too: no collection has been shared for real; nor has a DistroKid pack been copied into a stored song, or Sync links saved to one), the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet. Search by meaning has never run against a real Upstash Vector index, the MCPs' Library tools only against a stand-in server, and listing and requests only with sample data.
