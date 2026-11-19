@@ -20,6 +20,7 @@ export const metadata = { title: 'Subscription · MediaMake' };
 const FEATURES: Record<TierFeature, { title: string; about: string; href?: string }> = {
   cloudProjects: { title: 'Spaces with files', about: 'Project spaces to share with a team, and productions, brand kits and song takes kept in the cloud', href: '/app/spaces' },
   lambdaRender: { title: 'Cloud renders', about: 'Renders on MediaMake\'s own machines' },
+  cloudLibrary: { title: 'Cloud Library', about: 'Collections of the files a space reuses (songs with their masters, words and release details), searchable from every computer' },
 };
 
 const SOURCE: Record<Membership['source'], string> = {
