@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, UserIcon, UsersIcon } from 'lucide-react';
+import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, SparklesIcon, UserIcon, UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPage } from '@/components/app-shell/app-page';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -268,6 +268,7 @@ export function LibraryPage() {
   const [q, setQ] = React.useState('');
   const [where, setWhere] = React.useState<Record<string, string>>({});
   const [files, setFiles] = React.useState('');
+  const [meaning, setMeaning] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const [making, setMaking] = React.useState(false);
   const [guide, setGuide] = React.useState(false);
@@ -353,13 +354,13 @@ export function LibraryPage() {
     }
     let live = true;
     libraryApi
-      .list(listQuery({ space: spaceId, collection: collectionSlug, q, where, files }))
+      .list(listQuery({ space: spaceId, collection: collectionSlug, q, where, files, meaning }))
       .then(result => live && setRows(result))
       .catch(error => live && toast.error(error instanceof Error ? error.message : String(error)));
     return () => {
       live = false;
     };
-  }, [listing, spaceId, collectionSlug, q, where, files, tick]);
+  }, [listing, spaceId, collectionSlug, q, where, files, meaning, tick]);
 
   React.useEffect(() => {
     setAnswer(null);
@@ -439,9 +440,23 @@ export function LibraryPage() {
         {space && !computers && (
           <>
             {!entrySlug && (
-              <div className="relative">
-                <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-9" placeholder={collection ? `Search ${collection.name}` : `Search the ${space.name} space`} value={typed} onChange={event => setTyped(event.target.value)} aria-label="Search" />
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder={meaning ? 'Describe it: the sad song about the sea' : collection ? `Search ${collection.name}` : `Search the ${space.name} space`}
+                    value={typed}
+                    onChange={event => setTyped(event.target.value)}
+                    aria-label="Search"
+                  />
+                </div>
+                {full?.byMeaning && (
+                  <button type="button" className={`${button} shrink-0 ${meaning ? 'border-primary text-primary' : ''}`} aria-pressed={meaning} onClick={() => setMeaning(on => !on)} title="Find entries by what they are about, not only the exact words">
+                    <SparklesIcon className="size-4" />
+                    By meaning
+                  </button>
+                )}
               </div>
             )}
 
@@ -529,7 +544,7 @@ export function LibraryPage() {
                     {(collection.shared || space.role === 'owner') && (
                       <button type="button" className={button} onClick={() => setSharing(true)}>
                         <UsersIcon className="size-4" />
-                        {collection.shared ? `Shared by ${collection.shared.by}` : collection.sharedWith ? `Shared with ${collection.sharedWith}` : 'Share'}
+                        {collection.shared ? `Shared by ${collection.shared.by}` : collection.requests ? `Share · ${collection.requests} ${collection.requests === 1 ? 'request' : 'requests'}` : collection.sharedWith ? `Shared with ${collection.sharedWith}` : 'Share'}
                       </button>
                     )}
                     {mayHere && (

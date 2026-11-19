@@ -47,6 +47,16 @@ Under it sit the owner's preferences, their corrections for whoever fills the co
 (`mm library prefs`). `mm library guide <collection>` prints both with the fields, the slots and what
 the lists have learned. Read it before the first save of a session.
 
+**The others.** Anime art (`anime-art`: a picture with its series, characters, kind, style, mood, what
+is in it, its artist, source and prompt; slots picture, cut-out, variants, analysis), Anime shots
+(`anime-shots`: a clip with its series, episode, timecode, characters, what happens, shot, mood,
+energy, length and where it was used; slots clip, still, contact sheet, analysis) and Background music
+(`background-music`: a track with its kind, mood, genres, instruments, BPM, key, length, parts,
+licence, credit line and source; slots track, stems, licence document, analysis). Each has a Use field
+(Internal only, Our channels, Anywhere) and its own guide. An episode, a timecode, a BPM, a key, a
+licence, a credit and a source are never guessed. None of the three has been filled with real entries
+yet.
+
 A new template is one more entry in `TEMPLATES`.
 
 ## Read first, fetch last
@@ -91,8 +101,11 @@ An entry saved by an AI session is marked as such (`--agent`, or Claude Code's o
 | One record per content a space stores | MongoDB `library_files` |
 | A song's numbers per platform and day, apart from the entry | MongoDB `library_stats` |
 | One line per change, for what is rebuilt later | MongoDB `library_events` |
+| A collection's listing in Explore (what it is, the owner's rights) | On its collection, `library_collections.listing` |
+| A request for access to a listed collection | MongoDB `library_requests`, one per collection and space that asks |
 | One line per action, for the cost page | MongoDB `library_usage`, prices in `library_prices` |
 | The bytes | The private bucket productions use, `library-private/<space>/<sha256>` |
+| The search index: each entry's card, its long texts and its timed transcript in pieces | Upstash Vector, one namespace a collection. Rebuilt from the records, never the truth |
 
 Files are stored by content: the same file in ten entries is one object, a new master leaves the old
 one where it was, and a content the space already stores is not sent again. Bytes never pass through
@@ -115,11 +128,15 @@ key works the same.
 | `POST /api/library/fill` | Claude's suggestion for an entry's fields from the files dropped on its form. Saves nothing |
 | `GET /api/library/entries?space=&ref=` | One entry in full |
 | `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it |
+| `GET /api/library/entries?q=…&meaning=1` | The same search by what an entry is about, best first. Each hit also carries `score` and `found` (the piece that fits, with its seconds in a transcript). 503 when the index is not set up |
+| `POST /api/library/reindex` | `{ space, collection, from? }`: rebuilds a collection's part of the search index, a page of entries a call (`next` goes back as `from`). Owners and editors |
 | `POST /api/library/entries` | Save an entry. `dry: true` answers with the sentence and the changes |
 | `DELETE /api/library/entries?space=&ref=` | To the trash |
 | `POST /api/library/files` | `start` (signed upload links for what isn't stored yet), then `finish` |
 | `GET /api/library/files?space=&ref=[&slots=]` | Signed links to an entry's files |
 | `GET /api/library/files?space=&ref=&read=` | A field's text or a text file's content, whole or a part |
+| `GET /api/library/listed` | Every collection listed in Explore, with what the caller has to do with each. `?space=&collection=`: the requests waiting on one, for its owner |
+| `POST /api/library/listed` | `list` (with `about` and `rights`), `unlist`, `accept`, `decline`: the owner of the space. `request` (with `to` and `note`), `withdraw`: a member who uses the Library |
 | `POST /api/library/stats` | A platform's numbers for a day |
 | `GET /api/library/usage` | The caller's usage. `?all=1` for admins: everyone's |
 | `PUT /api/library/usage` | Admins: the prices behind the estimate |
@@ -286,16 +303,98 @@ for its owner, and `POST` takes `share`, `unshare`, `accept`, `leave` and `notes
 overview (`GET /api/library?space=`) lists the shared collections beside its own, each with
 `shared: { by, role }`, and its open `invitations`.
 
+## Search by meaning
+
+Search has two halves. MongoDB answers the exact questions: every unreleased song, every song with
+no transcript, the words typed. An Upstash Vector hybrid index answers by meaning ("the sad song
+about the sea"), and only ranks: every entry it names is read again from MongoDB, so the filters,
+the trash and what a share keeps back hold exactly as in the plain search
+(`lib/cloud-library/meaning.ts`, `meaning-store.ts`).
+
+- **What goes in.** For each entry: its card, each long text field (lyrics) in pieces of about 700
+  characters cut at line ends, and each text or JSON file of 2 MB or less in a slot. A transcript
+  with timed words goes in as pieces of about 30 seconds, each with its start and end, so a hit says
+  where in the song it is. At most 120 records an entry. Audio, video and pictures are not read.
+- **One namespace a collection** (`<space id>-<collection>`). A shared collection is searched in its
+  owner's namespace, and a share that ends takes nothing out of the index.
+- **Kept in step.** A save puts the entry's records in again in place of its old ones, and the trash
+  takes them out. The index never fails a save: when Upstash is down the entry is saved and the
+  index is behind until the next save or a rebuild.
+- **Rebuilt at any time.** `mm library reindex [<collection>]` empties a collection's namespace and
+  fills it from the records. Use it for a collection filled before the index was set up.
+- **Where.** `mm library search "<words>" --meaning`, the MCPs' `search_library` with `byMeaning`,
+  and the page's "By meaning" button beside the search (shown only when the index is set up). A hit
+  shows the piece that fits, with its time in the song.
+- **Counted** as a search, like the plain one.
+
+| Variable | |
+| --- | --- |
+| `LIBRARY_VECTOR_REST_URL`, `LIBRARY_VECTOR_REST_TOKEN` | The Library's own Upstash Vector index: a **hybrid** index made with Upstash's dense and sparse embedding models, so text is embedded there and no embedding key is needed. Not the presets' index. Without them the Library works as before and a search by meaning answers 503 |
+
+An entry's words are sent to Upstash to be embedded and are kept there. A collection whose words
+must not leave MediaMake's own stores is not for a server with the index set up.
+
+## Listed in Explore
+
+The owner of a space can list one of its collections in Explore (Share on the collection › In
+Explore): what it is, and what someone with access may do with it. The rights are required and are
+the owner's own words, shown as written under "Rights, as its owner wrote them". Nobody else writes
+them, and nothing lists a collection but its owner on the page.
+
+Explore then has a Collections tab (only while something is listed) for members who use the Library.
+A card shows the collection's name and picture, whose it is, how many entries it holds, a few titles,
+what each entry can hold and the rights. It never shows a file, a field's value or a link, and an
+entry marked Internal only is neither counted nor named.
+
+**Request access** asks the owner, for the asker's personal Library or a space they own or edit, with
+a note. The owner sees the count on Share and answers under In Explore:
+
+- **Accept** opens the collection to that space to read and fetch, as an invitation. The asker still
+  accepts it in their own Library, as with any share, and gets the owner's live collection, not a copy.
+- **Decline** is kept, so the same request is not sent again.
+
+A request not answered yet can be taken back. Taking a collection off Explore drops its waiting
+requests and leaves the shares already made (`lib/cloud-library/listing.ts`, `listing-store.ts`).
+
+No mail goes to the owner when someone asks, or to the asker when it is answered: both see it in the
+app. Listing is on the page only: `mm library` and the MCPs have no command for it.
+
+## In the Spaces MCP
+
+Someone with only the MediaMake Spaces MCP (`mcp/projectsync`, no repo on the computer) reads and
+fills the Library with its tools (`packages/projectsync-mcp/src/tools/library.ts`), which call the
+same routes as `mm library`:
+
+| Tool | Does |
+| --- | --- |
+| `list_library` | The spaces whose Library the account can open and their collections. With a space and a collection: its fields, file slots, guide, learned spellings and the owner's preferences |
+| `search_library` | Cards, by words, `where`, `has` and `lacks`, or `byMeaning`. No download |
+| `get_library_entry` | One entry in full |
+| `read_library_entry` | A field's text or a text file, whole or a part (lines, seconds) |
+| `fetch_library_files` | An entry's files into a folder, each checked against its SHA-256. A file there that differs is not replaced unless asked |
+| `library_made_from` | What was already made from an exact file, before paying again |
+| `save_library_entry` | Without `yes`: saves nothing and answers with the sentence to ask, what would change and the private details found. With `yes: true`, after the person agreed: uploads the files and saves |
+
+The hosted mm-use connector (`/mcp/use`) has the five that only read: `list_library`, `search_library`,
+`get_library_entry`, `read_library_entry` and `library_made_from` (by SHA-256, since it cannot read a
+file). They are one module, `packages/mediamake-mcp/src/tools/library.ts`.
+
+Sharing a collection, starting one from a template, the trash, preferences and a computer's report
+stay on the page and in `mm library`: they are the owner's decisions, and the MCP has no tool for
+them. The MCP keeps no cache of fetched files, so a file fetched twice into two folders is
+downloaded twice (`mm library fetch` clones it from the computer's cache).
+
 ## Not built yet
 
 `mm analyze` and `media cache get` asking the Library, a skill naming the slots it reads
 (`mm library use --for=<skill>`), a device library's own collections, "Fetch to this device" from the page, the older Library page
 (`/library`, the Mac's media library) folded into Computers, for shared collections a monthly limit per project
-or person, a mail when one is shared, a collection's rights and its listing in Explore with "Request access",
-and keeping a removed file's bytes for 30 days (nothing deletes stored bytes yet), the tools in the Spaces MCP, search
-by meaning, previews, and uploads that resume
+or person, a mail when one is shared, asked for or answered, workers that bring in a song's statistics and store
+links from the platforms (`POST /api/library/stats` takes them, nothing calls it on a schedule), the Spaces Media
+tab's shared assets moved into the Library, billing,
+and keeping a removed file's bytes for 30 days (nothing deletes stored bytes yet), previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
 Tests: `npx tsx --test lib/cloud-library/*.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet (sharing too: no collection has been shared for real), the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet.
+have not been run against the live database yet (sharing too: no collection has been shared for real), the page has only been opened with sample data, filling with Claude has never called the API, and no real computer has reported its cards yet. Search by meaning has never run against a real Upstash Vector index, the MCPs' Library tools only against a stand-in server, and listing and requests only with sample data.

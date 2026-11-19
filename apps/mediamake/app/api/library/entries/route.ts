@@ -12,7 +12,9 @@ import { getDatabase } from '@/lib/mongodb';
  * GET    ?space=<id>&ref=<collection>/<entry>   one entry in full: fields, files by slot, history, latest numbers.
  *        ?q=<words> [&space=<id>] [&collection=songs] [&where=use=released]… [&has=transcript] [&lacks=stems] [&limit=10]
  *                                               a search, answered with cards. Without a space it runs over every
- *                                               space the account can open.
+ *                                               space the account can open. With &meaning=1 the words are matched
+ *                                               by what an entry is about (lib/cloud-library/meaning), best first,
+ *                                               each hit with its score and the piece it was found in.
  * POST   { space, collection, slug?, fields?, files?: [{ slot, sha256, name?, madeFrom? }], removeFiles?, rev?, agent?, dry? }
  *                                               saves an entry. No slug: a new one, named by its title. `dry: true`
  *                                               changes nothing and answers with what would change and the sentence
@@ -32,16 +34,19 @@ export async function GET(req: NextRequest) {
       return (await keptBack(at, ref.entry)) ?? answer(seen(at, await libraryDB.get(at.space, at.collection, ref.entry)));
     }
     const ask = parseSearch(params);
+    const byMeaning = ['1', 'true'].includes(params.get('meaning') ?? '');
     if (params.has('space')) {
       const at = await spaceOf(clientId, params.get('space'), 'read');
       if ('response' in at) return at.response;
       await logUsage({ ...usage, space: at.space.id, collection: ask.collection, action: 'search' });
+      if (byMeaning) return answer(await libraryDB.searchByMeaning([at.space], ask, await shareDB.into([at.space])));
       return NextResponse.json(await libraryDB.search([at.space], ask, await shareDB.into([at.space])));
     }
     const locked = await mayUseLibrary(clientId);
     if (locked) return locked;
     const spaces = await librarySpaces(await getDatabase(), clientId);
     if (spaces[0]) await logUsage({ ...usage, space: spaces[0].id, collection: ask.collection, action: 'search' });
+    if (byMeaning) return answer(await libraryDB.searchByMeaning(spaces, ask, await shareDB.into(spaces)));
     return NextResponse.json(await libraryDB.search(spaces, ask, await shareDB.into(spaces)));
   } catch (error) {
     return failed('read the Library', error);

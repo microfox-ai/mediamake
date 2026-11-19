@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission', 'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'library_made_from'].sort(),
     );
   });
 

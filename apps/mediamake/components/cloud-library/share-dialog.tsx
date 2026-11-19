@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import type { RequestView } from '@/lib/cloud-library/listing';
 import type { InvitationView, ShareNotes, ShareRole, ShareView } from '@/lib/cloud-library/shares';
 import { canChange, dayText, formatBytes, type CollectionView, type SpaceView } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
@@ -87,6 +89,10 @@ export function ShareDialog({ space, collection, projects, open, onOpenChange, o
           <TabsList>
             <TabsTrigger value="project">With a project</TabsTrigger>
             <TabsTrigger value="person">With a person</TabsTrigger>
+            <TabsTrigger value="explore">
+              In Explore
+              {!!collection.requests && <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground">{collection.requests}</span>}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="project">
             {others.length ? (
@@ -109,8 +115,11 @@ export function ShareDialog({ space, collection, projects, open, onOpenChange, o
           <TabsContent value="person">
             <Input type="email" placeholder="Their email address on MediaMake" value={email} onChange={event => setEmail(event.target.value)} aria-label="Email address" />
           </TabsContent>
+          <TabsContent value="explore">
+            <ListingPanel space={space} collection={collection} onChanged={onChanged} />
+          </TabsContent>
         </Tabs>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className={`flex flex-wrap items-center gap-3 ${kind === 'explore' ? 'hidden' : ''}`}>
           <Select value={role} onValueChange={value => setRole(value as ShareRole)}>
             <SelectTrigger className="w-56" aria-label="What they can do">
               <SelectValue />
@@ -135,7 +144,7 @@ export function ShareDialog({ space, collection, projects, open, onOpenChange, o
           {error}
         </p>
 
-        <div className="flex flex-col gap-2">
+        <div className={`flex flex-col gap-2 ${kind === 'explore' ? 'hidden' : ''}`}>
           <p className="text-sm font-medium">Shared with</p>
           {!shares && !error && <p className="text-sm text-muted-foreground">Reading</p>}
           {shares && !shares.length && <p className="text-sm text-muted-foreground">Nobody yet. Only you can share this collection.</p>}
@@ -162,6 +171,99 @@ export function ShareDialog({ space, collection, projects, open, onOpenChange, o
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** The owner lists a collection in Explore with the rights they write, and answers who asks for it. */
+function ListingPanel({ space, collection, onChanged }: { space: SpaceView; collection: CollectionView; onChanged: () => void }) {
+  const [about, setAbout] = React.useState(collection.listing?.about ?? '');
+  const [rights, setRights] = React.useState(collection.listing?.rights ?? '');
+  const [requests, setRequests] = React.useState<RequestView[] | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const listed = !!collection.listing;
+
+  const load = React.useCallback(() => {
+    libraryApi
+      .requests(space.id, collection.slug)
+      .then(result => setRequests(result.requests))
+      .catch(problem => setError(said(problem)));
+  }, [space.id, collection.slug]);
+  React.useEffect(() => {
+    if (listed) load();
+  }, [listed, load]);
+
+  const run = async (work: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await work();
+      toast.success(done);
+      onChanged();
+      if (listed) load();
+    } catch (problem) {
+      setError(said(problem));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">
+        Members who use the Library see its name, what it holds and a few titles, never a file. They ask you for access, and you say yes or no. Entries marked Internal only are never shown.
+      </p>
+      <label className="flex flex-col gap-1 text-sm">
+        What it is
+        <Textarea rows={2} maxLength={600} value={about} onChange={event => setAbout(event.target.value)} placeholder={collection.about} />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        What someone with access may do with it
+        <Textarea rows={2} maxLength={600} value={rights} onChange={event => setRights(event.target.value)} placeholder="In your own words: use in videos on your own channels, credit Sample Channel" />
+      </label>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {listed && (
+          <button type="button" className={button} disabled={busy} onClick={() => run(() => libraryApi.unlist(space.id, collection.slug), `${collection.name} is no longer in Explore`)}>
+            Take it off Explore
+          </button>
+        )}
+        <button type="button" className={primary} disabled={busy || !rights.trim()} onClick={() => run(() => libraryApi.listCollection(space.id, collection.slug, { about, rights }), listed ? 'Listing changed' : `${collection.name} is listed in Explore`)}>
+          {busy && <Loader2Icon className="size-4 animate-spin" />}
+          {listed ? 'Save the listing' : 'List in Explore'}
+        </button>
+      </div>
+      <p className="min-h-4 text-xs text-destructive" role={error ? 'alert' : undefined}>
+        {error}
+      </p>
+      {listed && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium">Requests</p>
+          {requests && !requests.length && <p className="text-sm text-muted-foreground">Nobody is waiting.</p>}
+          {requests && requests.length > 0 && (
+            <ul className="divide-y rounded-xl border">
+              {requests.map(item => (
+                <li key={item.to} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
+                  <UserIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1 basis-48">
+                    <p className="truncate text-sm font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      For {item.space} · asked {dayText(item.at)}
+                      {item.note ? ` · "${item.note}"` : ''}
+                    </p>
+                  </div>
+                  <button type="button" className={button} disabled={busy} onClick={() => run(() => libraryApi.decide(space.id, collection.slug, item.to, false), `Declined ${item.name}`)}>
+                    Decline
+                  </button>
+                  <button type="button" className={primary} disabled={busy} onClick={() => run(() => libraryApi.decide(space.id, collection.slug, item.to, true), `${item.name} can read and fetch once they accept`)}>
+                    Accept
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -268,6 +268,9 @@ upload, download and search is counted. The media library above stays the comput
   from, what is never guessed, the owner's preferences, the spellings its lists already use).
 - Read before fetching: `mm library search` answers with cards, `get` and `read` give fields and text
   with no download, and only `fetch` moves a file.
+- A question about what something is about ("the sad sea song") is `mm library search "<words>" --meaning`
+  (`byMeaning` in the MCPs): best first, with the piece of the lyrics or transcript that fits. An exact
+  question (every unreleased song) stays a plain search with `--where`, `--has` and `--lacks`.
 - Never save without the person's yes. `mm library save …` without `--yes` saves nothing and prints the
   one sentence to ask ("Add the new song "…" to the Songs collection of the … space (cloud)?"): show it
   with what would change, and add `--yes` only after they agree. The same for `new`, `trash` and `prefs`.
@@ -284,6 +287,12 @@ upload, download and search is counted. The media library above stays the comput
   after they agree; the same for `unshare`, `accept`, `leave` and `notes`. The others use the owner's
   live collection, never a copy, under its id in their Library (`songs`, or `songs-<who shares it>`).
   Never share one to make a step work, and never pass on a collection another space shared.
+- Listing a collection in Explore, its rights and the answer to a request for access are the owner's,
+  on the page (Share › In Explore). Never write a collection's rights for them, and never ask for
+  access to a listed collection unless the user says so.
+- Without the repo, the MediaMake Spaces MCP reads and fills the Library: `search_library`, `get_library_entry`,
+  `read_library_entry`, `fetch_library_files`, `library_made_from`, and `save_library_entry`, which saves
+  nothing without `yes: true`. Pass that only after the person agreed to the sentence it gave.
 - A computer tells the Library what its media library holds only after its owner turns that on:
   `mm library report` shows what would go (a card a file: name, kind, size, SHA-256; never the file or
   its folder), `mm library report on` is the owner's word, in this session. Never turn it on for them.

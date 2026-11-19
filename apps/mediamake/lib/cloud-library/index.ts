@@ -141,6 +141,8 @@ export interface CollectionRecord {
   prefs: string;
   /** Its picture on the collection's card (16:9 reads best): an image this space stores, or an https link. */
   headshot?: { sha256?: string; name?: string; url?: string };
+  /** Listed in Explore by the owner of its space (./listing). */
+  listing?: { about: string; rights: string; at: string; by: string };
   /** The lists that learn: list name → value → how often it was used. */
   learned: Record<string, Record<string, number>>;
   createdAt: string;

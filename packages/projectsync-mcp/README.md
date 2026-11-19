@@ -20,6 +20,7 @@ writes your files, and it signs in to MediaMake with your **MediaMake API key**.
 | Shared assets | The library files a project's team shares (overlays, footage, art, pictures, references), each with what the media library knows about it (kind, subject, tags), so everyone on the project can download them | `list_shared_assets`, `download_shared_assets`, `share_assets`, `unshare_assets`, `set_shared_limit` |
 | To-dos | A step one place cannot do (an upload that needs a signed-in browser, pictures from Midjourney), waiting in the project's queue for a place that can. Only one pick-up succeeds, and its result (the video's link) is kept on it | `list_todos`, `post_todo`, `claim_todo`, `finish_todo` |
 | Register | Which cloud environment and which opened computer can do what, by name: renders, keys, MCPs, apps, sign-ins. Never a key | `where_it_runs` |
+| Library | The Cloud Library: what a space reuses, kept as collections of entries (a channel's songs with their masters, lyrics, transcripts, release details and links). Read first: cards and text come with no download. A save asks the person first | `list_library`, `search_library`, `get_library_entry`, `read_library_entry`, `fetch_library_files`, `library_made_from`, `save_library_entry` |
 
 Whether something goes up as a production, a release or media is **your choice**: Claude asks you each
 time, and which project, and shows you what would go up (a dry run) before uploading.
@@ -97,6 +98,7 @@ The MediaMake routes it calls, in `apps/mediamake` (code in `lib/projectsync/`):
 | `GET/POST/DELETE /api/project/media`, `POST …/upload` | List and search, record uploaded files, move to the trash; `upload` hands out upload links |
 | `GET/PUT /api/channel-sync`, `GET/PUT …/items`, `POST/PUT/DELETE …/files` | Shared assets (code in `lib/channel-sync/`): the project's limit and role, each asset's details, upload links, confirmations and withdrawals |
 | `GET/POST /api/space/todos`, `GET /api/space/places` | A project's to-do queue and its register (code in `lib/space/todos.ts`, `lib/space/register.ts`; `docs/cloud-device-runs.md`) |
+| `GET /api/library`, `GET/POST /api/library/entries` (`meaning=1` to search by meaning), `GET/POST /api/library/files` | The Cloud Library (code in `lib/cloud-library/`; `docs/library.md`): spaces and collections, search and entries, signed links, text reads and uploads |
 | `GET/POST/PUT /api/project`, `/api/project/brand-kit` | Projects and brand kits (owners and editors may rename a project) |
 
 ## Development

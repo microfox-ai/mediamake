@@ -1,4 +1,5 @@
 import type { DeviceFile, DeviceView } from '@/lib/cloud-library/devices';
+import type { ListedCard, RequestView } from '@/lib/cloud-library/listing';
 import type { ShareNotes, ShareRole, ShareView } from '@/lib/cloud-library/shares';
 import type { CollectionView, EntryAnswer, EntryRow, SpaceOverview, TemplateCard } from '@/lib/cloud-library/view';
 
@@ -42,6 +43,13 @@ export const libraryApi = {
   unshare: (space: string, collection: string, to: string) => call<object>('/api/library/shares', post({ action: 'unshare', space, collection, to })),
   acceptShare: (space: string, from: string, collection: string) => call<{ as: string; name: string }>('/api/library/shares', post({ action: 'accept', space, from, collection })),
   leaveShare: (space: string, from: string, collection: string) => call<object>('/api/library/shares', post({ action: 'leave', space, from, collection })),
+  listed: () => call<{ collections: ListedCard[] }>('/api/library/listed'),
+  requests: (space: string, collection: string) => call<{ requests: RequestView[] }>(`/api/library/listed?space=${space}&collection=${collection}`),
+  listCollection: (space: string, collection: string, listing: { about: string; rights: string }) => call<{ listed: boolean }>('/api/library/listed', post({ action: 'list', space, collection, ...listing })),
+  unlist: (space: string, collection: string) => call<{ listed: boolean }>('/api/library/listed', post({ action: 'unlist', space, collection })),
+  requestAccess: (from: string, collection: string, note: string) => call<{ asked: true; of: string }>('/api/library/listed', post({ action: 'request', from, collection, note })),
+  withdrawRequest: (from: string, collection: string) => call<object>('/api/library/listed', post({ action: 'withdraw', from, collection })),
+  decide: (space: string, collection: string, to: string, yes: boolean) => call<{ accepted: boolean }>('/api/library/listed', post({ action: yes ? 'accept' : 'decline', space, collection, to })),
   notes: (space: string, ref: string) => call<{ notes: ShareNotes }>(`/api/library/shares?space=${space}&notes=${ref}`),
   setNotes: (space: string, ref: string, notes: ShareNotes) => call<{ notes: ShareNotes }>('/api/library/shares', post({ action: 'notes', space, ref, ...notes })),
   devices: (space: string) => call<{ devices: DeviceView[] }>(`/api/library/devices?space=${space}`),

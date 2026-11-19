@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MediamakeClient } from '../../mediamake-mcp/src/client';
 import { INPUT_LIMIT_BYTES, productionFiles, releaseFiles, within } from './files';
 import { createServer } from './server';
+import { privateDetails } from './tools/library';
 
 const TOOLS = [
   'get_brand_kit', 'upload_brand_kit', 'finish_brand_kit_upload', 'update_brand_kit',
@@ -19,6 +20,7 @@ const TOOLS = [
   'list_media', 'search_media', 'get_media', 'upload_media', 'delete_media',
   'list_shared_assets', 'download_shared_assets', 'share_assets', 'unshare_assets', 'set_shared_limit',
   'list_todos', 'post_todo', 'claim_todo', 'finish_todo', 'where_it_runs',
+  'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'fetch_library_files', 'library_made_from', 'save_library_entry',
 ];
 
 async function connect(baseUrl = 'http://ps.test') {
@@ -439,5 +441,147 @@ describe('to-dos and the register', () => {
 
     expect(text(await call('where_it_runs', { projectId: 'p1' })).places[0].name).toBe('Studio Mac');
     expect(seen.at(-1)?.path).toBe('/api/space/places?project=p1');
+  });
+});
+
+describe('the Cloud Library against a stand-in MediaMake', () => {
+  let http: Server;
+  let base: string;
+  const stored = new Map<string, Buffer>();
+  const seen: { method: string; path: string; body?: any }[] = [];
+  const entry = { slug: 'sample-song', title: 'Sample Song', rev: 1, slots: {} as Record<string, { sha256: string; name: string; size: number }[]> };
+  let damaged = false;
+
+  beforeEach(async () => {
+    stored.clear();
+    seen.length = 0;
+    entry.slots = {};
+    damaged = false;
+    http = createHttpServer(async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const raw = Buffer.concat(chunks);
+      const url = new URL(req.url!, base);
+      const send = (data: unknown, status = 200) => res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+      if (url.pathname.startsWith('/store/')) {
+        const key = url.pathname.slice(7);
+        if (req.method === 'PUT') return void (stored.set(key, raw), res.writeHead(200).end());
+        return void res.writeHead(200).end(damaged ? Buffer.from('broken') : stored.get(key));
+      }
+      const body = raw.length ? JSON.parse(raw.toString()) : undefined;
+      seen.push({ method: req.method!, path: url.pathname + url.search, body });
+      if (url.pathname === '/api/library') {
+        if (!url.searchParams.get('space')) return send({ spaces: [{ space: { id: 'p1', name: 'Sample Space' }, collections: [{ slug: 'songs', entries: 1 }] }], templates: [] });
+        return send({ space: { id: 'p1', name: 'Sample Space' }, collections: [{ slug: 'songs', guide: 'Never guess an ISRC.', fields: [{ key: 'title' }], slots: [{ key: 'master' }] }] });
+      }
+      if (url.pathname === '/api/library/entries' && req.method === 'GET') {
+        if (url.searchParams.get('ref')) return url.searchParams.get('ref') === 'songs/sample-song' ? send({ entry }) : send({ error: 'No songs/nothing in the Sample Space space' }, 404);
+        return send({ total: 1, results: [{ card: 'Sample Song\nid songs/sample-song · released' }] });
+      }
+      if (url.pathname === '/api/library/entries') {
+        if (body.dry) return send({ dry: true, created: !body.slug, ref: 'songs/sample-song', changes: [{ what: 'title', to: 'Sample Song' }], warnings: [], ask: 'Add the new song "Sample Song" to the Songs collection of the Sample Space space (cloud)?' });
+        for (const file of body.files) (entry.slots[file.slot] ??= []).push(file);
+        return send({ ref: 'songs/sample-song', created: !body.slug, changed: true, warnings: [], entry });
+      }
+      if (url.pathname === '/api/library/files' && req.method === 'POST') {
+        if (body.action === 'start') return send({ uploads: body.files.filter((f: { sha256: string }) => !stored.has(f.sha256)).map((f: { sha256: string }) => ({ sha256: f.sha256, uploadUrl: `${base}/store/${f.sha256}`, headers: { 'x-amz-checksum-sha256': 'signed' } })), alreadyStored: [] });
+        return send({ stored: body.sha256s });
+      }
+      if (url.searchParams.get('madeFrom')) return send({ results: [{ ref: 'songs/sample-song', slot: 'transcript', name: 'words.json', tool: 'scribe' }] });
+      if (url.searchParams.get('read')) return send({ text: 'la la', lines: 1 });
+      return send({ title: 'Sample Song', files: [{ slot: 'master', name: 'master.wav', size: 4, sha256: sha('riff'), url: `${base}/store/${sha('riff')}` }] });
+    });
+    await new Promise<void>(done => http.listen(0, '127.0.0.1', done));
+    base = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
+  });
+  afterEach(async () => {
+    await new Promise(done => http.close(done));
+  });
+
+  it('reads with cards and text, and fetches a file checked against its SHA-256', async () => {
+    const client = await connect(base);
+    const call = async (name: string, args: Record<string, unknown>) => (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
+
+    expect(text(await call('list_library', {})).spaces[0].collections[0].slug).toBe('songs');
+    expect(text(await call('list_library', { projectId: 'p1', collection: 'songs' })).collection.guide).toMatch(/Never guess/);
+    expect((await call('list_library', { projectId: 'p1', collection: 'art' })).content[0].text).toMatch(/No collection art.*It has: songs/);
+
+    expect(text(await call('search_library', { query: 'sample', projectId: 'p1', where: { use: 'released', language: 'english' }, has: ['transcript'], lacks: ['stems'], place: 'Studio Mac' })).results[0].card).toMatch(/songs\/sample-song/);
+    expect(seen.at(-1)?.path).toBe('/api/library/entries?q=sample&space=p1&where=use%3Dreleased&where=language%3Denglish&has=transcript&lacks=stems&device=Studio+Mac');
+
+    expect(text(await call('get_library_entry', { projectId: 'p1', ref: 'songs/sample-song' })).entry.title).toBe('Sample Song');
+    const none = await call('get_library_entry', { projectId: 'p1', ref: 'songs/nothing' });
+    expect(none.isError).toBe(true);
+    expect(none.content[0].text).toBe('No songs/nothing in the Sample Space space');
+    expect((await call('get_library_entry', { projectId: 'p1', ref: 'Songs' })).isError).toBe(true);
+
+    expect(text(await call('read_library_entry', { projectId: 'p1', ref: 'songs/sample-song', what: 'transcript', fromSeconds: 60, toSeconds: 90 })).text).toBe('la la');
+    expect(seen.at(-1)?.path).toBe('/api/library/files?space=p1&ref=songs%2Fsample-song&read=transcript&from=60&to=90');
+
+    stored.set(sha('riff'), Buffer.from('riff'));
+    const saveTo = join(dir, 'in');
+    const got = text(await call('fetch_library_files', { projectId: 'p1', ref: 'songs/sample-song', saveTo, slots: ['master'] }));
+    expect(got.saved).toEqual([{ slot: 'master', name: 'master.wav', path: join(saveTo, 'master.wav'), size: 4, sha256: sha('riff') }]);
+    expect(await readFile(join(saveTo, 'master.wav'), 'utf8')).toBe('riff');
+    expect(text(await call('fetch_library_files', { projectId: 'p1', ref: 'songs/sample-song', saveTo })).saved[0].alreadyThere).toBe(true);
+
+    await writeFile(join(saveTo, 'master.wav'), 'mine');
+    const kept = text(await call('fetch_library_files', { projectId: 'p1', ref: 'songs/sample-song', saveTo }));
+    expect(kept.failed[0].reason).toMatch(/differs.*Nothing was replaced/);
+    expect(await readFile(join(saveTo, 'master.wav'), 'utf8')).toBe('mine');
+
+    damaged = true;
+    const bad = text(await call('fetch_library_files', { projectId: 'p1', ref: 'songs/sample-song', saveTo: join(dir, 'other') }));
+    expect(bad.failed[0].reason).toMatch(/damaged/);
+    expect(await readFile(join(dir, 'other', 'master.wav'), 'utf8').catch(() => 'gone')).toBe('gone');
+
+    await project({ 'master.wav': 'riff' });
+    const made = text(await call('library_made_from', { filePath: join(dir, 'master.wav'), slot: 'transcript' }));
+    expect(made.sha256).toBe(sha('riff'));
+    expect(seen.at(-1)?.path).toBe(`/api/library/files?madeFrom=${sha('riff')}&slot=transcript`);
+    expect((await call('library_made_from', {})).isError).toBe(true);
+  });
+
+  it("saves nothing without the person's yes, and stops on private details", async () => {
+    await project({ 'master.wav': 'riff', 'words.json': '{"words":[]}', 'notes.txt': 'write to someone@example.com' });
+    const client = await connect(base);
+    const call = async (args: Record<string, unknown>) => text(await client.callTool({ name: 'save_library_entry', arguments: { projectId: 'p1', collection: 'songs', ...args } }));
+    const files = [
+      { slot: 'master', path: join(dir, 'master.wav') },
+      { slot: 'transcript', path: join(dir, 'words.json'), madeFrom: { slot: 'master', tool: 'scribe' } },
+    ];
+
+    const asked = await call({ fields: { title: 'Sample Song' }, files });
+    expect(asked.saved).toBe(false);
+    expect(asked.ask).toMatch(/^Add the new song "Sample Song"/);
+    expect(asked.next).toMatch(/only after they agree/);
+    expect(seen.every(s => s.body?.dry || s.method === 'GET')).toBe(true);
+    expect(stored.size).toBe(0);
+
+    const stopped = await call({ fields: { title: 'Sample Song' }, files: [{ slot: 'other', path: join(dir, 'notes.txt') }], yes: true });
+    expect(stopped.saved).toBe(false);
+    expect(stopped.privateDetails).toEqual(['notes.txt: 1 email address']);
+    expect(stored.size).toBe(0);
+
+    const saved = await call({ fields: { title: 'Sample Song' }, files, yes: true, place: 'Studio Mac' });
+    expect(saved.saved).toBe(true);
+    expect(stored.get(sha('riff'))?.toString()).toBe('riff');
+    const last = seen.at(-1)!.body;
+    expect(last).toMatchObject({ space: 'p1', collection: 'songs', agent: true, device: 'Studio Mac' });
+    expect(last.dry).toBeUndefined();
+    expect(last.files).toEqual([
+      { slot: 'master', sha256: sha('riff'), name: 'master.wav' },
+      { slot: 'transcript', sha256: sha('{"words":[]}'), name: 'words.json', madeFrom: { sha256: sha('riff'), tool: 'scribe' } },
+    ]);
+
+    // a result made from a file the entry already holds names that file
+    await project({ 'stems.zip': 'zip' });
+    await call({ entry: 'sample-song', files: [{ slot: 'stems', path: join(dir, 'stems.zip'), madeFrom: { slot: 'master', tool: 'demucs', settings: 'htdemucs' } }], yes: true });
+    expect(seen.at(-1)!.body.files[0].madeFrom).toEqual({ sha256: sha('riff'), tool: 'demucs', params: 'htdemucs' });
+  });
+
+  it('names what private details a file carries, never the value', () => {
+    expect(privateDetails('{"api_key": "abcd1234", "home": "/Users/sample/Music/a.wav"}')).toEqual(['1 password or key field', '1 path on a computer']);
+    expect(privateDetails('la la la')).toEqual([]);
   });
 });
