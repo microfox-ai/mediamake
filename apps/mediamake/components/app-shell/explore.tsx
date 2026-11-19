@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, SearchIcon, SlidersHorizontalIcon, StarIcon, XIcon } from 'lucide-react';
 import { HealthBadge } from '@/components/catalog/health';
+import { ListedCollections, useListedCollections } from '@/components/cloud-library/listed-collections';
 import { RunsBadges } from '@/components/catalog/runs';
 import { MadeByLine } from '@/components/catalog/uses';
 import { ItemIcon } from '@/components/catalog/item-listing';
@@ -37,6 +38,7 @@ function writeFilters(f: ExploreFilters) {
 /** The tab of the store front; the others are the list, whole or one kind of it. */
 const FEATURED = 'featured';
 const ALL = 'all';
+const COLLECTIONS = 'collections';
 
 /**
  * Explore, laid out like an app store. Featured is the store front: the
@@ -102,8 +104,14 @@ export function Explore({
   const hiddenTotal = Object.values(result.hidden).reduce((sum, n) => sum + n, 0);
   const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.admin].filter(Boolean).length;
 
-  const tab = filters.view === 'store' ? FEATURED : (filters.kind ?? ALL);
+  // collections members list from their Library: a tab of its own, shown only when there are some
+  const listed = useListedCollections();
+  const [onCollections, setOnCollections] = useState(false);
+  const showCollections = onCollections && !!listed.cards?.length;
+  const tab = showCollections ? COLLECTIONS : filters.view === 'store' ? FEATURED : (filters.kind ?? ALL);
   const openTab = (next: string) => {
+    setOnCollections(next === COLLECTIONS);
+    if (next === COLLECTIONS) return;
     if (next === FEATURED) update({ view: 'store', q: '', kind: null, category: null });
     else update({ view: 'list', kind: next === ALL ? null : (next as MemberKind), category: null });
   };
@@ -138,11 +146,18 @@ export function Explore({
                 {KIND_LABEL[kind].many} <Count n={result.kinds[kind]} />
               </TabsTrigger>
             ))}
+            {!!listed.cards?.length && (
+              <TabsTrigger value={COLLECTIONS} className="px-3">
+                Collections <Count n={listed.cards.length} />
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
         <TabsContent value={tab} className="flex flex-col gap-5">
-          {filters.view === 'store' ? (
+          {showCollections ? (
+            <ListedCollections cards={listed.cards ?? []} onChanged={listed.reload} />
+          ) : filters.view === 'store' ? (
             <StoreFront front={front} onSeeAll={category => update({ view: 'list', kind: null, category })} onSeeNew={() => update({ view: 'list', kind: null, category: null })} />
           ) : (
             <>

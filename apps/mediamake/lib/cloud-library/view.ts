@@ -42,6 +42,10 @@ export interface CollectionView {
   prefs?: string;
   /** The owner sees how many spaces it is opened to. */
   sharedWith?: number;
+  /** Listed in Explore by its owner, with the rights they wrote. */
+  listing?: { about: string; rights: string };
+  /** The owner sees how many requests for access wait. */
+  requests?: number;
   /** Another space's collection, opened to this one: who shares it, and what this space may do in it. */
   shared?: { by: string; from: string; collection: string; role: ShareRole };
 }

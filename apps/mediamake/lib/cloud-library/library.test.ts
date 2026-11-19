@@ -65,7 +65,16 @@ test('file types by name and content type', () => {
 });
 
 test('the templates: Songs has one master, one transcript, and nothing required', () => {
-  assert.deepEqual(Object.keys(TEMPLATES), ['songs']);
+  assert.deepEqual(Object.keys(TEMPLATES), ['songs', 'anime-art', 'anime-shots', 'background-music']);
+  for (const template of Object.values(TEMPLATES)) {
+    assert.ok(template.fields.some(f => f.key === template.titleField), `${template.id} names its entries by one of its fields`);
+    assert.equal(new Set(template.fields.map(f => f.key)).size, template.fields.length);
+    assert.equal(new Set(template.slots.map(s => s.key)).size, template.slots.length);
+    assert.ok(template.guide.includes(`Add the new ${template.noun} "`), `${template.id}'s guide gives the sentence to ask`);
+    assert.ok(template.fields.filter(f => f.kind === 'choice').every(f => f.options?.length));
+    // what a share keeps back is the same word in every template
+    assert.ok(template.fields.find(f => f.key === 'use')?.options?.includes('Internal only'));
+  }
   assert.equal(templateList()[0].id, 'songs');
   const slot = (key: string) => SONGS.slots.find(s => s.key === key)!;
   assert.equal(slot('master').many, false);

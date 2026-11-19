@@ -41,7 +41,7 @@ async function database(): Promise<Db> {
 }
 
 /** Each space's name as someone outside it reads it: the project's name, or whose personal Library it is. */
-async function spaceNames(db: Db, ids: string[]): Promise<Map<string, { name: string; personal: boolean; owner: string }>> {
+export async function spaceNames(db: Db, ids: string[]): Promise<Map<string, { name: string; personal: boolean; owner: string }>> {
   const valid = [...new Set(ids)].filter(id => ObjectId.isValid(id));
   if (!valid.length) return new Map();
   const docs = await db.collection<ProjectDoc>('projects').find({ _id: { $in: valid.map(id => new ObjectId(id)) }, ...LIVE }, { projection: { clientId: 1, displayName: 1, personal: 1 } }).toArray();

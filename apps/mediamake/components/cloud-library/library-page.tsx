@@ -544,7 +544,7 @@ export function LibraryPage() {
                     {(collection.shared || space.role === 'owner') && (
                       <button type="button" className={button} onClick={() => setSharing(true)}>
                         <UsersIcon className="size-4" />
-                        {collection.shared ? `Shared by ${collection.shared.by}` : collection.sharedWith ? `Shared with ${collection.sharedWith}` : 'Share'}
+                        {collection.shared ? `Shared by ${collection.shared.by}` : collection.requests ? `Share · ${collection.requests} ${collection.requests === 1 ? 'request' : 'requests'}` : collection.sharedWith ? `Shared with ${collection.sharedWith}` : 'Share'}
                       </button>
                     )}
                     {mayHere && (

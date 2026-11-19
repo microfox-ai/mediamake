@@ -51,6 +51,7 @@ import {
   type UsageSum,
 } from './index';
 import { MAX_FILE_BYTES, blobKey, createReadUrl, createUploadUrl, readText, storageReady, storedSize } from './storage';
+import { listingDB } from './listing-store';
 import { NO_INDEX, meaningIndex, meaningReady } from './meaning-store';
 import { madeFrom, type MadeFromAsk } from './reuse';
 import { shareDB, type SharedPlace } from './share-store';
@@ -169,10 +170,11 @@ export const libraryDB = {
     ]);
     const byCollection = new Map(counts.map(row => [row._id, row.n]));
     const [opened, sharedIn, invitations] = await Promise.all([space.role === 'owner' ? shareDB.counts(space.id) : new Map<string, number>(), shareDB.into([space]), shareDB.invitations(space)]);
+    const waiting = space.role === 'owner' && docs.some(doc => doc.listing) ? await listingDB.waiting(space.id) : new Map<string, number>();
     const collections = await Promise.all(
       docs.map(async doc => {
         const headshot = await headshotOf(doc);
-        return { ...collectionView(doc, byCollection.get(doc.slug) ?? 0, full), ...(headshot && { headshot }), ...(opened.get(doc.slug) && { sharedWith: opened.get(doc.slug) }) };
+        return { ...collectionView(doc, byCollection.get(doc.slug) ?? 0, full), ...(headshot && { headshot }), ...(opened.get(doc.slug) && { sharedWith: opened.get(doc.slug) }), ...(doc.listing && { listing: { about: doc.listing.about, rights: doc.listing.rights } }), ...(waiting.get(doc.slug) && { requests: waiting.get(doc.slug) }) };
       }),
     );
     // the collections other spaces opened to this one: the owner's own, live, under their id here
