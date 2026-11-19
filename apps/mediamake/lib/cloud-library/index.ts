@@ -571,6 +571,8 @@ export interface SearchAsk {
   has?: string[];
   lacks?: string[];
   limit?: number;
+  /** How many hits to skip: the next page of a long list. */
+  offset?: number;
 }
 
 export function parseSearch(params: URLSearchParams): SearchAsk {
@@ -587,11 +589,29 @@ export function parseSearch(params: URLSearchParams): SearchAsk {
     where,
     has: list('has'),
     lacks: list('lacks'),
-    limit: Math.min(50, Math.max(1, Number(params.get('limit')) || 10)),
+    limit: Math.min(200, Math.max(1, Number(params.get('limit')) || 10)),
+    offset: Math.max(0, Math.floor(Number(params.get('offset')) || 0)),
   };
 }
 
 /** Whether an entry answers a search: every word of `q` in its card or lyrics-like text, and every filter. */
+/**
+ * What a list shows of an entry beside its title, with no second request: the short fields (a
+ * choice, a date, a name, tags) and the slots that hold a file, each with how many.
+ */
+export function factsOf(entry: Pick<EntryRecord, 'fields' | 'slots'>): { facts: Record<string, string | string[]>; has: Record<string, number> } {
+  const facts: Record<string, string | string[]> = {};
+  for (const [key, value] of Object.entries(entry.fields)) {
+    if (typeof value === 'number') facts[key] = String(value);
+    else if (typeof value === 'string') {
+      if (value.length <= 80 && !value.includes('\n')) facts[key] = value;
+    } else if (Array.isArray(value) && value.length && value.every(item => typeof item === 'string')) facts[key] = (value as string[]).slice(0, 12);
+  }
+  const has: Record<string, number> = {};
+  for (const [slot, files] of Object.entries(entry.slots)) if (files.length) has[slot] = files.length;
+  return { facts, has };
+}
+
 export function matches(entry: Pick<EntryRecord, 'card' | 'fields' | 'slots' | 'title'>, ask: SearchAsk): boolean {
   for (const slot of ask.has ?? []) if (!(entry.slots[slot] ?? []).length && entry.fields[slot] === undefined) return false;
   for (const slot of ask.lacks ?? []) if ((entry.slots[slot] ?? []).length || entry.fields[slot] !== undefined) return false;

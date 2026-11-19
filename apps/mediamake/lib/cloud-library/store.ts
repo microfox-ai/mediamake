@@ -16,11 +16,12 @@
  * Every function takes the space the caller was checked against (./access): nothing here checks
  * who is asking.
  */
-import type { Db } from 'mongodb';
+import { ObjectId, type Db } from 'mongodb';
 import { getDatabase } from '@/lib/mongodb';
 import { storageProblem } from '@/lib/projects/storage-store';
 import type { LibrarySpace } from './access';
 import {
+  factsOf,
   DEFAULT_PRICES,
   LIBRARY_SCHEMA,
   SHA256,
@@ -129,6 +130,7 @@ function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
     name: doc.name,
     template: template.id,
     noun: template.noun,
+    titleField: template.titleField,
     about: template.about,
     entries,
     updatedAt: doc.updatedAt,
@@ -140,7 +142,7 @@ function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
 }
 
 const entryView = (entry: EntryRecord, full: boolean) =>
-  full ? entry : { ref: `${entry.collection}/${entry.slug}`, title: entry.title, card: entry.card, rev: entry.rev, updatedAt: entry.updatedAt, ...(entry.agent && { agent: true }) };
+  full ? entry : { ref: `${entry.collection}/${entry.slug}`, title: entry.title, card: entry.card, rev: entry.rev, updatedAt: entry.updatedAt, ...(entry.agent && { agent: true }), ...factsOf(entry) };
 
 export const libraryDB = {
   /** A space's collections, with how many entries each has. `full` adds each one's guide and preferences. */
@@ -277,7 +279,8 @@ export const libraryDB = {
       .toArray();
     const hits = docs.filter(entry => matches(entry, ask));
     const limit = ask.limit ?? 10;
-    return { total: hits.length, results: hits.slice(0, limit).map(entry => ({ ...entryView(entry as EntryRecord, false), space: names.get(entry.space), spaceId: entry.space })) };
+    const from = ask.offset ?? 0;
+    return { total: hits.length, results: hits.slice(from, from + limit).map(entry => ({ ...entryView(entry as EntryRecord, false), space: names.get(entry.space), spaceId: entry.space })) };
   },
 
   /**
@@ -408,9 +411,17 @@ export const libraryDB = {
       Object.entries(sumBy(lines, key))
         .map(([name, sum]) => ({ name, ...sum, cost: costOf(sum, prices) }))
         .sort((a, b) => b.cost - a.cost || b.fetchedBytes - a.fetchedBytes);
+    // spaces by the name a person knows them by: a project's name, or whose personal space it is
+    const ids = [...new Set([...lines.map(line => line.space), ...stored.map(row => row._id)])].filter(id => ObjectId.isValid(id));
+    const projects = await db
+      .collection<{ _id: ObjectId; displayName?: string; personal?: boolean; clientId?: string }>('projects')
+      .find({ _id: { $in: ids.map(id => new ObjectId(id)) } }, { projection: { displayName: 1, personal: 1, clientId: 1 } })
+      .toArray();
+    const spaceNames = Object.fromEntries(projects.map(doc => [doc._id.toString(), doc.personal ? `Personal (${doc.clientId ?? 'unknown'})` : (doc.displayName ?? 'Project')]));
     return {
       since,
       prices,
+      spaceNames,
       note: 'Costs are estimates from the prices above, which an admin sets: they are not read from a bill.',
       stored: stored.map(row => ({ space: row._id, bytes: row.bytes, files: row.files, costPerMonth: storageCostOf(row.bytes, prices) })).sort((a, b) => b.bytes - a.bytes),
       byPerson: table('clientId'),

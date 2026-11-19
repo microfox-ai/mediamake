@@ -4,6 +4,7 @@ import { answer, caller, failed, mayUseLibrary, refuse, spaceOf } from '@/lib/cl
 import { libraryDB } from '@/lib/cloud-library/store';
 import { templateList } from '@/lib/cloud-library/templates';
 import { getDatabase } from '@/lib/mongodb';
+import { ensurePersonalProject } from '@/lib/projects/personal';
 
 /**
  * The Cloud Library (lib/cloud-library, docs/library.md). Behind the middleware, so x-client-id is
@@ -27,7 +28,10 @@ export async function GET(req: NextRequest) {
     }
     const locked = await mayUseLibrary(clientId);
     if (locked) return locked;
-    const spaces = await librarySpaces(await getDatabase(), clientId);
+    const db = await getDatabase();
+    // the personal space is made the first time it is asked for, as the Spaces page does
+    await ensurePersonalProject(db, clientId).catch(error => console.error('[library] Could not make the personal space:', error));
+    const spaces = await librarySpaces(db, clientId);
     return NextResponse.json({ spaces: await Promise.all(spaces.map(space => libraryDB.overview(space))), templates: templateList() });
   } catch (error) {
     return failed('read the Library', error);

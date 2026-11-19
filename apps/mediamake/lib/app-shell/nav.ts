@@ -1,4 +1,4 @@
-import { tierOpens, type MemberTier } from '@/lib/memberships/tiers';
+import { FEATURE_TIERS, tierOpens, type MemberTier } from '@/lib/memberships/tiers';
 
 /**
  * The signed-in app at /app: its sidebar, as data. Four sections (Home,
@@ -19,6 +19,8 @@ export type AppNavIcon =
   | 'explore'
   | 'mine'
   | 'projects'
+  | 'library'
+  | 'libraryUsage'
   | 'releases'
   | 'mcp'
   | 'billing'
@@ -51,6 +53,7 @@ export const APP_NAV: AppNavSection[] = [
       { title: 'Explore', href: '/app/explore', icon: 'explore' },
       { title: 'Mine', href: '/app/mine', icon: 'mine' },
       { title: 'Spaces', href: '/app/spaces', icon: 'projects' },
+      { title: 'Library', href: '/app/library', icon: 'library', needs: FEATURE_TIERS.cloudLibrary },
     ],
   },
   {
@@ -60,6 +63,7 @@ export const APP_NAV: AppNavSection[] = [
       { title: 'Releases', href: '/app/releases', icon: 'releases' },
       { title: 'MediaMake MCP', href: '/app/mediamake-mcp', icon: 'mcp' },
       { title: 'Billing', href: '/app/billing', icon: 'billing' },
+      { title: 'Library Usage', href: '/app/library-usage', icon: 'libraryUsage' },
       { title: 'Manage Memberships', href: '/app/memberships', icon: 'memberships' },
       { title: 'Submissions', href: '/app/submissions', icon: 'submissions' },
       { title: 'Feedback', href: '/app/feedback', icon: 'feedback' },

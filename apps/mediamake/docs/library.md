@@ -113,7 +113,7 @@ key works the same.
 | `GET /api/library?space=` | One space's collections in full, with guide and preferences |
 | `POST /api/library` | `new-collection` from a template, or the owner's `prefs` |
 | `GET /api/library/entries?space=&ref=` | One entry in full |
-| `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open |
+| `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it |
 | `POST /api/library/entries` | Save an entry. `dry: true` answers with the sentence and the changes |
 | `DELETE /api/library/entries?space=&ref=` | To the trash |
 | `POST /api/library/files` | `start` (signed upload links for what isn't stored yet), then `finish` |
@@ -122,6 +122,29 @@ key works the same.
 | `POST /api/library/stats` | A platform's numbers for a day |
 | `GET /api/library/usage` | The caller's usage. `?all=1` for admins: everyone's |
 | `PUT /api/library/usage` | Admins: the prices behind the estimate |
+
+## The page
+
+`/app/library`, below Spaces in the sidebar (`components/cloud-library`). Its address holds the place
+(`?space=&c=<collection>&e=<entry>`), so a link opens the same view.
+
+- The space is picked at the top right, in a dropdown that searches. Personal is first, and it is
+  the one shown when no project was chosen. The last pick is remembered in the browser.
+- No collection open: the space's collections as cards, and New collection (a template, then a name).
+- A collection open: a breadcrumb under the search, with the filters at its right end (each choice
+  field, and each slot as "has it" or "no … yet"), Guide (the template's guide and the owner's
+  notes, which the owner edits there) and Add. Entries are cards: the short fields, the tags, and a
+  chip per slot, dashed when it is empty.
+- An entry: a tab per heading of the template, then Files, Numbers (when a platform sent some) and
+  History. Change opens the same dialog as Add.
+- Add and Change: dropped files go to the slot their type and name say (`placeFiles` in
+  `lib/cloud-library/view.ts`) and each can be moved. A file is hashed in the browser, sent straight
+  to storage on a signed link, then the entry is saved with only the fields that changed. A file
+  over 2 GB goes up with `mm library save` instead.
+- Whoever can only read a space sees no Add, Change or trash.
+
+`/app/library-usage` (admins) shows the sums below as tabs: People, Computers, Spaces, Collections,
+Stored, and Prices, where the prices behind the estimate are set.
 
 ## Usage: who used what, and what it costs
 
@@ -136,11 +159,11 @@ is really paid before trusting the numbers. `mm library usage` shows a member th
 
 ## Not built yet
 
-The page in the app, device libraries and linking a device's file to its cloud copy, reuse of paid
+Device libraries and linking a device's file to its cloud copy, reuse of paid
 results by `mm transcribe` and `mm analyze`, shared collections, the tools in the Spaces MCP, search
 by meaning, filling fields with Claude when files are dropped, previews, and uploads that resume
 part by part (a file goes up in one request today, 5 GB at most).
 
-Tests: `npx tsx --test lib/cloud-library/library.test.ts` (in `apps/mediamake`) and
+Tests: `npx tsx --test lib/cloud-library/library.test.ts lib/cloud-library/view.test.ts` (in `apps/mediamake`) and
 `node --test tools/library.test.mjs`. Neither needs MongoDB or storage: the store and the routes
-have not been run against the live database yet.
+have not been run against the live database yet, and the page has only been opened with sample data.
