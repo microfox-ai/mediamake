@@ -320,7 +320,7 @@ export function ProjectDetail({
         </TabsContent>
 
         <TabsContent value="assets">
-          <AssetsTab productions={productions} releases={releases} media={media} storage={storage} first={isAssetKind(tab) ? tab : undefined} />
+          <AssetsTab projectId={projectId} productions={productions} releases={releases} media={media} storage={storage} first={isAssetKind(tab) ? tab : undefined} />
         </TabsContent>
 
         {!personal && (
