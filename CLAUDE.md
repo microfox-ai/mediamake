@@ -189,6 +189,12 @@ touching this checkout. A skill in one of the user's spaces gets them in that sp
 commit pushed straight to the space's branch, as `mm space sync` sends a space (no PR), its folder
 untouched until the next sync. Taste for one production still goes in its `projects/<slug>/prefs.md`.
 
+A skill only ever gains general rules: true for the next job, on another computer. A lesson, and every
+line written into a skill when it is made or changed, never carries one run's details (the prompt that
+worked once, the fix for one picture, timings, seeds, file names, this computer's GPU, drives or paths).
+Turn a correction into the rule it teaches, or leave it out; the run's details stay in its job folder or
+`prefs.md`.
+
 ## MediaMake Spaces: the user's personal space and their projects'
 
 A space keeps everything for one body of work, the same on every computer: a personal one (`space/` in
