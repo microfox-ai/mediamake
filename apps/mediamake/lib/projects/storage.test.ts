@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GB, STORAGE_CAP_BYTES, capsByTier, formatBytes, noRoomFor, parseRaise, storageCap, storageState } from './storage';
+import { GB, STORAGE_CAP_BYTES, bundleBytes, capsByTier, formatBytes, noRoomFor, parseRaise, storageCap, storageState } from './storage';
 
 describe('cloud storage caps', () => {
   it('gives each membership its cap, rising up the ladder, and admins none', () => {
@@ -42,5 +42,13 @@ describe('cloud storage caps', () => {
 
   it('writes sizes the way the upload limits do', () => {
     assert.deepEqual([formatBytes(0), formatBytes(12_400), formatBytes(340_000_000), formatBytes(1.25 * GB), formatBytes(25 * GB)], ['0 B', '12 KB', '340 MB', '1.3 GB', '25 GB']);
+  });
+});
+
+describe('what a bundle stores', () => {
+  it('counts a file that several versions share once', () => {
+    const versions = [{ files: [{ key: 'a', size: 100 }, { key: 'b', size: 50 }] }, { files: [{ key: 'a', size: 100 }, { key: 'c', size: 25 }] }];
+    assert.equal(bundleBytes({ versions }), 175);
+    assert.equal(bundleBytes({}), 0);
   });
 });

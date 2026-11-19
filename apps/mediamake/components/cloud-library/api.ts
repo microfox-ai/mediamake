@@ -26,6 +26,8 @@ export const libraryApi = {
   newCollection: (space: string, template: string, name?: string) => call<{ collection: CollectionView }>('/api/library', post({ action: 'new-collection', space, template, name })),
   setPrefs: (space: string, collection: string, prefs: string) => call<object>('/api/library', post({ action: 'prefs', space, collection, prefs })),
   setHeadshot: (space: string, collection: string, picture: { sha256?: string; url?: string }) => call<object>('/api/library', post({ action: 'headshot', space, collection, ...picture })),
+  fill: (body: { space: string; collection: string; files: { name: string; slot?: string; text?: string }[]; have: Record<string, unknown> }) =>
+    call<{ fields?: Record<string, unknown>; notes?: string; unread?: string[]; left?: number; off?: string }>('/api/library/fill', post({ ...body, device: 'web' })),
   list: (query: string) => call<{ total: number; results: EntryRow[] }>(`/api/library/entries?${query}`),
   entry: (space: string, ref: string) => call<EntryAnswer>(`/api/library/entries?space=${space}&ref=${ref}`),
   save: (body: { space: string; collection: string; slug?: string; fields?: Record<string, unknown>; files?: { slot: string; sha256: string; name: string }[]; removeFiles?: { slot: string; sha256: string }[]; rev?: number }) =>

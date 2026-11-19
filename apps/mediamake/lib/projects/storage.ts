@@ -99,3 +99,10 @@ export function parseRaise(body: unknown): { clientId: string; bytes: number; no
   const why = typeof note === 'string' ? note.trim().slice(0, 300) : '';
   return { clientId: clientId.trim(), bytes, ...(why && { note: why }) };
 }
+
+/** The bytes of one bundle (a production or a release): each stored file once, whatever versions share it. */
+export function bundleBytes(doc: { versions?: { files?: { key: string; size?: number }[] }[] }): number {
+  const stored = new Map<string, number>();
+  for (const version of doc.versions ?? []) for (const file of version.files ?? []) stored.set(file.key, Number(file.size) || 0);
+  return [...stored.values()].reduce((a, b) => a + b, 0);
+}
