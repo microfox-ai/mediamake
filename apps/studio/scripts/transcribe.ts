@@ -25,9 +25,11 @@
  * script. When the song is in the media library they are kept in its cache (kind transcript), so the
  * next production of that song gets them for free.
  */
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { creditsLeft, findElevenLabsKey, NO_KEY, scribe, type ScribeOptions, type ScribeResult, type ScribeWord } from './elevenlabs.ts';
 import { ffmpegLog, probeMedia } from './ff.ts';
 import { hasConfig, loadConfig } from './library/config.ts';
@@ -136,8 +138,26 @@ const params =
     .join(' ') || undefined;
 const lib = await libraryItem(song);
 
+/**
+ * The words of this exact song (by its SHA-256) made with the same settings, when a space the account can
+ * open holds them (`mm library made-from`, apps/mediamake/docs/library.md › Reuse). Undefined when there
+ * are none, and whenever the Library can't be asked (not signed in, offline, not a member): then nothing changes.
+ */
+function fromCloudLibrary(file: string, settings: string | undefined, to: string): { file: string; ref: string } | undefined {
+  if (!fs.existsSync(file) || process.env.MEDIAMAKE_LIBRARY_REUSE === 'off') return undefined;
+  const tool = fileURLToPath(new URL('../../../tools/library.mjs', import.meta.url));
+  const asked = spawnSync(process.execPath, [tool, 'made-from', file, '--slot=transcript', ...(settings ? [`--params=${settings}`] : []), `--to=${to}`, '--replace', '--json'], { encoding: 'utf8', timeout: 30_000 });
+  if (asked.status !== 0) return undefined;
+  try {
+    const taken = JSON.parse(asked.stdout).taken;
+    return taken && fs.existsSync(to) ? { file: to, ref: `${taken.ref} in ${taken.space}` } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Writes the words, checks them against the audio, and keeps them in the cache. */
-function keep(result: ScribeResult, how: string) {
+function keep(result: ScribeResult, how: string, fresh = true) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(result, null, 2));
   const words = result.words.filter(w => w.type === 'word');
@@ -147,6 +167,8 @@ function keep(result: ScribeResult, how: string) {
   const last = words.at(-1)?.end ?? 0;
   if (duration && last > duration + 0.5) console.warn(`  the last word ends at ${last.toFixed(2)} s, after the audio (${duration.toFixed(2)} s): check it is the same mix`);
   if (lib) console.log(`  kept in the media library's cache: ${shown(cachePut(lib.lib, lib.item, 'transcript', out, { params, tool: 'transcribe', target: 'input' }))}`);
+  // other computers find it by the song's content once it is in the song's entry (after the user's yes)
+  if (fresh) console.log(`  for every computer: mm library save <collection> <entry> --file transcript=${shown(out)} --made-from=transcript=master:transcribe${params ? `:${params}` : ''}`);
 }
 
 // Words the ElevenLabs connector gave: keep them like Scribe's own.
@@ -168,6 +190,19 @@ if (cached && cachedFile) {
   console.log(`From the media library's cache (no credits spent): ${shown(out)}`);
   console.log(`  transcribed ${cached.at.slice(0, 10)}; --fresh for a new one`);
   process.exit(0);
+}
+
+// The Cloud Library may hold this exact song's words, transcribed on another computer or in a cloud session.
+const shared = song && !has('fresh') ? fromCloudLibrary(song, params, `${out}.from-library.json`) : undefined;
+if (shared) {
+  try {
+    keep(wordsFrom(JSON.parse(fs.readFileSync(shared.file, 'utf8'))), `, from the Cloud Library (${shared.ref}, no credits spent; --fresh for a new one)`, false);
+    fs.rmSync(shared.file, { force: true });
+    process.exit(0);
+  } catch (e) {
+    fs.rmSync(shared.file, { force: true });
+    console.warn(`  the Cloud Library's transcript in ${shared.ref} has no timed words (${(e as Error).message}): transcribing it here`);
+  }
 }
 
 if (stemMissing) fail(`No vocal stem yet. Make it first (about a minute, free):\n  mm analyze ${target} --only separate\nor send the whole song with --mix.`);

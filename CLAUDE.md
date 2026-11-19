@@ -276,6 +276,9 @@ upload, download and search is counted. The media library above stays the comput
 - When a save stops on private details in a file, tell the user what was found. `--private-ok` only on
   their word. Never a key or a password in a field or a file.
 - A song has one master, one lyrics and one transcript. Replacing one is the owner's decision.
+- Before paying for a result again, ask what was made from the file: `mm library made-from <file>
+  [--slot=transcript]`. Saving a result, say what it was made from (`--made-from=transcript=master:<tool>`).
+  `mm library use <collection>/<entry> --into=<project>` puts an entry's files in a production's input.
 - A computer tells the Library what its media library holds only after its owner turns that on:
   `mm library report` shows what would go (a card a file: name, kind, size, SHA-256; never the file or
   its folder), `mm library report on` is the owner's word, in this session. Never turn it on for them.
@@ -288,8 +291,9 @@ Every skill gets a song's timed words the same way: ElevenLabs Scribe on the voc
 `mm transcribe <slug>` (`apps/studio/scripts/transcribe.ts`).
 
 1. Run it with no flags first (free; the stem comes from `mm analyze <slug> --only separate`).
-   It gives back the song's words from the media library's cache when they are there (done), else makes the
-   stem's mono MP3 (`analysis/stems/vocals.mp3`, a tenth of the WAV) and prints the price. Show it and ask.
+   It gives back the song's words from the media library's cache when they are there (done), else from the
+   Cloud Library when a space the account can open holds the words of this exact song (done, nothing spent),
+   else makes the stem's mono MP3 (`analysis/stems/vocals.mp3`, a tenth of the WAV) and prints the price. Show it and ask.
 2. First choice, the local ElevenLabs MCP's key (`mcp/elevenlabs`, the official open-source server with an API
    key): `--yes` sends the MP3 to Scribe with that key, which the script finds in Claude Code's or Claude
    Desktop's config, and writes `input/lyrics.raw.json` (every word's start and end) and the cache. No widget.
