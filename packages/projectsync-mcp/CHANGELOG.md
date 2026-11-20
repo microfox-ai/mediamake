@@ -1,5 +1,16 @@
 # @microfox/projectsync-mcp
 
+## 0.4.0
+
+### Minor Changes
+
+- 0297e94: MediaMake Spaces reads and fills the Cloud Library. `list_library` shows the spaces you can open, their collections, and one collection's fields, file slots and guide. `search_library` answers with cards, `get_library_entry` and `read_library_entry` give fields and text with no download, and `fetch_library_files` brings files into a folder, each checked against its SHA-256. `library_made_from` says what was already made from an exact file (its transcript, its stems) before it is paid for again. `save_library_entry` saves nothing until the person agreed to the sentence it gives, and stops on private details found in a file.
+
+### Patch Changes
+
+- 868d8ba: Changes from PR #639: project-thread-llnbbo
+- 8d4f3d3: mm-use reads the Cloud Library: `list_library`, `search_library`, `get_library_entry`, `read_library_entry` and `library_made_from` (by SHA-256), the same read-only tools as in MediaMake Spaces. `search_library` takes `byMeaning`, which matches the words by what an entry is about and gives the piece of its lyrics or transcript that fits. Nothing is saved or downloaded from the hosted connector.
+
 ## 0.3.1
 
 ### Patch Changes

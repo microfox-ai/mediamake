@@ -1,5 +1,18 @@
 # @microfox/mediamake-mcp
 
+## 0.10.0
+
+### Minor Changes
+
+- 8d4f3d3: mm-use reads the Cloud Library: `list_library`, `search_library`, `get_library_entry`, `read_library_entry` and `library_made_from` (by SHA-256), the same read-only tools as in MediaMake Spaces. `search_library` takes `byMeaning`, which matches the words by what an entry is about and gives the piece of its lyrics or transcript that fits. Nothing is saved or downloaded from the hosted connector.
+
+### Patch Changes
+
+- 868d8ba: Changes from PR #639: project-thread-llnbbo
+- 3bf8341: Changes from PR #630: project-thread-cuke7r
+- 9c88af3: Changes from PR #636: mcp-config-per-machine
+- bc1effd: mm-release: `catalog_set_readiness` takes an item to Production with or without a production named. The productions made with it are asked for, not required; without `proof` the ones already on record stay.
+
 ## 0.9.1
 
 ### Patch Changes
