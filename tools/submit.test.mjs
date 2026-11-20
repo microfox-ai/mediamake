@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { NO_RUN_SHEET } from './skills.mjs';
-import { candidates, check, collect, describe, madeProblem, payload, uploadTimedOut, uploadTimeout } from './submit.mjs';
+import { authorLine, authorsItemId, candidates, check, collect, describe, madeProblem, payload, uploadTimedOut, uploadTimeout } from './submit.mjs';
 
 const SKILL_MD = '---\nname: make-thing\ndescription: Makes a thing from a song and a picture\nmetadata:\n  version: 1.2.0\n---\n\n# make-thing\n';
 const SHEET = "\n## Where it runs\n\n| Step | Needs | A person's yes | Safe to repeat | Without it |\n|---|---|---|---|---|\n| Make it | `key:elevenlabs` | no | yes | a to-do for a place with the key |\n";
@@ -131,4 +131,16 @@ test('the upload gets a minute for the server plus time to go up, and a time-out
   const said = uploadTimedOut('pack-distrokid', 1.7 * 1048576, 88_000);
   assert.match(said, /^Sending pack-distrokid \(1\.7 MB\) got no answer within 88 s\./);
   assert.match(said, /may still have arrived: mm submit status shows whether it did/);
+});
+
+test('an authors command means the kind asked, else the user\'s own copy, else a skill', () => {
+  assert.equal(authorsItemId('make-thing', 'mcp', [{ kind: 'skill' }]), 'mcp/make-thing');
+  assert.equal(authorsItemId('weather', '', [{ kind: 'mcp' }]), 'mcp/weather');
+  assert.equal(authorsItemId('make-thing', '', []), 'skill/make-thing');
+  assert.equal(authorsItemId('board', '', [{ kind: 'app' }, { kind: 'skill' }]), null);
+});
+
+test('an author is listed by name or GitHub login, never an email', () => {
+  assert.equal(authorLine({ name: 'ana-dev', github: 'ana-dev', you: true, addedAt: '2026-11-20T10:00:00.000Z' }), '  ana-dev  (github.com/ana-dev)  · you  · since 2026-11-20');
+  assert.equal(authorLine({ name: 'Ravi', addedAt: '2026-11-21T10:00:00.000Z' }), '  Ravi  · since 2026-11-21');
 });

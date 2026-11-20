@@ -14,6 +14,7 @@ import { detailsKey } from '@/lib/app-shell/details-key';
 import { usedByOf } from '@/lib/catalog/summary';
 import { knownIssuesDB } from '@/lib/feedback/known-issues-store';
 import { registry, skillNamed } from '@/lib/skills/registry';
+import { shownAuthors } from '@/lib/submissions/authors';
 import { NETWORK_GROUP, PRIVATE_GROUP, isInstallable, itemTier, savedProofOf, slugOf, type CatalogItemRecord } from '@/lib/catalog/types';
 import { currentMembership } from '@/lib/memberships/membership';
 import { membershipsDB } from '@/lib/memberships/store';
@@ -26,7 +27,7 @@ import { GRANTABLE_TIERS, LEGACY_PERSON_TIER, higherTier, type GrantableTier, ty
  * its proof, the grants that reach it, how many people hold each membership, what installing it does (the plan an admin would get,
  * everything shared, no package links), what needs or uses it, and its
  * video (with the tutorials a course can play, and the courses a tutorial is in), its store listing (an admin's tags and its screenshots),
- * and for a skill, MCP or app its launch video prompt (see lib/catalog/launch-video).
+ * and for a skill, MCP or app its authors and its launch video prompt (see lib/catalog/launch-video).
  * Read-only: unlike GET /api/admin/catalog, it settles no gates.
  */
 export async function GET(req: NextRequest) {
@@ -122,9 +123,13 @@ export async function GET(req: NextRequest) {
     };
   }
 
+  // a skill's, MCP's or app's authors (lib/catalog/authors), named as its page names them
+  const authors = ['skill', 'mcp', 'app'].includes(item.kind) && !item.madeBy ? await shownAuthors(id).catch(() => []) : undefined;
+
   return NextResponse.json({
     item,
     definedIn: storedIds.has(id) ? 'database' : staticOrigin(id),
+    authors,
     archive: archive.get(id) ?? null,
     healthMark: health.get(id) ?? null,
     readinessMark: readiness.get(id) ?? null,

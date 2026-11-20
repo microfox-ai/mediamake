@@ -18,6 +18,7 @@ import type { InstallPlan } from '@/lib/catalog/plan';
 import type { UsedBy } from '@/lib/catalog/summary';
 import type { ListingMedia } from '@/lib/catalog/listing';
 import type { ItemAdvice, ReadyProof } from '@/lib/catalog/types';
+import type { AuthorShown } from '@/lib/catalog/authors';
 import type { ReadmeSource } from '@/lib/catalog/readme';
 import type { SkillDetailsForm } from '@/lib/catalog/skill-profile';
 
@@ -64,6 +65,8 @@ export interface ItemDetail {
   item: CatalogItemRecord;
   /** Where the item is defined: stored in the catalog database, or a file in the repo. */
   definedIn: 'database' | 'third-party.json' | 'skills.json' | 'items.ts' | null;
+  /** A skill's, MCP's or app's authors (lib/catalog/authors): who may change it, named as its page names them. */
+  authors?: AuthorShown[];
   /** Live grants that reach it: its own, its kind's and everything's. */
   grants: AccessGrant[];
   /** How many people hold each membership. */

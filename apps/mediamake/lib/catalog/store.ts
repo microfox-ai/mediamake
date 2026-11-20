@@ -29,6 +29,7 @@ import {
   type ReadyProof,
   type Visibility,
 } from './types';
+import type { ItemAuthor } from './authors';
 import { isEmptyListing, type ItemListing, type ListingFields } from './listing';
 import type { ProfileChange, SkillProfile } from './skill-profile';
 
@@ -39,6 +40,7 @@ const COL = {
   health: 'catalog_health',
   readiness: 'catalog_readiness',
   listing: 'catalog_listing',
+  authors: 'catalog_authors',
   profiles: 'skill_profiles',
   downloads: 'catalog_downloads',
   grants: 'access_grants',
@@ -80,6 +82,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
   await db.collection(COL.readiness).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.listing).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.authors).createIndex({ id: 1 }, { unique: true });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -549,6 +552,39 @@ export const catalogListingDB = {
   async remove(id: string) {
     const db = await getDatabase();
     await db.collection(COL.listing).deleteOne({ id });
+  },
+};
+
+// ── Authors ──────────────────────────────────────────────────────────────────
+
+interface StoredAuthors {
+  id: string;
+  authors: ItemAuthor[];
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+/** Items' authors (see ./authors): any id, a Public skill in the repo too, so kept apart from the items. */
+export const catalogAuthorsDB = {
+  /** The item's authors as written down, or null when none were yet (lib/submissions/authors falls back). */
+  async get(id: string): Promise<ItemAuthor[] | null> {
+    const db = await getDatabase();
+    const doc = await db.collection<StoredAuthors>(COL.authors).findOne({ id }, { projection: { _id: 0 } });
+    return doc?.authors.length ? doc.authors : null;
+  },
+
+  /** Replaces the item's authors (never empty: ./authors keeps one). */
+  async set(id: string, authors: ItemAuthor[], actor?: string) {
+    if (authors.length === 0) throw new Error(`${id} keeps at least one author`);
+    const db = await getDatabase();
+    await db.collection<StoredAuthors>(COL.authors).replaceOne({ id }, withoutUndefined({ id, authors, updatedAt: nowISO(), updatedBy: actor }) as StoredAuthors, { upsert: true });
+  },
+
+  /** Writes the first authors down, only when the item has none written yet. */
+  async seed(id: string, authors: ItemAuthor[]) {
+    if (authors.length === 0) return;
+    const db = await getDatabase();
+    await db.collection<StoredAuthors>(COL.authors).updateOne({ id }, { $setOnInsert: { id, authors, updatedAt: nowISO() } }, { upsert: true });
   },
 };
 

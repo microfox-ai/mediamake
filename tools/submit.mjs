@@ -10,8 +10,17 @@
  *                                           with it (--made); Cohort members and admins may leave it out
  *   mm submit <name> --yes --tier=public|plus|pro|cohort
  *                                           an admin publishes it directly at that membership: no review
+ *   An update (a new version of an item already in the store) sent by an admin, or by a Cohort
+ *   member who is one of its authors, is published directly at the membership it has, with no review
+ *   and no --tier; any other author's update goes to review
  *   mm submit status                        your submissions and where each stands
  *   mm submit withdraw <id>                 takes one back before it is decided
+ *   mm submit authors <name>                the item's authors (its authors and admins see them)
+ *   mm submit authors <name> --add=<email> | --remove=<email or name> [--yes]
+ *                                           adds or removes an author, by their MediaMake account's
+ *                                           email (or, to remove, the name the list shows). Its
+ *                                           authors and admins may; an item always keeps one author.
+ *                                           Without --yes it only says what would change
  *   --kind=skill|mcp|app                    when two of your items share a name
  *   --json                                  the same as JSON, for Claude
  *
@@ -164,6 +173,19 @@ export function madeProblem(made) {
   return null;
 }
 
+/**
+ * The item an authors command means: --kind, else the kind of the user's own copy, else a skill. Null
+ * when their copies are of more than one kind.
+ */
+export function authorsItemId(name, kind, found = []) {
+  if (kind) return `${kind}/${name}`;
+  const kinds = [...new Set(found.map(item => item.kind))];
+  return kinds.length > 1 ? null : `${kinds[0] ?? 'skill'}/${name}`;
+}
+
+/** One author as the list shows them: a GitHub login or a display name, never an email. */
+export const authorLine = a => `  ${a.name}${a.github ? `  (github.com/${a.github})` : ''}${a.you ? '  · you' : ''}  · since ${String(a.addedAt).slice(0, 10)}`;
+
 /** The memberships an admin publishes at. */
 export const PUBLISH_TIERS = ['public', 'plus', 'pro', 'cohort'];
 
@@ -237,6 +259,28 @@ async function withdraw(id, json) {
   const { submission } = await call('DELETE', `${url}/api/submissions?id=${encodeURIComponent(id)}`, key);
   if (json) return console.log(JSON.stringify({ submission }, null, 2));
   console.log(`Withdrawn: ${submission.itemId}. It stays yours and works as before.`);
+}
+
+async function authors(name, flags) {
+  const json = !!flags.json;
+  if (!name || !NAME.test(name)) fail('Name the item: mm submit authors <name> [--add=<email>] [--remove=<email or name>]');
+  if (flags.kind && !Object.keys(KINDS).includes(flags.kind)) fail('--kind is skill, mcp or app');
+  if (flags.add === true || flags.remove === true) fail('--add takes their email (--add=<email>), --remove their email or the name the list shows');
+  const add = typeof flags.add === 'string' ? flags.add.trim() : '';
+  const remove = typeof flags.remove === 'string' ? flags.remove.trim() : '';
+  if (add && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(add)) fail('--add is the email of their MediaMake account');
+  const id = authorsItemId(name, typeof flags.kind === 'string' ? flags.kind : '', flags.kind ? [] : candidates(name));
+  if (!id) fail(`You have more than one item named ${name}: say which with --kind=skill|mcp|app`);
+  const { url, key } = signedIn();
+  const change = add || remove;
+  const view = change && flags.yes === true ? await call('POST', `${url}/api/submissions/authors`, key, { id, ...(add && { add }), ...(remove && { remove }) }) : await call('GET', `${url}/api/submissions/authors?id=${encodeURIComponent(id)}`, key);
+  const asked = [add && `add ${add}`, remove && `remove ${remove}`].filter(Boolean).join(' and ');
+  if (json) return console.log(JSON.stringify({ ...view, ...(change && flags.yes !== true && { wouldChange: asked, changed: false }) }, null, 2));
+  if (view.changed) console.log(`${view.itemId}: ${view.changed}.`);
+  console.log(`Authors of ${view.itemId}:`);
+  for (const a of view.authors) console.log(authorLine(a));
+  if (change && flags.yes !== true) console.log(`\nNothing changed. To ${asked}: mm submit authors ${name} ${[add && `--add=${add}`, remove && `--remove="${remove}"`].filter(Boolean).join(' ')}${flags.kind ? ` --kind=${flags.kind}` : ''} --yes`);
+  else if (!change) console.log(`\nIts authors and admins add or remove one: mm submit authors ${name} --add=<email> | --remove=<email or name>. A Cohort author's updates are published directly.`);
 }
 
 async function submit(name, flags) {
@@ -313,6 +357,7 @@ async function main(argv) {
   }
   if (first === 'status') return status(!!flags.json);
   if (first === 'withdraw') return withdraw(second, !!flags.json);
+  if (first === 'authors') return authors(second, flags);
   return submit(first, flags);
 }
 

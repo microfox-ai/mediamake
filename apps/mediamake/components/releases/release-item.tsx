@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HealthBadge } from '@/components/catalog/health';
 import { NeedBadge } from '@/components/catalog/uses';
+import { AuthorsLine } from '@/components/catalog/authors';
 import { cn } from '@/lib/utils';
 import { VIDEO_KINDS, directoryUrlOf, isAlwaysPublic, proofOf, type CatalogItemRecord, type CatalogKind, type InstallSource, type ItemTier } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
@@ -679,6 +680,20 @@ function WherePanel({ detail }: { detail: ItemDetail }) {
   const directoryUrl = directoryUrlOf(item.install?.source);
   const rows: [string, React.ReactNode][] = [
     ['Made by', item.madeBy ? `${item.madeBy.name}${item.madeBy.license ? ` · ${item.madeBy.license}` : ''}` : 'Us'],
+    ...(detail.authors
+      ? ([
+          [
+            'Authors',
+            detail.authors.length > 0 ? (
+              <AuthorsLine key="authors" authors={detail.authors} label={false} className="text-sm" />
+            ) : (
+              <span key="authors" className="text-muted-foreground">
+                None yet: <code className="text-xs">mm submit authors {item.slug} --add=&lt;email&gt;</code>
+              </span>
+            ),
+          ],
+        ] as [string, React.ReactNode][])
+      : []),
     [
       'Code',
       code ? (
