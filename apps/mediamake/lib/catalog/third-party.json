@@ -185,6 +185,78 @@
         },
         "notes": "Early alpha, by its makers' own account. Runs on your computer and needs no account or key; it reaches the network only when you share a file from the app. Text uses the fonts installed on the computer plus ones a session loads (text.loadFont), so install a design's fonts before opening it in the app. The use-figcraft skill says how Claude builds, checks and exports a layout with it."
       }
+    },
+    {
+      "id": "mcp/comfy-mcp",
+      "title": "Comfy MCP",
+      "summary": "Comfy-Org's MCP server for the ComfyUI on your own computer: Claude runs gallery templates and your own workflows with open image, video, audio and 3D models on your GPU, waits on the jobs and fetches the results, searches templates, nodes and models, downloads the models a workflow needs, and starts or stops ComfyUI. Free to run; only partner-model nodes spend Comfy credits. The use-comfy skill says how Claude uses it.",
+      "status": "live",
+      "tags": ["mcp", "images", "video", "audio", "3d"],
+      "releasedAt": "2026-11-20",
+      "madeBy": { "name": "Comfy Org", "repo": "Comfy-Org/comfy-mcp", "license": "AGPL-3.0-or-later", "homepage": "https://docs.comfy.org/agent-tools/mcp" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "comfy-mcp",
+          "local": {
+            "command": "uvx",
+            "args": ["comfy-mcp"],
+            "env": [
+              {
+                "name": "COMFY_BIN",
+                "description": "The full path of comfy-cli's comfy command (comfy.exe on Windows), only when Claude can't find comfy on the PATH (uv tool install puts it in ~/.local/bin).",
+                "required": false
+              },
+              {
+                "name": "COMFY_API_KEY",
+                "description": "Only for partner-model nodes (the paid models Comfy runs at their providers): a Comfy API key. At the link, create one and copy it at once. Open models need no key.",
+                "getAt": "https://platform.comfy.org/profile/api-keys",
+                "secret": true,
+                "required": false
+              }
+            ]
+          },
+          "setup": [
+            "Install comfy-cli, which installs and runs ComfyUI: `uv tool install comfy-cli`.",
+            "Install ComfyUI with PyTorch for this computer's GPU (a few GB) into a folder outside Documents, Desktop, Downloads and OneDrive, e.g. ~/comfy/ComfyUI: `comfy --skip-prompt --workspace <folder> install --nvidia` (`--amd`; `--m-series` on an Apple Silicon Mac; `--cpu` without a GPU, fit only for small images; an RTX 50 card needs `--cuda-version 12.8` or newer), then `comfy set-default <folder>`.",
+            "No models are downloaded here: Claude fetches the ones a workflow needs, after your yes. ComfyUI starts when Claude needs it (or `comfy launch --background`), at http://127.0.0.1:8188."
+          ],
+          "guide": "https://github.com/Comfy-Org/comfy-mcp#readme"
+        },
+        "notes": "Needs uv and an NVIDIA GPU of 8 GB or more, an AMD GPU or an Apple Silicon Mac; video is slow under 16 GB. Runs on your computer with no account; partner-model nodes need a Comfy API key and spend credits. AGPL-3.0, or a commercial licence from Comfy Org. Each open model has its own licence, some non-commercial: check before using its results commercially."
+      }
+    },
+    {
+      "id": "mcp/comfy-cloud",
+      "title": "Comfy Cloud",
+      "summary": "Comfy Cloud's hosted MCP server: ComfyUI on Comfy's GPUs, plus the partner models it runs at their providers, for jobs too heavy for your own GPU or where nothing runs locally. Searches and runs templates and workflows, batches, saved workflows and billing. Signs in with your Comfy account. The use-comfy skill says how Claude uses it.",
+      "status": "live",
+      "tags": ["mcp", "images", "video", "audio"],
+      "releasedAt": "2026-11-20",
+      "madeBy": { "name": "Comfy Org", "homepage": "https://docs.comfy.org/agent-tools/mcp" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "comfy-cloud",
+          "remote": {
+            "url": "https://cloud.comfy.org/mcp",
+            "headers": [
+              {
+                "name": "X-API-Key",
+                "description": "Only where signing in through a browser can't happen (a cloud session, a script): a Comfy API key. At the link, create one and copy it at once. Everywhere else leave it out and sign in instead.",
+                "getAt": "https://platform.comfy.org/profile/api-keys",
+                "secret": true,
+                "required": false
+              }
+            ]
+          },
+          "setup": [
+            "Sign in with your Comfy account: in Claude Code run /mcp, pick comfy-cloud and click Authenticate; in the Claude apps the connector asks. It is ready when Claude has comfy-cloud's search_templates tool."
+          ],
+          "guide": "https://docs.comfy.org/agent-tools/mcp"
+        },
+        "notes": "Hosted by Comfy Org: nothing runs on your computer. Any run needs a Comfy Cloud subscription, and partner models spend credits on top; searching is free. On a computer with a capable GPU, the Comfy MCP (local, free for open models) comes first."
+      }
     }
   ]
 }
