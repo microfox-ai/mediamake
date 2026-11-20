@@ -35,7 +35,8 @@
  *   mm run stop <slug>                  lets go of the run, so another place can continue it
  *   mm run cancel <slug> [--reason="…"] cancels it, and the to-dos its steps wait for
  *   mm run --hook                       the session-start line (.claude/settings.json): quiet unless a
- *                                       run is ready to continue that this place can do
+ *                                       run is ready to continue that this place can do, in a project
+ *                                       it is open to (mm access open); a closed computer says nothing
  *
  * --project=<name or id> names the project when two of yours have a run by the same slug.
  * "Continue <slug> in <project>", pasted into Claude, is mm run resume <slug> --project=<project>.
@@ -44,7 +45,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { askedHere, capabilities } from './access.mjs';
+import { askedHere, capabilities, openProjects } from './access.mjs';
 import { fetchBundle, productionFiles, productionPlace, readBundle, releaseFiles, releasePlace, saveBundle } from './bundles.mjs';
 import { missing } from './places.mjs';
 import { runSheet } from './skills.mjs';
@@ -133,9 +134,12 @@ const otherWay = (slug, step, lacks) => [
   `Only when that isn't good enough for this production: mm run wait ${slug} ${step.n} posts the step for a place that has it${step.places?.length ? ` (${step.places.join(', ')})` : ''}.`,
 ];
 
-/** The session-start line: the runs ready to continue that this place can do. Empty when there are none. */
-export function hookLine(runs, can) {
-  const able = runs.filter(run => run.state === 'ready' && run.next && (run.next.without || !missing(can, run.next.needs).length));
+/**
+ * The session-start line: the runs ready to continue that this place can do, in the projects it is open to
+ * (`open`, a Set of project ids; null for every project, as in a cloud environment). Empty when there are none.
+ */
+export function hookLine(runs, can, open = null) {
+  const able = runs.filter(run => run.state === 'ready' && run.next && (!open || open.has(run.project)) && (run.next.without || !missing(can, run.next.needs).length));
   if (!able.length) return '';
   const first = able.slice(0, 3).map(run => `${run.slug} (${run.projectName}), next step ${run.next.n} "${run.next.step}"`);
   return `MediaMake: ${able.length === 1 ? 'a run is' : `${able.length} runs are`} ready to continue that this place can do: ${first.join('; ')}${able.length > 3 ? '; …' : ''}. Tell the user, and continue one only when they say so: mm run resume <slug>.`;
@@ -404,11 +408,14 @@ async function hook(env) {
   try {
     const at = signedIn(env);
     if (!at) return 0;
-    const res = await fetch(`${at.url}/api/space/runs`, { headers: { Accept: 'application/json', Authorization: `Bearer ${at.key}` }, signal: AbortSignal.timeout(HOOK_MS) });
-    if (!res.ok) return 0;
+    const [res, open] = await Promise.all([
+      fetch(`${at.url}/api/space/runs`, { headers: { Accept: 'application/json', Authorization: `Bearer ${at.key}` }, signal: AbortSignal.timeout(HOOK_MS) }),
+      openProjects(at, env, { timeoutMs: HOOK_MS }),
+    ]);
+    if (!res.ok || open?.size === 0) return 0;
     const { runs = [] } = await res.json();
     if (!runs.some(run => run.state === 'ready')) return 0;
-    const line = hookLine(runs, capabilities({ env, asked: askedHere(env) }));
+    const line = hookLine(runs, capabilities({ env, asked: askedHere(env) }), open);
     if (line) console.log(line);
   } catch {}
   return 0;

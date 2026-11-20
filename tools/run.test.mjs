@@ -29,6 +29,8 @@ const calls = [];
 const stored = new Map(); // sha256 → bytes
 const bundles = { production: new Map(), release: new Map() }; // slug → { id, versions: [{ version, ready, files }] }
 let run = null;
+// the Studio Mac, in the register: the projects its owner opened it to
+let macOpenTo = [P1];
 let url;
 let server;
 
@@ -142,6 +144,7 @@ before(async () => {
       const body = raw.length ? JSON.parse(raw.toString()) : undefined;
       calls.push({ method: req.method, path: at.pathname, body, key: req.headers.authorization });
       if (at.pathname === '/api/space') return send(200, { projects: [{ projectId: P1, name: 'Doomcat' }] });
+      if (at.pathname === '/api/space/places') return send(200, { places: [{ id: 'device:me/mac-studio', kind: 'device', label: 'mac-studio', can: [], projects: macOpenTo }, { id: 'device:me/mac-cloudbox', kind: 'device', label: 'mac-cloudbox', can: [], projects: [P1] }] });
       if (at.pathname === '/api/space/runs') {
         if (req.method === 'GET' && !at.searchParams.has('project')) return send(200, { runs: run && run.state === 'open' ? [runView()] : [] });
         if (req.method === 'GET') return run?.slug === at.searchParams.get('slug') ? send(200, { run: runView() }) : send(404, { error: 'none' });
@@ -174,6 +177,7 @@ const place = (name, has) => {
   const home = path.join(tmp, name);
   const work = path.join(home, 'MediaMake');
   write(path.join(home, '.mediamake', 'config.json'), JSON.stringify({ workspace: work, access: { name, has } }));
+  write(path.join(home, '.mediamake', 'usage-state.json'), JSON.stringify({ device: name === 'Studio Mac' ? 'mac-studio' : 'mac-cloudbox' }));
   write(path.join(home, '.claude', 'skills', 'doomcat', 'SKILL.md'), ['---', 'name: doomcat', '---', '', '## Where it runs', '', "| Step | Needs | A person's yes | Safe to repeat | Without it |", '|---|---|---|---|---|', '| 1. Write and render | nothing | no | yes | - |', '| 2. YouTube pack | nothing | no | yes | - |', '| 3. Upload to YouTube | `browser:youtube/doomcat` | no | no | a to-do for a computer signed in to the channel |', ''].join('\n'));
   write(path.join(home, '.claude', 'skills', 'plain', 'SKILL.md'), '---\nname: plain\n---\nNo sheet.\n');
   write(path.join(home, '.claude', 'skills', 'takes', 'SKILL.md'), ['---', 'name: takes', '---', '', '## Where it runs', '', "| Step | Needs | A person's yes | Safe to repeat | Without it |", '|---|---|---|---|---|', "| 1. The crowd's takes | `mcp:browse-hack` | no | yes | the takes from the web only |", '| 2. Upload | `browser:youtube/doomcat` | no | no | a to-do for a computer signed in to the channel |', ''].join('\n'));
@@ -226,6 +230,9 @@ test('a run in a list says how far it is, and the session-start line names only 
   assert.equal(hookLine([view({ state: 'running' }), atUpload], []), '');
   assert.equal(hookLine([view(), atUpload], []), 'MediaMake: a run is ready to continue that this place can do: doomcat-0412 (Doomcat), next step 2 "YouTube pack". Tell the user, and continue one only when they say so: mm run resume <slug>.');
   assert.match(hookLine([view(), atUpload], ['browser:youtube/doomcat']), /^MediaMake: 2 runs are ready/);
+  // a computer names only the projects it is open to: closed, it says nothing
+  assert.equal(hookLine([view(), atUpload], ['browser:youtube/doomcat'], new Set()), '');
+  assert.match(hookLine([view(), atUpload], ['browser:youtube/doomcat'], new Set([P1])), /^MediaMake: 2 runs are ready/);
 });
 
 test('the brief says what is next, what to check first and how to save', () => {
@@ -341,6 +348,10 @@ test('a run starts in the cloud, saves each step, hands the upload over, and con
 
   // the to-do was given back: the Mac continues the run itself, and gets what the cloud saved
   Object.assign(run.steps[2], { state: 'todo', todo: undefined });
+  // closed to the project, the Mac says nothing, though it could go on
+  macOpenTo = [];
+  assert.equal((await mac.mm(['--hook'])).out, '');
+  macOpenTo = [P1];
   assert.match((await mac.mm(['--hook'])).out, /^MediaMake: a run is ready to continue that this place can do: doomcat-0412 \(Doomcat\), next step 3 "Upload to YouTube"/);
   assert.equal((await cloud.mm(['--hook'])).out, '');
   const differs = await mac.mm(['resume', 'doomcat-0412']);

@@ -46,7 +46,11 @@ let server;
 let url;
 const calls = [];
 let held = todo();
+// this computer, in the register: the projects its owner opened it to
+let openTo = [P1];
 before(async () => {
+  fs.mkdirSync(path.dirname(process.env.MEDIAMAKE_CONFIG), { recursive: true });
+  fs.writeFileSync(path.join(path.dirname(process.env.MEDIAMAKE_CONFIG), 'usage-state.json'), JSON.stringify({ device: 'mac-test' }));
   server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', chunk => (raw += chunk));
@@ -57,6 +61,7 @@ before(async () => {
         res.writeHead(status, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(data));
       };
+      if (req.method === 'GET' && req.url === '/api/space/places') return send(200, { places: [{ id: 'device:me/mac-test', kind: 'device', label: 'mac-test', can: [], projects: openTo }] });
       if (req.method === 'GET' && req.url === '/api/space/todos') return send(200, { todos: [held, todo({ id: 'td-pick22', title: 'Pick the thumbnail', needs: [], options: ['A', 'B'] })] });
       if (req.method === 'GET') return send(200, { todo: held });
       if (body.action === 'claim') {
@@ -112,6 +117,10 @@ test('the session-start line names what this computer can do, and is empty other
     'MediaMake: a to-do waits that this computer can do: td-abc234 "Upload doomcat-0412 to YouTube" (Doomcat). Tell the user, and pick one up only when they say so: mm todo pick <id>.',
   );
   assert.match(hookLine(list, ['mcp:browse-hack', 'browser:youtube', 'key:elevenlabs']), /^MediaMake: 2 to-dos wait/);
+  // a computer names only the projects it is open to: closed, it says nothing
+  assert.equal(hookLine(list, ['mcp:browse-hack', 'browser:youtube/doomcat'], new Set()), '');
+  assert.equal(hookLine(list, ['mcp:browse-hack', 'browser:youtube/doomcat'], new Set(['b'.repeat(24)])), '');
+  assert.match(hookLine(list, ['mcp:browse-hack', 'browser:youtube/doomcat'], new Set([P1])), /^MediaMake: a to-do waits/);
 });
 
 test('the brief says what to do, what to check first and how to finish', () => {
@@ -150,6 +159,10 @@ test('picking up claims it once, refuses where the computer lacks what it needs,
   assert.equal((await mm(['--hook'])).out, '');
 
   declare(['mcp:browse-hack', 'browser:youtube/doomcat']);
+  // closed to the project, it says nothing, though it could do it
+  openTo = [];
+  assert.equal((await mm(['--hook'])).out, '');
+  openTo = [P1];
   const hook = await mm(['--hook']);
   assert.match(hook.out, /^MediaMake: a to-do waits that this computer can do: td-abc234/);
 

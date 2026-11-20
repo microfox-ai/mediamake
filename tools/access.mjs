@@ -120,6 +120,26 @@ export function capabilities({ env = process.env, top = TOP, home = os.homedir()
   return [...new Set(can)].filter(need => !cloud || !deviceOnly(need));
 }
 
+/**
+ * The projects whose to-dos and runs the session-start lines may name here. A computer: the ones its owner
+ * opened it to (none while it is closed, busy or not in the register yet, and none when the site can't say:
+ * a closed computer stays quiet). A cloud environment: null, every project it is told about, since it
+ * belongs to the projects whose space it holds and is never opened or closed.
+ */
+export async function openProjects(at, env = process.env, { timeoutMs = 4000 } = {}) {
+  if (isCloud(env)) return null;
+  try {
+    const res = await fetch(`${at.url}/api/space/places`, { headers: { Accept: 'application/json', Authorization: `Bearer ${at.key}` }, signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) return new Set();
+    const { places = [] } = await res.json();
+    const label = deviceLabel(env);
+    const here = places.find(place => place.kind === 'device' && place.label === label);
+    return new Set(here && !here.busy ? (here.projects ?? []) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 /** What this computer's spaces' skills, MCPs and apps ask for. */
 export const askedHere = (env = process.env) => {
   try {

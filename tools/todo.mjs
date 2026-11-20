@@ -23,7 +23,8 @@
  *   mm todo yes <id>               a person's yes, for a step that waits for one
  *   mm todo cancel <id> [--reason="…"]   |   mm todo reopen <id>
  *   mm todo --hook                 the session-start line (.claude/settings.json): quiet unless this
- *                                  computer can do something that waits
+ *                                  computer can do something that waits in a project it is open to
+ *                                  (mm access open); a closed computer says nothing
  *
  * "Pick up to-do <id> in <project>", pasted into Claude, is mm todo pick <id>.
  * Everyone on the project reads a to-do: its words never hold a key or a password.
@@ -32,7 +33,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { askedHere, capabilities, placeReport } from './access.mjs';
+import { askedHere, capabilities, openProjects, placeReport } from './access.mjs';
 import { missing, needList } from './places.mjs';
 import { findProject, localSpaces, remoteSpaces } from './space.mjs';
 import { apiKey, call, localSkills, site, skillRoots } from './usage.mjs';
@@ -66,9 +67,12 @@ export function todoLine(todo, can) {
   return `  ${MARK[todo.state] ?? '?'} ${todo.id}  ${todo.title}\n      ${tail}`;
 }
 
-/** The session-start line: what waits that this computer can do. Empty when there is nothing. */
-export function hookLine(todos, can) {
-  const able = todos.filter(todo => todo.state === 'open' && !todo.options && !missingHere(todo, can).length);
+/**
+ * The session-start line: what waits that this computer can do, in the projects it is open to (`open`, a
+ * Set of project ids; null for every project, as in a cloud environment). Empty when there is nothing.
+ */
+export function hookLine(todos, can, open = null) {
+  const able = todos.filter(todo => todo.state === 'open' && !todo.options && (!open || open.has(todo.project)) && !missingHere(todo, can).length);
   if (!able.length) return '';
   const first = able.slice(0, 3).map(todo => `${todo.id} "${todo.title}" (${todo.projectName})`);
   return `MediaMake: ${able.length === 1 ? 'a to-do waits' : `${able.length} to-dos wait`} that this computer can do: ${first.join('; ')}${able.length > 3 ? '; …' : ''}. Tell the user, and pick one up only when they say so: mm todo pick <id>.`;
@@ -234,11 +238,14 @@ async function hook(env) {
   try {
     const at = signedIn(env);
     if (!at) return 0;
-    const res = await fetch(`${at.url}/api/space/todos`, { headers: { Accept: 'application/json', Authorization: `Bearer ${at.key}` }, signal: AbortSignal.timeout(HOOK_MS) });
-    if (!res.ok) return 0;
+    const [res, open] = await Promise.all([
+      fetch(`${at.url}/api/space/todos`, { headers: { Accept: 'application/json', Authorization: `Bearer ${at.key}` }, signal: AbortSignal.timeout(HOOK_MS) }),
+      openProjects(at, env, { timeoutMs: HOOK_MS }),
+    ]);
+    if (!res.ok || open?.size === 0) return 0;
     const { todos = [] } = await res.json();
     if (!todos.length) return 0;
-    const line = hookLine(todos, capabilities({ env, asked: askedHere(env) }));
+    const line = hookLine(todos, capabilities({ env, asked: askedHere(env) }), open);
     if (line) console.log(line);
   } catch {}
   return 0;

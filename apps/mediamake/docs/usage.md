@@ -130,7 +130,8 @@ by name, and the result they recorded (`POST /api/space/todos`, stored in
 `todos`). Everyone on the project reads it, so it never holds a key or a
 password: a post that looks like one is refused. At the start of a session
 `tools/todo.mjs --hook` asks MediaMake for what waits in the account's projects
-and compares it here with what the computer can do; it sends nothing about the
+and for the account's places (which projects each computer is open to), and
+compares them here with what the computer can do; it sends nothing about the
 computer. `mm usage off` does not stop to-dos, and `mm usage forget` does not
 delete them: cancel one on the project's page or with `mm todo cancel`.
 

@@ -117,8 +117,9 @@ space's page › Runs, the Spaces MCP's `post_todo` / `claim_todo` / `finish_tod
 - "Pick up to-do td-… in <project>" is `mm todo pick <id>`: do what it prints, with that skill, that
   step only. Finish with `mm todo done <id> --result="<the link>"`; when it can't be done,
   `mm todo fail <id> --reason="…"` (or `release` when nothing was tried). Never leave one claimed.
-- The session-start line says when this computer can do something that waits. Tell the user; pick one
-  up only when they say so.
+- The session-start line says when this computer can do something that waits, in a project it is open
+  to (`mm access open`); a closed or busy computer gets none. Tell the user; pick one up only when they
+  say so.
 - A step that must not happen twice: check it didn't already, as the pick-up says, before doing it.
 - `mm todo yes <id>` and a choice's answer are the user's: only on their word, in this session.
 - Everyone on the project reads a to-do. Never a key, a password or anything private in its words.
@@ -146,8 +147,9 @@ in another. `apps/mediamake/docs/cloud-device-runs.md` › The run record has th
   `--take-saved` only when they say so.
 - A step that was started and never saved, and must not happen twice: check it didn't already before
   doing it, as the resume says.
-- The session-start line says when a run is ready to continue here. Tell the user; continue one only
-  when they say so (a routine's own instructions are that word).
+- The session-start line says when a run is ready to continue here, in a project this computer is open
+  to (none while it is closed or busy). Tell the user; continue one only when they say so (a routine's
+  own instructions are that word).
 - `mm run cancel` is the user's: only on their word, in this session. Never a key or a password in an
   output.
 
