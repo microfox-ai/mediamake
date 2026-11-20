@@ -290,3 +290,18 @@ test('usage: summed by person and collection, and costed with prices an admin se
   assert.equal(costOf(addUsage(emptySum(), { action: 'fill', tokensIn: 1_000_000, tokensOut: 100_000 }), prices), 3);
   assert.equal(storageCostOf(50e9, { ...prices, storagePerGbMonth: 0.02 }), 1);
 });
+
+test('a value kept under extra moves into its field when the template gains it and the entry is saved again', () => {
+  // saved when the template had no description: it went to extra
+  const older = { ...songs(), template: { ...SONGS, version: 2, fields: SONGS.fields.filter(f => f.key !== 'description') } };
+  const first = saved(older, null, { fields: { title: 'Sea Song', description: 'About the sea' } }).entry;
+  assert.equal(first.extra.description, 'About the sea');
+  assert.equal(first.fields.description, undefined);
+  // the template now has it: saving it again puts it in the field, and no copy stays under extra
+  const second = saved(songs(), first, { fields: { description: 'About the sea' } }).entry;
+  assert.equal(second.fields.description, 'About the sea');
+  assert.ok(!('description' in second.extra));
+  // a value the template still doesn't know stays under extra
+  const third = saved(songs(), second, { fields: { mood: 'calm' } }).entry;
+  assert.equal(third.extra.mood, 'calm');
+});
