@@ -50,6 +50,8 @@ export interface CollectionView {
   requests?: number;
   /** Another space's collection, opened to this one: who shares it, and what this space may do in it. */
   shared?: { by: string; from: string; collection: string; role: ShareRole };
+  /** The grid's columns as the space chose them, in order (./index CollectionRecord `columns`). */
+  columns?: string[];
 }
 export interface SpaceView {
   id: string;
@@ -83,6 +85,10 @@ export interface EntryRow {
   agent?: boolean;
   facts: Record<string, string | string[]>;
   has: Record<string, number>;
+  /** The grid's chosen columns that are not short facts, each as one line (a list asked with `cells`). */
+  cells?: Record<string, string>;
+  /** A signed link to one of its pictures, for its card and its folder (a list asked with `pictures`). */
+  picture?: string;
   space?: string;
   spaceId?: string;
   /** The entry is in a collection another space shares. */
@@ -246,8 +252,11 @@ export function filtersOf(collection: Pick<CollectionView, 'fields' | 'slots'>):
 }
 
 /** The query of an entries list, from what is typed and picked. */
-export function listQuery(at: { space: string; collection?: string | null; q?: string; where?: Record<string, string>; files?: string; limit?: number; meaning?: boolean }): string {
+export function listQuery(at: { space: string; collection?: string | null; q?: string; where?: Record<string, string>; files?: string; limit?: number; meaning?: boolean; cells?: string[]; pictures?: boolean }): string {
   const params = new URLSearchParams({ space: at.space, limit: String(at.limit ?? 200) });
+  const cells = (at.cells ?? []).filter(key => !key.startsWith('has:') && key !== 'updatedAt');
+  if (cells.length) params.set('cells', cells.join(','));
+  if (at.pictures) params.set('pictures', '1');
   if (at.collection) params.set('collection', at.collection);
   if (at.q?.trim()) params.set('q', at.q.trim());
   // by meaning only with words: without them it is the plain list
@@ -263,40 +272,72 @@ export const dollars = (amount: number): string => (amount > 0 && amount < 0.01 
 
 /* ---------- the views of a collection ---------- */
 
-/** How a collection's entries are laid out. Each behaves its own way: a sheet sorts by a column, folders group by a field. */
+/**
+ * How a collection's entries are laid out. Each behaves its own way: the grid ('sheet', the default) is a
+ * table with the columns the space chose, cards ('grid') show a picture, folders group by a field.
+ * The ids stay as they were, so links made before keep their view.
+ */
 export const VIEWS = ['grid', 'list', 'sheet', 'folders'] as const;
 export type LibraryView = (typeof VIEWS)[number];
-export const viewOf = (value: unknown): LibraryView => (VIEWS.includes(value as LibraryView) ? (value as LibraryView) : 'grid');
+export const DEFAULT_VIEW: LibraryView = 'sheet';
+export const viewOf = (value: unknown): LibraryView => (VIEWS.includes(value as LibraryView) ? (value as LibraryView) : DEFAULT_VIEW);
 
 export interface SheetColumn {
   /** A field's key, `has:<slot>` for a file slot, or `updatedAt`. */
   key: string;
   label: string;
   kind: 'field' | 'slot' | 'date';
+  /** A field column's kind of value, which says how its cell is edited. */
+  field?: FieldKind;
 }
 
-/** A sheet's columns: the title, the other short fields, a column a file slot, then when it last changed. */
-export function sheetColumns(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField'>): SheetColumn[] {
-  const short = collection.fields.filter(field => ['text', 'choice', 'date', 'number', 'tags'].includes(field.kind));
-  const title = short.find(field => field.key === collection.titleField);
+/** Field kinds a grid shows as their own value; the rest arrive as one line (`cells`). */
+export const SHORT_KINDS: FieldKind[] = ['text', 'choice', 'date', 'number', 'tags'];
+
+/** Every column a grid can show: each field (the title first), each file slot, and the day it changed. */
+export function columnChoices(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField'>): SheetColumn[] {
+  const title = collection.fields.find(field => field.key === collection.titleField);
   return [
-    ...(title ? [title] : []).map(field => ({ key: field.key, label: field.label, kind: 'field' as const })),
-    ...short.filter(field => field.key !== collection.titleField).map(field => ({ key: field.key, label: field.label, kind: 'field' as const })),
+    ...[...(title ? [title] : []), ...collection.fields.filter(field => field.key !== collection.titleField)].map(field => ({ key: field.key, label: field.label, kind: 'field' as const, field: field.kind })),
     ...collection.slots.map(slot => ({ key: `has:${slot.key}`, label: slot.label, kind: 'slot' as const })),
     { key: 'updatedAt', label: 'Changed', kind: 'date' as const },
   ];
 }
 
-/** What a sheet's cell holds, as text ("" when empty). A slot's cell is how many files it has. */
-export function cellText(row: Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title'>, column: SheetColumn, titleField = 'title'): string {
+/**
+ * A grid's columns. The space's own choice when it made one (the title always first; a key the
+ * template no longer has is dropped), else the title, the other short fields, a column a file slot,
+ * then when it last changed.
+ */
+export function sheetColumns(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField' | 'columns'>): SheetColumn[] {
+  const choices = columnChoices(collection);
+  const byKey = new Map(choices.map(column => [column.key, column]));
+  if (collection.columns?.length) {
+    const chosen = collection.columns.map(key => byKey.get(key)).filter((column): column is SheetColumn => !!column && column.key !== collection.titleField);
+    const title = byKey.get(collection.titleField);
+    return [...(title ? [title] : []), ...chosen];
+  }
+  return choices.filter(column => column.kind !== 'field' || SHORT_KINDS.includes(column.field!));
+}
+
+/** What a sheet's cell holds, as text ("" when empty). A slot's cell is how many files it has; a long field's is its one line. */
+export function cellText(row: Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title' | 'cells'>, column: SheetColumn, titleField = 'title'): string {
   if (column.kind === 'date') return dayText(row.updatedAt);
   if (column.kind === 'slot') return row.has[column.key.slice(4)] ? String(row.has[column.key.slice(4)]) : '';
-  const value = row.facts[column.key] ?? (column.key === titleField ? row.title : undefined);
+  const value = row.facts[column.key] ?? row.cells?.[column.key] ?? (column.key === titleField ? row.title : undefined);
   return value === undefined ? '' : Array.isArray(value) ? value.join(', ') : value;
 }
 
+/** How a cell is edited on a double-click: in the cell itself, in a dialog, or not at all. */
+export function cellEditor(column: SheetColumn): 'inline' | 'choice' | 'dialog' | null {
+  if (column.kind !== 'field' || !column.field) return null;
+  if (column.field === 'choice') return 'choice';
+  if (column.field === 'text' || column.field === 'number' || column.field === 'date') return 'inline';
+  return 'dialog';
+}
+
 /** Rows in a column's order. Empty cells go last either way, and numbers sort as numbers. */
-export function sortRows<T extends Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title'>>(rows: T[], column: SheetColumn, direction: 'asc' | 'desc', titleField = 'title'): T[] {
+export function sortRows<T extends Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'title' | 'cells'>>(rows: T[], column: SheetColumn, direction: 'asc' | 'desc', titleField = 'title'): T[] {
   const keyOf = (row: T) => (column.kind === 'date' ? row.updatedAt : cellText(row, column, titleField));
   const sign = direction === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {

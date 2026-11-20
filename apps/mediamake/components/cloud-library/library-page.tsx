@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { canChange, filtersOf, folderFields, libraryHref, listQuery, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
+import { canChange, DEFAULT_VIEW, filtersOf, folderFields, libraryHref, listQuery, sheetColumns, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
 import { CollectionCard } from './collection-card';
 import { DeviceLibrary, computersHref } from './device-library';
@@ -273,7 +273,9 @@ export function LibraryPage() {
   const [making, setMaking] = React.useState(false);
   const [guide, setGuide] = React.useState(false);
   const [sharing, setSharing] = React.useState(false);
-  const [view, setView] = React.useState<LibraryView>('grid');
+  const [view, setView] = React.useState<LibraryView>(DEFAULT_VIEW);
+  // the grid's columns chosen on this page, by collection (`<space>/<collection>`); saved ones come with the collection
+  const [chosen, setChosen] = React.useState<Record<string, string[]>>({});
   React.useEffect(() => {
     try {
       setView(viewOf(window.localStorage.getItem(REMEMBER_VIEW)));
@@ -346,6 +348,11 @@ export function LibraryPage() {
     setFiles('');
   }, [collectionSlug, spaceId]);
 
+  const gridKey = spaceId && collection ? `${spaceId}/${collection.slug}` : '';
+  const gridColumns = React.useMemo(() => (collection ? sheetColumns({ ...collection, columns: chosen[gridKey] ?? collection.columns }) : []), [collection, chosen, gridKey]);
+  const cells = view === 'sheet' ? gridColumns.map(c => c.key) : [];
+  const cellsKey = cells.join(',');
+  const pictures = view === 'grid' || view === 'folders' || !collection;
   const listing = !!spaceId && !entrySlug && (!!collectionSlug || !!q.trim());
   React.useEffect(() => {
     if (!listing || !spaceId) {
@@ -354,13 +361,13 @@ export function LibraryPage() {
     }
     let live = true;
     libraryApi
-      .list(listQuery({ space: spaceId, collection: collectionSlug, q, where, files, meaning }))
+      .list(listQuery({ space: spaceId, collection: collectionSlug, q, where, files, meaning, cells: cellsKey ? cellsKey.split(',') : [], pictures }))
       .then(result => live && setRows(result))
       .catch(error => live && toast.error(error instanceof Error ? error.message : String(error)));
     return () => {
       live = false;
     };
-  }, [listing, spaceId, collectionSlug, q, where, files, meaning, tick]);
+  }, [listing, spaceId, collectionSlug, q, where, files, meaning, tick, cellsKey, pictures]);
 
   React.useEffect(() => {
     setAnswer(null);
@@ -574,6 +581,21 @@ export function LibraryPage() {
                   folderField={folderField}
                   folder={view === 'folders' ? folder : null}
                   folderHref={name => withFolder(name)}
+                  grid={
+                    collection
+                      ? {
+                          columns: gridColumns,
+                          // kept for everyone in the space when this space may change its own collection; a shared one's stay on this page
+                          saved: may && !collection.shared,
+                          onChange: keys => {
+                            setChosen(current => ({ ...current, [gridKey]: keys }));
+                            if (may && !collection.shared && spaceId)
+                              libraryApi.setColumns(spaceId, collection.slug, keys).catch(error => toast.error(error instanceof Error ? error.message : String(error)));
+                          },
+                        }
+                      : undefined
+                  }
+                  edit={mayHere && here ? { spaceId: here.id, onSaved: reload } : undefined}
                 />
                 {rows.total > rows.results.length && (
                   <p className="text-xs text-muted-foreground">
