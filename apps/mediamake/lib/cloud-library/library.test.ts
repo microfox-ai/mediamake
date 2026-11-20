@@ -244,6 +244,23 @@ test('a collection made from an older template reads as the latest version, its 
   assert.equal(upgradeTemplate(unknown), unknown);
 });
 
+test('a field the newer version retired leaves an older collection; the collection’s own fields stay', () => {
+  const v2 = {
+    ...SONGS,
+    version: 2,
+    fields: [
+      { key: 'title', label: 'Song title', kind: 'text' as const, group: 'Identity' },
+      { key: 'titleLatin', label: 'Title in Latin letters', kind: 'text' as const, group: 'Identity' },
+      { key: 'mood', label: 'Mood', kind: 'tags' as const, group: 'Words' },
+    ],
+  };
+  const read = upgradeTemplate(v2);
+  assert.ok(SONGS.retired?.includes('titleLatin'));
+  assert.ok(!read.fields.some(f => f.key === 'titleLatin'));
+  assert.ok(read.fields.some(f => f.key === 'titleOriginal') && read.fields.some(f => f.key === 'duration') && read.fields.some(f => f.key === 'description'));
+  assert.equal(read.fields.at(-1)?.key, 'mood');
+});
+
 test('reading a part: lines of a text, seconds of a timed transcript', () => {
   assert.deepEqual(readPart('a\nb\nc\nd', 'text', { lines: [2, 3] }), { text: 'b\nc', note: 'lines 2 to 3 of 4' });
   const words = JSON.stringify({ words: [{ text: 'we', start: 1, end: 1.2 }, { text: 'sail', start: 61, end: 61.5 }, { text: 'home', start: 95, end: 96 }] });

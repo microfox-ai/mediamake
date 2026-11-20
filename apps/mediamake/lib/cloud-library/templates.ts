@@ -5,7 +5,7 @@
  *
  * A new template is one more entry in TEMPLATES. Pure: no database.
  */
-import { DISTROKID_KEYS } from './distrokid';
+import { DISTROKID_DETAIL_KEYS, DISTROKID_KEYS } from './distrokid';
 import type { Template, TemplateField } from './index';
 
 const SONGS_GUIDE = `# Filling the Songs collection
@@ -26,15 +26,18 @@ One question covers one song. For a change to a song that is there, list each fi
 | Field | Take it from | Never |
 | --- | --- | --- |
 | Song title, artist | The DistroKid pack, the audio file's tags, the folder name, the person | |
+| Title in its own script | The song's own lyrics, its audio file's tags, its artwork or thumbnail | Transliterate by guess |
+| About the song | Written from the lyrics, in English: who it is about, the story it tells, who it is for and when they would listen | Claim a source, a festival or a fact the words don't support |
+| Length | Measured from the master, as m:ss | Copy it from a store page |
 | Use | The person. Internal only when the song was never meant for release | Assume released |
 | ISRC, release date | The DistroKid pack or the person | Guess, or build one from a pattern |
 | Record label | The DistroKid pack, else what the collection's earlier songs use | |
-| DistroKid details | The pack, key by key (genres, language, explicit, songwriters, credits, AI disclosure), and the release's own keys below | Fill a credit you were not given |
+| DistroKid details | Browse Hack's \`distrokid_song_details\` (one JSON a song, the release as DistroKid shows it), then the pack, key by key (genres, language, explicit, songwriters, credits, AI disclosure), and the release's own keys below. Where the song details and the pack's info.json both have a value, the song details win | Fill a credit you were not given |
 | DistroKid link, album UUID, UPC, upload and release dates on DistroKid | The \`distrokid\` block of the pack's info.json (Browse Hack's \`distrokid_record_packs\` writes it once the release is submitted), or DistroKid's release page | Build a link or a UPC, or copy one from another song |
 | Store links, playlists | The person, a page you opened and saw, or DistroKid's release page (Browse Hack's Sync links) | Build a link from a title |
-| Lyrics | The lyrics file or the person's text, whole | Rewrite or correct the wording |
-| Transcript | \`mm transcribe\` on this master, saved with what it was made from | A transcript of another version |
-| Part by part | Draft it from the lyrics and the transcript's times, and say it is a draft | Claim what the music sounds like unless a tool measured it |
+| Lyrics | DistroKid's published text first (the song details' \`plainLyrics\`), else the lyrics file or the person's text, whole | Rewrite or correct the wording |
+| Transcript | \`mm transcribe\` on this master, saved with what it was made from. Check its words came back in the lyrics' script: Scribe can answer in another one even with the language set | A transcript of another version, or one in the wrong script (keep it out of the slot) |
+| Part by part | Time each stanza by matching its letters to the transcript (Indic scripts share one letter layout, so this works across scripts), then describe the music only from measurements of the master: loud or quiet for this song, rising or falling, busier or sparser. Say it is a draft | Name instruments, or claim a sound no tool measured |
 | Statistics | A platform's own page or a worker | Estimate |
 
 ## Names
@@ -62,29 +65,33 @@ A song has one master, one lyrics and one transcript. Putting a new one in repla
 - A DistroKid link holds the album UUID beside it.
 - An ISRC is two letters, three letters or digits, then seven digits.
 - The transcript's last word ends before the master does.
+- The transcript is in the lyrics' script.
+- The parts run from 0:00 to the master's end with no gap.
 - A song marked internal only, or unreleased, goes in nothing public.
 `;
 
 export const SONGS: Template = {
   id: 'songs',
-  version: 2,
+  version: 3,
   name: 'Songs',
   noun: 'song',
   about: 'A channel’s songs: the master, the words, the release details, the links and the numbers, kept once and reused.',
   titleField: 'title',
   fields: [
     { key: 'title', label: 'Song title', kind: 'text', group: 'Identity' },
-    { key: 'titleLatin', label: 'Title in Latin letters', kind: 'text', group: 'Identity', hint: 'When the title is written in another script, so it is found either way' },
+    { key: 'titleOriginal', label: 'Title in its own script', kind: 'text', group: 'Identity', hint: 'The title in the song’s own script (Telugu, Hindi…) when it is released in Latin letters: from its lyrics, tags or artwork, never transliterated by guess' },
+    { key: 'duration', label: 'Length', kind: 'text', group: 'Identity', hint: 'm:ss, measured from the master' },
     { key: 'artist', label: 'Artist', kind: 'text', group: 'Identity', learns: 'artist' },
     { key: 'label', label: 'Record label', kind: 'text', group: 'Identity', learns: 'label' },
     { key: 'use', label: 'Use', kind: 'choice', group: 'Identity', options: ['Internal only', 'Unreleased', 'Released'], hint: 'Internal only and Unreleased songs go in nothing public' },
     { key: 'isrc', label: 'ISRC', kind: 'text', group: 'Release', neverGuess: true, hint: 'Only when released' },
     { key: 'releaseDate', label: 'Release date', kind: 'date', group: 'Release', neverGuess: true },
     { key: 'genres', label: 'Genres', kind: 'tags', group: 'Release', learns: 'genre' },
-    { key: 'distrokid', label: 'DistroKid details', kind: 'group', group: 'Release', neverGuess: true, keys: DISTROKID_KEYS, hint: 'The release on DistroKid (its link, album UUID, UPC, dates) and everything the pack holds, key by key: language, explicit, songwriters, credits, AI disclosure' },
+    { key: 'distrokid', label: 'DistroKid details', kind: 'group', group: 'Release', neverGuess: true, keys: [...DISTROKID_KEYS, ...DISTROKID_DETAIL_KEYS], hint: 'The release on DistroKid (its link, album UUID, UPC, dates) and everything the pack holds, key by key: language, explicit, songwriters, credits, AI disclosure' },
     { key: 'storeLinks', label: 'Store links', kind: 'links', group: 'Release', learns: 'platform', neverGuess: true, hint: 'One link a platform. DistroKid’s Sync links fills them once the stores are live' },
     { key: 'playlists', label: 'Playlists', kind: 'playlists', group: 'Release', learns: 'platform', neverGuess: true, hint: 'The playlists the song is on, by platform' },
     { key: 'lyrics', label: 'Lyrics', kind: 'longtext', group: 'Words', hint: 'As written. Exactly one: the owner corrects it in place' },
+    { key: 'description', label: 'About the song', kind: 'longtext', group: 'Words', hint: 'In English: who it is about, the story it tells, who it is for and when they would listen' },
     { key: 'parts', label: 'Part by part', kind: 'parts', group: 'Words', hint: 'Each part: name, start and end in seconds, what happens, energy' },
   ],
   slots: [
@@ -95,6 +102,8 @@ export const SONGS: Template = {
     { key: 'distrokid-pack', label: 'DistroKid pack', accepts: ['json'], many: false, hint: 'The release folder’s info.json. Its DistroKid link, UPC and dates are copied into the song' },
   ],
   guide: SONGS_GUIDE,
+  // version 3: the title in its own script replaced the title in Latin letters (the title itself is the released one)
+  retired: ['titleLatin'],
 };
 
 /** The parts every guide shares: the question before a save, and how names are kept. */
@@ -271,9 +280,9 @@ export const TEMPLATES: Record<string, Template> = { songs: SONGS, 'anime-art': 
 /**
  * A collection's template as it reads today. A collection keeps the template it was made from; when
  * that template has a newer version here, its fields, slots and guide are this version's (a field
- * or a slot only the collection has is kept, after them). Read this way, never written back, so an
- * older collection gets a new field's label, keys and hint without a migration. The entries' values
- * are untouched: a template only guides.
+ * or a slot only the collection has is kept, after them; a field the newer version retired is not).
+ * Read this way, never written back, so an older collection gets a new field's label, keys and hint
+ * without a migration. The entries' values are untouched: a template only guides.
  */
 export function upgradeTemplate(stored: Template): Template {
   const latest = TEMPLATES[stored.id];
@@ -281,9 +290,10 @@ export function upgradeTemplate(stored: Template): Template {
   const known = <T extends { key: string }>(list: T[]) => new Set(list.map(item => item.key));
   const fields = known(latest.fields);
   const slots = known(latest.slots);
+  const retired = new Set(latest.retired ?? []);
   return {
     ...latest,
-    fields: [...latest.fields, ...stored.fields.filter(field => !fields.has(field.key))],
+    fields: [...latest.fields, ...stored.fields.filter(field => !fields.has(field.key) && !retired.has(field.key))],
     slots: [...latest.slots, ...stored.slots.filter(slot => !slots.has(slot.key))],
   };
 }

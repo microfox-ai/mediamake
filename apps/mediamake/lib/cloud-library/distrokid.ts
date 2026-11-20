@@ -28,6 +28,13 @@ export const DISTROKID_KEYS: GroupKey[] = [
   { key: 'recordLabel', label: 'Record label on DistroKid' },
 ];
 
+/** Keys of the song's DistroKid details that come from the release's credits and form, not its record: named so the page shows them by their labels. A pack's `distrokid` block never carries them. */
+export const DISTROKID_DETAIL_KEYS: GroupKey[] = [
+  { key: 'language', label: 'Language', hint: 'The language the song is sung in' },
+  { key: 'songwriters', label: 'Songwriters', hint: 'As DistroKid credits them, with each one’s role' },
+  { key: 'aiTagged', label: 'AI disclosure', hint: 'Whether DistroKid shows the release as made with AI' },
+];
+
 const RELEASE_PAGE = /^https:\/\/(?:www\.)?distrokid\.com\/dashboard\/album\/?\?(?:[^#\s]*&)?albumuuid=([0-9a-z-]{8,64})/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 

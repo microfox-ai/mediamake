@@ -29,15 +29,20 @@ A collection starts from a template (`lib/cloud-library/templates.ts`). Nothing 
 required. A value that doesn't fit its field is kept as written with a warning, a key the template
 doesn't know is kept under `extra`, and a file that fits no slot is kept under the slot it was given.
 
-**Songs** is the first template: song title (and the title in Latin letters, for a title in another
-script), artist, record label, use (internal only, unreleased, released), ISRC, release date, genres,
-DistroKid details (a group, key by key: the release's own keys below, then whatever the pack holds),
-store links (one a platform), playlists (many a platform), lyrics, a part-by-part description, and the
-slots master, transcript, stems, release artwork and DistroKid pack. A song has one master, one lyrics
-and one transcript: a new one replaces the old, which the entry's history names.
+**Songs** is the first template: song title (as released), the title in its own script (for a song
+released under a Latin title, read from its lyrics, tags or artwork), its length (m:ss, measured from
+the master), artist, record label, use (internal only, unreleased, released), ISRC,
+release date, genres, DistroKid details (a group, key by key: the release's own keys below, its
+language, songwriters and AI disclosure, then whatever the pack holds), store links (one a platform),
+playlists (many a platform), lyrics, what the song is about (in English: who, the story, who it is for
+and when they would listen), a part-by-part description, and the slots master, transcript, stems,
+release artwork and DistroKid pack. A song has one master, one lyrics and one transcript: a new one
+replaces the old, which the entry's history names.
 
 **Versions.** A collection keeps the template it was made from. When that template gets a new version
-(Songs is at 2: the DistroKid group's keys), the collection reads as the new one (`upgradeTemplate`):
+(Songs is at 3: the title in its own script in place of the title in Latin letters, the length and
+what the song is about; the DistroKid group's language, songwriters and AI disclosure), the collection
+reads as the new one (`upgradeTemplate`), without the fields the new version retired (`retired`):
 its fields, slots and guide are the new version's, and a field only the collection has is kept after
 them. Nothing is written back and no entry changes; a template only guides.
 
