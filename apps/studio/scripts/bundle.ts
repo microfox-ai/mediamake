@@ -6,16 +6,17 @@
  *   bundle from project-bundle.ts: made once, reused until its code changes, shared with mm render.
  * - Any other bundle is a throwaway: bundle() copies the whole public dir into a temp folder by
  *   default, and projects/ is 20+ GB: a run that was stopped or timed out left that copy behind
- *   (67 GB of them in $TMPDIR by 2026-10-27). Here the public dir is linked instead of copied, which
- *   is what `remotion render` itself does, and the bundle is removed however the process ends.
+ *   (67 GB of them in $TMPDIR by 2026-10-27). Here the public dir is linked instead of copied (a
+ *   junction on Windows, where Remotion copies it whatever it is told: linked-public.ts), and the
+ *   bundle is removed however the process ends.
  *
  * The studio's contexts read the workspace (scripts/workspace-webpack.ts), wherever it is.
  */
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundle, type BundleOptions } from '@remotion/bundler';
+import type { BundleOptions } from '@remotion/bundler';
 import { enableTailwind } from '@remotion/tailwind-v4';
+import { bundleLinked, removeBundleDir } from './linked-public.ts';
 import { onExit } from './locks.ts';
 import { onlyProject } from './only-project.ts';
 import { isKeptBundle, projectBundle } from './project-bundle.ts';
@@ -31,7 +32,7 @@ const hook = () => {
   if (hooked) return;
   hooked = true;
   onExit(() => {
-    for (const dir of live) fs.rmSync(dir, { recursive: true, force: true });
+    for (const dir of live) removeBundleDir(dir);
     live.clear();
   });
 };
@@ -52,8 +53,7 @@ export const tempBundle = async ({ workspace, ...options }: BundleOptions & { wo
   if (workspace === undefined && isProjectBundle(options)) return (await projectBundle(process.env.ONLY_PROJECT!)).serveUrl;
   hook();
   const override = options.webpackOverride;
-  const dir = await bundle({
-    symlinkPublicDir: true,
+  const dir = await bundleLinked({
     ...options,
     webpackOverride: async config => {
       const mine = override ? await override(config) : config;
@@ -72,6 +72,6 @@ export const tempBundle = async ({ workspace, ...options }: BundleOptions & { wo
  *  files); a project's kept bundle stays for the next run. */
 export const removeBundle = (dir: string) => {
   if (isKeptBundle(dir)) return;
-  fs.rmSync(dir, { recursive: true, force: true });
+  removeBundleDir(dir);
   live.delete(dir);
 };
