@@ -16,6 +16,7 @@ import {
   frontMatter,
   ownView,
   parseSubmission,
+  productionNeeded,
   pathProblem,
   routeOf,
   standing,
@@ -77,13 +78,33 @@ describe('what a member sends', () => {
     assert.deepEqual([parsed.title, parsed.version], ['My MCP', '0.3.0']);
   });
 
-  it('needs a real production: the rule', () => {
-    for (const made of [undefined, {}, { title: 'test' }, { title: 'a demo' }, { title: 'n/a' }]) {
+  it('checks a production that is named: a real one, never a test or a demo', () => {
+    for (const made of [{ title: 'test' }, { title: 'a demo' }, { title: 'n/a' }]) {
       const parsed = parseSubmission(sent({ made }));
-      assert.ok('error' in parsed && /publish nothing we don't use/.test(parsed.error), JSON.stringify(made));
+      assert.ok('error' in parsed && /test render or a demo/.test(parsed.error), JSON.stringify(made));
     }
     const parsed = parseSubmission(sent({ made: { title: 'A real video', url: 'http://insecure.example' } }));
     assert.ok('error' in parsed && /https/.test(parsed.error));
+  });
+
+  it('lets a sender leave the production out (whether they may is their tier’s), and reads an admin’s publish', () => {
+    for (const made of [undefined, {}, { title: '' }]) {
+      const parsed = parseSubmission(sent({ made }));
+      assert.ok(!('error' in parsed), JSON.stringify(made));
+      assert.equal((parsed as { made?: unknown }).made, undefined);
+    }
+    const published = parseSubmission(sent({ publish: 'cohort' }));
+    assert.ok(!('error' in published) && published.publish === 'cohort');
+    const wrong = parseSubmission(sent({ publish: 'vault' }));
+    assert.ok('error' in wrong && /publish must be one of/.test(wrong.error));
+  });
+
+  it('asks members below Cohort for a production, and not Cohort members or admins', () => {
+    assert.equal(productionNeeded('public'), true);
+    assert.equal(productionNeeded('plus'), true);
+    assert.equal(productionNeeded('pro'), true);
+    assert.equal(productionNeeded('cohort'), false);
+    assert.equal(productionNeeded('admin'), false);
   });
 
   it('refuses a skill whose name is not its folder, and one with no SKILL.md', () => {

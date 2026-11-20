@@ -1,6 +1,6 @@
 ---
 name: submit-to-store
-description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask for the finished production that was made with it (we publish nothing we don't use), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. Accepted, it earns the user a membership for 3 months. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", or "/submit-to-store [name]".
+description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask a member below Cohort for the finished production that was made with it (we publish nothing we don't use; Cohort members and admins need not name one), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. An admin's own item is published directly, with no review (`--tier`). Accepted, it earns the user a membership for 3 months. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", or "/submit-to-store [name]".
 metadata:
   category: other
   internal: 'true'
@@ -8,8 +8,9 @@ metadata:
 
 # submit-to-store
 
-**We publish nothing we don't use.** An item goes to the store only once something real was made
-with it: step 3 asks for that production and stops without one.
+**We publish nothing we don't use.** A member below Cohort (Public, Plus, Pro) names the finished
+production made with it: step 3 asks for it and stops without one. Cohort members and admins need not
+name one, and an admin publishes directly, with no review (step 4).
 
 A member's own skills, MCPs and apps live in their space (`mm space`) or, for a skill variant, in
 their workspace. Those are private. This skill is how one becomes a store item:
@@ -77,15 +78,17 @@ format), and one that keeps a feedback log sends new lessons to `mm notes`, not 
 Its steps and its log hold general rules only: one run's details (a prompt that worked once, timings,
 seeds, file names, this computer's GPU, drives or paths) come out, or become the rule they teach.
 
-## 3. Ask what was made with it
+## 3. Ask what was made with it (members below Cohort)
 
-Ask the user which finished production was made with it: its title, and its link when it is
-online (the YouTube video, the release, the post). Their projects (`mm workspace` says where they
-are) and the skill's runs can suggest candidates, but the user names it. Never make one up. A
-test render, a demo or "it will be used for…" is not a production.
+`mm items` says the user's membership. **Cohort members and admins** need not name a production:
+skip this step (or pass one with `--made` when they offer it).
 
-With none, stop here and say so. The item stays theirs, works as before, and can be submitted
-after its first real use. The command holds to it too: `--yes` refuses without `--made`.
+**A member below Cohort** (Public, Plus, Pro) names it: ask which finished production was made with
+it, its title, and its link when it is online (the YouTube video, the release, the post). Their
+projects (`mm workspace` says where they are) and the skill's runs can suggest candidates, but the
+user names it. Never make one up. A test render, a demo or "it will be used for…" is not a
+production. With none, stop here and say so: the item stays theirs, works as before, and can be
+submitted after its first real use. The server holds to it too: it refuses one without `--made`.
 
 ## 4. Send it
 
@@ -93,8 +96,19 @@ Say what will happen before this step: the files leave the computer for MediaMak
 read, and nothing is public until one of them approves. Then:
 
 ```bash
-mm submit <name> --yes --made="<title>" [--made-url=<link>] [--note="<anything the reviewers should know>"]
+mm submit <name> --yes [--made="<title>" [--made-url=<link>]] [--note="<anything the reviewers should know>"]
 ```
+
+**An admin publishes directly**, with no review: say which membership opens it (the user's word:
+Public, Plus, Pro or Cohort), then
+
+```bash
+mm submit <name> --yes --tier=<public|plus|pro|cohort>
+```
+
+It is released at that membership, in Beta, the moment it arrives, and the command prints its page.
+When something stops it (a leak check, a version already released), it waits on `/app/submissions`
+and the command says why. A member who passes `--tier` is refused.
 
 Not signed in: run `mm login` yourself and ask the user to click Allow in the tab it opens. Never
 ask for an API key.
@@ -117,13 +131,13 @@ membership: the admin picks both.
   `https://mediamake.microfox.app/<skills|mcps|apps>/<name>`. Their membership is on
   `/app/subscription`.
 - **A new version later.** Raise `version` (in `item.json`, or `metadata.version` in a SKILL.md)
-  and submit again, with a production made with the new version.
+  and submit again (a member below Cohort with a production made with the new version).
 - **Declined or withdrawn.** The item stays theirs in their space and works as before.
 
 ## Rules
 
-- Never submit without the user's yes in this conversation, and never without a production they
-  named.
+- Never submit without the user's yes in this conversation. A member below Cohort names the
+  production; never name one for them.
 - Never open a pull request on the public repo for a member's item from here: the admin's
   approval does that, after choosing its tier.
 - Never put a key, a token or a private path in an item to make it work for others: name the env

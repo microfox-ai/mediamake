@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEntitlements, viewerTier } from '@/lib/access';
-import { sendSubmission, withdrawSubmission } from '@/lib/submissions/actions';
+import { publicOrigin } from '@/lib/mcp/oauth';
+import { publishOwnSubmission, sendSubmission, withdrawSubmission } from '@/lib/submissions/actions';
 import { submissionsDB } from '@/lib/submissions/store';
 import { ownView, parseSubmission } from '@/lib/submissions/submission';
 
@@ -9,12 +10,15 @@ import { ownView, parseSubmission } from '@/lib/submissions/submission';
  * the signed-in account. What `mm submit` and mm-use's submit_item,
  * my_submissions and withdraw_submission call.
  *
- * POST   { kind, name, made: { title, url? }, files: [{ path, content, encoding? }], title?, summary?, version?, note? }
- *        sends an item privately for review, with the finished production
- *        made with it. Every member may. The leak checks run again here; the
- *        answer lists what they stop on (`problems`), which the sender fixes
- *        and sends again. The same item sent again before a decision replaces
- *        what was sent.
+ * POST   { kind, name, made?: { title, url? }, files: [{ path, content, encoding? }], title?, summary?, version?, note?, publish? }
+ *        sends an item privately for review. Every member may. A member below
+ *        Cohort names the finished production made with it; Cohort members and
+ *        admins may leave it out. An admin's `publish` (public, plus, pro or
+ *        cohort) skips the review: the item is approved at once at that
+ *        membership and released (`publishOwnSubmission`). The leak checks run
+ *        again here; the answer lists what they stop on (`problems`), which the
+ *        sender fixes and sends again. The same item sent again before a
+ *        decision replaces what was sent.
  * GET    the caller's own submissions, newest first, each with where it stands.
  * DELETE ?id=sub_…   takes one back before a decision.
  *
@@ -33,9 +37,12 @@ export async function POST(req: NextRequest) {
   const parsed = parseSubmission(await req.json().catch(() => null));
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   try {
-    const outcome = await sendSubmission(clientId, viewerTier(await getEntitlements({ clientId })), parsed);
+    const tier = viewerTier(await getEntitlements({ clientId }));
+    const { publish } = parsed;
+    const outcome =
+      publish && tier === 'admin' ? await publishOwnSubmission(clientId, { ...parsed, publish }, publicOrigin(req)) : await sendSubmission(clientId, tier, parsed);
     if (!outcome.ok) return NextResponse.json({ error: outcome.why }, { status: outcome.status ?? 400 });
-    return NextResponse.json({ submission: ownView(outcome.submission) });
+    return NextResponse.json({ submission: ownView(outcome.submission), ...(outcome.notes?.length && { notes: outcome.notes }) });
   } catch (error) {
     return unavailable('save the submission', error);
   }

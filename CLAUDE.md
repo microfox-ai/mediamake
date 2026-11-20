@@ -2,22 +2,22 @@
 
 ## The rule: we publish nothing we don't use
 
-Every skill, MCP and app here is published only after its maker used it for real work. Hold to it in
-every session:
+Every skill, MCP and app here is published only after it was used for real work. Who shows it, and
+how, is simple:
 
-- Before publishing a skill (`publish-skill`), releasing an item or marking one Ready, ask the user
-  which finished production was made with it (its title, and its link when it has one). Never make one
-  up, and never count a test render or a demo as one.
-- With none, don't publish: the skill stays the user's own (in their workspace) and an item stays Beta,
-  until something real is made with it.
-- The production is the item's proof: `node tools/skills.mjs publish <name> --yes --made="…"` puts it in
-  the pull request, and Ready (`catalog_set_readiness`, `npm run catalog -- ready`) records it, shown on
-  the item's page as "Made with this".
-- Production is an admin's call: for any skill, MCP or app the production is asked for, not a hard
-  gate, and an admin may mark one Production without it (never do it unasked; its page then says none
-  is on record). Anyone who can use an item adds what they made with it on its page (Add yours).
+- **A member below Cohort** (Public, Plus, Pro) names the finished production made with it when they
+  submit: ask them which one (its title, and its link when it has one). Never make one up, and a test
+  render or a demo is not one. With none, the item stays theirs until something real is made with it.
+- **Cohort members and admins** need not name one: `mm submit <name> --yes` sends it (`--made="…"`
+  too when there is one).
+- **Admins publish directly**, with no review: `mm submit <name> --yes --tier=<public|plus|pro|cohort>`
+  releases it at that membership, in Beta. Maintainers' `node tools/skills.mjs publish <name> --yes`
+  opens the public pull request the same way, `--made` optional.
+- Ready and Production are an admin's call (`catalog_set_readiness`, `npm run catalog -- ready`), with a
+  production when there is one, shown on the item's page as "Made with this"; never do it unasked.
+  Anyone who can use an item adds what they made with it on its page (Add yours).
 - A pull request that adds or changes a skill, MCP or app names the production in its "Made with this"
-  section (`.github/pull_request_template.md`).
+  section when there is one, else says none was named (`.github/pull_request_template.md`).
 
 ## Videos: apps/studio and `mm`
 

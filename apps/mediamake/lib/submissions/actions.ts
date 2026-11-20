@@ -14,6 +14,7 @@ import {
   checkFiles,
   earnedTier,
   isUndecided,
+  productionNeeded,
   routeOf,
   submissionBranch,
   SUBMISSIONS_PER_DAY,
@@ -40,6 +41,10 @@ const DAY = 24 * 60 * 60 * 1000;
 
 /** Saves what a member sent. The same item sent again before a decision replaces the earlier files. */
 export async function sendSubmission(clientId: string, tier: MemberTier, input: SubmissionInput): Promise<Outcome> {
+  if (!input.made && productionNeeded(tier)) {
+    return { ok: false, status: 400, why: "Name the finished production made with it (made.title, --made): we publish nothing we don't use. Cohort members and admins may leave it out" };
+  }
+  if (input.publish && tier !== 'admin') return { ok: false, status: 403, why: 'Only an admin publishes directly: send it without publish, and an admin reviews it' };
   const itemId = `${input.kind}/${input.slug}`;
   const taken = await submissionsDB.takenBy(itemId, clientId);
   if (taken) return { ok: false, status: 409, why: `Someone else already submitted an item named ${input.slug}. Give yours another name` };
@@ -96,7 +101,7 @@ async function deliverPr(gh: Github, submission: Submission, files: SubmissionFi
   const branch = submissionBranch(submission.submissionId);
   const update = isRepoSkill(submission.itemId);
   const tree = publicSkillFiles(submission.slug, files);
-  await commitFolder(gh, { repo, branch, ...tree, message: `${prTitle(submission, update)}\n\nMade with this: ${submission.made.title}` });
+  await commitFolder(gh, { repo, branch, ...tree, message: `${prTitle(submission, update)}${submission.made ? `\n\nMade with this: ${submission.made.title}` : ''}` });
   // only a GitHub login is named in public: never a name or an email
   const login = (await getUserByClientId(submission.clientId).catch(() => null))?.githubLogin;
   const pr = await openPullRequest(gh, { repo, head: branch, title: prTitle(submission, update), body: prBody(submission, { by: login, update, site: origin }) });
@@ -298,4 +303,18 @@ export async function submissionsMerged(repo: string, prNumber: number): Promise
     live += 1;
   }
   return live;
+}
+
+/**
+ * An admin's own item, published at once: it is saved like any submission (so its files, checks and
+ * history are where every other one's are), then approved by the same admin at the membership they
+ * named, with no membership earned and no mail. A refusal (a leak check, a version already released)
+ * leaves it waiting on /app/submissions and says why.
+ */
+export async function publishOwnSubmission(clientId: string, input: SubmissionInput & { publish: SubmissionTier }, origin: string): Promise<Outcome> {
+  const sent = await sendSubmission(clientId, 'admin', input);
+  if (!sent.ok) return sent;
+  const published = await approveSubmission({ submissionId: sent.submission.submissionId, tier: input.publish, membership: 'none', note: 'Published directly by an admin', by: clientId, origin, notify: false });
+  if (!published.ok) return { ok: false, status: published.status, why: `Saved as ${sent.submission.submissionId}, not published: ${published.why}` };
+  return published;
 }
