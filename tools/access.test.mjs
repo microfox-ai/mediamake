@@ -11,7 +11,7 @@ const top = path.join(tmp, 'mediamake');
 process.env.HOME = home;
 process.env.MEDIAMAKE_CONFIG = path.join(home, '.mediamake', 'config.json');
 process.env.MEDIAMAKE_STATE = path.join(home, '.mediamake', 'state.json');
-const { capabilities, declared, placeReport } = await import('./access.mjs');
+const { capabilities, declared, openProjects, placeReport } = await import('./access.mjs');
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 const write = (file, body) => {
@@ -61,4 +61,33 @@ test('a cloud session reports as its environment, with its limits and never what
   const report = placeReport({ env: cloud, top, home, asked: ['mcp:blender'] });
   assert.deepEqual(report, { kind: 'cloud', device: 'Shorts', can: ['render', 'key:elevenlabs'], limits: { elevenlabs: 'unlimited' } });
   assert.equal(placeReport({ env: env({ CLAUDE_CODE_REMOTE: 'true' }), top, home, asked: [] }).device, 'cloud');
+});
+
+test('the session-start lines name only the projects a computer is open to: closed, busy or unknown, none', async t => {
+  const P1 = 'a'.repeat(24);
+  const P2 = 'b'.repeat(24);
+  write(path.join(path.dirname(process.env.MEDIAMAKE_CONFIG), 'usage-state.json'), { device: 'mac-test' });
+  const at = { url: 'http://127.0.0.1:9', key: 'mm_test' };
+  const real = globalThis.fetch;
+  t.after(() => (globalThis.fetch = real));
+  const answer = places => (globalThis.fetch = async () => new Response(JSON.stringify({ places }), { status: 200 }));
+  const place = (over = {}) => ({ id: 'device:me/mac-test', kind: 'device', label: 'mac-test', can: [], projects: [], ...over });
+
+  answer([place()]);
+  assert.deepEqual([...(await openProjects(at, env()))], []);
+  answer([place({ projects: [P1] }), place({ id: 'device:me/mac-other', label: 'mac-other', projects: [P2] })]);
+  assert.deepEqual([...(await openProjects(at, env()))], [P1]);
+  answer([place({ projects: [P1], busy: true })]);
+  assert.deepEqual([...(await openProjects(at, env()))], []);
+  // not in the register yet, or the site can't say: closed
+  answer([place({ label: 'mac-other', projects: [P1] })]);
+  assert.deepEqual([...(await openProjects(at, env()))], []);
+  globalThis.fetch = async () => new Response('nope', { status: 500 });
+  assert.deepEqual([...(await openProjects(at, env()))], []);
+  globalThis.fetch = async () => {
+    throw new Error('offline');
+  };
+  assert.deepEqual([...(await openProjects(at, env()))], []);
+  // a cloud environment is never opened or closed
+  assert.equal(await openProjects(at, env({ CLAUDE_CODE_REMOTE: 'true' })), null);
 });
