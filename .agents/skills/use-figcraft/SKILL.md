@@ -2,7 +2,7 @@
 name: use-figcraft
 description: Do any graphic or UI/UX design in Figcraft, the open-source Figma-like editor, through its MCP server or its command line (figcraft-cli) — graphic work (posters, YouTube thumbnails and channel banners, Instagram posts and carousels, logos, icon sets, app icons, pitch decks and slides as PDF) and product design (phone and web screens, landing pages, dashboards, wireframes, design systems with styles, variables, Light/Dark themes, components and variants, clickable prototypes, user-flow boards, developer handoff with code and annotations), exported as PNG, JPG, WebP, SVG, PDF, Android XML or .fig, and handed to the user in the FigCraft app to change by hand, then brought back. Nineteen proven recipes to start from, and references for every feature. Also how other skills rebuild a finished design there (create-thumbnail's final edit is `mm thumbs figcraft`). Use when the user says "design a poster / banner / post / logo / icon set / deck / slide", "make an app screen / landing page / dashboard / wireframe", "build a design system / components / tokens / dark mode", "prototype this flow", "make a user flow / journey map", "export it as SVG / PDF", "open it in Figcraft", "let me edit it myself", "edit this design", "/use-figcraft", or when a skill needs an editable layout instead of a flat render. Not for video, or for pictures made by a model (Midjourney, fal): place those in a design instead.
 metadata:
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # use-figcraft
@@ -144,6 +144,13 @@ prints any file's tree (after `figcraft-cli convert x.figcraft x.json`).
    under 2 MB. Show it in the chat.
 4. Never build over a file the user may have edited: a new build is a new file (`<name>-2.figcraft`),
    and every export a new version (`-edit-v2.jpg`); the earlier ones stay.
+5. Every variation in one file: each version or concept of a design is its own top-level frame, side
+   by side on one page (a gap of 120–160, named `v1 · …`, `A · <concept>`, the user's own edit
+   `… edit (yours)`), never one file per version, so the user compares and edits them together. To bring
+   earlier files in, `file.import {path}` each (it appends the file's pages, frames and all), read the
+   new page and frame ids with `figcraft-cli info <file> --json`, then in a second run
+   `node.reparent {ids:[frame], parent:<first page id>}` and `node.set {id, x, y}` each frame and
+   `page.delete` the emptied pages. A file the user saved is imported as it is, never rebuilt.
 
 For MediaMake thumbnails and posters this is one command: `mm thumbs figcraft <job> <ID> --open`
 rebuilds a finished variant as layers (pictures, devices and textures as images, every headline line
@@ -181,3 +188,6 @@ New lessons from the user go in your notes: `mm notes add use-figcraft "<what th
   3-slide deck PDF and an Instagram story to brief (two became recipes); what it had to guess is now
   written in: open subpaths, shadows widening exports, padding inside `layout`, checking a PDF, which
   fonts exist (`scripts/recipe.mjs --fonts`).
+- 2026-11-20 · on a square playlist post, the user asked for every variation in one file, each in its
+  own frame, and for that to be a rule here: section 6, step 5 (merging earlier files with
+  `file.import`, `node.reparent` and `page.delete` was run and checked).
