@@ -11,7 +11,10 @@ how, is simple:
 - **Cohort members and admins** need not name one: `mm submit <name> --yes` sends it (`--made="…"`
   too when there is one).
 - **Admins publish directly**, with no review: `mm submit <name> --yes --tier=<public|plus|pro|cohort>`
-  releases it at that membership, in Beta. Maintainers' `node tools/skills.mjs publish <name> --yes`
+  releases it at that membership, in Beta.
+- **Updates go out directly** for admins and Cohort members: a new version of an item already in the
+  store (Public, Plus, Pro or Cohort), sent with `mm submit <name> --yes` by an admin or by the Cohort
+  member who made it, is published at once at the membership it has; no submission is reviewed. Maintainers' `node tools/skills.mjs publish <name> --yes`
   opens the public pull request the same way, `--made` optional.
 - Ready and Production are an admin's call (`catalog_set_readiness`, `npm run catalog -- ready`), with a
   production when there is one, shown on the item's page as "Made with this"; never do it unasked.

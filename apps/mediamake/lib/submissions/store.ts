@@ -99,6 +99,11 @@ export const submissionsDB = {
     return (await collection()).findOne({ itemId, clientId: { $ne: clientId }, status: { $in: ['pending', 'changes', 'approved', 'live'] } }, { projection: { _id: 0 } });
   },
 
+  /** Whether this account made the item: an earlier submission of it by them was accepted (approved, or live). */
+  async madeBy(itemId: string, clientId: string): Promise<boolean> {
+    return !!(await (await collection()).findOne({ itemId, clientId, status: { $in: ['approved', 'live'] } }, { projection: { _id: 1 } }));
+  },
+
   /** How many an account sent since a moment: the daily limit. */
   async countSince(clientId: string, since: string): Promise<number> {
     return (await collection()).countDocuments({ clientId, updatedAt: { $gte: since } });

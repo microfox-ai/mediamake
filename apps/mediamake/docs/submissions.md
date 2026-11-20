@@ -30,6 +30,14 @@ we don't use.**
    membership earned and no mail. What would stop an approval (a leak check, a
    version already released) leaves it waiting on `/app/submissions` and the
    answer says why. A member who sends `publish` is refused.
+
+   **An update goes out directly too.** A new version of an item already in
+   the store (at Public, Plus, Pro or Cohort), sent by an admin or by the
+   Cohort member who made it (an earlier submission of it by them was
+   accepted), is approved at once at the membership it has
+   (`directUpdateTier`, `publishDirectly`): `mm submit <name> --yes`, no
+   `--tier`. Members below Cohort, and Cohort members updating someone
+   else's item, send it for review as before.
 4. **Approving delivers it** (`lib/submissions/actions.ts`):
 
    | Item | Goes to | Live when |

@@ -64,6 +64,13 @@ export interface Made {
 /** Whether a sender at this tier names a production: members below Cohort do; Cohort members and admins may leave it out. */
 export const productionNeeded = (tier: MemberTier) => tierRank(tier) < tierRank('cohort');
 
+/**
+ * Whether a sender at this tier publishes an update directly, with no review: admins (any item already
+ * in the store) and Cohort members (an item they made). A new item still goes to review, unless an
+ * admin names its membership (`publish`).
+ */
+export const updatesDirectly = (tier: MemberTier) => tierRank(tier) >= tierRank('cohort');
+
 export interface Checks {
   /** What must be fixed before it can be listed: a key, a token, a path on someone's computer. */
   problems: string[];

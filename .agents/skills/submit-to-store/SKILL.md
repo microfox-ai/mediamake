@@ -107,6 +107,10 @@ mm submit <name> --yes --tier=<public|plus|pro|cohort>
 ```
 
 It is released at that membership, in Beta, the moment it arrives, and the command prints its page.
+
+**An update goes out directly** for admins and Cohort members: a new version of an item already in the
+store, sent by an admin or by the Cohort member who made it, is published at once at the membership it
+already has. Raise its version and run `mm submit <name> --yes` (no `--tier`, no review).
 When something stops it (a leak check, a version already released), it waits on `/app/submissions`
 and the command says why. A member who passes `--tier` is refused.
 

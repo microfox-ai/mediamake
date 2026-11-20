@@ -10,6 +10,8 @@
  *                                           with it (--made); Cohort members and admins may leave it out
  *   mm submit <name> --yes --tier=public|plus|pro|cohort
  *                                           an admin publishes it directly at that membership: no review
+ *   An update (a new version of an item already in the store) sent by an admin, or by the Cohort
+ *   member who made it, is published directly at the membership it has, with no review and no --tier
  *   mm submit status                        your submissions and where each stands
  *   mm submit withdraw <id>                 takes one back before it is decided
  *   --kind=skill|mcp|app                    when two of your items share a name

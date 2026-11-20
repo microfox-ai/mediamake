@@ -17,6 +17,7 @@ import {
   ownView,
   parseSubmission,
   productionNeeded,
+  updatesDirectly,
   pathProblem,
   routeOf,
   standing,
@@ -105,6 +106,12 @@ describe('what a member sends', () => {
     assert.equal(productionNeeded('pro'), true);
     assert.equal(productionNeeded('cohort'), false);
     assert.equal(productionNeeded('admin'), false);
+  });
+
+  it('lets admins and Cohort members publish an update directly; members below Cohort send it for review', () => {
+    for (const tier of ['public', 'plus', 'pro'] as const) assert.equal(updatesDirectly(tier), false, tier);
+    assert.equal(updatesDirectly('cohort'), true);
+    assert.equal(updatesDirectly('admin'), true);
   });
 
   it('refuses a skill whose name is not its folder, and one with no SKILL.md', () => {

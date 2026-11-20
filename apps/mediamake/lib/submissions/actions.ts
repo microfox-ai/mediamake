@@ -6,6 +6,7 @@ import { packageKey, putPackage } from '@/lib/catalog/storage';
 import { catalogItemsDB } from '@/lib/catalog/store';
 import { submissionDecidedMail } from '@/lib/mail/templates';
 import { deliver, grantContribution, lastsInWords, type Mailed } from '@/lib/memberships/admin';
+import { itemTier } from '@/lib/catalog/types';
 import { tierLabel, type MemberTier } from '@/lib/memberships/tiers';
 import { bundleOf, commitMessage, packageEntries, packageProblem, prBody, prTitle, publicSkillFiles, releaseNotes, storeFiles } from './delivery';
 import { commitFolder, github, githubProblem, openPullRequest, publicRepo, storeRepo, storeToken, type Github } from './github';
@@ -13,8 +14,10 @@ import { submissionsDB } from './store';
 import {
   checkFiles,
   earnedTier,
+  isSubmissionTier,
   isUndecided,
   productionNeeded,
+  updatesDirectly,
   routeOf,
   submissionBranch,
   SUBMISSIONS_PER_DAY,
@@ -306,15 +309,36 @@ export async function submissionsMerged(repo: string, prNumber: number): Promise
 }
 
 /**
- * An admin's own item, published at once: it is saved like any submission (so its files, checks and
- * history are where every other one's are), then approved by the same admin at the membership they
- * named, with no membership earned and no mail. A refusal (a leak check, a version already released)
- * leaves it waiting on /app/submissions and says why.
+ * Published at once, with no review: an admin's item at the membership they named, or an update (an
+ * item already in the store, by an admin or by the Cohort member who made it) at the membership it
+ * has. It is saved like any submission (so its files, checks and history are where every other one's
+ * are), then approved by the sender, with no membership earned and no mail. A refusal (a leak check, a
+ * version already released) leaves it waiting on /app/submissions and says why.
  */
-export async function publishOwnSubmission(clientId: string, input: SubmissionInput & { publish: SubmissionTier }, origin: string): Promise<Outcome> {
-  const sent = await sendSubmission(clientId, 'admin', input);
+export async function publishDirectly(clientId: string, tier: MemberTier, input: SubmissionInput, at: SubmissionTier, origin: string, note: string): Promise<Outcome> {
+  const sent = await sendSubmission(clientId, tier, { ...input, publish: undefined });
   if (!sent.ok) return sent;
-  const published = await approveSubmission({ submissionId: sent.submission.submissionId, tier: input.publish, membership: 'none', note: 'Published directly by an admin', by: clientId, origin, notify: false });
+  const published = await approveSubmission({ submissionId: sent.submission.submissionId, tier: at, membership: 'none', note, by: clientId, origin, notify: false });
   if (!published.ok) return { ok: false, status: published.status, why: `Saved as ${sent.submission.submissionId}, not published: ${published.why}` };
   return published;
+}
+
+/** An admin's own item, at the membership they named. */
+export const publishOwnSubmission = (clientId: string, input: SubmissionInput & { publish: SubmissionTier }, origin: string) =>
+  publishDirectly(clientId, 'admin', input, input.publish, origin, 'Published directly by an admin');
+
+/**
+ * The membership an update is published at directly, or null when it goes to review: the item is
+ * already in the store at a member's membership, and the sender is an admin, or a Cohort member who
+ * made it (an earlier submission of it by them was accepted).
+ */
+export async function directUpdateTier(clientId: string, tier: MemberTier, input: Pick<SubmissionInput, 'kind' | 'slug'>): Promise<SubmissionTier | null> {
+  if (!updatesDirectly(tier)) return null;
+  const itemId = `${input.kind}/${input.slug}`;
+  const existing = await catalogItemsDB.get(itemId).catch(() => null);
+  if (!existing) return null;
+  const at = itemTier(existing);
+  if (!isSubmissionTier(at)) return null;
+  if (tier !== 'admin' && !(await submissionsDB.madeBy(itemId, clientId))) return null;
+  return at;
 }
