@@ -9,6 +9,7 @@
  *   - mm on your PATH, for this checkout (fix: mm link)
  *   - the checkout's git state (tools/git-health.mjs), your workspace, ~/.mediamake/config.json and the
  *     media library, your own skills (skills.mjs tidy) and the ElevenLabs key mm transcribe uses
+ *   - the render bundles kept in the checkout: their size and their disk's free space (fix: mm bundle --prune)
  *
  *   mm doctor               the report; exit 1 when something fails
  *   mm doctor --fix         also runs the fixes marked (--fix): installs, builds, downloads, mm link.
@@ -112,6 +113,82 @@ const newest = dir => {
   };
   if (fs.existsSync(dir)) walk(dir);
   return t;
+};
+
+/** The bytes under dir, links not followed (a bundle's linked public dir counts as nothing). */
+const sizeOf = dir => {
+  let total = 0;
+  const walk = d => {
+    let entries;
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const p = path.join(d, e.name);
+      if (e.isSymbolicLink()) continue;
+      if (e.isDirectory()) walk(p);
+      else
+        try {
+          total += fs.lstatSync(p).size;
+        } catch {}
+    }
+  };
+  walk(dir);
+  return total;
+};
+
+/**
+ * The kept render bundles (project-bundle.ts's store): their size with the webpack caches, how many
+ * hold a copy of projects/ (Windows before the junction fix), half-made ones whose process is gone,
+ * and the free space on their disk. null when there is no store.
+ */
+export const bundleStore = store => {
+  if (!fs.existsSync(store)) return null;
+  const bundles = path.join(store, 'bundles');
+  const list = d => {
+    try {
+      return fs.readdirSync(d);
+    } catch {
+      return [];
+    }
+  };
+  const alive = pid => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (e) {
+      return e.code === 'EPERM';
+    }
+  };
+  let copied = 0;
+  let dead = 0;
+  const projects = list(bundles);
+  for (const slug of projects)
+    for (const name of list(path.join(bundles, slug))) {
+      const m = name.match(/^\.tmp-(\d+)-/);
+      if (m) {
+        if (!alive(Number(m[1]))) dead++;
+        continue;
+      }
+      try {
+        if (!fs.lstatSync(path.join(bundles, slug, name, 'public')).isSymbolicLink()) copied++;
+      } catch {}
+    }
+  let free = null;
+  try {
+    const s = fs.statfsSync(store);
+    free = s.bavail * s.bsize;
+  } catch {}
+  return {
+    bytes: sizeOf(store),
+    webpack: sizeOf(path.join(store, 'webpack')),
+    projects: projects.length,
+    copied,
+    dead,
+    free,
+  };
 };
 
 /** Every `mm` on your PATH, first one first (not npm's node_modules/.bin, which only `npm run` adds). */
@@ -467,6 +544,36 @@ export async function checks({ top, fetch = true } = {}) {
     }
   } catch (e) {
     add('workspace', 'warn', `couldn't check the workspace: ${e.message}`);
+  }
+  // ── the render bundles kept in this checkout (apps/studio/scripts/project-bundle.ts)
+  try {
+    const b = bundleStore(path.join(APP, 'node_modules', '.cache', 'mediamake'));
+    if (b) {
+      const prune = {
+        what: 'mm bundle --prune',
+        cmd: process.execPath,
+        args: [path.join(APP, 'bin', 'mm.mjs'), 'bundle', '--prune'],
+        cwd: top,
+      };
+      const what = `the render bundles take ${gib(b.bytes)} (${b.projects} project${b.projects === 1 ? '' : 's'}, webpack caches ${gib(b.webpack)})${b.free !== null ? `, ${gib(b.free)} free on their disk` : ''}`;
+      const why = [
+        b.copied && `${b.copied} hold${b.copied === 1 ? 's' : ''} a copy of projects/ instead of a link`,
+        b.dead && `${b.dead} half-made`,
+        b.free !== null && b.free < LOW_DISK && 'the disk is nearly full',
+        b.bytes > LOW_DISK && 'more than a cache needs',
+      ].filter(Boolean);
+      if (why.length)
+        add(
+          'bundles',
+          'warn',
+          `${what}: ${why.join(', ')}`,
+          '`mm bundle --prune` removes the bundles and caches no render uses (never one in use, never your projects).',
+          prune,
+        );
+      else add('bundles', 'ok', what);
+    }
+  } catch (e) {
+    add('bundles', 'warn', `couldn't check the render bundles: ${e.message}`);
   }
   if (config) {
     const lib = libraryRoot(config.library);

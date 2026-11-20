@@ -18,6 +18,15 @@
  * - Two processes never bundle the same project at once (a lock per project). A bundle in use by a
  *   running process is never deleted. The caches and bundles of all but the most recently used
  *   projects (MM_BUNDLE_KEEP, default 8) are removed; one project's cache is about 0.5 GB.
+ * - The public dir (projects/) is linked into the bundle, never copied: on Windows Remotion copied
+ *   it (many GB a bundle) and the kept bundles filled C: on 2026-11-19, so it is a junction there
+ *   (linked-public.ts).
+ * - So the store can't fill a disk again, each new bundle also removes: half-made bundles of
+ *   processes that are gone, other projects' bundles this code can't reuse (made by other code, or
+ *   with public copied), the bundles and caches of projects unused for MM_BUNDLE_DAYS (default 5),
+ *   and, while the disk has less than MM_BUNDLE_MIN_FREE_GB free (default 20), other projects'
+ *   bundles and caches, least recently used first. `mm bundle --prune` does the same now;
+ *   `mm doctor` shows the store's size.
  *
  * MM_BUNDLE=fresh bundles again (and replaces the kept bundle); MM_BUNDLE=off bundles into a temp
  * folder like before, nothing kept.
@@ -27,8 +36,9 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bundle, type WebpackOverrideFn } from '@remotion/bundler';
+import type { WebpackOverrideFn } from '@remotion/bundler';
 import { enableTailwind } from '@remotion/tailwind-v4';
+import { bundleLinked, freeSpace, publicIsLinked, removeBundleDir, sizeOf } from './linked-public.ts';
 import { acquireLock, alive, onExit, readJson, writeJsonAtomic } from './locks.ts';
 import { onlyProject } from './only-project.ts';
 import { timestampSnapshots } from './snapshots.ts';
@@ -44,6 +54,10 @@ const WEBPACK_CACHE_DIR = studioCacheDir(ROOT);
 const BUNDLES = path.join(STORE, 'bundles');
 const SCHEMA = 'mediamake.bundle-deps/v1';
 const KEEP = Math.max(1, Number(process.env.MM_BUNDLE_KEEP) || 8);
+const DAY = 24 * 60 * 60 * 1000;
+const MAX_AGE = Math.max(0.5, Number(process.env.MM_BUNDLE_DAYS) || 5) * DAY;
+const MIN_FREE = Math.max(0, Number(process.env.MM_BUNDLE_MIN_FREE_GB) || 20) * 2 ** 30;
+const ENTRY = path.join(ROOT, 'src', 'index.ts');
 
 type Deps = {
   schema: typeof SCHEMA;
@@ -118,7 +132,7 @@ const entriesOf = (projectsDir: string, slug: string): string[] => {
 
 /** What a bundle depends on besides the files webpack read: Remotion, our bundling code, the installed packages. */
 const keyFor = (slug: string, entry: string, publicDir: string) => {
-  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts', 'workspace.ts', 'workspace-webpack.ts', 'engine.ts', '../engine.json'].map(f => {
+  const own = ['project-bundle.ts', 'only-project.ts', 'snapshots.ts', 'webpack-cache.ts', 'locks.ts', 'linked-public.ts', 'workspace.ts', 'workspace-webpack.ts', 'engine.ts', '../engine.json'].map(f => {
     try {
       return sha1(fs.readFileSync(path.join(HERE, f), 'utf8'));
     } catch {
@@ -155,31 +169,85 @@ const inUse = (dir: string) => {
   }
 };
 
-const rm = (dir: string) => fs.rmSync(dir, { recursive: true, force: true });
+/** Removes a bundle or a project's bundles: a linked public dir is unlinked, never emptied (linked-public.ts). */
+const rm = removeBundleDir;
 
-/** Removes this project's old bundles (not in use), and every cache and bundle of projects not used lately. */
-function prune(slug: string) {
-  // this project: every bundle but the kept one, unless a process still renders from it
-  const mine = readJson<Deps>(path.join(BUNDLES, slug, 'deps.json'));
-  for (const name of safeList(path.join(BUNDLES, slug))) {
-    const dir = path.join(BUNDLES, slug, name);
-    if (name === 'deps.json' || name === '.lock' || name === mine?.current) continue;
-    if (/^\.tmp-(\d+)-/.test(name) && alive(Number(name.split('-')[1]))) continue;
-    if (!inUse(dir)) rm(dir);
-  }
-  // other projects: keep the most recently used KEEP
-  const all = safeList(BUNDLES)
-    .map(s => readJson<Deps>(path.join(BUNDLES, s, 'deps.json')))
-    .filter((d): d is Deps => Boolean(d?.slug))
-    .sort((a, b) => b.lastUsed.localeCompare(a.lastUsed));
-  const kept = new Set(all.slice(0, KEEP).map(d => d.webpackCache).filter(Boolean));
-  for (const d of all.slice(KEEP)) {
-    const dir = path.join(BUNDLES, d.slug);
-    if (safeList(dir).some(n => inUse(path.join(dir, n)))) continue;
+const gb = (n: number) => `${(n / 2 ** 30).toFixed(1)} GB`;
+
+/** A half-made bundle (.tmp-<pid>-…) whose process is gone. */
+const deadTmp = (name: string) => /^\.tmp-(\d+)-/.test(name) && !alive(Number(name.split('-')[1]));
+
+/** Whether any bundle of a project is in use, or being made by a live process. */
+const projectBusy = (slug: string) =>
+  safeList(path.join(BUNDLES, slug)).some(n => (n.startsWith('.tmp-') ? !deadTmp(n) : inUse(path.join(BUNDLES, slug, n))));
+
+type Removed = { what: string; bytes: number };
+
+/**
+ * Tidies the store. `slug`: the project just bundled (its kept bundle stays, whatever the rules say).
+ * Returns what it removed. Never removes a bundle a live process uses or is making.
+ */
+export function prune(slug: string | null, opts: { publicDir?: string } = {}): Removed[] {
+  const removed: Removed[] = [];
+  const drop = (dir: string, what: string) => {
+    const bytes = sizeOf(dir);
     rm(dir);
-    if (d.webpackCache && !kept.has(d.webpackCache)) rm(path.join(WEBPACK_CACHE_DIR, d.webpackCache));
+    removed.push({ what, bytes });
+  };
+  const publicDir = opts.publicDir ?? workspaceDir('projects', ROOT);
+  const mine = slug ? readJson<Deps>(path.join(BUNDLES, slug, 'deps.json')) : null;
+  // every project: half-made bundles whose process is gone; this project: every bundle but the kept one
+  for (const s of safeList(BUNDLES)) {
+    for (const name of safeList(path.join(BUNDLES, s))) {
+      const dir = path.join(BUNDLES, s, name);
+      if (deadTmp(name)) drop(dir, `${s}: a half-made bundle`);
+      else if (s === slug && !name.startsWith('.tmp-') && !['deps.json', '.lock', mine?.current].includes(name) && !inUse(dir)) drop(dir, `${s}: an old bundle`);
+    }
+    // a folder left with nothing in it
+    if (!safeList(path.join(BUNDLES, s)).length) fs.rmSync(path.join(BUNDLES, s), { recursive: true, force: true });
+  }
+  const all = () =>
+    safeList(BUNDLES)
+      .map(s => readJson<Deps>(path.join(BUNDLES, s, 'deps.json')))
+      .filter((d): d is Deps => Boolean(d?.slug))
+      .sort((a, b) => b.lastUsed.localeCompare(a.lastUsed));
+  /** a project's bundles and webpack cache, unless one is in use; the cache stays when `keptCaches` has it */
+  const dropProject = (d: Deps, why: string, keptCaches: Set<string | null>) => {
+    if (d.slug === slug || projectBusy(d.slug)) return;
+    drop(path.join(BUNDLES, d.slug), `${d.slug}: its bundles (${why})`);
+    const cache = d.webpackCache && path.join(WEBPACK_CACHE_DIR, d.webpackCache);
+    if (cache && !keptCaches.has(d.webpackCache) && fs.existsSync(cache)) drop(cache, `${d.slug}: its webpack cache (${why})`);
+  };
+  // other projects: bundles this code never reuses (made by other code, or with public copied); the cache stays
+  for (const d of all()) {
+    if (d.slug === slug) continue;
+    const stale = d.schema !== SCHEMA || d.key !== keyFor(d.slug, ENTRY, publicDir);
+    for (const name of safeList(path.join(BUNDLES, d.slug))) {
+      const dir = path.join(BUNDLES, d.slug, name);
+      if (name.startsWith('.') || !fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory() || inUse(dir)) continue;
+      const copied = fs.existsSync(path.join(dir, 'public')) && !publicIsLinked(dir);
+      if (stale || copied) drop(dir, `${d.slug}: a bundle ${copied ? 'holding a copy of projects/' : 'made by other code'}`);
+    }
+  }
+  // other projects: keep the KEEP used last, if used within MAX_AGE
+  {
+    const list = all();
+    const recent = list.slice(0, KEEP).filter(d => d.slug === slug || Date.now() - Date.parse(d.lastUsed) < MAX_AGE);
+    const kept = new Set(recent.map(d => d.webpackCache).filter(Boolean));
+    for (const [i, d] of list.entries())
+      if (!recent.includes(d)) dropProject(d, i >= KEEP ? `not among the ${KEEP} used last` : `unused for ${Math.round(MAX_AGE / DAY)} days`, kept);
+  }
+  // the disk is nearly full: other projects' bundles and caches, least recently used first
+  const free = freeSpace(BUNDLES);
+  if (free !== null && free < MIN_FREE) {
+    const list = all();
+    for (const d of [...list].reverse()) {
+      if ((freeSpace(BUNDLES) ?? Infinity) >= MIN_FREE) break;
+      dropProject(d, `the disk had ${gb(free)} free`, new Set(list.filter(o => o.slug !== d.slug).map(o => o.webpackCache).filter(Boolean)));
+    }
   }
   // webpack caches no kept project uses any more (a config change gives a project a new one)
+  const used = new Set(all().map(d => d.webpackCache).filter(Boolean));
   for (const env of safeList(WEBPACK_CACHE_DIR)) {
     if (!env.startsWith('remotion-production-')) continue;
     for (const hash of safeList(path.join(WEBPACK_CACHE_DIR, env))) {
@@ -187,10 +255,18 @@ function prune(slug: string) {
       const dir = path.join(WEBPACK_CACHE_DIR, name);
       const age = Date.now() - (fs.statSync(dir, { throwIfNoEntry: false })?.mtimeMs ?? 0);
       // a cache being written right now has no deps.json pointing at it yet
-      if (!kept.has(name) && !all.slice(0, KEEP).some(d => d.webpackCache === name) && age > 60 * 60 * 1000) rm(dir);
+      if (!used.has(name) && age > 60 * 60 * 1000) drop(dir, 'a webpack cache no project uses');
     }
   }
+  return removed;
 }
+
+/** What prune removed, in one line (null for nothing). */
+const removedLine = (removed: Removed[]) => {
+  if (!removed.length) return null;
+  const bytes = removed.reduce((n, r) => n + r.bytes, 0);
+  return `Tidied the bundle store: removed ${removed.length} (${gb(bytes)}): ${removed.map(r => r.what).join('; ')}`;
+};
 
 const safeList = (dir: string) => {
   try {
@@ -208,7 +284,7 @@ const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
  */
 export async function projectBundle(slug: string, opts: { projectsDir?: string; quiet?: boolean } = {}): Promise<ProjectBundle> {
   const started = Date.now();
-  const entry = path.join(ROOT, 'src', 'index.ts');
+  const entry = ENTRY;
   const publicDir = opts.projectsDir ?? workspaceDir('projects', ROOT);
   const log = (msg: string) => opts.quiet || console.log(msg);
   const mode = process.env.MM_BUNDLE;
@@ -239,22 +315,21 @@ export async function projectBundle(slug: string, opts: { projectsDir?: string; 
   });
   try {
     // another process may have made it while this one waited
-    const made = reuse();
-    if (made) {
+    const theirs = reuse();
+    if (theirs) {
       log(`Bundle: ${slug} was just bundled by another process, reusing it`);
-      return made;
+      return theirs;
     }
     const record = new RecordDepsPlugin();
     const bundleStart = Date.now();
     const tmp = path.join(dir, `.tmp-${process.pid}-${crypto.randomBytes(3).toString('hex')}`);
     const override = studioWebpack(slug);
     let lastShown = -25;
-    await bundle({
+    // linked, not copied (a junction on Windows): projects/ is tens of GB (linked-public.ts)
+    const made = bundleLinked({
       entryPoint: entry,
       publicDir,
       outDir: tmp,
-      // linked, not copied: projects/ is tens of GB (bundle.ts)
-      symlinkPublicDir: true,
       enableCaching: mode !== 'off',
       onProgress: p => {
         if (opts.quiet || p < lastShown + 25) return;
@@ -265,6 +340,11 @@ export async function projectBundle(slug: string, opts: { projectsDir?: string; 
         const own = await override(config);
         return { ...own, plugins: [...(own.plugins ?? []), record] };
       },
+    });
+    // a bundle that failed (a full disk, a code error) leaves nothing behind
+    await made.catch(err => {
+      rm(tmp);
+      throw err;
     });
     const files = record.record.files;
     // a file changed while webpack read it: this bundle may hold the old version, so don't keep it
@@ -297,7 +377,8 @@ export async function projectBundle(slug: string, opts: { projectsDir?: string; 
     // a config change moved this project to a new webpack cache: the old one is dead weight
     if (previous?.webpackCache && previous.webpackCache !== deps.webpackCache) rm(path.join(WEBPACK_CACHE_DIR, previous.webpackCache));
     try {
-      prune(slug);
+      const line = removedLine(prune(slug, { publicDir }));
+      if (line) log(line);
     } catch (err) {
       console.warn(`Could not tidy old bundles: ${err instanceof Error ? err.message : err}`);
     }
@@ -322,8 +403,15 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   // mm bundle <slug>: make (or reuse) a project's bundle and print its folder
   const [slug] = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  if (process.argv.includes('--prune')) {
+    // mm bundle --prune: the store's rules now, without bundling anything
+    console.log(removedLine(prune(null)) ?? 'The bundle store has nothing to tidy.');
+    const free = freeSpace(BUNDLES);
+    console.log(`Bundle store: ${gb(sizeOf(STORE))}${free === null ? '' : `, ${gb(free)} free on its disk`} (${STORE})`);
+    process.exit(0);
+  }
   if (!slug) {
-    console.error('Usage: mm bundle <slug>   (MM_BUNDLE=fresh to bundle again)');
+    console.error('Usage: mm bundle <slug>   (MM_BUNDLE=fresh to bundle again)\n       mm bundle --prune   (tidy the store now)');
     process.exit(1);
   }
   const b = await projectBundle(slug);
