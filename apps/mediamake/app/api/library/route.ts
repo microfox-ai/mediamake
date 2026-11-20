@@ -54,7 +54,9 @@ export async function POST(req: NextRequest) {
       return answer(await libraryDB.setPrefs(at.space, String(body.collection ?? ''), String(body.prefs ?? '')));
     }
     if (body?.action === 'headshot') return answer(await libraryDB.setHeadshot(at.space, String(body.collection ?? ''), { sha256: body.sha256, url: body.url }));
-    return refuse('action is "new-collection", "prefs" or "headshot"');
+    // the grid's columns are the space's: whoever can change the collection sets them for everyone in it
+    if (body?.action === 'columns') return answer(await libraryDB.setColumns(at.space, String(body.collection ?? ''), body.columns));
+    return refuse('action is "new-collection", "prefs", "headshot" or "columns"');
   } catch (error) {
     return failed('change the Library', error);
   }

@@ -22,6 +22,9 @@ import { storageProblem } from '@/lib/projects/storage-store';
 import type { LibrarySpace } from './access';
 import {
   factsOf,
+  cellsOf,
+  cleanColumns,
+  pictureOf,
   DEFAULT_PRICES,
   LIBRARY_SCHEMA,
   SHA256,
@@ -150,6 +153,7 @@ function collectionView(doc: CollectionRecord, entries: number, full: boolean) {
     fields: template.fields.map(f => ({ key: f.key, label: f.label, kind: f.kind, group: f.group, ...(f.options && { options: f.options }), ...(f.learns && { learns: f.learns }), ...(f.neverGuess && { neverGuess: true }), ...(f.keys?.length && { keys: f.keys.map(k => ({ key: k.key, label: k.label, ...(k.kind && { kind: k.kind }), ...(full && k.hint && { hint: k.hint }) })) }), ...(full && f.hint && { hint: f.hint }) })),
     slots: template.slots.map(s => ({ key: s.key, label: s.label, accepts: s.accepts, many: s.many, ...(full && s.hint && { hint: s.hint }) })),
     learned: Object.fromEntries(Object.entries(doc.learned ?? {}).map(([list, values]) => [list, learnedOptions(values)])),
+    ...(doc.columns?.length && { columns: doc.columns }),
     ...(full && { guide: template.guide, prefs: doc.prefs }),
   };
 }
@@ -163,6 +167,14 @@ async function headshotOf(doc: CollectionRecord): Promise<string | undefined> {
 
 const entryView = (entry: EntryRecord, full: boolean) =>
   full ? entry : { ref: `${entry.collection}/${entry.slug}`, title: entry.title, card: entry.card, rev: entry.rev, updatedAt: entry.updatedAt, ...(entry.agent && { agent: true }), ...factsOf(entry) };
+
+/** What a list asked for beside the facts: the grid's cells, and a signed link to one picture (its blob is in the space the entry lives in). */
+async function rowExtras(entry: EntryRecord, ask: Pick<SearchAsk, 'cells' | 'pictures'>) {
+  const cells = ask.cells?.length ? cellsOf(entry, ask.cells) : undefined;
+  const file = ask.pictures && storageReady() ? pictureOf(entry) : undefined;
+  const picture = file ? await createReadUrl(blobKey(entry.space, file.sha256), file.name).catch(() => undefined) : undefined;
+  return { ...(cells && Object.keys(cells).length && { cells }), ...(picture && { picture }) };
+}
 
 export const libraryDB = {
   /** A space's collections, with how many entries each has. `full` adds each one's guide and preferences. */
@@ -232,6 +244,16 @@ export const libraryDB = {
     }
     await event(db, space.id, 'collection', by, { collection: slug });
     return { collection: collectionView(doc, 0, true) };
+  },
+
+  /** The grid's columns for everyone in the space, in order (an empty list goes back to the template's). */
+  async setColumns(space: LibrarySpace, slug: string, columns: unknown) {
+    const db = await database();
+    const list = cleanColumns(columns);
+    const saved = await db
+      .collection<CollectionRecord>(COLLECTIONS)
+      .updateOne({ space: space.id, slug, ...LIVE }, list.length ? { $set: { columns: list, updatedAt: new Date().toISOString() } } : { $unset: { columns: '' }, $set: { updatedAt: new Date().toISOString() } });
+    return saved.matchedCount ? { ok: true as const, columns: list } : fail(`No collection ${slug} in the ${space.name} space`, 404);
   },
 
   /** The owner's preferences for whoever fills the collection: Markdown, whole. */
@@ -365,12 +387,14 @@ export const libraryDB = {
     const from = ask.offset ?? 0;
     return {
       total: hits.length,
-      results: hits.slice(from, from + limit).map(entry => {
-        const view = entryView(entry as EntryRecord, false);
-        if (names.has(entry.space)) return { ...view, space: names.get(entry.space), spaceId: entry.space };
-        const item = through.find(one => one.share.from === entry.space && one.share.collection === entry.collection)!;
-        return { ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by };
-      }),
+      results: await Promise.all(
+        hits.slice(from, from + limit).map(async entry => {
+          const view = { ...entryView(entry as EntryRecord, false), ...(await rowExtras(entry as EntryRecord, ask)) };
+          if (names.has(entry.space)) return { ...view, space: names.get(entry.space), spaceId: entry.space };
+          const item = through.find(one => one.share.from === entry.space && one.share.collection === entry.collection)!;
+          return { ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by };
+        }),
+      ),
     };
   },
 
@@ -404,7 +428,7 @@ export const libraryDB = {
         return ranked.flatMap(hit => {
           const entry = bySlug.get(hit.entry);
           if (!entry) return [];
-          const view = { ...entryView(entry as EntryRecord, false), score: Math.round(hit.score * 1000) / 1000, ...(hit.found && { found: hit.found }) };
+          const view = { ...entryView(entry as EntryRecord, false), score: Math.round(hit.score * 1000) / 1000, ...(hit.found && { found: hit.found }), record: entry as EntryRecord };
           if (!place.item) return [{ ...view, space: names.get(entry.space), spaceId: entry.space }];
           const { item } = place;
           return [{ ...view, ref: `${item.share.as}/${entry.slug}`, card: cardThrough(entry.card, entry.collection, entry.slug, item.share.as!, item.by), space: item.to.name, spaceId: item.to.id, sharedBy: item.by }];
@@ -412,7 +436,9 @@ export const libraryDB = {
       }),
     );
     const hits = found.flat().sort((a, b) => b.score - a.score);
-    return { total: hits.length, byMeaning: true as const, results: hits.slice(0, limit) };
+    // the record rode along only for the extras: it never leaves the server
+    const results = await Promise.all(hits.slice(0, limit).map(async ({ record, ...row }) => ({ ...row, ...(await rowExtras(record, ask)) })));
+    return { total: hits.length, byMeaning: true as const, results };
   },
 
   /**

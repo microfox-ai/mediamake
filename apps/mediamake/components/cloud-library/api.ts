@@ -29,6 +29,8 @@ export const libraryApi = {
   newCollection: (space: string, template: string, name?: string) => call<{ collection: CollectionView }>('/api/library', post({ action: 'new-collection', space, template, name })),
   setPrefs: (space: string, collection: string, prefs: string) => call<object>('/api/library', post({ action: 'prefs', space, collection, prefs })),
   setHeadshot: (space: string, collection: string, picture: { sha256?: string; url?: string }) => call<object>('/api/library', post({ action: 'headshot', space, collection, ...picture })),
+  /** The grid's columns for everyone in the space (an empty list: the template's). Owners and editors. */
+  setColumns: (space: string, collection: string, columns: string[]) => call<{ ok: true; columns: string[] }>('/api/library', post({ action: 'columns', space, collection, columns })),
   fill: (body: { space: string; collection: string; files: { name: string; slot?: string; text?: string }[]; have: Record<string, unknown> }) =>
     call<{ fields?: Record<string, unknown>; notes?: string; unread?: string[]; left?: number; off?: string }>('/api/library/fill', post({ ...body, device: 'web' })),
   list: (query: string) => call<{ total: number; results: EntryRow[] }>(`/api/library/entries?${query}`),

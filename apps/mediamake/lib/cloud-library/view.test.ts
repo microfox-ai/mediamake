@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { factsOf } from './index';
+import { cellLine, cellsOf, cleanColumns, factsOf, parseSearch, pictureOf, type EntryRecord } from './index';
 import { SONGS } from './templates';
-import { NOT_SET, addPrompt, applyFill, listOf, readsAsText, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
+import { NOT_SET, cellEditor, columnChoices, addPrompt, applyFill, listOf, readsAsText, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
 
 const slots: SlotView[] = SONGS.slots;
 const fields: FieldView[] = SONGS.fields;
@@ -97,7 +97,8 @@ test('folders group by a choice or a learned list, an entry in each of its value
   assert.deepEqual(foldersOf(rows, 'use').map(f => [f.name, f.rows.length]), [['Released', 2], [NOT_SET, 1]]);
   assert.deepEqual(foldersOf(rows, 'genres').map(f => [f.name, f.rows.length]), [['Anime', 2], ['Rock', 1], [NOT_SET, 1]]);
   assert.equal(viewOf('sheet'), 'sheet');
-  assert.equal(viewOf('nope'), 'grid');
+  assert.equal(viewOf('nope'), 'sheet');
+  assert.equal(viewOf('grid'), 'grid');
 });
 
 test('the prompt to add names the place, the guide and the ask before saving', () => {
@@ -120,4 +121,53 @@ test('a suggestion fills only what the form left empty', () => {
   assert.equal(listOf(['Artist', 'Genres', 'Lyrics']), 'Artist, Genres and Lyrics');
   assert.equal(listOf(['Artist']), 'Artist');
   assert.ok(readsAsText({ name: 'words.lrc' }) && readsAsText({ name: 'pack', type: 'application/json' }) && !readsAsText({ name: 'master.wav', type: 'audio/wav' }));
+});
+
+test('the grid shows the columns a space chose, the title always first; a key the template no longer has is dropped', () => {
+  const chosen = sheetColumns({ ...view, columns: ['lyrics', 'has:master', 'gone', 'title', 'updatedAt'] });
+  assert.deepEqual(chosen.map(c => c.key), ['title', 'lyrics', 'has:master', 'updatedAt']);
+  // no choice: the title, the short fields, the slots, the day, as before
+  const plain = sheetColumns(view);
+  assert.equal(plain[0].key, 'title');
+  assert.ok(!plain.some(c => c.key === 'lyrics' || c.key === 'distrokid'));
+  // every field can be picked, long and nested ones too
+  const choices = columnChoices(view).map(c => c.key);
+  assert.ok(choices.includes('lyrics') && choices.includes('distrokid') && choices.includes('has:master') && choices.includes('updatedAt'));
+});
+
+test('a cell edits in place for short text, a number or a date, picks for a choice, and opens a dialog for the rest', () => {
+  const by = (key: string) => columnChoices(view).find(c => c.key === key)!;
+  assert.equal(cellEditor(by('artist')), 'inline');
+  assert.equal(cellEditor(by('releaseDate')), 'inline');
+  assert.equal(cellEditor(by('use')), 'choice');
+  assert.equal(cellEditor(by('lyrics')), 'dialog');
+  assert.equal(cellEditor(by('distrokid')), 'dialog');
+  assert.equal(cellEditor(by('has:master')), null);
+  assert.equal(cellEditor(by('updatedAt')), null);
+});
+
+test('a long or nested field reaches the grid as one line, and a list asks for its cells and pictures', () => {
+  assert.equal(cellLine('line one\nline two'), 'line one line two');
+  assert.equal(cellLine([{ platform: 'Spotify', url: 'x' }, { platform: 'Amazon', url: 'y' }]), 'Spotify, Amazon');
+  assert.equal(cellLine([{ name: 'intro', start: 0 }, { name: 'verse 1', start: 29.3 }]), 'intro 0:00, verse 1 0:29');
+  assert.equal(cellLine({ upc: '700', language: 'Telugu' }), 'upc: 700 · language: Telugu');
+  assert.equal(cellLine('x'.repeat(300)).length, 160);
+  assert.deepEqual(cellsOf({ fields: { lyrics: 'a\nb', title: 'T' }, extra: { duration: '3:00' } }, ['lyrics', 'duration', 'has:master', 'nothing']), { lyrics: 'a b', duration: '3:00' });
+  assert.deepEqual(cleanColumns(['lyrics', 'lyrics', 'has:master', 'bad key!', 7, 'updatedAt']), ['lyrics', 'has:master', 'updatedAt']);
+  const query = new URLSearchParams(listQuery({ space: 's1', collection: 'songs', cells: ['title', 'lyrics', 'has:master', 'updatedAt'], pictures: true }));
+  assert.equal(query.get('cells'), 'title,lyrics');
+  assert.equal(query.get('pictures'), '1');
+  const ask = parseSearch(query);
+  assert.deepEqual(ask.cells, ['title', 'lyrics']);
+  assert.equal(ask.pictures, true);
+  assert.equal(cellText({ title: 'Sea Song', facts: {}, has: {}, updatedAt: '', cells: { lyrics: 'a b' } }, { key: 'lyrics', label: 'Lyrics', kind: 'field', field: 'longtext' }), 'a b');
+});
+
+test('an entry shows one of its own pictures, the same one every time', () => {
+  const file = (sha: string, type: 'image' | 'audio') => ({ sha256: sha.repeat(64).slice(0, 64), name: `${sha}.x`, size: 1, type, contentType: '', addedAt: '', by: '' });
+  const entry = { collection: 'songs', slug: 'sea-song', slots: { master: [file('a', 'audio')], artwork: [file('b', 'image')], stills: [file('c', 'image'), file('d', 'image')] } } as unknown as EntryRecord;
+  const first = pictureOf(entry);
+  assert.ok(first && first.type === 'image');
+  assert.equal(pictureOf(entry)?.sha256, first.sha256);
+  assert.equal(pictureOf({ ...entry, slots: { master: [file('a', 'audio')] } } as unknown as EntryRecord), undefined);
 });

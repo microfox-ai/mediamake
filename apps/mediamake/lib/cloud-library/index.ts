@@ -155,6 +155,11 @@ export interface CollectionRecord {
   headshot?: { sha256?: string; name?: string; url?: string };
   /** Listed in Explore by the owner of its space (./listing). */
   listing?: { about: string; rights: string; at: string; by: string };
+  /**
+   * The grid's columns, in order, as the space chose them: field keys, `has:<slot>` for a file slot and
+   * `updatedAt`. Left out: the title, the short fields, the slots and the day (./view `sheetColumns`).
+   */
+  columns?: string[];
   /** The lists that learn: list name → value → how often it was used. */
   learned: Record<string, Record<string, number>>;
   createdAt: string;
@@ -597,6 +602,70 @@ export interface SearchAsk {
   limit?: number;
   /** How many hits to skip: the next page of a long list. */
   offset?: number;
+  /** Fields whose value each row carries as one line of text (`cells`), for the grid's chosen columns. */
+  cells?: string[];
+  /** Each row carries a signed link to one of its pictures (`picture`), for cards and folders. */
+  pictures?: boolean;
+}
+
+/** A column: a field key (any case, `titleOriginal`), `has:<slot>`, or `updatedAt`. */
+export const COLUMN = /^(has:)?[A-Za-z][A-Za-z0-9_.-]{0,79}$/;
+
+/** The columns a space chose, cleaned: known shapes only, each once, at most 40. */
+export function cleanColumns(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : [];
+  return [...new Set(list.filter((key): key is string => typeof key === 'string' && COLUMN.test(key.trim())).map(key => key.trim()))].slice(0, 40);
+}
+
+const clockText = (seconds: unknown) => (typeof seconds === 'number' && Number.isFinite(seconds) ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}` : '');
+
+/** Any field's value as one short line for a grid cell: text on one line, a list's names, a group's keys and values. */
+export function cellLine(value: unknown, max = 160): string {
+  if (value == null || value === '') return '';
+  let line = '';
+  if (typeof value === 'string') line = value.replace(/\s+/g, ' ').trim();
+  else if (typeof value === 'number' || typeof value === 'boolean') line = String(value);
+  else if (Array.isArray(value)) {
+    line = value
+      .map(item => {
+        if (item == null) return '';
+        if (typeof item !== 'object') return String(item);
+        const row = item as Record<string, unknown>;
+        if (typeof row.platform === 'string') return row.platform;
+        if (typeof row.name === 'string') return `${row.name}${row.start != null ? ` ${clockText(row.start)}` : ''}`;
+        return Object.values(row).filter(v => typeof v === 'string').join(' ');
+      })
+      .filter(Boolean)
+      .join(', ');
+  } else if (typeof value === 'object') {
+    line = Object.entries(value as Record<string, unknown>)
+      .map(([key, v]) => `${key}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+      .join(' · ');
+  }
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+}
+
+/** The cells a row carries: each asked-for field (or extra value) as one line. Empty ones are left out. */
+export function cellsOf(entry: Pick<EntryRecord, 'fields'> & { extra?: Record<string, unknown> }, keys: string[]): Record<string, string> {
+  const cells: Record<string, string> = {};
+  for (const key of keys) {
+    if (key.startsWith('has:') || key === 'updatedAt') continue;
+    const line = cellLine(entry.fields[key] ?? entry.extra?.[key]);
+    if (line) cells[key] = line;
+  }
+  return cells;
+}
+
+/**
+ * One of an entry's pictures, for its card and its folder: any image in any slot, picked by the
+ * entry's own id, so the same entry shows the same picture every time while its neighbours differ.
+ */
+export function pictureOf(entry: Pick<EntryRecord, 'slots' | 'collection' | 'slug'>): SlotFile | undefined {
+  const images = Object.values(entry.slots).flat().filter(file => file.type === 'image');
+  if (!images.length) return undefined;
+  let mark = 2166136261;
+  for (const char of `${entry.collection}/${entry.slug}`) mark = Math.imul(mark ^ char.codePointAt(0)!, 16777619) >>> 0;
+  return images[mark % images.length];
 }
 
 export function parseSearch(params: URLSearchParams): SearchAsk {
@@ -615,6 +684,8 @@ export function parseSearch(params: URLSearchParams): SearchAsk {
     lacks: list('lacks'),
     limit: Math.min(200, Math.max(1, Number(params.get('limit')) || 10)),
     offset: Math.max(0, Math.floor(Number(params.get('offset')) || 0)),
+    ...(params.has('cells') && { cells: cleanColumns(params.getAll('cells').flatMap(v => v.split(','))) }),
+    ...(['1', 'true'].includes(params.get('pictures') ?? '') && { pictures: true }),
   };
 }
 
