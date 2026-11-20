@@ -99,9 +99,12 @@ export const submissionsDB = {
     return (await collection()).findOne({ itemId, clientId: { $ne: clientId }, status: { $in: ['pending', 'changes', 'approved', 'live'] } }, { projection: { _id: 0 } });
   },
 
-  /** Whether this account made the item: an earlier submission of it by them was accepted (approved, or live). */
-  async madeBy(itemId: string, clientId: string): Promise<boolean> {
-    return !!(await (await collection()).findOne({ itemId, clientId, status: { $in: ['approved', 'live'] } }, { projection: { _id: 1 } }));
+  /** The item's first accepted (approved, or live) submission: its sender is its first author (./authors). */
+  async firstAccepted(itemId: string): Promise<Pick<Submission, 'clientId' | 'createdAt' | 'decision'> | null> {
+    return (await collection()).findOne(
+      { itemId, status: { $in: ['approved', 'live'] } },
+      { sort: { createdAt: 1 }, projection: { _id: 0, clientId: 1, createdAt: 1, decision: 1 } },
+    );
   },
 
   /** How many an account sent since a moment: the daily limit. */

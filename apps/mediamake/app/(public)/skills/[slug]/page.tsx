@@ -12,6 +12,7 @@ import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/components/catalog/skill-details';
 import { MadeByLine } from '@/components/catalog/uses';
+import { AuthorsLine } from '@/components/catalog/authors';
 import { ItemRating } from '@/components/ratings/item-rating';
 import { SkillActions } from '@/components/skills/skill-actions';
 import { detailsKey } from '@/lib/app-shell/details-key';
@@ -31,6 +32,7 @@ import type { RegistrySkill } from '@/lib/library/types';
 import { ratingsDB } from '@/lib/ratings/store';
 import { skillMarkdownHtml } from '@/lib/skills/skill-md';
 import { registry, skillMdUrl, skillNamed, skillRelations, SKILLS_GITHUB } from '@/lib/skills/registry';
+import { shownAuthors } from '@/lib/submissions/authors';
 
 /**
  * /skills/<name>: one skill's own page, the link to share, laid out like an app store's listing. On top
@@ -81,7 +83,7 @@ export default async function SkillPage({ params }: Props) {
   const { variants: forks } = skillRelations(skill);
   // what uses it: the skills that run it as a step
   const usedBy = itemUsers(id, [], registry?.skills ?? []);
-  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named, members] = await Promise.all([
+  const [video, archived, readiness, listing, markdown, rating, profile, readmeText, named, members, authors] = await Promise.all([
     catalogVideosDB.get(id).catch(() => null),
     catalogArchiveDB.get(id).catch(() => null),
     catalogReadinessDB.get(id).catch(() => null),
@@ -93,6 +95,8 @@ export default async function SkillPage({ params }: Props) {
     skillProfilesDB.subsetsOf(skill.name).catch(() => []),
     // what members made with it; the page is the same for everyone, so nobody's own is marked here
     madeDB.list(key).then(entries => madeShown(entries)).catch(() => []),
+    // who looks after it: a GitHub login or a display name, never an email
+    shownAuthors(id).catch(() => []),
   ]);
   // its subset skills: its variants, and the store skills that name it as their superset
   const variants = [...forks, ...named.map(skillNamed).filter((found): found is RegistrySkill => !!found && !forks.includes(found))];
@@ -224,6 +228,7 @@ export default async function SkillPage({ params }: Props) {
               facts={{ level, tier: 'Public · open to everyone', version: skill.version, size, nature: natureInfo(details.nature), ...(details.type && { type: { ...typeInfo(details.type), of: details.superset, ofHref: details.supersetHref } }) }}
             >
               {skill.upstream && <MadeByLine madeBy={{ name: owner, repo: skill.upstream }} />}
+              <AuthorsLine authors={authors} />
               {skill.variantOf && (
                 <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <GitForkIcon className="size-4" /> A variant of <SkillLink name={skill.variantOf} />

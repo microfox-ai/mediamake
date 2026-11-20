@@ -16,9 +16,9 @@ import { ownView, parseSubmission } from '@/lib/submissions/submission';
  *        admins may leave it out. An admin's `publish` (public, plus, pro or
  *        cohort) skips the review: the item is approved at once at that
  *        membership and released (`publishOwnSubmission`). An update to an item
- *        already in the store, sent by an admin or by the Cohort member who
- *        made it, is published the same way at the membership it has
- *        (`directUpdateTier`, `publishDirectly`). The leak checks run
+ *        already in the store, sent by an admin or by a Cohort member who is
+ *        one of its authors (./authors), is published the same way at the
+ *        membership it has (`directUpdateTier`, `publishDirectly`). The leak checks run
  *        again here; the answer lists what they stop on (`problems`), which the
  *        sender fixes and sends again. The same item sent again before a
  *        decision replaces what was sent.
@@ -42,13 +42,13 @@ export async function POST(req: NextRequest) {
   try {
     const tier = viewerTier(await getEntitlements({ clientId }));
     const { publish } = parsed;
-    // an update to an item already in the store, by an admin or by the Cohort member who made it: published at once
+    // an update to an item already in the store, by an admin or by a Cohort member who is one of its authors: published at once
     const update = !publish ? await directUpdateTier(clientId, tier, parsed) : null;
     const outcome =
       publish && tier === 'admin'
         ? await publishOwnSubmission(clientId, { ...parsed, publish }, publicOrigin(req))
         : update
-          ? await publishDirectly(clientId, tier, parsed, update, publicOrigin(req), tier === 'admin' ? 'An update published directly by an admin' : 'An update published directly by its maker')
+          ? await publishDirectly(clientId, tier, parsed, update, publicOrigin(req), tier === 'admin' ? 'An update published directly by an admin' : 'An update published directly by its author')
           : await sendSubmission(clientId, tier, parsed);
     if (!outcome.ok) return NextResponse.json({ error: outcome.why }, { status: outcome.status ?? 400 });
     return NextResponse.json({ submission: ownView(outcome.submission), ...(outcome.notes?.length && { notes: outcome.notes }) });

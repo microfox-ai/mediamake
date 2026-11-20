@@ -32,12 +32,13 @@ we don't use.**
    answer says why. A member who sends `publish` is refused.
 
    **An update goes out directly too.** A new version of an item already in
-   the store (at Public, Plus, Pro or Cohort), sent by an admin or by the
-   Cohort member who made it (an earlier submission of it by them was
-   accepted), is approved at once at the membership it has
+   the store (at Public, Plus, Pro or Cohort, a Public skill in the repo
+   included), sent by an admin or by a Cohort member who is one of its
+   authors (below), is approved at once at the membership it has
    (`directUpdateTier`, `publishDirectly`): `mm submit <name> --yes`, no
-   `--tier`. Members below Cohort, and Cohort members updating someone
-   else's item, send it for review as before.
+   `--tier`. An author below Cohort sends it for review as before. Someone
+   who is not an author cannot send another version of an item already
+   accepted: its name is taken.
 4. **Approving delivers it** (`lib/submissions/actions.ts`):
 
    | Item | Goes to | Live when |
@@ -52,6 +53,34 @@ we don't use.**
    presses **I released it by hand** on the submission.
 5. **It enters as Beta.** An admin marks it Ready later, on its release page,
    with the production (`catalog_set_readiness`).
+
+## Authors
+
+Every store item has authors, like the collaborators on a git repo
+(`lib/catalog/authors.ts`, `lib/submissions/authors.ts`):
+
+- **The first** is the sender of its first accepted submission, written down
+  when it is approved (`settleAuthors`, either route). An item accepted
+  before authors existed counts the sender of its first accepted submission
+  until its authors are first changed.
+- **An author or an admin adds or removes others** by their MediaMake
+  account's email: `mm submit authors <name>` lists them,
+  `--add=<email>` or `--remove=<email or the name the list shows>` changes
+  them (a dry run, then `--yes`), through `GET`/`POST
+  /api/submissions/authors`. The person needs a MediaMake account with that
+  email. An item always keeps one author; one can remove themself while
+  another remains.
+- **What it gives**: any author may send a new version (for review), and a
+  Cohort author's is published directly (above). Admins can do both for
+  every item.
+- **Where they show**: the item's page (`/skills`, `/mcps`, `/apps`) and its
+  release page name each one by GitHub login (linked) when their account has
+  GitHub linked, else by display name; never an email, and the API answers
+  with names only. Only the item's authors and admins can read the list
+  through the API.
+
+They are kept in MongoDB `catalog_authors`, by item id, apart from the items:
+a Public skill lives in the repo with no stored record.
 
 Limits: 400 files, 1 MB a file, 3 MB in all, 10 submissions a day. Builds and
 media stay out; media travels through the media library.
@@ -108,10 +137,11 @@ merges; nothing else depends on it.
 | Pull request and store texts, `catalog.json`, the package | `lib/submissions/delivery.ts`, `tar.ts` |
 | GitHub calls | `lib/submissions/github.ts` |
 | Send, approve, ask for changes, decline, withdraw, merged | `lib/submissions/actions.ts` |
+| Authors: the rules, who they are, changing them | `lib/catalog/authors.ts`, `lib/submissions/authors.ts`, `app/api/submissions/authors` |
 | Member API, admin API | `app/api/submissions`, `app/api/admin/submissions` |
 | The page | `components/submissions`, `app/app/(admin)/submissions` |
 | Suggested grants | `lib/memberships/suggestions.ts`, `suggestions-store.ts`, `components/memberships/suggested.tsx` |
 | The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
 
-Tests: `npx tsx --test lib/submissions/submissions.test.ts`,
+Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts`,
 `node --test tools/submit.test.mjs`.

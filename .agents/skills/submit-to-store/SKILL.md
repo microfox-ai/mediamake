@@ -1,6 +1,6 @@
 ---
 name: submit-to-store
-description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask a member below Cohort for the finished production that was made with it (we publish nothing we don't use; Cohort members and admins need not name one), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. An admin's own item is published directly, with no review (`--tier`). Accepted, it earns the user a membership for 3 months. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", or "/submit-to-store [name]".
+description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask a member below Cohort for the finished production that was made with it (we publish nothing we don't use; Cohort members and admins need not name one), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. An admin's own item is published directly, with no review (`--tier`). Accepted, it earns the user a membership for 3 months. Every store item has authors, like a git repo's collaborators: the first is its sender, and an author or an admin adds or removes others by email (`mm submit authors`); a Cohort author's updates are published directly. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", "add <someone> as an author / co-author of my skill", "who are the authors of <item>", "remove me as an author", or "/submit-to-store [name]".
 metadata:
   category: other
   internal: 'true'
@@ -32,6 +32,7 @@ mm submit <name>                    # the checks only (a dry run): what would be
 mm submit <name> --yes --made="<production>" [--made-url=<link>] [--note="<for the reviewers>"]
 mm submit status                    # the user's submissions and where each stands
 mm submit withdraw <id>             # takes one back before it is decided
+mm submit authors <name> [--add=<email> | --remove=<email or name>] [--yes]   # its authors
 ```
 
 Add `--json` to read the result as data, and `--kind=skill|mcp|app` when two items share a name.
@@ -108,9 +109,9 @@ mm submit <name> --yes --tier=<public|plus|pro|cohort>
 
 It is released at that membership, in Beta, the moment it arrives, and the command prints its page.
 
-**An update goes out directly** for admins and Cohort members: a new version of an item already in the
-store, sent by an admin or by the Cohort member who made it, is published at once at the membership it
-already has. Raise its version and run `mm submit <name> --yes` (no `--tier`, no review).
+**An update goes out directly** for admins and Cohort authors: a new version of an item already in the
+store, sent by an admin or by a Cohort member who is one of its authors (below), is published at once at
+the membership it already has. Any other author's update goes to review. Raise its version and run `mm submit <name> --yes` (no `--tier`, no review).
 When something stops it (a leak check, a version already released), it waits on `/app/submissions`
 and the command says why. A member who passes `--tier` is refused.
 
@@ -138,6 +139,24 @@ membership: the admin picks both.
   and submit again (a member below Cohort with a production made with the new version).
 - **Declined or withdrawn.** The item stays theirs in their space and works as before.
 
+## Authors
+
+Every store item has authors, like the collaborators on a git repo. The sender of its first accepted
+submission is the first. An author or an admin adds or removes others by their MediaMake account's
+email; the item always keeps one author. Any author may send a new version (step 4); a Cohort author's
+is published directly. Someone who is not an author cannot send a new version of an accepted item.
+
+```bash
+mm submit authors <name>                                   # who they are (its authors and admins see this)
+mm submit authors <name> --add=<email>                     # a dry run: says what would change
+mm submit authors <name> --add=<email> --yes               # adds them
+mm submit authors <name> --remove="<email or the name listed>" --yes
+```
+
+The person needs a MediaMake account with that email (they sign in once first). Add `--kind=mcp|app`
+when the item is not a skill and the user has no copy of it here. The item's page names each author by
+GitHub login when their account has GitHub linked, else by display name, never by email.
+
 ## Rules
 
 - Never submit without the user's yes in this conversation. A member below Cohort names the
@@ -147,3 +166,5 @@ membership: the admin picks both.
 - Never put a key, a token or a private path in an item to make it work for others: name the env
   var or the setting, and say in the item how the person gets their own.
 - What the admin wrote back is for the user. Don't copy it into the item's files.
+- Add or remove an author only on the user's word, in this conversation, with the email they gave.
+  Never put an author's email anywhere public (a commit, a pull request, a README).

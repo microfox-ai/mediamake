@@ -10,6 +10,7 @@ import { itemTier } from '@/lib/catalog/types';
 import { tierLabel, type MemberTier } from '@/lib/memberships/tiers';
 import { bundleOf, commitMessage, packageEntries, packageProblem, prBody, prTitle, publicSkillFiles, releaseNotes, storeFiles } from './delivery';
 import { commitFolder, github, githubProblem, openPullRequest, publicRepo, storeRepo, storeToken, type Github } from './github';
+import { authorsOf, isAuthor, settleAuthors } from './authors';
 import { submissionsDB } from './store';
 import {
   checkFiles,
@@ -49,8 +50,9 @@ export async function sendSubmission(clientId: string, tier: MemberTier, input: 
   }
   if (input.publish && tier !== 'admin') return { ok: false, status: 403, why: 'Only an admin publishes directly: send it without publish, and an admin reviews it' };
   const itemId = `${input.kind}/${input.slug}`;
+  // names are first come, first served; an item already in the store takes updates from its authors and admins
   const taken = await submissionsDB.takenBy(itemId, clientId);
-  if (taken) return { ok: false, status: 409, why: `Someone else already submitted an item named ${input.slug}. Give yours another name` };
+  if (taken && !(await mayUpdate(itemId, clientId, tier))) return { ok: false, status: 409, why: `Someone else already submitted an item named ${input.slug}. Give yours another name` };
   const record = await getCatalogRecord(itemId).catch(() => null);
   if (record?.madeBy) return { ok: false, status: 409, why: `${itemId} is in the catalog as made by ${record.madeBy.name}. Give yours another name` };
   if ((await submissionsDB.countSince(clientId, new Date(Date.now() - DAY).toISOString())) >= SUBMISSIONS_PER_DAY) {
@@ -60,6 +62,12 @@ export async function sendSubmission(clientId: string, tier: MemberTier, input: 
   const open = await submissionsDB.undecidedOf(clientId, itemId);
   const submission = open ? await submissionsDB.resend(open.submissionId, tier, input, checks) : await submissionsDB.add(clientId, tier, input, checks);
   return submission ? { ok: true, submission } : { ok: false, why: 'It was decided while you were sending it. Look at its status' };
+}
+
+/** Whether an account may send a new version of an item already accepted into the store: an admin, or one of its authors. */
+async function mayUpdate(itemId: string, clientId: string, tier: MemberTier): Promise<boolean> {
+  const authors = await authorsOf(itemId);
+  return tier === 'admin' ? authors.length > 0 : authors.some(author => author.clientId === clientId);
 }
 
 /** Its sender takes it back before a decision. */
@@ -241,6 +249,8 @@ export async function approveSubmission(input: {
   });
   if (!submission) return { ok: false, why: 'It was delivered, but its record could not be saved. Reload the page' };
   if (live) await submissionsDB.dropFiles(input.submissionId);
+  // the sender of its first accepted submission is its first author (./authors)
+  await settleAuthors(submission.itemId).catch(error => console.error(`[submissions] Could not write down the authors of ${submission.itemId}:`, error));
 
   const where =
     delivery.kind === 'pr'
@@ -310,10 +320,11 @@ export async function submissionsMerged(repo: string, prNumber: number): Promise
 
 /**
  * Published at once, with no review: an admin's item at the membership they named, or an update (an
- * item already in the store, by an admin or by the Cohort member who made it) at the membership it
- * has. It is saved like any submission (so its files, checks and history are where every other one's
- * are), then approved by the sender, with no membership earned and no mail. A refusal (a leak check, a
- * version already released) leaves it waiting on /app/submissions and says why.
+ * item already in the store, by an admin or by a Cohort member who is one of its authors) at the
+ * membership it has. It is saved like any submission (so its files, checks and history are where
+ * every other one's are), then approved by the sender, with no membership earned and no mail. A
+ * refusal (a leak check, a version already released) leaves it waiting on /app/submissions and says
+ * why.
  */
 export async function publishDirectly(clientId: string, tier: MemberTier, input: SubmissionInput, at: SubmissionTier, origin: string, note: string): Promise<Outcome> {
   const sent = await sendSubmission(clientId, tier, { ...input, publish: undefined });
@@ -329,16 +340,15 @@ export const publishOwnSubmission = (clientId: string, input: SubmissionInput & 
 
 /**
  * The membership an update is published at directly, or null when it goes to review: the item is
- * already in the store at a member's membership, and the sender is an admin, or a Cohort member who
- * made it (an earlier submission of it by them was accepted).
+ * already in the store at a member's membership (a Public skill in the repo is Public), and the
+ * sender is an admin, or a Cohort member who is one of its authors (./authors).
  */
 export async function directUpdateTier(clientId: string, tier: MemberTier, input: Pick<SubmissionInput, 'kind' | 'slug'>): Promise<SubmissionTier | null> {
   if (!updatesDirectly(tier)) return null;
   const itemId = `${input.kind}/${input.slug}`;
   const existing = await catalogItemsDB.get(itemId).catch(() => null);
-  if (!existing) return null;
-  const at = itemTier(existing);
-  if (!isSubmissionTier(at)) return null;
-  if (tier !== 'admin' && !(await submissionsDB.madeBy(itemId, clientId))) return null;
+  const at = existing ? itemTier(existing) : isRepoSkill(itemId) ? 'public' : null;
+  if (!at || !isSubmissionTier(at)) return null;
+  if (tier !== 'admin' && !(await isAuthor(itemId, clientId))) return null;
   return at;
 }

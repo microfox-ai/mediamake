@@ -18,6 +18,7 @@ import { ratingsDB } from '@/lib/ratings/store';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
 import { MadeByLine } from '@/components/catalog/uses';
+import { AuthorsLine } from '@/components/catalog/authors';
 import { DependsOn, UsesThis } from '@/components/catalog/skill-details';
 import { madeShown } from '@/lib/catalog/made';
 import { madeDB } from '@/lib/catalog/made-store';
@@ -31,6 +32,7 @@ import { itemPath } from '@/lib/catalog/summary';
 import { accessRequestsDB, catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB } from '@/lib/catalog/store';
 import type { CatalogKind, Readiness } from '@/lib/catalog/types';
 import { registry } from '@/lib/skills/registry';
+import { shownAuthors } from '@/lib/submissions/authors';
 
 const KIND_LABEL: Partial<Record<CatalogKind, string>> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
 const LIST_TAB: Partial<Record<CatalogKind, { href: string; label: string }>> = {
@@ -77,7 +79,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
   }
 
   const key = detailsKey.catalog(item.id);
-  const [video, archived, readiness, listing, rating, pendingIds, members] = await Promise.all([
+  const [video, archived, readiness, listing, rating, pendingIds, members, authors] = await Promise.all([
     catalogVideosDB.get(item.id).catch(() => null),
     catalogArchiveDB.get(item.id).catch(() => null),
     catalogReadinessDB.get(item.id).catch(() => null),
@@ -85,6 +87,8 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
     ratingsDB.summary(item.id).catch(() => null),
     viewer.clientId ? accessRequestsDB.pendingFor(viewer.clientId).catch((): string[] => []) : Promise.resolve([] as string[]),
     madeDB.list(key).then(entries => madeShown(entries, viewer.clientId)).catch(() => []),
+    // who looks after it: a GitHub login or a display name, never an email
+    item.madeBy ? Promise.resolve([]) : shownAuthors(item.id).catch(() => []),
   ]);
   // its own tags, then the ones an admin added to its listing
   const tags = [...new Set([...(item.tags ?? []), ...(listing?.tags ?? [])])];
@@ -238,6 +242,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
               facts={{ level, tier: tier === 'public' ? 'Public · open to everyone' : `${tierLabel(tier)} and above`, version: item.version, size, deps: uses.length }}
             >
               {item.madeBy && <MadeByLine madeBy={item.madeBy} />}
+              <AuthorsLine authors={authors} />
               {directoryUrl && (
                 <p className="text-xs text-muted-foreground">
                   In Claude&apos;s connector directory:{' '}

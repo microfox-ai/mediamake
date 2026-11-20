@@ -12,9 +12,15 @@ how, is simple:
   too when there is one).
 - **Admins publish directly**, with no review: `mm submit <name> --yes --tier=<public|plus|pro|cohort>`
   releases it at that membership, in Beta.
-- **Updates go out directly** for admins and Cohort members: a new version of an item already in the
-  store (Public, Plus, Pro or Cohort), sent with `mm submit <name> --yes` by an admin or by the Cohort
-  member who made it, is published at once at the membership it has; no submission is reviewed. Maintainers' `node tools/skills.mjs publish <name> --yes`
+- **Every store item has authors**, like a git repo's collaborators: the sender of its first accepted
+  submission is the first, and an author or an admin adds or removes others by their MediaMake account's
+  email (`mm submit authors <name> --add=<email>` or `--remove=<email or name>`, a dry run, then `--yes`,
+  only on the user's word). An item always keeps one. Its page names them by GitHub login or display
+  name, never an email.
+- **Updates go out directly** for admins and Cohort authors: a new version of an item already in the
+  store (Public, Plus, Pro or Cohort), sent with `mm submit <name> --yes` by an admin or by a Cohort
+  member who is one of its authors, is published at once at the membership it has, with no review. Any
+  other author's update is reviewed. Maintainers' `node tools/skills.mjs publish <name> --yes`
   opens the public pull request the same way, `--made` optional.
 - Ready and Production are an admin's call (`catalog_set_readiness`, `npm run catalog -- ready`), with a
   production when there is one, shown on the item's page as "Made with this"; never do it unasked.
