@@ -268,7 +268,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     const { name } = here(env);
     const { todo, existing } = await ask(env, { ...postBody(project.projectId, title, flags), from: name });
     console.log(existing ? `It already waits as ${todo.id}: nothing new was posted.` : `✔ Posted ${todo.id} in ${todo.projectName}: ${todo.title}`);
-    console.log(todo.places.length ? `  ${todo.places.join(', ')} can do it.` : todo.options ? '  A person answers it on the project\'s page, To do.' : '  No open place has what it needs yet: it waits until one does (the project\'s page, Where it runs).');
+    console.log(todo.places.length ? `  ${todo.places.join(', ')} can do it.` : todo.options ? '  A person answers it on the project\'s page, Runs.' : '  No open place has what it needs yet: it waits until one does (the project\'s page, Where it runs).');
     console.log(`  The line for whoever picks it up: ${todo.line}`);
     return 0;
   }

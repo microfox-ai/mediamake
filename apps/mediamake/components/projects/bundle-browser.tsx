@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { DownloadIcon, FileIcon, FolderIcon, Loader2Icon } from 'lucide-react';
+import { DownloadIcon, EyeIcon, FileIcon, FolderIcon, Loader2Icon } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { filesUnder, shareOf, sizedEntriesOf, type SizedFile } from '@/lib/projects/files';
@@ -11,13 +11,16 @@ import type { Bundle } from './space-assets';
 /**
  * A production's or a release's files, opened from its card on the Assets tab: folders and files
  * as GitHub lists them, each with the space it uses and its share of the whole. A folder opens in
- * place, a file downloads. Reading only.
+ * place; a file has a link that previews it in a new tab (what a browser can show) and one that
+ * downloads it. Reading only.
  */
 
 interface BundleFileView extends SizedFile {
   contentType?: string;
-  /** A signed link, good for an hour. */
+  /** A signed link that downloads it, good for an hour. */
   url?: string;
+  /** A signed link that opens it in the browser, for what a browser can show. */
+  view?: string;
 }
 interface BundleDetail {
   title: string;
@@ -25,6 +28,8 @@ interface BundleDetail {
   version: number | null;
   latestVersion: number;
   bytes: number;
+  /** Every version together, a file they share counted once. */
+  storedBytes?: number;
   fileCount: number;
   files: BundleFileView[];
   versions: { version: number; status: string; note?: string; fileCount: number; bytes: number; createdAt: string }[];
@@ -32,6 +37,7 @@ interface BundleDetail {
 
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const row = 'flex min-h-10 w-full items-center gap-3 px-4 py-2 text-left text-sm';
+const iconLink = 'rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground';
 
 /** The size, with a thin bar for its share of the bundle. */
 function Size({ bytes, whole }: { bytes: number; whole: number }) {
@@ -87,7 +93,7 @@ export function BundleBrowser({ projectId, kind, bundle, onClose }: { projectId:
           <DialogTitle>{bundle?.title}</DialogTitle>
           <DialogDescription>
             <span className="font-mono">{bundle?.slug}</span>
-            {detail && ` · ${plural(detail.fileCount, 'file')} · ${formatBytes(detail.bytes)}`}
+            {detail && ` · ${plural(detail.versions.length || 1, 'version')} · ${formatBytes(detail.storedBytes ?? detail.bytes)} kept in all`}
           </DialogDescription>
         </DialogHeader>
 
@@ -169,20 +175,29 @@ export function BundleBrowser({ projectId, kind, bundle, onClose }: { projectId:
                   </li>
                 ) : (
                   <li key={entry.name}>
-                    {entry.file?.url ? (
-                      <a href={entry.file.url} target="_blank" rel="noopener noreferrer" className={`${row} group hover:bg-muted/40`}>
-                        <FileIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                        <span className="min-w-0 truncate group-hover:text-primary group-hover:underline">{entry.name}</span>
-                        <DownloadIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" aria-hidden />
-                        <Size bytes={entry.bytes} whole={whole} />
-                      </a>
-                    ) : (
-                      <div className={row}>
-                        <FileIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <div className={`${row} hover:bg-muted/40`}>
+                      <FileIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      {entry.file?.view || entry.file?.url ? (
+                        <a href={entry.file.view ?? entry.file.url} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate hover:text-primary hover:underline">
+                          {entry.name}
+                        </a>
+                      ) : (
                         <span className="min-w-0 truncate">{entry.name}</span>
-                        <Size bytes={entry.bytes} whole={whole} />
-                      </div>
-                    )}
+                      )}
+                      <span className="flex shrink-0 items-center gap-0.5">
+                        {entry.file?.view && (
+                          <a href={entry.file.view} target="_blank" rel="noopener noreferrer" title="Preview in a new tab" aria-label={`Preview ${entry.name} in a new tab`} className={iconLink}>
+                            <EyeIcon className="size-3.5" aria-hidden />
+                          </a>
+                        )}
+                        {entry.file?.url && (
+                          <a href={entry.file.url} target="_blank" rel="noopener noreferrer" title="Download" aria-label={`Download ${entry.name}`} className={iconLink}>
+                            <DownloadIcon className="size-3.5" aria-hidden />
+                          </a>
+                        )}
+                      </span>
+                      <Size bytes={entry.bytes} whole={whole} />
+                    </div>
                   </li>
                 ),
               )}
@@ -190,7 +205,9 @@ export function BundleBrowser({ projectId, kind, bundle, onClose }: { projectId:
             </ul>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">The bar is a folder&apos;s or a file&apos;s share of this version. A file kept unchanged between versions is stored once.</p>
+        <p className="text-xs text-muted-foreground">
+          The bar is a folder&apos;s or a file&apos;s share of this version. Every version is kept; a file unchanged between versions is stored, and counted, once.
+        </p>
       </DialogContent>
     </Dialog>
   );

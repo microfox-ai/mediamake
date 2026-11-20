@@ -59,6 +59,19 @@ export async function createReadUrl(key: string, filename: string) {
   return getSignedUrl(s3Client, command, { expiresIn: LINK_TTL_SECONDS });
 }
 
+/** What a browser shows in a tab by itself. */
+export const viewable = (contentType: string) => /^(image|video|audio|text)\//.test(contentType) || contentType === 'application/pdf' || contentType === 'application/json';
+
+/**
+ * Signed GET link that opens in the browser instead of downloading. Anything a browser would run
+ * (HTML, scripts) is sent as plain text, so a stored file is only ever read.
+ */
+export async function createViewUrl(key: string, contentType: string) {
+  const safe = /^(image|video|audio)\//.test(contentType) || contentType === 'application/pdf' ? contentType : 'text/plain; charset=utf-8';
+  const command = new GetObjectCommand({ Bucket: bucket(), Key: key, ResponseContentDisposition: 'inline', ResponseContentType: safe });
+  return getSignedUrl(s3Client, command, { expiresIn: LINK_TTL_SECONDS });
+}
+
 /** The stored object's size, or null when it isn't there. */
 export async function storedSize(key: string): Promise<number | null> {
   try {
