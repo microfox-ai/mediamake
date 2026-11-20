@@ -166,7 +166,7 @@ key works the same.
 | --- | --- |
 | `GET /api/library` | The spaces whose Library the account can open, and the templates |
 | `GET /api/library?space=` | One space's collections in full, with guide and preferences |
-| `POST /api/library` | `new-collection` from a template, the owner's `prefs`, or `headshot` (a stored picture's `sha256`, an https `url`, neither to remove it) |
+| `POST /api/library` | `new-collection` from a template, the owner's `prefs`, `headshot` (a stored picture's `sha256`, an https `url`, neither to remove it), `columns` (the grid's, for everyone in the space), and for the space's owner only `rename` (`name`; the id stays) and `delete-collection` (`confirm`: its name, typed) |
 | `POST /api/library/fill` | Claude's suggestion for an entry's fields from the files dropped on its form. Saves nothing |
 | `GET /api/library/entries?space=&ref=` | One entry in full |
 | `GET /api/library/entries?q=…` | A search, with a space or over every space the account can open. Each hit carries its card, its short fields (`facts`) and its filled slots (`has`). `limit` (10, at most 200) and `offset` page it. `where=` takes a field, a group's key (`distrokid.link=`) or an extra value |
@@ -186,7 +186,23 @@ key works the same.
 ## The page
 
 `/app/library`, below Spaces in the sidebar (`components/cloud-library`). Its address holds the place
-(`?space=&c=<collection>&e=<entry>`), so a link opens the same view.
+(`?space=&c=<collection>&e=<entry>`), so a link opens the same view. Spaces and Library are in the
+sidebar for the cohort and admins only (`hiddenBelow` in `lib/app-shell/nav.ts`); anyone else who
+opens their address is sent away by the page's layout.
+
+- A collection's Settings tab (`&t=settings`, `collection-settings.tsx`) is for the owner of its
+  space, and never there for a collection another space shares. General renames it: only the name
+  people read changes, its id stays, so links, shares and `mm library` keep working, and every
+  entry's card is rewritten with the new name (`mm library rename <collection> "<new name>"` does
+  the same; a dry run, then `--yes`). The danger zone deletes it after its name is typed: the
+  collection and its entries are gone from the space and from every space it was opened to, its
+  shares, requests and Explore listing end, and its part of the search index is emptied. The
+  records are kept marked deleted under an id nothing else uses, and its files stay in the space's
+  storage; nothing in the app brings them back. Deleting is on the page only.
+- The grid's column picker also offers a field's parts as columns of their own: each key a group is
+  known to hold (`distrokid.upc`) and each platform a list of links has learned
+  (`storeLinks.spotify`, whose cell is that platform's link). They are folded under their field
+  ("9 inside"). A part's cell is changed in its field's editor.
 
 - The space is picked at the top right, in a dropdown that searches. Personal is first, and it is
   the one shown when no project was chosen. The last pick is remembered in the browser.

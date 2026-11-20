@@ -5,6 +5,7 @@ import { AppPage } from '@/components/app-shell/app-page';
 import { MemberTierPill } from '@/components/memberships/parts';
 import { AskAdmin } from '@/components/subscription/ask-admin';
 import { getEntitlements } from '@/lib/access';
+import { pageOpens } from '@/lib/app-shell/nav';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 import { listCatalog, type CatalogEntry } from '@/lib/catalog';
 import { accessRequestsDB } from '@/lib/catalog/store';
@@ -165,7 +166,7 @@ export default async function SubscriptionPage() {
                   </p>
                   {features.map(feature => (
                     <p key={feature.title} className="text-sm text-muted-foreground">
-                      {feature.href ? (
+                      {feature.href && pageOpens(viewer.tier, feature.href) ? (
                         <Link href={feature.href} className="font-medium text-foreground underline underline-offset-4">
                           {feature.title}
                         </Link>

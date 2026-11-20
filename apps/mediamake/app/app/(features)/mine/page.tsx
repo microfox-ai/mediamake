@@ -3,6 +3,7 @@ import { MINE_TABS, MineView, type MineTab } from '@/components/app-shell/mine';
 import { mine } from '@/lib/app-shell/member';
 import { getAppItems, getMemberActivity, getSpaces } from '@/lib/app-shell/member-data';
 import { registry } from '@/lib/skills/registry';
+import { SPACES_HREF, pageOpens } from '@/lib/app-shell/nav';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 
 export const metadata = { title: 'Mine · MediaMake' };
@@ -16,7 +17,7 @@ export const metadata = { title: 'Mine · MediaMake' };
  */
 export default async function MinePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
-  const { clientId } = await getAppViewer();
+  const { clientId, tier } = await getAppViewer();
   if (!clientId) return null;
   const [items, activity, spaces] = await Promise.all([getAppItems(clientId), getMemberActivity(clientId), getSpaces(clientId)]);
 
@@ -26,7 +27,7 @@ export default async function MinePage({ searchParams }: { searchParams: Promise
 
   return (
     <AppPage title="Mine">
-      <MineView mine={mineOf} spaces={spaces} tab={MINE_TABS.find(name => name === tab) as MineTab | undefined} now={now} />
+      <MineView mine={mineOf} spaces={spaces} spacesOpen={pageOpens(tier, SPACES_HREF)} tab={MINE_TABS.find(name => name === tab) as MineTab | undefined} now={now} />
     </AppPage>
   );
 }

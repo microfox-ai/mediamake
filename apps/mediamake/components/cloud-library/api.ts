@@ -27,6 +27,10 @@ export const libraryApi = {
   spaces: () => call<{ spaces: SpaceOverview[]; templates: TemplateCard[] }>('/api/library'),
   space: (space: string) => call<SpaceOverview>(`/api/library?space=${space}`),
   newCollection: (space: string, template: string, name?: string) => call<{ collection: CollectionView }>('/api/library', post({ action: 'new-collection', space, template, name })),
+  /** A collection's name (its id stays). The space's owner. */
+  rename: (space: string, collection: string, name: string) => call<{ ok: true; name: string }>('/api/library', post({ action: 'rename', space, collection, name })),
+  /** Deletes a collection with its entries. The space's owner, with its name typed. */
+  deleteCollection: (space: string, collection: string, confirm: string) => call<{ deleted: true; name: string; entries: number }>('/api/library', post({ action: 'delete-collection', space, collection, confirm })),
   setPrefs: (space: string, collection: string, prefs: string) => call<object>('/api/library', post({ action: 'prefs', space, collection, prefs })),
   setHeadshot: (space: string, collection: string, picture: { sha256?: string; url?: string }) => call<object>('/api/library', post({ action: 'headshot', space, collection, ...picture })),
   /** The grid's columns for everyone in the space (an empty list: the template's). Owners and editors. */

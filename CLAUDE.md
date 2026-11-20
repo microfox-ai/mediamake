@@ -284,7 +284,7 @@ upload, download and search is counted. The media library above stays the comput
   question (every unreleased song) stays a plain search with `--where`, `--has` and `--lacks`.
 - Never save without the person's yes. `mm library save …` without `--yes` saves nothing and prints the
   one sentence to ask ("Add the new song "…" to the Songs collection of the … space (cloud)?"): show it
-  with what would change, and add `--yes` only after they agree. The same for `new`, `trash` and `prefs`.
+  with what would change, and add `--yes` only after they agree. The same for `new`, `rename`, `trash` and `prefs`.
 - Never guess an ISRC, a release date or a link, and never a credit you were not given. Nothing in a
   template is required: leave a field empty.
 - When a save stops on private details in a file, tell the user what was found. `--private-ok` only on

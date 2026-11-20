@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { canChange, DEFAULT_VIEW, filtersOf, folderFields, libraryHref, listQuery, sheetColumns, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
 import { CollectionCard } from './collection-card';
+import { CollectionSettings } from './collection-settings';
 import { DeviceLibrary, computersHref } from './device-library';
 import { EntryDialog } from './entry-dialog';
 import { EntryView } from './entry-view';
@@ -257,6 +258,8 @@ export function LibraryPage() {
   // folders view: the field entries are grouped by, and the folder that is open
   const byParam = params.get('by');
   const folder = collectionSlug && !entrySlug ? params.get('f') : null;
+  // a collection's Settings tab (its name, deleting it), beside its entries
+  const settingsParam = !!collectionSlug && !entrySlug && params.get('t') === 'settings';
 
   const [spaces, setSpaces] = React.useState<SpaceOverview[] | null>(null);
   const [templates, setTemplates] = React.useState<TemplateCard[]>([]);
@@ -353,7 +356,10 @@ export function LibraryPage() {
   const cells = view === 'sheet' ? gridColumns.map(c => c.key) : [];
   const cellsKey = cells.join(',');
   const pictures = view === 'grid' || view === 'folders' || !collection;
-  const listing = !!spaceId && !entrySlug && (!!collectionSlug || !!q.trim());
+  // Settings is its owner's, and never there for a collection another space shares
+  const maySettings = !!collection && !collection.shared && space?.role === 'owner';
+  const settings = settingsParam && maySettings;
+  const listing = !!spaceId && !entrySlug && !settingsParam && (!!collectionSlug || !!q.trim());
   React.useEffect(() => {
     if (!listing || !spaceId) {
       setRows(null);
@@ -446,7 +452,7 @@ export function LibraryPage() {
         {space && computers && <DeviceLibrary space={space} deviceId={params.get('d')} />}
         {space && !computers && (
           <>
-            {!entrySlug && (
+            {!entrySlug && !settings && (
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -494,7 +500,7 @@ export function LibraryPage() {
                     </>
                   )}
                 </nav>
-                {!entrySlug && filters && (
+                {!entrySlug && !settings && filters && (
                   <div className="flex flex-wrap items-center gap-2">
                     {filters.choices.map(field => (
                       <Select key={field.key} value={where[field.key] || ANY} onValueChange={value => setWhere(current => ({ ...current, [field.key]: value === ANY ? '' : value }))}>
@@ -564,6 +570,18 @@ export function LibraryPage() {
                 )}
               </div>
             )}
+
+            {collection && maySettings && !entrySlug && (
+              <Tabs value={settings ? 'settings' : 'entries'} onValueChange={value => router.push(`${libraryHref({ space: space.id, collection: collection.slug })}${value === 'settings' ? '&t=settings' : ''}`)}>
+                <TabsList>
+                  <TabsTrigger value="entries" className="capitalize">
+                    {collection.noun}s
+                  </TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            {collection && settings && <CollectionSettings space={space} collection={collection} onRenamed={reload} onDeleted={() => (reload(), router.replace(libraryHref({ space: space.id })))} />}
 
             {/* an entry */}
             {collection && here && entrySlug && (answer ? <EntryView space={here} home={space} collection={collection} answer={answer} onChanged={warnings => (warnings.forEach(w => toast.warning(w)), reload())} onTrashed={() => (reload(), go({ collection: collection.slug }))} /> : <p className="text-sm text-muted-foreground">Opening it</p>)}

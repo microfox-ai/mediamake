@@ -171,3 +171,27 @@ test('an entry shows one of its own pictures, the same one every time', () => {
   assert.equal(pictureOf(entry)?.sha256, first.sha256);
   assert.equal(pictureOf({ ...entry, slots: { master: [file('a', 'audio')] } } as unknown as EntryRecord), undefined);
 });
+
+test('a field\'s parts can be columns: a group\'s keys and a list of links\' platforms', () => {
+  const withParts = {
+    titleField: 'title',
+    slots: [],
+    fields: [
+      { key: 'title', label: 'Song title', kind: 'text', group: 'Identity' },
+      { key: 'distrokid', label: 'DistroKid details', kind: 'group', group: 'Release', keys: [{ key: 'upc', label: 'UPC' }, { key: 'uploadDate', label: 'Uploaded', kind: 'date' }] },
+      { key: 'storeLinks', label: 'Store links', kind: 'links', group: 'Release', learns: 'platform' },
+    ] as FieldView[],
+    learned: { platform: ['Spotify', 'Apple Music', 'apple-music'] },
+  };
+  const keys = columnChoices(withParts).map(c => c.key);
+  // each part sits after its field; two spellings of one platform are one column
+  assert.deepEqual(keys, ['title', 'distrokid', 'distrokid.upc', 'distrokid.uploadDate', 'storeLinks', 'storeLinks.spotify', 'storeLinks.applemusic', 'updatedAt']);
+  const upc = columnChoices(withParts).find(c => c.key === 'distrokid.upc')!;
+  assert.deepEqual(upc.parent, { key: 'distrokid', label: 'DistroKid details' });
+  // never a column until it is chosen
+  assert.deepEqual(sheetColumns(withParts).map(c => c.key), ['title', 'updatedAt']);
+  assert.deepEqual(sheetColumns({ ...withParts, columns: ['distrokid.upc', 'storeLinks.spotify', 'distrokid.gone'] }).map(c => c.key), ['title', 'distrokid.upc', 'storeLinks.spotify']);
+  // its cell arrives as a line, and it is changed in its field's editor
+  assert.equal(cellText({ facts: {}, has: {}, updatedAt: '', title: 'A', cells: { 'distrokid.upc': '1234' } }, upc), '1234');
+  assert.equal(cellEditor(upc), 'dialog');
+});

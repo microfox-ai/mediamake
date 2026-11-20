@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowDownIcon, ArrowUpIcon, BotIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, Columns3Icon, FolderIcon, FoldersIcon, LayoutGridIcon, ListIcon, RotateCcwIcon, Table2Icon } from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, BotIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, Columns3Icon, FolderIcon, FoldersIcon, LayoutGridIcon, ListIcon, RotateCcwIcon, Table2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,6 +16,7 @@ import { FieldInput } from './field-input';
  * A collection's entries, four ways. Each view does its own thing:
  * - grid (id 'sheet', the default): a table with the columns the space chose, sorted by the column
  *   that is clicked; a double-click edits a cell (a short field in place, a long or nested one in a dialog);
+ *   a field's parts (one key of a group, one platform's link) can be columns of their own;
  * - cards (id 'grid'): a card per entry with one of its pictures, its tags and a chip per file slot;
  * - list: one compact line per entry, for reading down a long collection;
  * - folders: entries grouped by one field (use, artist, genre), each folder showing its entries' pictures.
@@ -151,7 +152,7 @@ export interface GridColumns {
   saved: boolean;
 }
 
-/** The column picker: every field, slot and the day, ticked when shown, moved up and down; the title stays first. */
+/** The column picker: every field, slot and the day, ticked when shown, moved up and down; the title stays first. A field with parts (a group's keys, a list of links' platforms) offers each of them as a column of its own. */
 function ColumnPicker({ collection, grid }: { collection: CollectionView; grid: GridColumns }) {
   const choices = React.useMemo(() => columnChoices(collection), [collection]);
   const shown = grid.columns.map(c => c.key);
@@ -166,7 +167,44 @@ function ColumnPicker({ collection, grid }: { collection: CollectionView; grid: 
     [next[at], next[to]] = [next[to], next[at]];
     set(next);
   };
-  const ordered = [...keys.map(key => choices.find(c => c.key === key)!).filter(Boolean), ...choices.filter(c => c.key !== collection.titleField && !keys.includes(c.key))];
+  // a field's parts (a group's keys, a platform's link) stay folded under it until one is asked for
+  const [unfolded, setUnfolded] = React.useState<string | null>(null);
+  const partsOf = (key: string) => choices.filter(c => c.parent?.key === key);
+  const ordered = [...keys.map(key => choices.find(c => c.key === key)!).filter(Boolean), ...choices.filter(c => c.key !== collection.titleField && !c.parent && !keys.includes(c.key))];
+  const row = (c: SheetColumn, inside = false) => {
+    const on = keys.includes(c.key);
+    const parts = c.parent ? [] : partsOf(c.key);
+    const hidden = parts.filter(part => !keys.includes(part.key));
+    return (
+      <React.Fragment key={c.key}>
+        <li className={`flex items-center gap-2 py-1 pr-3 text-sm ${inside ? 'pl-8' : 'pl-3'}`}>
+          <Checkbox id={`col-${c.key}`} checked={on} onCheckedChange={() => toggle(c.key)} />
+          <label htmlFor={`col-${c.key}`} className="min-w-0 flex-1 cursor-pointer truncate">
+            {c.parent && !inside && <span className="text-muted-foreground">{c.parent.label} › </span>}
+            {c.label}
+            {!c.parent && <span className="ml-1 text-[11px] text-muted-foreground">{c.kind === 'slot' ? 'file' : c.kind === 'date' ? 'day' : c.field}</span>}
+          </label>
+          {parts.length > 0 && (
+            <button type="button" aria-expanded={unfolded === c.key} className="inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setUnfolded(current => (current === c.key ? null : c.key))}>
+              {parts.length} inside
+              <ChevronRightIcon className={`size-3 transition-transform ${unfolded === c.key ? 'rotate-90' : ''}`} />
+            </button>
+          )}
+          {on && (
+            <span className="flex">
+              <button type="button" aria-label={`Move ${c.label} left`} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => move(c.key, -1)}>
+                <ChevronUpIcon className="size-3.5" />
+              </button>
+              <button type="button" aria-label={`Move ${c.label} right`} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => move(c.key, 1)}>
+                <ChevronDownIcon className="size-3.5" />
+              </button>
+            </span>
+          )}
+        </li>
+        {unfolded === c.key && (hidden.length ? hidden.map(part => row(part, true)) : <li className="py-1 pl-8 pr-3 text-xs text-muted-foreground">Every one of them is a column already.</li>)}
+      </React.Fragment>
+    );
+  };
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -175,7 +213,7 @@ function ColumnPicker({ collection, grid }: { collection: CollectionView; grid: 
           Columns
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0">
+      <PopoverContent align="end" className="w-80 p-0">
         <div className="border-b px-3 py-2">
           <p className="text-sm font-medium">Columns</p>
           <p className="text-xs text-muted-foreground">{grid.saved ? 'Saved for everyone in this space.' : 'Only on this page: the space’s owner or an editor saves them for everyone.'}</p>
@@ -186,28 +224,7 @@ function ColumnPicker({ collection, grid }: { collection: CollectionView; grid: 
             <span className="flex-1 truncate">{choices.find(c => c.key === collection.titleField)?.label ?? 'Title'}</span>
             <span className="text-[11px]">always first</span>
           </li>
-          {ordered.map(c => {
-            const on = keys.includes(c.key);
-            return (
-              <li key={c.key} className="flex items-center gap-2 px-3 py-1 text-sm">
-                <Checkbox id={`col-${c.key}`} checked={on} onCheckedChange={() => toggle(c.key)} />
-                <label htmlFor={`col-${c.key}`} className="flex-1 cursor-pointer truncate">
-                  {c.label}
-                  <span className="ml-1 text-[11px] text-muted-foreground">{c.kind === 'slot' ? 'file' : c.kind === 'date' ? 'day' : c.field}</span>
-                </label>
-                {on && (
-                  <span className="flex">
-                    <button type="button" aria-label={`Move ${c.label} left`} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => move(c.key, -1)}>
-                      <ChevronUpIcon className="size-3.5" />
-                    </button>
-                    <button type="button" aria-label={`Move ${c.label} right`} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => move(c.key, 1)}>
-                      <ChevronDownIcon className="size-3.5" />
-                    </button>
-                  </span>
-                )}
-              </li>
-            );
-          })}
+          {ordered.map(c => row(c))}
         </ul>
         <div className="border-t p-2">
           <Button variant="ghost" size="sm" className="h-7 w-full gap-1.5 text-xs" onClick={() => set([])}>
@@ -222,7 +239,9 @@ function ColumnPicker({ collection, grid }: { collection: CollectionView; grid: 
 
 /** A long or nested field edited in a dialog, with the same editor the entry's form uses; it reads the entry first for its full value. */
 function CellDialog({ row, column, collection, edit, onClose }: { row: EntryRow; column: SheetColumn; collection: CollectionView; edit: GridEdit; onClose: () => void }) {
-  const field = collection.fields.find(f => f.key === column.key);
+  // a part of a field (one key of a group, one platform's link) is changed in its field's own editor
+  const fieldKey = column.parent?.key ?? column.key;
+  const field = collection.fields.find(f => f.key === fieldKey);
   const [value, setValue] = React.useState<unknown>(undefined);
   const [rev, setRev] = React.useState<number | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -232,19 +251,19 @@ function CellDialog({ row, column, collection, edit, onClose }: { row: EntryRow;
       .entry(edit.spaceId, row.ref)
       .then(answer => {
         if (!live) return;
-        setValue(answer.entry.fields[column.key] ?? (answer.entry as { extra?: Record<string, unknown> }).extra?.[column.key]);
+        setValue(answer.entry.fields[fieldKey] ?? (answer.entry as { extra?: Record<string, unknown> }).extra?.[fieldKey]);
         setRev(answer.entry.rev);
       })
       .catch(error => toast.error(error instanceof Error ? error.message : String(error)));
     return () => {
       live = false;
     };
-  }, [edit.spaceId, row.ref, column.key]);
+  }, [edit.spaceId, row.ref, fieldKey]);
   const save = async () => {
     setBusy(true);
     try {
       const [collectionSlug, slug] = row.ref.split('/');
-      const saved = await libraryApi.save({ space: edit.spaceId, collection: collectionSlug, slug, rev: rev ?? row.rev, fields: { [column.key]: value ?? null } });
+      const saved = await libraryApi.save({ space: edit.spaceId, collection: collectionSlug, slug, rev: rev ?? row.rev, fields: { [fieldKey]: value ?? null } });
       saved.warnings.forEach(w => toast.warning(w));
       edit.onSaved();
       onClose();
@@ -258,7 +277,7 @@ function CellDialog({ row, column, collection, edit, onClose }: { row: EntryRow;
     <Dialog open onOpenChange={open => !open && onClose()}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{column.label}</DialogTitle>
+          <DialogTitle>{column.parent?.label ?? column.label}</DialogTitle>
           <DialogDescription>{row.title}</DialogDescription>
         </DialogHeader>
         {!field || rev === null ? <p className="text-sm text-muted-foreground">Opening it</p> : <FieldInput field={field} value={value} onChange={setValue} learned={collection.learned} />}
@@ -341,6 +360,13 @@ function Sheet({ rows, collection, hrefOf, grid, edit }: ViewProps & { collectio
           onBlur={() => commit(row, c, editing.draft)}
         />
       );
+    // a part that is a link (a platform's store link, the DistroKid link) opens
+    if (c.parent && /^https?:\/\/[^\s"'<>,]+$/i.test(text))
+      return (
+        <a href={text} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-foreground" onDoubleClick={event => event.stopPropagation()}>
+          {text.replace(/^https?:\/\/(www\.)?/i, '')}
+        </a>
+      );
     return text || <span className="text-muted-foreground/40">–</span>;
   };
 
@@ -358,6 +384,7 @@ function Sheet({ rows, collection, hrefOf, grid, edit }: ViewProps & { collectio
                 <th key={c.key} scope="col" aria-sort={sort?.key === c.key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined} className={`whitespace-nowrap border-r px-3 py-2 font-medium last:border-r-0 ${index === 0 ? 'sticky left-0 z-10 bg-muted' : ''} ${c.kind === 'slot' ? 'text-center' : ''}`}>
                   <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => click(c)}>
                     {c.label}
+                    {c.parent && <span className="font-normal text-muted-foreground/70">· {c.parent.label}</span>}
                     {sort?.key === c.key && (sort.direction === 'asc' ? <ArrowUpIcon className="size-3" /> : <ArrowDownIcon className="size-3" />)}
                   </button>
                 </th>

@@ -125,11 +125,14 @@ function Tab({ value, label, count }: { value: MineTab; label: string; count: nu
 export function MineView({
   mine,
   spaces = null,
+  spacesOpen = true,
   tab,
   now,
 }: {
   mine: Mine;
   spaces?: MySpaces | null;
+  /** Whether the Spaces pages are there for this member (lib/app-shell/nav): no, and a project has no "Open space". */
+  spacesOpen?: boolean;
   /** The tab to open first. */
   tab?: MineTab;
   /** The time "used 3 days ago" counts from. */
@@ -238,9 +241,11 @@ export function MineView({
                     )}
                     <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span>{project.people > 1 ? `${project.people} people have these` : 'Only you so far'}</span>
-                      <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
-                        Open space <ArrowRightIcon className="size-3" aria-hidden />
-                      </Link>
+                      {spacesOpen && (
+                        <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
+                          Open space <ArrowRightIcon className="size-3" aria-hidden />
+                        </Link>
+                      )}
                     </div>
                     <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} columns={3} empty="Nothing made for this project yet." />
                   </TabsContent>
