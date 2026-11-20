@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DISTROKID_KEYS, albumUuidOf, fromDistrokidPack, isDistrokidPack, openable, packRelease, releaseLinkOf, withPack } from './distrokid';
+import { DISTROKID_DETAIL_KEYS, DISTROKID_KEYS, albumUuidOf, fromDistrokidPack, isDistrokidPack, openable, packRelease, releaseLinkOf, withPack } from './distrokid';
 import { LIBRARY_SCHEMA, applySave, matches, parseSearch, type CollectionRecord, type EntryRecord } from './index';
 import { SONGS } from './templates';
 
@@ -22,9 +22,11 @@ const save = (current: EntryRecord | null, fields: unknown) => {
 test('the Songs template documents the DistroKid link as a key of its distrokid group', () => {
   const field = SONGS.fields.find(f => f.key === 'distrokid')!;
   assert.equal(field.kind, 'group');
-  assert.deepEqual(field.keys?.map(k => k.key), ['link', 'albumUuid', 'upc', 'uploadDate', 'releaseDate', 'recordLabel']);
-  assert.equal(field.keys, DISTROKID_KEYS);
+  assert.deepEqual(field.keys?.map(k => k.key), ['link', 'albumUuid', 'upc', 'uploadDate', 'releaseDate', 'recordLabel', 'language', 'songwriters', 'aiTagged']);
+  assert.deepEqual(field.keys, [...DISTROKID_KEYS, ...DISTROKID_DETAIL_KEYS]);
   assert.equal(field.keys?.find(k => k.key === 'link')?.kind, 'link');
+  // only the release's own keys come from a pack's distrokid block
+  assert.deepEqual(Object.keys(packRelease(pack({ ...RECORDED, language: 'Telugu' })).group).includes('language'), false);
   assert.match(SONGS.guide, /`distrokid\.link` is the song's release page on DistroKid/);
   assert.match(SONGS.guide, /where=distrokid=<album UUID>/);
 });
