@@ -2,7 +2,7 @@
 name: use-mac-recorder
 description: Record the Mac's screen, one window or a region with the mac-recorder MCP, for product demos, tutorials, app walkthroughs and bug repros. Each video comes with a log of the cursor, every click and named steps. The skill plans the takes, records while the user performs or while Claude drives (a clean Chrome window by code, with every step marked), checks the take, then trims it, speeds up the idle stretches and makes an auto-zoom edit in Remotion (zoom and pan on the clicks, a smooth drawn cursor, step captions, the way Screen Studio does). Other skills use it for their screen footage too (make-cwc-tutorial, walkthroughs, repros). Use when the user says "record my screen", "record this window / app / browser", "screen recording of …", "make a demo / walkthrough / tutorial video of &lt;app or site&gt;", "record a bug repro", "zoom in on the clicks", "/use-mac-recorder", or a skill needs footage of something happening on the Mac. Not for footage from the internet (youtube-grab) or a render of a Remotion project. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
-  version: 0.1.0
+  version: 0.1.1
 ---
 
 # use-mac-recorder
@@ -15,7 +15,7 @@ up, and a drawn cursor glides to each click. Everything stays on the Mac.
 
 Files: `<workspace>/out/recordings/<name>/<name>.mov`, `<name>.events.json` and `<name>.poster.jpg`
 (`mm workspace` prints the workspace). The kit is in this skill's `kit/` folder: `plan-edit.mjs` (events →
-edit plan, unit-tested: `node --test kit/`), `ScreenZoom.tsx` (the Remotion player), `check-frames.mjs`
+edit plan, unit-tested: `node --test kit/plan-edit.test.mjs`), `ScreenZoom.tsx` (the Remotion player), `check-frames.mjs`
 (the check sheet), and `chrome.mjs` with `run-steps.mjs` (a demo driven by code). The first demo, a tour
 of MediaMake's store, is the project `mac-recorder-demo` (its `steps.mjs` is a worked example).
 
