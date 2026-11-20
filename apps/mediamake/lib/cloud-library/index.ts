@@ -158,8 +158,8 @@ export interface CollectionRecord {
   /** Listed in Explore by the owner of its space (./listing). */
   listing?: { about: string; rights: string; at: string; by: string };
   /**
-   * The grid's columns, in order, as the space chose them: field keys, `has:<slot>` for a file slot and
-   * `updatedAt`. Left out: the title, the short fields, the slots and the day (./view `sheetColumns`).
+   * The grid's columns, in order, as the space chose them: field keys, `<field>.<key>` for one part of a
+   * field (a group's key, a platform's link), `has:<slot>` for a file slot and `updatedAt`. Left out: the title, the short fields, the slots and the day (./view `sheetColumns`).
    */
   columns?: string[];
   /** The lists that learn: list name → value → how often it was used. */
@@ -175,6 +175,12 @@ export const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
 export const SHA256 = /^[0-9a-f]{64}$/;
 export const MAX_TEXT = 200_000;
 export const MAX_LIST = 200;
+
+/** A collection's name as its owner writes it: one line, at most 80 characters. */
+export const collectionName = (raw: unknown): string => (typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 80) : '');
+
+/** Whether what was typed to delete a collection is its name (any case, spaces at the ends aside). */
+export const deleteConfirmed = (name: string, typed: unknown): boolean => typeof typed === 'string' && !!name.trim() && typed.trim().toLowerCase() === name.trim().toLowerCase();
 
 /** `Nakama! (Remaster)` → `nakama-remaster`. A title in another script keeps its letters out and falls back to `fallback`. */
 export function slugOf(text: string, fallback = 'untitled'): string {
@@ -613,7 +619,7 @@ export interface SearchAsk {
   pictures?: boolean;
 }
 
-/** A column: a field key (any case, `titleOriginal`), `has:<slot>`, or `updatedAt`. */
+/** A column: a field key (any case, `titleOriginal`), a part of a field (`distrokid.upc`), `has:<slot>`, or `updatedAt`. */
 export const COLUMN = /^(has:)?[A-Za-z][A-Za-z0-9_.-]{0,79}$/;
 
 /** The columns a space chose, cleaned: known shapes only, each once, at most 40. */
@@ -650,12 +656,31 @@ export function cellLine(value: unknown, max = 160): string {
   return line.length > max ? `${line.slice(0, max - 1)}…` : line;
 }
 
-/** The cells a row carries: each asked-for field (or extra value) as one line. Empty ones are left out. */
+/**
+ * The value a column names: a field or a value kept under `extra`, one key of a group
+ * (`distrokid.upc`), or one platform's link in a list of links (`storeLinks.spotify`, the platform
+ * as the lists that learn compare it).
+ */
+export function columnValue(entry: Pick<EntryRecord, 'fields'> & { extra?: Record<string, unknown> }, key: string): unknown {
+  const value = whereValue(entry, key);
+  if (value !== undefined) return value;
+  const dot = key.indexOf('.');
+  const list = dot > 0 && Object.prototype.hasOwnProperty.call(entry.fields, key.slice(0, dot)) ? entry.fields[key.slice(0, dot)] : undefined;
+  if (!Array.isArray(list)) return undefined;
+  const sub = learnKey(key.slice(dot + 1));
+  const links = (list as unknown[]).flatMap(row => {
+    const link = row && typeof row === 'object' ? (row as { platform?: unknown; url?: unknown }) : null;
+    return link && typeof link.platform === 'string' && typeof link.url === 'string' && link.url && learnKey(link.platform) === sub ? [link.url] : [];
+  });
+  return links.length ? links.join(', ') : undefined;
+}
+
+/** The cells a row carries: each asked-for column (a field, an extra value, or a part of one: `columnValue`) as one line. Empty ones are left out. */
 export function cellsOf(entry: Pick<EntryRecord, 'fields'> & { extra?: Record<string, unknown> }, keys: string[]): Record<string, string> {
   const cells: Record<string, string> = {};
   for (const key of keys) {
     if (key.startsWith('has:') || key === 'updatedAt') continue;
-    const line = cellLine(entry.fields[key] ?? entry.extra?.[key]);
+    const line = cellLine(columnValue(entry, key));
     if (line) cells[key] = line;
   }
   return cells;

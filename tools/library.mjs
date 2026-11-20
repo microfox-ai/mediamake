@@ -59,6 +59,7 @@
  *   mm library stats <collection>/<entry> --platform=<name> [--day=2026-11-19] --set <number>=<value>…
  *                                            a platform's numbers for a day
  *   mm library trash <collection>/<entry> [--yes]
+ *   mm library rename <collection> "<new name>" [--yes]         its name, by the space's owner (its id stays)
  *   mm library prefs <collection> --file=<prefs.md> [--yes]    the owner's preferences for whoever fills it
  *   mm library headshot <collection> <picture file or https link> [--yes]   the picture on the collection's card
  *   mm library headshot <collection> --clear [--yes]                         takes it off
@@ -779,6 +780,16 @@ async function trash(env, [raw], flags) {
   return 0;
 }
 
+async function rename(env, [collection, ...words], flags) {
+  const name = words.join(' ').replace(/\s+/g, ' ').trim();
+  if (!SLUG.test(String(collection ?? '')) || !name) throw new Error('Which collection, and its new name? mm library rename <collection> "<new name>"');
+  const space = await spaceFor(env, flags);
+  if (!flags.yes) return console.log(`Rename the collection ${collection} of the ${space.name} space to "${name}"? Its id stays ${collection}.\nNothing was changed. After the person agrees: add --yes.`), 0;
+  const done = await api(env, 'POST', '', { action: 'rename', space: space.id, collection, name });
+  console.log(`✔ ${collection} is now called ${done.name}. Its id is still ${collection}.`);
+  return 0;
+}
+
 async function prefs(env, [collection], flags) {
   if (typeof flags.file !== 'string') throw new Error('The preferences as a Markdown file: --file=<prefs.md>');
   const text = fs.readFileSync(path.resolve(flags.file), 'utf8');
@@ -961,6 +972,8 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return stats(env, rest, flags);
     case 'trash':
       return trash(env, rest, flags);
+    case 'rename':
+      return rename(env, rest, flags);
     case 'prefs':
       return prefs(env, rest, flags);
     case 'headshot':

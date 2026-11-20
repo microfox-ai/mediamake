@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  cellsOf,
+  cleanColumns,
+  collectionName,
+  columnValue,
+  deleteConfirmed,
   DEFAULT_PRICES,
   LIBRARY_SCHEMA,
   addUsage,
@@ -304,4 +309,24 @@ test('a value kept under extra moves into its field when the template gains it a
   // a value the template still doesn't know stays under extra
   const third = saved(songs(), second, { fields: { mood: 'calm' } }).entry;
   assert.equal(third.extra.mood, 'calm');
+});
+
+test('a column can name a part of a field: a group\'s key, a platform\'s link', () => {
+  const entry = { fields: { title: 'Sea', distrokid: { upc: '1234', Language: 'Telugu' }, storeLinks: [{ platform: 'Apple Music', url: 'https://music.apple.com/x' }, { platform: 'Spotify', url: 'https://open.spotify.com/y' }] }, extra: { mood: 'calm' } };
+  assert.equal(columnValue(entry, 'distrokid.upc'), '1234');
+  assert.equal(columnValue(entry, 'distrokid.language'), 'Telugu');
+  assert.equal(columnValue(entry, 'storeLinks.applemusic'), 'https://music.apple.com/x');
+  assert.equal(columnValue(entry, 'storeLinks.tidal'), undefined);
+  assert.equal(columnValue(entry, 'title.x'), undefined);
+  assert.deepEqual(cellsOf(entry, ['distrokid.upc', 'storeLinks.spotify', 'mood', 'distrokid.gone', 'has:master']), { 'distrokid.upc': '1234', 'storeLinks.spotify': 'https://open.spotify.com/y', mood: 'calm' });
+  assert.deepEqual(cleanColumns(['distrokid.upc', 'storeLinks.spotify', 'bad key']), ['distrokid.upc', 'storeLinks.spotify']);
+});
+
+test('a collection\'s name is one line, and deleting needs it typed', () => {
+  assert.equal(collectionName('  Zone \n songs  '), 'Zone songs');
+  assert.equal(collectionName(7), '');
+  assert.equal(collectionName('x'.repeat(200)).length, 80);
+  assert.equal(deleteConfirmed('Zone Songs', ' zone songs '), true);
+  assert.equal(deleteConfirmed('Zone Songs', 'Zone'), false);
+  assert.equal(deleteConfirmed('Zone Songs', undefined), false);
 });

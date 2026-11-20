@@ -22,7 +22,10 @@ import { storageProblem } from '@/lib/projects/storage-store';
 import type { LibrarySpace } from './access';
 import {
   factsOf,
+  cardOf,
   cellsOf,
+  collectionName,
+  deleteConfirmed,
   cleanColumns,
   pictureOf,
   DEFAULT_PRICES,
@@ -244,6 +247,55 @@ export const libraryDB = {
     }
     await event(db, space.id, 'collection', by, { collection: slug });
     return { collection: collectionView(doc, 0, true) };
+  },
+
+  /**
+   * A collection's name, changed by the owner of its space. Its id (`slug`) stays, so its links, its
+   * shares and `mm library` keep working; each entry's card, which names the collection, is rewritten.
+   */
+  async renameCollection(space: LibrarySpace, slug: string, raw: unknown) {
+    const name = collectionName(raw);
+    if (!name) return fail('A collection needs a name');
+    const db = await database();
+    const doc = await this.collection(space.id, slug);
+    if (!doc) return fail(`No collection ${slug} in the ${space.name} space`, 404);
+    if (doc.name === name) return { ok: true as const, name };
+    const twin = await db.collection<CollectionRecord>(COLLECTIONS).findOne({ space: space.id, slug: { $ne: slug }, name: { $regex: `^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }, ...LIVE }, noId);
+    if (twin) return fail(`The ${space.name} space already has a collection called ${twin.name}`, 409);
+    await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug, ...LIVE }, { $set: { name, updatedAt: new Date().toISOString() } });
+    const entries = await db.collection<EntryRecord>(ENTRIES).find({ space: space.id, collection: slug, ...LIVE }, noId).toArray();
+    const cards = entries.map(entry => ({ updateOne: { filter: { space: space.id, collection: slug, slug: entry.slug }, update: { $set: { card: cardOf({ ...doc, name }, entry) } } } }));
+    if (cards.length) await db.collection<EntryRecord>(ENTRIES).bulkWrite(cards, { ordered: false });
+    return { ok: true as const, name };
+  },
+
+  /**
+   * Deletes a collection, on the word of the owner of its space, who typed its name (`confirm`). It
+   * is gone from the space and from every space it was opened to: its shares, its requests and its
+   * listing end, and its part of the search index is emptied. The records are kept, marked deleted,
+   * under an id nothing else uses (so a new collection can take the name), and the files stay in the
+   * space's storage: nothing in the app brings them back.
+   */
+  async deleteCollection(space: LibrarySpace, slug: string, confirm: unknown, by: string) {
+    const db = await database();
+    const doc = await this.collection(space.id, slug);
+    if (!doc) return fail(`No collection ${slug} in the ${space.name} space`, 404);
+    if (!deleteConfirmed(doc.name, confirm)) return fail(`Type the collection's name, ${doc.name}, to delete it`);
+    const at = new Date().toISOString();
+    const gone = `${slug.slice(0, 50)}-deleted-${Date.now().toString(36)}`;
+    const entries = await db.collection(ENTRIES).countDocuments({ space: space.id, collection: slug, ...LIVE });
+    await db.collection<CollectionRecord>(COLLECTIONS).updateOne({ space: space.id, slug, ...LIVE }, { $set: { slug: gone, deletedAt: at, updatedAt: at }, $unset: { listing: '' } });
+    await db.collection(ENTRIES).updateMany({ space: space.id, collection: slug, ...LIVE }, { $set: { deletedAt: at, updatedAt: at, updatedBy: by } });
+    await Promise.all([
+      db.collection(ENTRIES).updateMany({ space: space.id, collection: slug }, { $set: { collection: gone } }),
+      db.collection(STATS).updateMany({ space: space.id, collection: slug }, { $set: { collection: gone } }),
+      db.collection('library_shares').deleteMany({ from: space.id, collection: slug }),
+      db.collection('library_notes').deleteMany({ from: space.id, collection: slug }),
+      db.collection('library_requests').deleteMany({ from: space.id, collection: slug }),
+    ]);
+    await event(db, space.id, 'collection-deleted', by, { collection: slug });
+    await meaningIndex.clear(space.id, slug);
+    return { deleted: true as const, name: doc.name, entries };
   },
 
   /** The grid's columns for everyone in the space, in order (an empty list goes back to the template's). */

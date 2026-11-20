@@ -16,6 +16,9 @@ import { ensurePersonalProject } from '@/lib/projects/personal';
  *       ?space=<id>     that space's collections in full: fields, slots, what the lists have learned,
  *                       the template's guide and the owner's preferences. Read this before filling one.
  * POST  { action: "new-collection", space, template, name? }   a collection from a template.
+ *       { action: "rename", space, collection, name }          its name, by the space's owner. Its id stays.
+ *       { action: "delete-collection", space, collection, confirm }  deletes it with its entries, by the
+ *                                                              space's owner; `confirm` is its name, typed.
  *       { action: "prefs", space, collection, prefs }          the owner's preferences (Markdown, whole).
  *       { action: "headshot", space, collection, sha256? | url? } the collection's picture: an image the space
  *                                                              stores, or an https link. Neither takes it off.
@@ -53,10 +56,16 @@ export async function POST(req: NextRequest) {
       if (at.space.role !== 'owner') return refuse("Only the space's owner writes a collection's preferences", 403);
       return answer(await libraryDB.setPrefs(at.space, String(body.collection ?? ''), String(body.prefs ?? '')));
     }
+    if (body?.action === 'rename' || body?.action === 'delete-collection') {
+      if (at.space.role !== 'owner') return refuse(`Only the space's owner ${body.action === 'rename' ? 'renames' : 'deletes'} a collection`, 403);
+      // a collection another space shares is under its own id here and is not this space's: neither finds it
+      if (body.action === 'rename') return answer(await libraryDB.renameCollection(at.space, String(body.collection ?? ''), body.name));
+      return answer(await libraryDB.deleteCollection(at.space, String(body.collection ?? ''), body.confirm, clientId));
+    }
     if (body?.action === 'headshot') return answer(await libraryDB.setHeadshot(at.space, String(body.collection ?? ''), { sha256: body.sha256, url: body.url }));
     // the grid's columns are the space's: whoever can change the collection sets them for everyone in it
     if (body?.action === 'columns') return answer(await libraryDB.setColumns(at.space, String(body.collection ?? ''), body.columns));
-    return refuse('action is "new-collection", "prefs", "headshot" or "columns"');
+    return refuse('action is "new-collection", "rename", "delete-collection", "prefs", "headshot" or "columns"');
   } catch (error) {
     return failed('change the Library', error);
   }

@@ -4,7 +4,7 @@
  * Pure, so the page and the tests share it.
  */
 import type { InvitationView, ShareRole } from './shares';
-import { fileTypeOf, type EntryRecord, type FieldKind, type FieldValue, type FileType, type Prices, type UsageSum } from './index';
+import { fileTypeOf, learnKey, type EntryRecord, type FieldKind, type FieldValue, type FileType, type Prices, type UsageSum } from './index';
 
 export interface FieldView {
   key: string;
@@ -289,16 +289,37 @@ export interface SheetColumn {
   kind: 'field' | 'slot' | 'date';
   /** A field column's kind of value, which says how its cell is edited. */
   field?: FieldKind;
+  /** A part of a field (`distrokid.upc`, `storeLinks.spotify`): the field it is inside. */
+  parent?: { key: string; label: string };
+}
+
+type WithParts = Pick<CollectionView, 'fields' | 'slots' | 'titleField'> & { learned?: CollectionView['learned'] };
+
+/**
+ * The parts of a field that can be columns of their own: each key a group is known to hold, and each
+ * platform a list of links has learned (its cell is that platform's link).
+ */
+export function partColumns(field: FieldView, learned: CollectionView['learned'] = {}): SheetColumn[] {
+  const parent = { key: field.key, label: field.label };
+  if (field.kind === 'group') return (field.keys ?? []).map(part => ({ key: `${field.key}.${part.key}`, label: part.label, kind: 'field' as const, field: part.kind === 'date' ? ('date' as const) : ('text' as const), parent }));
+  if (field.kind !== 'links' || !field.learns) return [];
+  const seen = new Set<string>();
+  return (learned[field.learns] ?? []).flatMap(platform => {
+    const key = learnKey(platform);
+    if (!/^[a-z0-9]{1,60}$/.test(key) || seen.has(key)) return [];
+    seen.add(key);
+    return [{ key: `${field.key}.${key}`, label: platform, kind: 'field' as const, field: 'text' as const, parent }];
+  });
 }
 
 /** Field kinds a grid shows as their own value; the rest arrive as one line (`cells`). */
 export const SHORT_KINDS: FieldKind[] = ['text', 'choice', 'date', 'number', 'tags'];
 
-/** Every column a grid can show: each field (the title first), each file slot, and the day it changed. */
-export function columnChoices(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField'>): SheetColumn[] {
+/** Every column a grid can show: each field (the title first) with its parts after it, each file slot, and the day it changed. */
+export function columnChoices(collection: WithParts): SheetColumn[] {
   const title = collection.fields.find(field => field.key === collection.titleField);
   return [
-    ...[...(title ? [title] : []), ...collection.fields.filter(field => field.key !== collection.titleField)].map(field => ({ key: field.key, label: field.label, kind: 'field' as const, field: field.kind })),
+    ...[...(title ? [title] : []), ...collection.fields.filter(field => field.key !== collection.titleField)].flatMap(field => [{ key: field.key, label: field.label, kind: 'field' as const, field: field.kind }, ...partColumns(field, collection.learned)]),
     ...collection.slots.map(slot => ({ key: `has:${slot.key}`, label: slot.label, kind: 'slot' as const })),
     { key: 'updatedAt', label: 'Changed', kind: 'date' as const },
   ];
@@ -307,9 +328,9 @@ export function columnChoices(collection: Pick<CollectionView, 'fields' | 'slots
 /**
  * A grid's columns. The space's own choice when it made one (the title always first; a key the
  * template no longer has is dropped), else the title, the other short fields, a column a file slot,
- * then when it last changed.
+ * then when it last changed. A part of a field (`distrokid.upc`) is a column like any other.
  */
-export function sheetColumns(collection: Pick<CollectionView, 'fields' | 'slots' | 'titleField' | 'columns'>): SheetColumn[] {
+export function sheetColumns(collection: WithParts & Pick<CollectionView, 'columns'>): SheetColumn[] {
   const choices = columnChoices(collection);
   const byKey = new Map(choices.map(column => [column.key, column]));
   if (collection.columns?.length) {
@@ -317,7 +338,8 @@ export function sheetColumns(collection: Pick<CollectionView, 'fields' | 'slots'
     const title = byKey.get(collection.titleField);
     return [...(title ? [title] : []), ...chosen];
   }
-  return choices.filter(column => column.kind !== 'field' || SHORT_KINDS.includes(column.field!));
+  // a part of a field is a column only when it was chosen
+  return choices.filter(column => column.kind !== 'field' || (!column.parent && SHORT_KINDS.includes(column.field!)));
 }
 
 /** What a sheet's cell holds, as text ("" when empty). A slot's cell is how many files it has; a long field's is its one line. */
@@ -331,6 +353,8 @@ export function cellText(row: Pick<EntryRow, 'facts' | 'has' | 'updatedAt' | 'ti
 /** How a cell is edited on a double-click: in the cell itself, in a dialog, or not at all. */
 export function cellEditor(column: SheetColumn): 'inline' | 'choice' | 'dialog' | null {
   if (column.kind !== 'field' || !column.field) return null;
+  // a part is changed where its field is: the field's own editor, whole
+  if (column.parent) return 'dialog';
   if (column.field === 'choice') return 'choice';
   if (column.field === 'text' || column.field === 'number' || column.field === 'date') return 'inline';
   return 'dialog';
