@@ -103,9 +103,24 @@ test('a clean skill passes, and its payload carries the production and the files
   }
 });
 
-test('a production is a finished work, never a test or a demo', () => {
-  for (const made of ['', '  ', 'test', 'a demo', 'TBD', 'n/a']) assert.match(madeProblem(made), /We publish nothing we don't use/, made);
-  assert.equal(madeProblem('Akhilanda Natha lyric video'), null);
+test('a production named is a finished work, never a test or a demo; none named is fine here (the server asks members below Cohort)', () => {
+  for (const made of ['test', 'a demo', 'TBD', 'n/a']) assert.match(madeProblem(made), /We publish nothing we don't use/, made);
+  for (const made of [undefined, '', '  ', 'Akhilanda Natha lyric video']) assert.equal(madeProblem(made), null, String(made));
+});
+
+test('an admin publishes at a membership: --tier goes up as publish, and no production is sent when none was named', () => {
+  const w = workspace();
+  try {
+    w.write('make-thing/SKILL.md', SKILL_MD + SHEET);
+    const item = { kind: 'skill', name: 'make-thing', dir: path.join(w.root, 'make-thing') };
+    const { files } = collect(item.dir);
+    const body = payload(item, files, { made: '', madeUrl: '', note: '', tier: 'cohort' });
+    assert.equal(body.publish, 'cohort');
+    assert.ok(!('made' in body));
+    assert.ok(!('publish' in payload(item, files, { made: 'A real video', madeUrl: '', note: '' })));
+  } finally {
+    w.done();
+  }
 });
 
 test('the upload gets a minute for the server plus time to go up, and a time-out says it may have arrived', () => {

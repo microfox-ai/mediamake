@@ -1,19 +1,24 @@
 #!/usr/bin/env node
 /**
- * submit: send something you built to the MediaMake store, privately, for an admin to review.
+ * submit: send something you built to the MediaMake store, privately, for an admin to review; an
+ * admin's own item is published at once.
  *
  *   mm submit <name>                        the checks only (a dry run): where the item is, what would be
  *                                           sent, and what must be fixed first
- *   mm submit <name> --yes --made="<production>" [--made-url=<link>] [--note="<for the reviewers>"]
- *                                           sends it. The production is the finished work made with it
+ *   mm submit <name> --yes [--made="<production>"] [--made-url=<link>] [--note="<for the reviewers>"]
+ *                                           sends it. Members below Cohort name the finished work made
+ *                                           with it (--made); Cohort members and admins may leave it out
+ *   mm submit <name> --yes --tier=public|plus|pro|cohort
+ *                                           an admin publishes it directly at that membership: no review
  *   mm submit status                        your submissions and where each stands
  *   mm submit withdraw <id>                 takes one back before it is decided
  *   --kind=skill|mcp|app                    when two of your items share a name
  *   --json                                  the same as JSON, for Claude
  *
  * <name> is a skill, MCP or app of your own: in your space or a project's (mm space), or a skill in
- * your workspace (a variant from fork-skill). The rule is "We publish nothing we don't use.", so
- * --yes refuses without --made, and a test render or a demo is not a production.
+ * your workspace (a variant from fork-skill). The rule is "We publish nothing we don't use.": a member
+ * below Cohort names a finished production (the server refuses one without it, and a test render or a
+ * demo is not one); Cohort members and admins need not.
  *
  * What is sent, to your MediaMake account over its sign-in (mm login): the item's files (text as it
  * is, anything else as bytes), its name, title, one-line summary and version, the production and your
@@ -21,7 +26,8 @@
  * goes through the media library, named under "media" in item.json). Nothing is public yet: an admin
  * reads it, picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, asks for
  * changes or declines, and you are mailed. Accepted, it enters as Beta and earns you a membership for
- * 3 months, renewed by contributing again.
+ * 3 months, renewed by contributing again. An admin's --tier skips all of that: the item is released
+ * at that membership, in Beta, the moment it arrives (a version already released is refused).
  *
  * The same item sent again before a decision replaces what you sent.
  */
@@ -149,13 +155,17 @@ export function describe(item) {
   };
 }
 
-/** What a production must be before anything is sent. */
+/** What a named production must be (members below Cohort name one; the server says when it is missing). */
 export function madeProblem(made) {
-  if (!made || made.trim().length < 3 || NOT_A_PRODUCTION.test(made.trim())) {
-    return `${RULE} Name the finished production made with it: --made="<its title>" (and --made-url=<link> when it is online). A test render or a demo is not one.`;
+  const title = made?.trim();
+  if (title && (title.length < 3 || NOT_A_PRODUCTION.test(title))) {
+    return `${RULE} --made names the finished production made with it (its title; --made-url=<link> when it is online). A test render or a demo is not one.`;
   }
   return null;
 }
+
+/** The memberships an admin publishes at. */
+export const PUBLISH_TIERS = ['public', 'plus', 'pro', 'cohort'];
 
 /**
  * How long sending may take, from the size of the body: a minute for the server (the route's maxDuration,
@@ -171,7 +181,7 @@ export function uploadTimedOut(name, bytes, timeoutMs) {
 }
 
 /** The body POST /api/submissions takes. */
-export function payload(item, files, { made, madeUrl, note }) {
+export function payload(item, files, { made, madeUrl, note, tier }) {
   const about = describe(item);
   return {
     kind: item.kind,
@@ -179,8 +189,9 @@ export function payload(item, files, { made, madeUrl, note }) {
     ...(about.title && { title: about.title }),
     ...(about.summary && { summary: about.summary }),
     ...(about.version && { version: about.version }),
-    made: { title: made.trim(), ...(madeUrl && { url: madeUrl.trim() }) },
+    ...(made?.trim() && { made: { title: made.trim(), ...(madeUrl && { url: madeUrl.trim() }) } }),
     ...(note?.trim() && { note: note.trim() }),
+    ...(tier && { publish: tier }),
     source: 'mm-submit',
     files: files.map(({ path: p, content, encoding }) => ({ path: p, content, encoding })),
   };
@@ -242,8 +253,11 @@ async function submit(name, flags) {
   const send = flags.yes === true;
   const made = typeof flags.made === 'string' ? flags.made : '';
   const madeUrl = typeof flags['made-url'] === 'string' ? flags['made-url'] : '';
-  if (send && madeProblem(made)) problems.push(madeProblem(made));
+  const tier = typeof flags.tier === 'string' ? flags.tier : '';
+  if (madeProblem(made)) problems.push(madeProblem(made));
+  if (madeUrl && !made) problems.push('--made-url goes with --made (the production it links to)');
   if (madeUrl && !/^https:\/\//.test(madeUrl)) problems.push('--made-url must be an https link');
+  if (tier && !PUBLISH_TIERS.includes(tier)) problems.push(`--tier is the membership an admin publishes it at: ${PUBLISH_TIERS.join(', ')}`);
 
   const report = { item: { kind: item.kind, name, where: item.where, ...about }, files: files.map(file => ({ path: file.path, bytes: file.bytes })), bytes: total, skipped, problems, notes };
   if (!send || problems.length > 0) {
@@ -256,24 +270,32 @@ async function submit(name, flags) {
       for (const n of notes) console.log(`  ⚠ ${n}`);
       for (const p of problems) console.log(`  ✖ ${p}`);
       if (problems.length > 0) console.log('\nFix what ✖ marks, then check again. Nothing was sent.');
-      else console.log(`\nNothing was sent. ${RULE}\nTo send it for review: mm submit ${name} --yes --made="<the finished production made with it>" [--made-url=<link>]`);
+      else console.log(`\nNothing was sent. ${RULE}\nTo send it for review: mm submit ${name} --yes [--made="<the finished production made with it>"] (members below Cohort name one)\nAn admin publishes it directly: mm submit ${name} --yes --tier=<public|plus|pro|cohort>`);
     }
     process.exit(problems.length > 0 ? 1 : 0);
   }
 
   const { url, key } = signedIn();
-  const body = payload(item, files, { made, madeUrl, note: typeof flags.note === 'string' ? flags.note : '' });
+  const body = payload(item, files, { made, madeUrl, note: typeof flags.note === 'string' ? flags.note : '', tier });
   // the whole item travels in one request, often 1–4 MB with a README's pictures: give it time to go up
   const bytes = Buffer.byteLength(JSON.stringify(body));
   const timeoutMs = uploadTimeout(bytes);
   let submission;
+  let serverNotes = [];
   try {
-    ({ submission } = await call('POST', `${url}/api/submissions`, key, body, { timeoutMs }));
+    ({ submission, notes: serverNotes = [] } = await call('POST', `${url}/api/submissions`, key, body, { timeoutMs }));
   } catch (error) {
     if (error?.name === 'TimeoutError') fail(uploadTimedOut(name, bytes, timeoutMs));
     throw error;
   }
-  if (json) return console.log(JSON.stringify({ ...report, sent: true, submission }, null, 2));
+  if (json) return console.log(JSON.stringify({ ...report, sent: true, submission, notes: serverNotes }, null, 2));
+  if (submission.decision) {
+    const live = submission.status === 'live';
+    console.log(`Published ${submission.itemId}@${submission.version} at ${submission.decision.tier}, in Beta (${submission.submissionId}). ${live ? 'It is live now.' : submission.pullRequest ? `It goes live when its pull request merges: ${submission.pullRequest}` : 'Its package is being released.'}`);
+    for (const n of serverNotes) console.log(`  ⚠ ${n}`);
+    console.log(`Its page: ${url}/app/releases/${submission.kind}/${submission.slug}`);
+    return;
+  }
   console.log(`Sent ${submission.itemId}@${submission.version} for review (${submission.submissionId}). Nothing is public yet.`);
   if (submission.problems?.length) {
     console.log('The checks on the server stop on these. Fix them and send it again:');

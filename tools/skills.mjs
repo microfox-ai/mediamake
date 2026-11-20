@@ -30,8 +30,8 @@
  *        node tools/skills.mjs fork <base> <new-name> [--like=<ref>] [--repo]   a variant of a skill,
  *            yours in the workspace (--repo: in .agents/skills of this checkout, on a branch)
  *        node tools/skills.mjs publish <name> [--yes] [--made="<production>" [--made-url=<link>]] [--no-push]
- *            one of yours into the repo as a PR (a dry run without --yes). --yes needs --made: the
- *            finished production made with it, because we publish nothing we don't use
+ *            one of yours into the repo as a PR (a dry run without --yes). --made names the finished
+ *            production made with it; maintainers (admins) and Cohort members may leave it out
  *        node tools/skills.mjs tidy [--yes]                  drops your copies the repo has now, broken
  *            links in ~/.claude/skills, and moves loose .claude/skills folders into the workspace
  *        node tools/skills.mjs diff <variant> [--stat] [--json]   what the variant changed against its
@@ -907,10 +907,9 @@ const publish = () => {
     console.log(`${skill.name} (${what}, ${skill.own ? `yours, in ${tilde(skill.dir)}` : rel(skill.dir)}) can be published.`);
     console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked from .claude/skills, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
     console.log('Every skill in the repo is public on GitHub: read it for anything private first (publish-skill).');
-    console.log(made ? `Made with it: ${madeLine}` : `⚠ ${RULE} --yes needs the finished production made with it: --made="<its title>" [--made-url=<its link>]. Ask the user, never make one up.`);
+    console.log(made ? `Made with it: ${madeLine}` : `No production named: an admin or a Cohort member need not name one (--made="<its title>" [--made-url=<its link>] when there is one; never make one up).`);
     return;
   }
-  if (!made) throw new Error(`${RULE} Name the finished production made with ${skill.name}: --made="<its title>" [--made-url=<its link>]. Ask the user; a skill nothing was made with yet stays theirs until something is.`);
   const r = openPr({
     repo: ROOT,
     base,
@@ -925,9 +924,7 @@ const publish = () => {
       '',
       '## Made with this',
       '',
-      `${RULE} The finished production made with it:`,
-      '',
-      `- ${madeUrl ? `[${made}](${madeUrl})` : made}`,
+      ...(made ? [`${RULE} The finished production made with it:`, '', `- ${madeUrl ? `[${made}](${madeUrl})` : made}`] : ['- None named: a maintainer published it (admins and Cohort members need not name one).']),
     ].join('\n'),
     change: wt => {
       const to = path.join(wt, '.agents', 'skills', skill.name);
@@ -951,7 +948,7 @@ const publish = () => {
   else if (r.compare) console.log(`  open the pull request: ${r.compare}`);
   else if (!r.pushed) console.log(`  not pushed: git push -u origin ${r.branch}, then open a pull request`);
   console.log(`  Your copy stays in use until it merges and you pull; then node tools/skills.mjs tidy --yes drops it.`);
-  console.log(`  It enters as Beta. Once merged, an admin marks it Ready with that production (catalog_set_readiness, or npm run catalog -- ready skill/${skill.name} --proof "${made}"${madeUrl ? ` --url ${madeUrl}` : ''}), which shows on its page as "Made with this".`);
+  console.log(made ? `  It enters as Beta. Once merged, an admin marks it Ready with that production (catalog_set_readiness, or npm run catalog -- ready skill/${skill.name} --proof "${made}"${madeUrl ? ` --url ${madeUrl}` : ''}), which shows on its page as "Made with this".` : `  It enters as Beta. Once merged, an admin can mark it Ready on its release page.`);
 };
 
 /**

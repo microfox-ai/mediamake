@@ -171,7 +171,7 @@ function Row({ submission, sender, onOpen }: { submission: Submission; sender?: 
           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{submission.summary}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {sender?.name ?? submission.clientId} · {formatDay(submission.updatedAt)}
-            {submission.round > 1 && ` · sent ${submission.round} times`} · made with it: {submission.made.title}
+            {submission.round > 1 && ` · sent ${submission.round} times`} · {submission.made ? `made with it: ${submission.made.title}` : 'no production named'}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -255,14 +255,20 @@ function Review({ id, data, onClose, onChanged }: { id: string | null; data: Sub
             </Block>
 
             <Block title="Made with this" about={RULE}>
-              <p className="text-sm font-medium">{submission.made.title}</p>
-              {submission.made.url ? (
-                <a href={submission.made.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 break-all text-sm text-primary underline-offset-4 hover:underline">
-                  {submission.made.url}
-                  <ArrowUpRight className="size-3.5 shrink-0" />
-                </a>
+              {submission.made ? (
+                <>
+                  <p className="text-sm font-medium">{submission.made.title}</p>
+                  {submission.made.url ? (
+                    <a href={submission.made.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 break-all text-sm text-primary underline-offset-4 hover:underline">
+                      {submission.made.url}
+                      <ArrowUpRight className="size-3.5 shrink-0" />
+                    </a>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">No link: the sender says it is not online. Ask for one if you cannot tell it is a finished production.</p>
+                  )}
+                </>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">No link: the sender says it is not online. Ask for one if you cannot tell it is a finished production.</p>
+                <p className="text-sm text-muted-foreground">None named: the sender is a Cohort member or an admin, who need not name one.</p>
               )}
             </Block>
 

@@ -7,20 +7,29 @@ we don't use.**
 ## The path
 
 1. **The member asks Claude to make it public.** The `submit-to-store` skill
-   finds the item in their space or workspace, runs the leak checks, asks for
-   the finished production that was made with it and sends it:
-   `mm submit <name> --yes --made="<production>" [--made-url=<link>]`
-   (`tools/submit.mjs`). Where there is no repo (Claude on the web or a phone),
-   mm-use's `submit_item` takes the files instead.
+   finds the item in their space or workspace, runs the leak checks and sends
+   it: `mm submit <name> --yes [--made="<production>" [--made-url=<link>]]`
+   (`tools/submit.mjs`). A member below Cohort names the finished production
+   made with it (the server refuses one without it, `productionNeeded`);
+   Cohort members and admins may leave it out. Where there is no repo (Claude
+   on the web or a phone), mm-use's `submit_item` takes the files instead.
 2. **It arrives privately.** `POST /api/submissions` checks it again
    (`checkFiles` in `lib/submissions/submission.ts`: keys, tokens, paths on a
    computer) and keeps the record in MongoDB `submissions` and its files in
    `submission_files`. Admins and the sender see it, nobody else. The same item
    sent again before a decision replaces what was sent.
-3. **An admin reviews it** on `/app/submissions`: what it does, the production,
-   the checks, every file. They pick the lowest membership that opens it
-   (Public, Plus, Pro or Cohort) and approve, ask for changes or decline. The
-   sender is mailed each time.
+3. **An admin reviews it** on `/app/submissions`: what it does, the production
+   (when one was named), the checks, every file. They pick the lowest
+   membership that opens it (Public, Plus, Pro or Cohort) and approve, ask for
+   changes or decline. The sender is mailed each time.
+
+   **An admin's own item skips the review.** `mm submit <name> --yes
+   --tier=<public|plus|pro|cohort>` sends `publish`: the route saves it like
+   any submission, then the same admin approves it at once at that membership
+   (`publishOwnSubmission` in `lib/submissions/actions.ts`), with no
+   membership earned and no mail. What would stop an approval (a leak check, a
+   version already released) leaves it waiting on `/app/submissions` and the
+   answer says why. A member who sends `publish` is refused.
 4. **Approving delivers it** (`lib/submissions/actions.ts`):
 
    | Item | Goes to | Live when |

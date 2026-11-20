@@ -1,13 +1,15 @@
-import { isGrantableTier, tierLabel, type GrantableTier, type MemberTier } from '../memberships/tiers';
+import { isGrantableTier, tierLabel, tierRank, type GrantableTier, type MemberTier } from '../memberships/tiers';
 
 /**
  * Store submissions. A member asks Claude to make something they built public
  * (the `submit-to-store` skill, `mm submit`, or mm-use's `submit_item`); its
- * files come here privately with the production that proves it works. An
+ * files come here privately, with the production that proves it works when the
+ * sender is below Cohort (Cohort members and admins may leave it out). An
  * admin reads it on /app/submissions, picks the lowest membership that opens
- * it and approves. A Public skill becomes a pull request on the public
- * repository; everything else goes to the private store repository and is
- * released as a package. Every item enters as Beta.
+ * it and approves; an admin's own submission is published at once at the
+ * membership they name (`publish`). A Public skill becomes a pull request on
+ * the public repository; everything else goes to the private store repository
+ * and is released as a package. Every item enters as Beta.
  *
  * A submission is seen by admins and its sender only. This file is the rules,
  * with no database: ./store keeps the records, ./actions does the work.
@@ -53,11 +55,14 @@ export interface FileSummary {
   binary?: boolean;
 }
 
-/** The finished production made with the item: the proof the rule asks for. */
+/** The finished production made with the item: the proof the rule asks for, of members below Cohort. */
 export interface Made {
   title: string;
   url?: string;
 }
+
+/** Whether a sender at this tier names a production: members below Cohort do; Cohort members and admins may leave it out. */
+export const productionNeeded = (tier: MemberTier) => tierRank(tier) < tierRank('cohort');
 
 export interface Checks {
   /** What must be fixed before it can be listed: a key, a token, a path on someone's computer. */
@@ -95,7 +100,8 @@ export interface Submission {
   title: string;
   summary: string;
   version: string;
-  made: Made;
+  /** Left out by Cohort members and admins, who need not name one. */
+  made?: Made;
   /** What the sender wants the reviewers to know. */
   note?: string;
   source: SubmissionSource;
@@ -221,8 +227,10 @@ export interface SubmissionInput {
   title: string;
   summary: string;
   version: string;
-  made: Made;
+  made?: Made;
   note?: string;
+  /** An admin's own submission: published at once at this membership, with no review. */
+  publish?: SubmissionTier;
   source: SubmissionSource;
   files: SubmissionFile[];
 }
@@ -256,13 +264,15 @@ export function parseSubmission(body: unknown): SubmissionInput | { error: strin
   const slug = text(b.slug ?? b.name, 80);
   if (!SLUG.test(slug) || slug.length > 64) return { error: 'name must be lowercase letters, digits and dashes, such as make-lyrics-video' };
 
+  // the production is checked here when one is named; whether the sender must name one is their tier's (./actions)
   const made = (b.made ?? {}) as Record<string, unknown>;
   const madeTitle = text(made.title, 200);
-  if (madeTitle.length < 3 || NOT_A_PRODUCTION.test(madeTitle)) {
-    return { error: "Name the finished production made with it (made.title). We publish nothing we don't use: a test render or a demo is not one" };
+  if (madeTitle && (madeTitle.length < 3 || NOT_A_PRODUCTION.test(madeTitle))) {
+    return { error: "made.title names a finished production made with it: a test render or a demo is not one (Cohort members and admins may leave it out)" };
   }
-  const madeUrl = httpsUrl(made.url);
+  const madeUrl = madeTitle ? httpsUrl(made.url) : undefined;
   if (madeUrl === null) return { error: "made.url must be an https link to the production, or left out when it isn't online" };
+  if (b.publish != null && !isSubmissionTier(b.publish)) return { error: `publish must be one of ${SUBMISSION_TIERS.join(', ')}: the membership an admin publishes it at` };
 
   if (!Array.isArray(b.files) || b.files.length === 0) return { error: 'files is required: the item\'s files, each { path, content }' };
   if (b.files.length > MAX_FILES) return { error: `That is ${b.files.length} files; an item holds at most ${MAX_FILES}` };
@@ -317,8 +327,9 @@ export function parseSubmission(body: unknown): SubmissionInput | { error: strin
     title,
     summary,
     version,
-    made: { title: madeTitle, ...(madeUrl && { url: madeUrl }) },
+    ...(madeTitle && { made: { title: madeTitle, ...(madeUrl && { url: madeUrl }) } }),
     ...(text(b.note, 1000) && { note: text(b.note, 1000) }),
+    ...(isSubmissionTier(b.publish) && { publish: b.publish }),
     source: b.source === 'mm-use' ? 'mm-use' : 'mm-submit',
     files,
   };

@@ -13,6 +13,9 @@ export const RULE = "We publish nothing we don't use.";
 
 type Listed = Pick<Submission, 'submissionId' | 'kind' | 'slug' | 'itemId' | 'title' | 'summary' | 'version' | 'made'>;
 
+/** ' Made with this: <title> (<link>).', or nothing when the sender named none (a Cohort member or an admin). */
+const madeLine = (submission: Listed) => (submission.made ? ` Made with this: ${submission.made.title}${submission.made.url ? ` (${submission.made.url})` : ''}.` : '');
+
 /** A skill's files in the public repository: its folder, and the link Claude loads it through. */
 export function publicSkillFiles(slug: string, files: SubmissionFile[]): { folder: string; files: TreeFile[]; extra: TreeFile[] } {
   const folder = publicSkillPath(slug);
@@ -32,7 +35,7 @@ export const prTitle = (submission: Listed, update: boolean) => `${update ? 'Upd
  * name and email never go into a public pull request.
  */
 export function prBody(submission: Listed, input: { by?: string; update: boolean; site: string }): string {
-  const made = submission.made.url ? `[${submission.made.title}](${submission.made.url})` : submission.made.title;
+  const made = !submission.made ? 'None named: a Cohort member or an admin sent it' : submission.made.url ? `[${submission.made.title}](${submission.made.url})` : submission.made.title;
   return [
     `<!-- ${RULE} -->`,
     '',
@@ -48,7 +51,7 @@ export function prBody(submission: Listed, input: { by?: string; update: boolean
     '',
     '## Checked',
     '',
-    "- [x] The sender named the production above as made with it",
+    submission.made ? '- [x] The sender named the production above as made with it' : '- [x] A Cohort member or an admin sent it: no production is asked of them',
     '- [x] The submission passed the leak checks (keys, tokens, paths on a computer) when it was sent',
     '- [ ] `node tools/skills.mjs check` passes on this branch',
     '',
@@ -57,7 +60,7 @@ export function prBody(submission: Listed, input: { by?: string; update: boolean
 }
 
 export const commitMessage = (submission: Listed, tier: SubmissionTier, update: boolean) =>
-  `${update ? 'Update' : 'Add'} ${submission.itemId} ${submission.version} (${tierLabel(tier)})\n\nAccepted from submission ${submission.submissionId}. Made with this: ${submission.made.title}${submission.made.url ? ` (${submission.made.url})` : ''}`;
+  `${update ? 'Update' : 'Add'} ${submission.itemId} ${submission.version} (${tierLabel(tier)})\n\nAccepted from submission ${submission.submissionId}.${madeLine(submission)}`;
 
 /**
  * The item's folder for the store repository, with a catalog.json that says
@@ -84,7 +87,7 @@ export function storeFiles(submission: Listed, tier: SubmissionTier, files: Subm
     version: submission.version,
     tier,
     status: 'beta',
-    madeWith: submission.made,
+    ...(submission.made && { madeWith: submission.made }),
   };
   return {
     folder,
@@ -120,4 +123,4 @@ export function packageEntries(folder: string, files: TreeFile[]): TarEntry[] {
 }
 
 export const releaseNotes = (submission: Listed) =>
-  `Accepted from a member's submission. Made with this: ${submission.made.title}${submission.made.url ? ` (${submission.made.url})` : ''}.`;
+  `Accepted from a member's submission.${madeLine(submission)}`;

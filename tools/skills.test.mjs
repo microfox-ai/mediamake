@@ -129,9 +129,8 @@ test('publish: a dry run changes nothing; --yes pushes a branch with the skill l
   const before = checkout();
   assert.match(ok('publish', 'make-demo-like-x'), /can be published[\s\S]*A dry run/);
   assert.equal(checkout(), before);
-  // the rule: nothing is published without the production made with it
-  assert.match(ok('publish', 'make-demo-like-x'), /We publish nothing we don't use\. --yes needs the finished production/);
-  assert.match(skills('publish', 'make-demo-like-x', '--yes').out, /We publish nothing we don't use\. Name the finished production/);
+  // a maintainer (an admin) may publish without naming a production; one named is checked
+  assert.match(ok('publish', 'make-demo-like-x'), /No production named: an admin or a Cohort member need not name one/);
   assert.match(skills('publish', 'make-demo-like-x', '--yes', '--made-url=https://youtu.be/x').out, /--made-url needs --made/);
   assert.match(skills('publish', 'make-demo-like-x', '--yes', '--made=X', '--made-url=soon').out, /--made-url is the production's link/);
   assert.equal(checkout(), before);

@@ -1,6 +1,6 @@
 ---
 name: publish-skill
-description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), ask for the finished production that was made with it (we publish nothing we don't use), then send it as a pull request into .agents/skills (linked from .claude/skills) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update the skills list.
+description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), name the finished production made with it when there is one (maintainers and Cohort members need not), then send it as a pull request into .agents/skills (linked from .claude/skills) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update the skills list.
 metadata:
   category: skill
 ---
@@ -13,8 +13,9 @@ so the skill loads for anyone who opens the repo in Claude Code and shows on Git
 are the gated ones (`private/` and the catalog releases at `/app/releases`); skills never go
 through a gate.
 
-**We publish nothing we don't use.** A skill is published only once something real was made with
-it: step 3 asks for that production and stops without one.
+**We publish nothing we don't use.** This is the maintainers' (admins') path, and they need not name a
+production: step 3 asks for one, and the pull request carries it when there is one. A member below
+Cohort goes through `submit-to-store`, which asks them for it.
 
 A skill starts as the user's own when it isn't in the repo yet: a variant from `fork-skill`, or one
 their team shared through `media sync`. Those live in the workspace (`~/MediaMake/skills/<name>`,
@@ -100,27 +101,25 @@ become the rule they teach.
 
 ## 3. Ask what was made with it
 
-The rule is "We publish nothing we don't use.", so every skill goes out with its proof: one
-finished production that was made with it. Ask the user which one (its title, and its link when it
-is online: the YouTube video, the release, the post). The user's projects (`mm workspace` says where they
-are) and the skill's runs in the Library can suggest candidates, but the user names it: never make one up, and a test render, a demo or "it will be used for…" is not one.
-
-With no production yet, stop here and say so. The skill stays the user's own, loads on their
-computer as before, and is published after its first real use. The script holds to it too:
-`publish --yes` refuses without `--made`.
+Ask the user whether a finished production was made with it (its title, and its link when it is
+online: the YouTube video, the release, the post). The user's projects (`mm workspace` says where
+they are) and the skill's runs in the Library can suggest candidates, but the user names it: never
+make one up, and a test render, a demo or "it will be used for…" is not one. A maintainer (an admin)
+or a Cohort member may publish without one: leave `--made` out and the pull request says none was
+named.
 
 ## 4. Publish
 
 Ask before this step: once pushed, the files are on GitHub and stay in its history.
-`node tools/skills.mjs publish <name> --yes --made="<title>" [--made-url=<link>]` makes a branch `skill/<name>-<time>` from `origin/main`
+`node tools/skills.mjs publish <name> --yes [--made="<title>" [--made-url=<link>]]` makes a branch `skill/<name>-<time>` from `origin/main`
 in a temporary worktree, with the skill in `.agents/skills/<name>` linked from `.claude/skills`, one
 commit, pushed, and a pull request (with `gh` signed in; otherwise it prints the link that opens
-one) whose "Made with this" section names the production. The user's checkout, branch and edits are never
+one) whose "Made with this" section names the production, or says none was named. The user's checkout, branch and edits are never
 touched, so it is safe on main. `--no-push` keeps the commit on a local branch instead.
 
 Give the user the PR link, and once it merges the skill's release page,
 `https://mediamake.microfox.app/app/releases/skill/<name>`. The skill enters as Beta; an admin
-marks it Ready with that same production (`catalog_set_readiness`, or
+marks it Ready, with that same production when there is one (`catalog_set_readiness`, or
 `npm run catalog -- ready skill/<name> --proof "<title>" --url <link>`), and its page
 (`/skills/<name>`) then shows it under "Made with this". Their own copy keeps loading until they
 pull the merge; then `node tools/skills.mjs tidy --yes` drops it (only when the repo's files are the
@@ -128,7 +127,7 @@ same; a copy that differs is kept, and `list` warns that it shadows the repo's).
 
 `add` is the older way, for a branch you are already on: it moves a `.claude/skills` folder (or
 copies one of the user's) into `.agents/skills` and links it, and you commit it. The rule is the
-same: name the production in that pull request's "Made with this" section.
+same: name the production in that pull request's "Made with this" section when there is one.
 
 ## Naming and categories
 
