@@ -510,6 +510,8 @@ export function applySave(collection: CollectionRecord, current: EntryRecord | n
   const cleaned = cleanFields(template, ask.fields, collection.learned);
   const fields = { ...(current?.fields ?? {}), ...cleaned.fields };
   const extra = { ...(current?.extra ?? {}), ...cleaned.extra };
+  // a value kept under extra before its template had the field moves into the field when it is saved there
+  for (const key of Object.keys(cleaned.fields)) delete extra[key];
   for (const key of cleaned.cleared) {
     delete fields[key];
     delete extra[key];
@@ -519,7 +521,8 @@ export function applySave(collection: CollectionRecord, current: EntryRecord | n
 
   const changes: HistoryLine['changes'] = [];
   for (const key of new Set([...Object.keys(cleaned.fields), ...Object.keys(cleaned.extra), ...cleaned.cleared])) {
-    const before = current?.fields[key] ?? current?.extra[key];
+    // a key saved into a field is compared with the field only: a value moving in from extra is a change (the field is set)
+    const before = key in cleaned.fields ? current?.fields[key] : (current?.fields[key] ?? current?.extra[key]);
     const after = fields[key] ?? extra[key];
     if (!same(before, after)) changes.push({ what: key, ...(before !== undefined && { from: short(before) }), ...(after !== undefined && { to: short(after) }) });
   }
