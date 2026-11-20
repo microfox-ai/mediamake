@@ -20,10 +20,10 @@ import { CodeTab } from './space-code';
 import { CloudSetupCard } from './space-cloud';
 import { PlacesTab } from './space-places';
 import { RunsTab } from './space-runs';
-import { TodosTab } from './space-todos';
 import { SettingsTab } from './space-settings';
 import type { RunsView } from '@/lib/space/runs';
 import type { TodosView } from '@/lib/space/todos';
+import { boardCards, boardCounts } from '@/lib/space/board';
 import { ItemCards } from '@/components/app-shell/item-cards';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectRole } from '@/lib/editor/project-access';
@@ -43,6 +43,9 @@ interface Project {
   sharedWith?: unknown[];
   brandKit?: { assetCount: number; logo?: string };
 }
+
+/** How often the Runs tab is read again while the page is looked at. */
+const BOARD_REFRESH_MS = 30_000;
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -91,8 +94,8 @@ function SetUp({ projectId, personal = false }: { projectId: string; personal?: 
  * it: files, README, commits, who has it and where each computer stands),
  * its skills, MCPs and apps, its brand kit, its assets (what it keeps on MediaMake:
  * its productions, its releases and its media, with the space each uses), who can open it, which its owner
- * changes here, its to-dos (the steps a session could not do where it ran, waiting
- * for a place that can), where its steps can run (its cloud environments and the
+ * changes here, its runs and to-dos on one board (a production going through its skill's steps, and
+ * the steps a session could not do where it ran, waiting for a place that can), where its steps can run (its cloud environments and the
  * computers open to it), and how to set it up: the line for a computer, and for a Claude cloud
  * environment the repos to add and the keys to set, and for its owner its
  * settings: its name, and deleting it. A personal space is
@@ -158,10 +161,40 @@ export function ProjectDetail({
         .catch(e => setRunsError(e.message)),
     [projectId],
   );
+  // the Runs tab's board: read at once, then every 30 seconds while the page is looked at, and
+  // whenever its window is looked at again
+  const [boardAt, setBoardAt] = React.useState<number | undefined>(undefined);
+  const [boardBusy, setBoardBusy] = React.useState(false);
+  const reading = React.useRef<Promise<void> | null>(null);
+  const loadBoard = React.useCallback(() => {
+    if (reading.current) return reading.current;
+    setBoardBusy(true);
+    reading.current = Promise.all([loadRuns(), loadTodos()]).then(() => {
+      reading.current = null;
+      setBoardAt(Date.now());
+      setBoardBusy(false);
+    });
+    return reading.current;
+  }, [loadRuns, loadTodos]);
   React.useEffect(() => {
-    void loadTodos();
-    void loadRuns();
-  }, [loadTodos, loadRuns]);
+    void loadBoard();
+    let last = Date.now();
+    const refresh = (least: number) => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < least) return;
+      last = Date.now();
+      void loadBoard();
+    };
+    const timer = window.setInterval(() => refresh(0), BOARD_REFRESH_MS);
+    // focus and visibilitychange often come together: one read for the two
+    const looked = () => refresh(2000);
+    window.addEventListener('focus', looked);
+    document.addEventListener('visibilitychange', looked);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', looked);
+      document.removeEventListener('visibilitychange', looked);
+    };
+  }, [loadBoard]);
 
   React.useEffect(() => {
     const id = encodeURIComponent(projectId);
@@ -268,7 +301,7 @@ export function ProjectDetail({
         </div>
       </div>
 
-      <Tabs defaultValue={isAssetKind(tab) ? 'assets' : (tab ?? 'code')} onValueChange={value => rememberTab(value)} className="gap-4">
+      <Tabs defaultValue={isAssetKind(tab) ? 'assets' : tab === 'todos' ? 'runs' : (tab ?? 'code')} onValueChange={value => rememberTab(value)} className="gap-4">
         <div className="-mx-4 overflow-x-auto px-4">
           <TabsList>
             <Tab value="code" label="Code" />
@@ -276,8 +309,7 @@ export function ProjectDetail({
             <Tab value="brand" label="Brand" count={project?.brandKit?.assetCount} />
             <Tab value="assets" label="Assets" count={productions && releases && media ? productions.total + releases.total + media.total : undefined} />
             {!personal && <Tab value="people" label="People" count={project?.sharedWith ? project.sharedWith.length + 1 : undefined} />}
-            <Tab value="runs" label="Runs" count={runs?.ready || undefined} />
-            <Tab value="todos" label="To do" count={todos?.todos.filter(todo => todo.state !== 'done' && todo.state !== 'cancelled').length || undefined} />
+            <Tab value="runs" label="Runs" count={(runs && todos && boardCounts(boardCards(runs.runs, todos.todos)).open) || undefined} />
             {!personal && <Tab value="places" label="Where it runs" />}
             <Tab value="setup" label="Set up" />
             {(personal || role === 'owner') && <Tab value="settings" label="Settings" />}
@@ -320,7 +352,7 @@ export function ProjectDetail({
         </TabsContent>
 
         <TabsContent value="assets">
-          <AssetsTab projectId={projectId} productions={productions} releases={releases} media={media} storage={storage} first={isAssetKind(tab) ? tab : undefined} />
+          <AssetsTab projectId={projectId} projectName={personal ? 'my personal space' : project?.displayName} productions={productions} releases={releases} media={media} storage={storage} first={isAssetKind(tab) ? tab : undefined} />
         </TabsContent>
 
         {!personal && (
@@ -333,11 +365,7 @@ export function ProjectDetail({
         )}
 
         <TabsContent value="runs">
-          <RunsTab view={runs} error={runsError} onChanged={() => Promise.all([loadRuns(), loadTodos()]).then(() => undefined)} />
-        </TabsContent>
-
-        <TabsContent value="todos">
-          <TodosTab view={todos} error={todosError} onChanged={() => Promise.all([loadTodos(), loadRuns()]).then(() => undefined)} />
+          <RunsTab runs={runs} todos={todos} error={runsError ?? todosError} first={tab === 'todos' ? 'waiting' : undefined} updatedAt={boardAt} refreshing={boardBusy} onChanged={loadBoard} />
         </TabsContent>
 
         {!personal && (

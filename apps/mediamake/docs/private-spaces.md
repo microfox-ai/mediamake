@@ -55,7 +55,7 @@ README.md                   what the space is, and "What's here": a list `mm spa
 
 **On the space's page** the tabs are Code, Skills (the skills, MCPs and apps, a card each), Brand
 (the brand kit: colours, fonts and a card per file, with the space its files use; owners and editors change it in a dialog),
-Assets (productions, releases and media in one tab: a card each with the space it uses, which also picks the list below; `GET /api/project/storage?projectId=` counts it), People, To do, Where it runs (a project's space only) and Set up. **Code** is the repo as GitHub shows it: the branch and
+Assets (productions, releases and media in one tab: a card each with the space it uses, which also picks the list below; `GET /api/project/storage?projectId=` counts it. A production or a release is a card, three to a row: its picture (marked when a version is filed: a picture of the kit, else a frame of its video, else an icon), how many versions and files it has by kind, what all its versions keep in storage, and a button that copies a prompt naming it for Claude; in its file browser a file has a link that previews it in a new tab and one that downloads it), People, Runs, Where it runs (a project's space only) and Set up. **Code** is the repo as GitHub shows it: the branch and
 the latest commit over the file list (folders open in place, a file opens on GitHub), the README under
 it, and on the right About, Commits (who changed it last and when), Contributors (the project's people)
 and Devices (each computer that has the space, and how many updates it is behind the newest one or has
@@ -65,12 +65,14 @@ README and its last commits, and each item's own README.md with its pictures (an
 up on a computer and, for a Claude cloud session or a routine, what to add to the cloud environment: the
 repositories (MediaMake, the space's, each linked item's) and the keys its skills need, by the name of
 their environment variable, read from the skills' run sheets (`docs/cloud-device-runs.md`). Only names: a
-key's value is set in Claude and never comes to MediaMake. **Runs** shows each production going through
-its skill's steps: which are saved, where, and which is next, with the line that continues one in
-another place (`mm run`, `docs/cloud-device-runs.md` › The run record). **To do** is the space's queue of
-steps a session could not do where it ran (an upload that needs a signed-in browser), a card each, with
-the line that picks one up on a computer that can (`mm todo`, `docs/cloud-device-runs.md` › The to-do
-queue). **Where it runs** is the project's register:
+key's value is set in Claude and never comes to MediaMake. **Runs** is one board for the space's runs and its to-dos, a small card each, three to a row, with a tab
+a skill and one filter at the right (Open, Waiting, Paused, Running, Finished; Open is everything but
+Finished). A run is a production going through its skill's steps; its card opens a popup with every
+step (which are saved, where, which is next) and the line that continues it in another place (`mm run`,
+`docs/cloud-device-runs.md` › The run record). A to-do is a step a session could not do where it ran
+(an upload that needs a signed-in browser): a run's to-do shows inside its run, any other is a card of
+its own, with the line that picks it up on a computer that can (`mm todo`, `docs/cloud-device-runs.md`
+› The to-do queue). The board is read again every 30 seconds and when its window is looked at again. **Where it runs** is the project's register:
 what its skills need, and a card for each cloud environment and each computer open to the project, with
 what it can do (`mm access`, `docs/cloud-device-runs.md` › The register). A computer is closed to a
 project until its owner opens it.

@@ -16,6 +16,7 @@
  * the project's trash (`deletedAt`); its files are kept.
  */
 import type { ObjectId } from 'mongodb';
+import { bundleBytes } from '@/lib/projects/storage';
 
 export const BUNDLE_KINDS = ['production', 'release'] as const;
 export type BundleKind = (typeof BUNDLE_KINDS)[number];
@@ -83,6 +84,8 @@ export interface BundleDoc {
   createdAt: string;
   createdBy: string;
   updatedAt: string;
+  /** The file that stands for it on its card, marked when a version is filed (thumbOf). */
+  thumb?: { path: string };
   deletedAt?: string;
   deletedBy?: string;
 }
@@ -159,6 +162,60 @@ export function mediaKindOf(mime: string): 'image' | 'video' | 'audio' | 'docume
   return 'unknown';
 }
 
+/** What a file is to a reader, for the counts on a card: `{ image: 3, video: 1, doc: 4 }`. */
+export const FILE_KINDS = ['image', 'video', 'audio', 'doc', 'code', 'other'] as const;
+export type FileKind = (typeof FILE_KINDS)[number];
+
+const CODE = /\.(tsx?|jsx?|mjs|cjs|py|css|html?|sh|json)$/i;
+
+export function fileKindOf(file: Pick<BundleFile, 'path'> & Partial<Pick<BundleFile, 'role' | 'contentType'>>): FileKind {
+  const mime = file.contentType && file.contentType !== 'application/octet-stream' ? file.contentType : mimeOf(file.path);
+  const top = mime.split('/')[0];
+  if (top === 'image' || top === 'video' || top === 'audio') return top;
+  // a release's info.json is something to read; a production's is its code
+  if (file.role === 'code' || (CODE.test(file.path) && !(file.role === 'file' && /\.json$/i.test(file.path)))) return 'code';
+  if (top === 'text' || mime === 'application/pdf' || mime === 'application/json') return 'doc';
+  return 'other';
+}
+
+/** How many files of each kind, the kinds with none left out. */
+export function fileKinds(files: (Pick<BundleFile, 'path'> & Partial<Pick<BundleFile, 'role' | 'contentType'>>)[]): Partial<Record<FileKind, number>> {
+  const counts: Partial<Record<FileKind, number>> = {};
+  for (const file of files) {
+    const kind = fileKindOf(file);
+    counts[kind] = (counts[kind] ?? 0) + 1;
+  }
+  return counts;
+}
+
+const THUMB_NAME = /(thumb|cover|artwork|poster|snapshot)/i;
+
+/**
+ * The file that stands for a production or a release on its card: a picture named for it (thumbnail,
+ * cover, artwork, poster) first, else its first picture, else a video (the card shows a frame of it).
+ * None for a kit with neither (only audio, only text): the card draws an icon. SVGs are left out.
+ */
+export function thumbOf<T extends Pick<BundleFile, 'path'> & Partial<Pick<BundleFile, 'role' | 'contentType' | 'size'>>>(files: T[]): (T & { kind: 'image' | 'video' }) | null {
+  const of = (kind: FileKind) => files.filter(file => fileKindOf(file) === kind && !/\.svg$/i.test(file.path));
+  const images = of('image');
+  const image = images.find(file => THUMB_NAME.test(file.path.split('/').pop()!)) ?? images.find(file => THUMB_NAME.test(file.path)) ?? images.find(file => file.role === 'output') ?? images[0];
+  if (image) return { ...image, kind: 'image' };
+  const videos = of('video');
+  const video = videos.find(file => file.role === 'output') ?? videos[0];
+  return video ? { ...video, kind: 'video' } : null;
+}
+
+/** The file a record's card shows: the one marked when it was filed while the latest version still has it, else picked now. */
+export function thumbFile(doc: BundleDoc): (BundleFile & { kind: 'image' | 'video' }) | null {
+  const files = doc.versions.find(v => v.version === doc.latestVersion)?.files ?? [];
+  const marked = doc.thumb && files.find(file => file.path === doc.thumb!.path);
+  if (marked) {
+    const kind = fileKindOf(marked);
+    if (kind === 'image' || kind === 'video') return { ...marked, kind };
+  }
+  return thumbOf(files);
+}
+
 /** A record as the API answers: string id, no storage keys. */
 export function toResponse(doc: BundleDoc, options: { version?: number; full?: boolean } = {}) {
   const pick = options.version ?? doc.latestVersion;
@@ -177,6 +234,10 @@ export function toResponse(doc: BundleDoc, options: { version?: number; full?: b
     status: current?.status ?? 'uploading',
     fileCount: files.length,
     bytes: files.reduce((sum, f) => sum + f.size, 0),
+    /** Every version together: what it keeps in storage, a file several versions share counted once. */
+    storedBytes: bundleBytes(doc),
+    versionCount: doc.versions.length,
+    kinds: fileKinds(files),
     createdAt: doc.createdAt,
     createdBy: doc.createdBy,
     updatedAt: doc.updatedAt,

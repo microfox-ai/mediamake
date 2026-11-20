@@ -4,13 +4,15 @@ import { getDatabase } from '@/lib/mongodb';
 import { getClientId } from '@/lib/auth-utils';
 import { storageProblem } from '@/lib/projects/storage-store';
 import { projectSyncAccess } from './access';
-import { createReadUrl, createUploadUrl, fileKey, storedSize } from './storage';
+import { createReadUrl, createUploadUrl, createViewUrl, fileKey, storedSize, viewable } from './storage';
 import {
   BUNDLE_COLLECTION,
   RELEASE_PLATFORMS,
   SLUG,
   checkListing,
   mimeOf,
+  thumbFile,
+  thumbOf,
   toResponse,
   type BundleDoc,
   type BundleFile,
@@ -114,8 +116,12 @@ export function bundleRoutes(kind: BundleKind) {
       const body = toResponse(doc, { version, full: true });
       if (params.get('links') === '1' || params.get('links') === 'true') {
         const files = doc.versions.find(v => v.version === (version ?? doc.latestVersion))?.files ?? [];
-        const urls = await Promise.all(files.map(f => createReadUrl(f.key, f.path.split('/').pop()!)));
-        return NextResponse.json({ ...body, files: files.map(({ key: _key, ...f }, i) => ({ ...f, url: urls[i] })), linksExpireIn: 3600 });
+        // `url` downloads under the file's name; `view` opens what a browser can show in a tab
+        const [urls, views] = await Promise.all([
+          Promise.all(files.map(f => createReadUrl(f.key, f.path.split('/').pop()!))),
+          Promise.all(files.map(f => (viewable(f.contentType) ? createViewUrl(f.key, f.contentType) : undefined))),
+        ]);
+        return NextResponse.json({ ...body, files: files.map(({ key: _key, ...f }, i) => ({ ...f, url: urls[i], ...(views[i] ? { view: views[i] } : {}) })), linksExpireIn: 3600 });
       }
       return NextResponse.json(body);
     }
@@ -133,7 +139,14 @@ export function bundleRoutes(kind: BundleKind) {
       col.find(query).sort({ updatedAt: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
       col.countDocuments(query),
     ]);
-    return NextResponse.json({ projectId, total, page, limit, items: docs.map(d => toResponse(d)) });
+    // each card's picture: a signed link to the file that stands for it (a picture, or a video to show a frame of)
+    const thumbs = await Promise.all(
+      docs.map(async d => {
+        const file = thumbFile(d);
+        return file ? { kind: file.kind, path: file.path, url: await createViewUrl(file.key, file.contentType).catch(() => undefined) } : null;
+      }),
+    );
+    return NextResponse.json({ projectId, total, page, limit, items: docs.map((d, i) => ({ ...toResponse(d), ...(thumbs[i]?.url ? { thumb: thumbs[i] } : {}) })) });
   }
 
   /** { projectId, slug, title?, notes?, files, note?, platform?, productionId? } */
@@ -274,9 +287,11 @@ export function bundleRoutes(kind: BundleKind) {
 
     const now = new Date().toISOString();
     const latestVersion = Math.max(doc.latestVersion, version.version);
+    // filing the latest version marks the file its card shows: a picture of it, else a video
+    const thumb = latestVersion === version.version ? thumbOf(version.files) : null;
     await col.updateOne(
       { _id, 'versions.version': version.version },
-      { $set: { 'versions.$.status': 'ready', 'versions.$.readyAt': now, latestVersion, updatedAt: now } },
+      { $set: { 'versions.$.status': 'ready', 'versions.$.readyAt': now, latestVersion, updatedAt: now, ...(thumb ? { thumb: { path: thumb.path } } : {}) }, ...(latestVersion === version.version && !thumb ? { $unset: { thumb: '' } } : {}) },
     );
     const updated = await col.findOne({ _id });
     return NextResponse.json({ ready: true, ...toResponse(updated!, { version: version.version, full: true }) });

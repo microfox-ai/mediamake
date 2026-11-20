@@ -105,7 +105,7 @@ projects whose space repos it holds. `apps/mediamake/docs/cloud-device-runs.md` 
 ## To-dos: a step waits for a place that can do it
 
 A step one place can't do goes in the project's to-do queue for a place that can (`mm todo`, the
-space's page › To do, the Spaces MCP's `post_todo` / `claim_todo` / `finish_todo`).
+space's page › Runs, the Spaces MCP's `post_todo` / `claim_todo` / `finish_todo`).
 `apps/mediamake/docs/cloud-device-runs.md` › The to-do queue has the rules.
 
 - A step of a run is posted by the run (`mm run wait`, below), not by hand. Posting any other: first

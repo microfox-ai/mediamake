@@ -16,7 +16,7 @@ another place) is in the Claude Doc "Cloud and device runs: plan"; this page say
 | The space page: what a cloud environment needs | Set up › Run it in the cloud (`lib/space/cloud-setup.ts`, `components/projects/space-cloud.tsx`) |
 | The same check inside a cloud session | `mm cloud` (`tools/cloud.mjs`, `needsOf`) |
 | The register: what each computer and cloud environment can do | `mm access` (`tools/access.mjs`), `/api/space/places` (`lib/space/register.ts`, `register-store.ts`), the project's page › Where it runs (`components/projects/space-places.tsx`) |
-| The to-do queue: a step one place could not do, waiting for a place that can | `mm todo` (`tools/todo.mjs`), `/api/space/todos` (`lib/space/todos.ts`, `todo-store.ts`), the space's page › To do (`components/projects/space-todos.tsx`), the Spaces MCP's `list_todos`, `post_todo`, `claim_todo`, `finish_todo`, `where_it_runs` |
+| The to-do queue: a step one place could not do, waiting for a place that can | `mm todo` (`tools/todo.mjs`), `/api/space/todos` (`lib/space/todos.ts`, `todo-store.ts`), the space's page › Runs, with the runs (`components/projects/space-runs.tsx`, `space-todos.tsx`, `lib/space/board.ts`), the Spaces MCP's `list_todos`, `post_todo`, `claim_todo`, `finish_todo`, `where_it_runs` |
 | The run record: which steps of a production are saved, where, and which is next | `mm run` (`tools/run.mjs`, `tools/bundles.mjs`), `/api/space/runs` (`lib/space/runs.ts`, `run-store.ts`), the space's page › Runs (`components/projects/space-runs.tsx`) |
 
 Not built yet: the planner that picks a place before a run starts (`mm run plan`), running a device's
@@ -217,7 +217,7 @@ Where people and sessions meet it:
 
 | Where | What |
 | --- | --- |
-| The space's page › To do | A card per to-do: what it needs, which place can do it, the line to paste with a copy button, who has it, what came of it. Cancel, Open it again, Say yes, and the buttons of a choice |
+| The space's page › Runs | A small card per to-do beside the runs (a run's own to-do shows inside its run). It opens a popup: what it needs, which place can do it, the line to paste with a copy button, who has it, what came of it. Cancel, Open it again, Say yes, and the buttons of a choice |
 | `mm todo` | What waits in your projects and which of it this computer can do. `mm todo <project>`, `show <id>`, `post`, `pick`, `done`, `fail`, `release`, `yes`, `cancel`, `reopen` |
 | The line, pasted into Claude | "Pick up to-do td-… in <project>" is `mm todo pick <id>` |
 | The start of a session | One line when something waits that this computer can do (`tools/todo.mjs --hook`). It is quiet otherwise, and Claude picks one up only when the user says so |
@@ -322,7 +322,7 @@ Where people and sessions meet it:
 
 | Where | What |
 | --- | --- |
-| The space's page › Runs | A card per run: its state, every step with where it was saved and what it made, which place can do the next step, and for a run that is ready the line to paste with a copy button. Cancel, and Let go of it for a run you have |
+| The space's page › Runs | A small card per run, three to a row: its state (Waiting for a to-do, Paused when any place may continue it, Running, Done), how many steps are saved and what comes next. A tab a skill; a filter at the right (Open, Waiting, Paused, Running, Finished). A card opens a popup: every step with where it was saved and what it made, which place can do the next step, the line to paste with a copy button, and the to-do it waits for. Cancel, and Let go of it for a run you have. Read again every 30 seconds and when the window is looked at |
 | `mm run` | Everything above |
 | The start of a session | One line when a run is ready to continue that this place can do (`tools/run.mjs --hook`). It is quiet otherwise, and Claude continues one only when the user says so |
 | The to-do queue | A run's step that waits shows there as a to-do; picking it up fetches what the run saved |
