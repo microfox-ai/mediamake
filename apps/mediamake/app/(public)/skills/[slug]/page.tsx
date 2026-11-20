@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { ExternalLinkIcon, GitForkIcon, LibraryIcon } from 'lucide-react';
 import { DetailsButton } from '@/components/app-shell/item-details';
 import { ItemShell } from '@/components/app-shell/item-shell';
 import { AboutCard, AdviceBanner, ItemHero, ItemMedia, README_PROSE, ReadmeView } from '@/components/catalog/item-listing';
-import { CatalogItemPage } from '@/components/catalog/item-page';
 import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
@@ -73,8 +72,9 @@ export default async function SkillPage({ params }: Props) {
   const { slug } = await params;
   const skill = skillNamed(slug);
   if (!skill) {
-    // a skill listed in third-party.json or released by hand: the same page, from its catalog record
-    if (await getCatalogRecord(`skill/${slug}`).catch(() => null)) return <CatalogItemPage kind="skill" slug={slug} />;
+    // a skill that lives in the store (third-party.json, a member's submission, released by hand): its page reads
+    // who is viewing, which this cached page may not do at request time, so it has its own dynamic route
+    if (await getCatalogRecord(`skill/${slug}`).catch(() => null)) redirect(`/skills/${slug}/store`);
     notFound();
   }
 
