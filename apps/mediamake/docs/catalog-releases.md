@@ -231,7 +231,7 @@ Explore's New row goes by the day an item first came out. A released item has it
 skill from the repo has the day of its first commit, in `lib/catalog/skill-dates.json`: a pull
 request that adds a skill adds its line there (without one, the skill sorts with the oldest).
 
-From Claude, mm-release's `catalog_set_listing` does the same, the editors' pick and the advice included.
+From Claude, mm-release's `catalog_set_listing` does the same, the editors' pick and the advice included. A picture on the computer goes up with `catalog_upload_picture` (a signed link from `create_thumbnail_upload`, sent with one `curl`; the local server's `headshotFile` and `iconFile` do it in one step): like the release page's Upload, it needs no pull request and no deploy, so a listing's pictures never go in the repo.
 
 ### The release page
 
@@ -307,6 +307,7 @@ admins, and each answers with the release page of every item it touched.
 | `catalog_set_health` | Say whether items of any kind work (`set_health`): healthy, inactive, archived, or failed with its reason. |
 | `catalog_set_readiness` | Set items' level: Production with the finished productions that prove it, Beta or Alpha (`set_readiness`). |
 | `catalog_set_listing` | Set an item's store listing (`set_listing`): its tags, screenshots, description, headshot, icon and README, shown on its own page and in its dialog (`docs/item-readme.md`). |
+| `catalog_upload_picture` | A signed link (`create_thumbnail_upload`, an hour) to upload one picture from the user's computer, the `curl` line that sends it, and its public link for `catalog_set_listing` (headshot, icon, a screenshot) or `catalog_set_video` (thumbnail): no pull request, no deploy. On the local server `catalog_set_listing`'s `headshotFile` and `iconFile` do it in one step. |
 | `catalog_add_third_party` | List or update an MCP or skill made by others (`madeBy` + `install.source`), like `npm run catalog -- add`. |
 | `catalog_set_video` | Set, change or remove an item's video (`set_video`): a skill's intro, a tutorial's video, a course's lessons. Fields left out keep what the item has; `remove: true` takes it off. On the local server `thumbnailFile` uploads a thumbnail (`create_thumbnail_upload`) after the rest is saved. |
 | `catalog_add_video_item` | Add a tutorial or course (`create_video_item`), its slug made from the title unless given. It starts with the cohort. |

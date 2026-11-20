@@ -351,7 +351,7 @@ what it is, who can open it, where it lives, what installing it does, and what n
   what, `catalog_item` for one item, `catalog_archive` to take unused items off the homepage (they
   stay public and installable), `catalog_set_stage` (the lowest membership that opens an item: public,
   plus, pro, cohort or vault), `catalog_set_health` (any kind; failed needs its reason),
-  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_listing` (an item's store listing: its tags, screenshots, description, headshot, icon and README), `catalog_set_video` (a skill's
+  `catalog_set_readiness` (Beta, or Ready with the production that proves it), `catalog_add_third_party`, `catalog_set_listing` (an item's store listing: its tags, screenshots, description, headshot, icon and README), `catalog_upload_picture` (a picture from the computer for a listing, uploaded: a listing's pictures never go in the repo, so no pull request and no deploy), `catalog_set_video` (a skill's
   intro, a tutorial's video, a course's lessons; YouTube only) and `catalog_add_video_item` (a new
   tutorial or course), and for people `catalog_people`,
   `catalog_set_tier` and `catalog_membership` (the ladder is strict: Public, Plus, Pro, Cohort, Admin,
@@ -406,7 +406,7 @@ the format.
   on and what uses it, linked the same way.
 - A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
-  release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`).
+  release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`), its pictures uploaded (`catalog_upload_picture`), never committed.
 - Wherever an item lives, its own README.md is what shows: a public skill's from this repo, a private
   one's (a member's own space, a project's, a linked item) in its dialog, to the people who can see that
   space, sent with its pictures by every `mm space sync`. Write it in the item's folder and sync; never

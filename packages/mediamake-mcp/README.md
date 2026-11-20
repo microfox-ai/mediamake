@@ -13,7 +13,7 @@ Until 0.5.0 these were one server, the MediaMake MCP. Projects, brand kits, prod
 Each comes two ways:
 
 - **Hosted, by URL** (easiest): add the address as a connector and sign in with your MediaMake account. Nothing to install.
-- **Local** (stdio): `node dist/index.js release|use|legacy` with an API key. `release` is the one to run locally when a catalog tool should read a file on your computer (`thumbnailFile`); `legacy` when the old video tools should (`filePath`, `saveTo`), which is also what the `.mcpb` runs.
+- **Local** (stdio): `node dist/index.js release|use|legacy` with an API key. `release` is the one to run locally when a catalog tool should read a file on your computer (`thumbnailFile`, `catalog_set_listing`'s `headshotFile` and `iconFile`); `legacy` when the old video tools should (`filePath`, `saveTo`), which is also what the `.mcpb` runs.
 
 ## Add by URL (hosted connectors)
 
@@ -35,6 +35,7 @@ The hosted servers can't see your files:
 
 - `transcribe` and `get_transcription` take URLs only (no `filePath` or `saveTo`).
 - `catalog_set_video` and `catalog_add_video_item` take an https thumbnail link (no `thumbnailFile`).
+- `catalog_set_listing` takes https links for its headshot and icon (no `headshotFile` or `iconFile`): `catalog_upload_picture` gives a signed link to upload a picture from your computer, the `curl` line that sends it, and the picture's public link to put in.
 - mm-use installs nothing itself: `install_item` gives the plan and Claude carries it out on your computer as [install.md](../../install.md) says.
 
 How it works, in `apps/mediamake`:
@@ -104,7 +105,7 @@ Usage is described in [usage.md](../../apps/mediamake/docs/usage.md): what is se
 
 ### mm-release (admins)
 
-`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_listing`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
+`catalog_items`, `catalog_item`, `catalog_versions`, `catalog_archive`, `catalog_set_health`, `catalog_set_listing`, `catalog_upload_picture`, `catalog_set_readiness`, `catalog_set_stage`, `catalog_add_third_party`, `catalog_set_video`, `catalog_add_video_item`, `catalog_people`, `catalog_set_tier`, `catalog_membership` (see "Managing the catalog").
 
 ### mediamake (deprecated, admins)
 
@@ -133,7 +134,7 @@ lists an open-source or hosted MCP or skill made by others. There are no invite 
 for (a contribution, reviewed) or given by an admin. Videos are YouTube links only: `catalog_set_video` sets a skill's intro (or
 an MCP's or app's), a tutorial's video or a course's lessons, keeping the fields left out, and
 `catalog_add_video_item` adds a tutorial or course (it starts with the cohort). On the local server
-`thumbnailFile` uploads a thumbnail from this computer; on the hosted one, pass an https link. People: the memberships are a
+`thumbnailFile` (and `catalog_set_listing`'s `headshotFile` and `iconFile`) uploads a picture from this computer; on the hosted one, `catalog_upload_picture` gives a signed link to upload it to, and its public link goes in. A listing's pictures never go in the repo: no pull request, no deploy. People: the memberships are a
 strict ladder (Public, Plus, Pro, Cohort, Admin), each opening everything below it. `catalog_people` shows who holds
 each one, how they got it and how long it lasts; `catalog_set_tier` gives people a Plus, Pro or Cohort membership
 (or takes it away) by client id or name, with its source (an admin grant or a contribution); and
