@@ -454,7 +454,27 @@ describe('catalog admin tools', () => {
       for (const name of ['catalog_set_video', 'catalog_add_video_item']) {
         expect(Object.keys(tools.find(t => t.name === name)!.inputSchema.properties ?? {}).includes('thumbnailFile')).toBe(offered);
       }
+      const listing = Object.keys(tools.find(t => t.name === 'catalog_set_listing')!.inputSchema.properties ?? {});
+      expect(listing.includes('headshotFile') && listing.includes('iconFile')).toBe(offered);
+      expect(listing).toContain('headshot');
     }
+  });
+
+  it('gives the hosted server a signed link to upload a picture, from its name only', async () => {
+    const calls = stubApi((_m, _p, body) =>
+      body?.type === 'create_thumbnail_upload' ? { uploadUrl: 'https://store.test/put?sig=1', publicUrl: 'https://cdn.test/catalog-thumbnails/1-icon.png' } : {},
+    );
+    const { isError, out } = await call('catalog_upload_picture', { item: 'mcp/comfy-mcp', filename: 'C:\\Users\\me\\art\\icon.png' });
+    expect(isError).toBe(false);
+    expect(calls[0].body).toEqual({ type: 'create_thumbnail_upload', itemId: 'mcp/comfy-mcp', filename: 'icon.png', contentType: 'image/png' });
+    expect(out.publicUrl).toBe('https://cdn.test/catalog-thumbnails/1-icon.png');
+    expect(out.curl).toBe('curl -sSf -X PUT -H "Content-Type: image/png" -H "x-amz-acl: public-read" --upload-file "icon.png" "https://store.test/put?sig=1"');
+    expect(out.page).toBe('http://mm.test/core/releases/mcp/comfy-mcp');
+
+    const bad = await call('catalog_upload_picture', { item: 'mcp/comfy-mcp', filename: 'notes.txt' });
+    expect(bad.isError).toBe(true);
+    expect(bad.out).toContain('not a PNG, JPEG, WebP, GIF or AVIF picture');
+    expect(calls).toHaveLength(1);
   });
 
   describe('thumbnail files', () => {
@@ -482,6 +502,7 @@ describe('catalog admin tools', () => {
         if (method === 'GET') return Response.json({ item: {}, video: INTRO });
         if (body.type === 'create_thumbnail_upload')
           return Response.json({ uploadUrl: 'https://store.test/put?sig=1', publicUrl: 'https://cdn.test/catalog-thumbnails/new.png' });
+        if (body.type === 'set_listing') return Response.json({ listing: body });
         return Response.json({ item: {}, ...storedVideo(body.video) });
       });
       return calls;
@@ -518,6 +539,43 @@ describe('catalog admin tools', () => {
       expect(isError).toBe(true);
       expect(text).toContain('not a PNG, JPEG, WebP, GIF or AVIF image');
       expect(calls).toHaveLength(0);
+    });
+
+    it("uploads a listing's headshot and icon, then saves the listing with their links", async () => {
+      const head = join(dir, 'headshot.jpg');
+      const icon = join(dir, 'icon.png');
+      await writeFile(head, Buffer.from([255, 216, 255]));
+      await writeFile(icon, Buffer.from([137, 80, 78, 71]));
+      const calls = stubWithStorage();
+      const { isError } = await callLocal('catalog_set_listing', { item: 'mcp/comfy-mcp', headshotFile: head, iconFile: icon, description: 'Comfy' });
+      expect(isError).toBe(false);
+      expect(calls.map(c => c.body?.type ?? `${c.method} ${new URL(c.url).pathname}`)).toEqual([
+        'create_thumbnail_upload',
+        'PUT /put',
+        'create_thumbnail_upload',
+        'PUT /put',
+        'set_listing',
+      ]);
+      expect(calls[0].body).toEqual({ type: 'create_thumbnail_upload', itemId: 'mcp/comfy-mcp', filename: 'headshot.jpg', contentType: 'image/jpeg' });
+      expect(calls[3].headers).toEqual({ 'Content-Type': 'image/png', 'x-amz-acl': 'public-read' });
+      expect(calls[4].body).toEqual({
+        type: 'set_listing',
+        itemId: 'mcp/comfy-mcp',
+        description: 'Comfy',
+        headshot: 'https://cdn.test/catalog-thumbnails/new.png',
+        icon: 'https://cdn.test/catalog-thumbnails/new.png',
+      });
+    });
+
+    it('uploads nothing when one of the listing files is not a picture', async () => {
+      const head = join(dir, 'headshot.jpg');
+      await writeFile(head, Buffer.from([255, 216, 255]));
+      const calls = stubWithStorage();
+      const { isError, text } = await callLocal('catalog_set_listing', { item: 'mcp/x', headshotFile: head, iconFile: join(dir, 'icon.svg') });
+      expect(isError).toBe(true);
+      expect(text).toContain('not a PNG, JPEG, WebP, GIF or AVIF image');
+      expect(calls).toHaveLength(0);
+      expect((await callLocal('catalog_set_listing', { item: 'mcp/x', icon: 'https://cdn.test/i.png', iconFile: head })).text).toContain('icon or iconFile, not both');
     });
 
     it('says a new tutorial was added when only its thumbnail failed', async () => {

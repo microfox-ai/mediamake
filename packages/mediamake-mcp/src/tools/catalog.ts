@@ -337,40 +337,88 @@ export function registerCatalogTools(server: McpServer, client: MediamakeClient,
     {
       title: "Set an item's store listing (admins)",
       description:
-        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page and in its dialog. tags: words people look for it by, added beside the ones it already has, such as a skill's category. media: screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). description: what it is, for people, in a line or two, shown instead of its summary. headshot: its 16:9 picture by https link, shown on its cards (without one, its video's thumbnail is used). icon: an MCP's or an app's square icon by https link. readme: its README in Markdown, the left side of its page, for an item without a README.md of its own (a repo skill's README.md is a file in its folder): a video link alone on the first line, then `# Title`, what it does, and `## How to use`; it introduces the item and never explains how it works (that stays in SKILL.md). editorsPick: true puts it in Explore's Editors' picks, false takes it out. advice: recommended (the default, nothing shown), not-recommended (it works, but there is a better way: its card and page warn) or deprecated (on its way out: Explore hides it behind a filter, it still installs by its link); the last two need adviceNote, why, shown with it, and may name insteadOf, the item to use instead. Each one given replaces what was there: give the whole list or text, an empty list or empty text to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
-      inputSchema: {
-        item: ITEM_ID,
-        tags: z.array(z.string().min(1).max(30)).max(12).optional().describe('The tags an admin adds, e.g. ["anime", "lyric-video"]; stored in lowercase with dashes'),
-        media: z
-          .array(
-            z.object({
-              kind: z.enum(['image', 'video']),
-              url: z.string().describe('Its https link: a picture, a YouTube video, or an MP4 or WebM clip'),
-              title: z.string().max(120).optional().describe('What it shows, in a few words'),
-            }),
-          )
-          .max(12)
-          .optional()
-          .describe('The screenshots, in the order they show'),
-        description: z.string().max(300).optional().describe('What it is, for people, in a line or two; empty clears it'),
-        headshot: z.string().max(1000).optional().describe('Its 16:9 picture, by https link; empty clears it'),
-        icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon, by https link; empty clears it"),
-        readme: z.string().max(32768).optional().describe('Its README in Markdown; empty clears it'),
-        editorsPick: z.boolean().optional().describe("true: one of Explore's Editors' picks; false: not"),
-        advice: z.enum(['recommended', 'not-recommended', 'deprecated']).optional().describe('recommended clears a warning'),
-        adviceNote: z.string().max(300).optional().describe('With not-recommended or deprecated: why, shown on its card and page'),
-        insteadOf: z.string().optional().describe('With not-recommended or deprecated: the item to use instead, e.g. mcp/elevenlabs; empty clears it'),
-      },
+        "Admins only. Set a skill's, MCP's or app's store listing, shown on its own page and in its dialog. tags: words people look for it by, added beside the ones it already has, such as a skill's category. media: screenshots, pictures and videos of the item by https link, like an app store listing's (a video is a YouTube link, or an MP4 or WebM). description: what it is, for people, in a line or two, shown instead of its summary. headshot: its 16:9 picture by https link, shown on its cards in place of the item's own (a repo skill's README headshot too; without either, its video's thumbnail is used). icon: an MCP's or an app's square icon by https link. A picture on the user's computer is uploaded, never put in the repo (no pull request, no deploy): on the local server headshotFile and iconFile upload it here; on the hosted one, catalog_upload_picture gives the link to send it to, and its publicUrl goes here. readme: its README in Markdown, the left side of its page, for an item without a README.md of its own (a repo skill's README.md is a file in its folder): a video link alone on the first line, then `# Title`, what it does, and `## How to use`; it introduces the item and never explains how it works (that stays in SKILL.md). editorsPick: true puts it in Explore's Editors' picks, false takes it out. advice: recommended (the default, nothing shown), not-recommended (it works, but there is a better way: its card and page warn) or deprecated (on its way out: Explore hides it behind a filter, it still installs by its link); the last two need adviceNote, why, shown with it, and may name insteadOf, the item to use instead. Each one given replaces what was there: give the whole list or text, an empty list or empty text to clear it; left out, it stays. Only real pictures and videos of the item: never invent a link. Answers with the release page link: give it to the user.",
+      inputSchema: withoutLocalArgs(
+        {
+          item: ITEM_ID,
+          tags: z.array(z.string().min(1).max(30)).max(12).optional().describe('The tags an admin adds, e.g. ["anime", "lyric-video"]; stored in lowercase with dashes'),
+          media: z
+            .array(
+              z.object({
+                kind: z.enum(['image', 'video']),
+                url: z.string().describe('Its https link: a picture, a YouTube video, or an MP4 or WebM clip'),
+                title: z.string().max(120).optional().describe('What it shows, in a few words'),
+              }),
+            )
+            .max(12)
+            .optional()
+            .describe('The screenshots, in the order they show'),
+          description: z.string().max(300).optional().describe('What it is, for people, in a line or two; empty clears it'),
+          headshot: z.string().max(1000).optional().describe('Its 16:9 picture, by https link; empty clears it'),
+          headshotFile: z.string().optional().describe('A 16:9 PNG, JPEG, WebP, GIF or AVIF on this computer to upload as its headshot (public once uploaded)'),
+          icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon, by https link; empty clears it"),
+          iconFile: z.string().optional().describe('A square PNG, JPEG, WebP, GIF or AVIF on this computer to upload as its icon (public once uploaded)'),
+          readme: z.string().max(32768).optional().describe('Its README in Markdown; empty clears it'),
+          editorsPick: z.boolean().optional().describe("true: one of Explore's Editors' picks; false: not"),
+          advice: z.enum(['recommended', 'not-recommended', 'deprecated']).optional().describe('recommended clears a warning'),
+          adviceNote: z.string().max(300).optional().describe('With not-recommended or deprecated: why, shown on its card and page'),
+          insteadOf: z.string().optional().describe('With not-recommended or deprecated: the item to use instead, e.g. mcp/elevenlabs; empty clears it'),
+        },
+        // the files are read on this computer, so only the local server takes them
+        ['headshotFile', 'iconFile'],
+        options,
+      ),
       annotations: { ...WRITE, idempotentHint: true },
     },
-    safe(async ({ item, tags, media, description, headshot, icon, readme, editorsPick, advice, adviceNote, insteadOf }) => {
+    safe(async ({ item, tags, media, description, headshot, headshotFile, icon, iconFile, readme, editorsPick, advice, adviceNote, insteadOf }) => {
+      rejectLocalArgs(options, { headshotFile, iconFile });
       const texts = { description, headshot, icon, readme, editorsPick, advice, adviceNote, insteadOf };
-      const given = Object.fromEntries(Object.entries(texts).filter(([, value]) => value !== undefined));
-      if (!tags && !media && !Object.keys(given).length) throw new Error('Give tags, media, description, headshot, icon, readme, editorsPick or advice');
+      const given: Record<string, unknown> = Object.fromEntries(Object.entries(texts).filter(([, value]) => value !== undefined));
+      if (!tags && !media && !headshotFile && !iconFile && !Object.keys(given).length) throw new Error('Give tags, media, description, headshot, icon, readme, editorsPick or advice');
+      if (headshot !== undefined && headshotFile) throw new Error('Give headshot or headshotFile, not both');
+      if (icon !== undefined && iconFile) throw new Error('Give icon or iconFile, not both');
       if ((adviceNote !== undefined || insteadOf !== undefined) && advice === undefined) throw new Error('adviceNote and insteadOf go with advice: give it too');
       if (advice && advice !== 'recommended' && !adviceNote?.trim()) throw new Error(`Say why it is ${advice === 'deprecated' ? 'deprecated' : 'not recommended'} in adviceNote: its card and page show it`);
+      // both files are read before anything goes up, so a wrong one changes nothing
+      const headshotPicture = headshotFile ? await readThumbnail(headshotFile) : undefined;
+      const iconPicture = iconFile ? await readThumbnail(iconFile) : undefined;
+      if (headshotPicture) given.headshot = await uploadThumbnail(client, item, headshotPicture);
+      if (iconPicture) given.icon = await uploadThumbnail(client, item, iconPicture);
       const { listing } = await client.post<{ listing: unknown }>('/api/admin/catalog', { type: 'set_listing', itemId: item, ...(tags && { tags }), ...(media && { media }), ...given });
       return json({ item, listing, page: page(item) });
+    }),
+  );
+
+  server.registerTool(
+    'catalog_upload_picture',
+    {
+      title: "Upload a picture for an item's listing (admins)",
+      description:
+        "Admins only. A link to upload one picture from the user's computer for an item's store listing (a headshot, an icon, a screenshot) or its video's thumbnail, so a new picture needs no pull request and no deploy. Give the file's name (its extension says its type), not its folder. Answers with publicUrl, the picture's link once it is uploaded (public to anyone who has it), and curl, the line that uploads it: run it on the user's computer in the file's folder (or put the file's full path after --upload-file; curl.exe in Windows PowerShell), and it must exit 0 and print nothing. Then pass publicUrl to catalog_set_listing (headshot: 16:9; icon: square, an MCP's or an app's; or a media url) or to catalog_set_video (thumbnail). The link works for an hour and for that one file: a changed picture needs a new call. On the local server, catalog_set_listing's headshotFile and iconFile do all of this in one step.",
+      inputSchema: {
+        item: ITEM_ID,
+        filename: z
+          .string()
+          .min(1)
+          .max(200)
+          .describe('The picture file\'s name, e.g. "headshot.jpg": a PNG, JPEG, WebP, GIF or AVIF'),
+      },
+      annotations: WRITE,
+    },
+    safe(async ({ item, filename }) => {
+      // only the name: the folder it sits in on the user's computer is theirs
+      const name = filename.split(/[\\/]/).pop() ?? '';
+      const contentType = mimeFromName(name);
+      if (!name || !contentType || !THUMBNAIL_TYPES.includes(contentType)) throw new Error(`${filename} is not a PNG, JPEG, WebP, GIF or AVIF picture`);
+      const { uploadUrl, publicUrl } = await client.post<{ uploadUrl: string; publicUrl: string }>('/api/admin/catalog', {
+        type: 'create_thumbnail_upload',
+        itemId: item,
+        filename: name,
+        contentType,
+      });
+      // the link is signed for this type, public-read, so the headers must match it
+      const curl = `curl -sSf -X PUT -H "Content-Type: ${contentType}" -H "x-amz-acl: public-read" --upload-file "${name}" "${uploadUrl}"`;
+      return json({ item, publicUrl, curl, contentType, expires: 'in an hour', page: page(item) });
     }),
   );
 

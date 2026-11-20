@@ -165,6 +165,8 @@ outputs section):
 | An MCP or an app made here | Its release page's README tab, Write and Preview, saved with the save bar (`catalog_set_listing`'s `readme`) | Its release page, Listing › Card (`description`, `headshot`, `tags`) | Listing › Card (`icon`): a square picture |
 | Any item, by an admin | What is set on the release page wins over the file | The same | |
 
+A picture an admin sets (a headshot, an icon, a screenshot) is uploaded, never committed: the release page's Upload, or mm-release's `catalog_upload_picture` from Claude. It is live at once, with no pull request and no deploy, and a listing's headshot shows in place of a repo skill's own.
+
 **In a space, the README goes with the item.** Every report a computer sends (`mm space sync`, `mm space
 report`) carries each item's README.md (at most 32 KB) and names the pictures it shows from its own
 folder: its `headshot` and every `![…](relative/path.png)`, PNG, JPEG, GIF, WebP or AVIF, at most 2 MB a
