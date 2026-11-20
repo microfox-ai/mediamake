@@ -79,8 +79,7 @@ export const SONGS: Template = {
   titleField: 'title',
   fields: [
     { key: 'title', label: 'Song title', kind: 'text', group: 'Identity' },
-    { key: 'titleLatin', label: 'Title in Latin letters', kind: 'text', group: 'Identity', hint: 'When the title is written in another script, so it is found either way' },
-    { key: 'titleOriginal', label: 'Title in its own script', kind: 'text', group: 'Identity', hint: 'When the title is released in Latin letters and the song’s language has its own script: from its lyrics, tags or artwork, never transliterated by guess' },
+    { key: 'titleOriginal', label: 'Title in its own script', kind: 'text', group: 'Identity', hint: 'The title in the song’s own script (Telugu, Hindi…) when it is released in Latin letters: from its lyrics, tags or artwork, never transliterated by guess' },
     { key: 'duration', label: 'Length', kind: 'text', group: 'Identity', hint: 'm:ss, measured from the master' },
     { key: 'artist', label: 'Artist', kind: 'text', group: 'Identity', learns: 'artist' },
     { key: 'label', label: 'Record label', kind: 'text', group: 'Identity', learns: 'label' },
@@ -103,6 +102,8 @@ export const SONGS: Template = {
     { key: 'distrokid-pack', label: 'DistroKid pack', accepts: ['json'], many: false, hint: 'The release folder’s info.json. Its DistroKid link, UPC and dates are copied into the song' },
   ],
   guide: SONGS_GUIDE,
+  // version 3: the title in its own script replaced the title in Latin letters (the title itself is the released one)
+  retired: ['titleLatin'],
 };
 
 /** The parts every guide shares: the question before a save, and how names are kept. */
@@ -279,9 +280,9 @@ export const TEMPLATES: Record<string, Template> = { songs: SONGS, 'anime-art': 
 /**
  * A collection's template as it reads today. A collection keeps the template it was made from; when
  * that template has a newer version here, its fields, slots and guide are this version's (a field
- * or a slot only the collection has is kept, after them). Read this way, never written back, so an
- * older collection gets a new field's label, keys and hint without a migration. The entries' values
- * are untouched: a template only guides.
+ * or a slot only the collection has is kept, after them; a field the newer version retired is not).
+ * Read this way, never written back, so an older collection gets a new field's label, keys and hint
+ * without a migration. The entries' values are untouched: a template only guides.
  */
 export function upgradeTemplate(stored: Template): Template {
   const latest = TEMPLATES[stored.id];
@@ -289,9 +290,10 @@ export function upgradeTemplate(stored: Template): Template {
   const known = <T extends { key: string }>(list: T[]) => new Set(list.map(item => item.key));
   const fields = known(latest.fields);
   const slots = known(latest.slots);
+  const retired = new Set(latest.retired ?? []);
   return {
     ...latest,
-    fields: [...latest.fields, ...stored.fields.filter(field => !fields.has(field.key))],
+    fields: [...latest.fields, ...stored.fields.filter(field => !fields.has(field.key) && !retired.has(field.key))],
     slots: [...latest.slots, ...stored.slots.filter(slot => !slots.has(slot.key))],
   };
 }

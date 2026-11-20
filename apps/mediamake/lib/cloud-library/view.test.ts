@@ -73,7 +73,7 @@ const rowOf = (title: string, facts: Record<string, string | string[]>, has: Rec
 
 test('a sheet has the title first, the short fields, a column a slot, then the day', () => {
   const columns = sheetColumns(view);
-  assert.deepEqual(columns.slice(0, 5).map(c => c.key), ['title', 'titleLatin', 'titleOriginal', 'duration', 'artist']);
+  assert.deepEqual(columns.slice(0, 4).map(c => c.key), ['title', 'titleOriginal', 'duration', 'artist']);
   assert.ok(!columns.some(c => c.key === 'lyrics' || c.key === 'storeLinks' || c.key === 'description'));
   assert.deepEqual(columns.slice(-3).map(c => c.key), ['has:artwork', 'has:distrokid-pack', 'updatedAt']);
   const row = rowOf('Sea Song', { genres: ['Rock', 'Pop'] }, { stems: 3 });

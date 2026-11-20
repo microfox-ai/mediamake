@@ -78,6 +78,8 @@ export interface Template {
   slots: TemplateSlot[];
   /** How an AI fills this collection: Markdown, given with the collection's overview. */
   guide: string;
+  /** Field keys an earlier version had and this one dropped: a collection made from that version no longer shows them (its entries keep their values). */
+  retired?: string[];
 }
 
 /* ---------- records ---------- */
