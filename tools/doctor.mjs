@@ -3,7 +3,9 @@
  * mm doctor: is this machine ready to make videos with MediaMake? It checks, and with --fix repairs
  * what is safe to repair on its own:
  *   - Node (22.6 or newer: the studio's scripts run TypeScript directly), npm, git and who commits
- *   - uv (mm analyze, mattes, cutouts and the ElevenLabs MCP run on it), ffmpeg (optional)
+ *   - uv (mm analyze, mattes, cutouts and the ElevenLabs MCP run on it), and the Python 3.12 it runs
+ *     them on (fix: fetch it, or make the analysis environment on it by path: tools/uvpython.mjs),
+ *     ffmpeg (optional)
  *   - yt-dlp (mm thumbs inspire, mm yt-grab and the use-yt-dlp skill; fix: install it with Homebrew,
  *     winget or uv, or update a copy older than two months the way it was installed: tools/ytdlp.mjs)
  *   - node_modules against package-lock.json (fix: npm ci), the built @microfox/remotion (fix: build
@@ -264,6 +266,48 @@ export async function checks({ top, fetch = true } = {}) {
         ? '`brew install uv`'
         : '`curl -LsSf https://astral.sh/uv/install.sh | sh`',
     );
+
+  // the Python uv's tools run on: rembg's onnxruntime has no build for the newest one, and the
+  // analysis project (mm analyze, mm kinetictype) pins it too (tools/uvpython.mjs)
+  if (uv)
+    try {
+      const { STUDIO_PYTHON: v, findPython } = await import(
+        pathToFileURL(path.join(HERE, 'uvpython.mjs')).href
+      );
+      const py = findPython(v);
+      const venv = path.join(APP, 'analysis', '.venv');
+      if (py.how === 'found') add('python', 'ok', `Python ${v} for uv: ${tilde(py.python)}`);
+      else if (py.how === 'missing')
+        add(
+          'python',
+          'warn',
+          `uv has no Python ${v}: cutouts (rembg's onnxruntime has no build for the newest Python), mm analyze and mm kinetictype run on it`,
+          `\`uv python install ${v}\``,
+          { what: `uv python install ${v}`, cmd: 'uv', args: ['python', 'install', v] },
+        );
+      else if (fs.existsSync(venv))
+        add(
+          'python',
+          'info',
+          `uv can't use its Python ${v} by version on this computer (it can't follow its own cpython-${v} link): mm's cutouts pass it by its path, ${tilde(py.python)}, and the analysis project already has its environment`,
+        );
+      else
+        add(
+          'python',
+          'warn',
+          `uv can't use its Python ${v} by version on this computer (it can't follow its own cpython-${v} link): mm's cutouts pass it by its path, but mm analyze and mm kinetictype ask uv for ${v} and stop until the analysis project has its environment`,
+          `\`uv venv "${venv}" --python "${py.python}"\` makes it once, on that Python.`,
+          {
+            what: `uv venv ${tilde(venv)} --python ${tilde(py.python)}`,
+            fn: () => {
+              const r = spawnSync('uv', ['venv', venv, '--python', py.python], { stdio: 'inherit' });
+              if (r.status !== 0) throw new Error('uv venv failed');
+            },
+          },
+        );
+    } catch (e) {
+      add('python', 'warn', `couldn't check uv's Python: ${e.message}`);
+    }
   const ffmpeg = version('ffmpeg', ['-version']);
   if (ffmpeg) add('ffmpeg', 'ok', ffmpeg.replace(/ Copyright.*$/, ''));
   else
