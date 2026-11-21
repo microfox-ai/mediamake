@@ -75,6 +75,7 @@ import { type ExposureFile, MOODS, type Mood, type Stats, fixFor, levelsFor, cur
 import { type Baked, INSTALL_HINT, type Probe, buildScript, figcraftCli, planLayers, runResults } from './figcraft.ts';
 import { DIRS, repoPath, shown } from './paths.ts';
 import { hasConfig, loadConfig } from './library/config.ts';
+import { envWith, findYtdlp, installHint } from '../../../tools/ytdlp.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JOBS = DIRS.thumbnailJobs;
@@ -637,7 +638,10 @@ const canvas = async () => {
 const inspire = () => {
   const handles = args.filter(a => !a.startsWith('--')).slice(2);
   if (!handles.length && !flag('search')) throw new Error('Usage: thumbs inspire <set> @channel… [--search="<query>"] [--winners=8] [--losers=3] [--title="…"]');
-  if (spawnSync('yt-dlp', ['--version']).status !== 0) throw new Error('thumbs inspire lists videos with yt-dlp: install it first (brew install yt-dlp, or pipx install yt-dlp)');
+  // on the PATH, or where an installer put it before this terminal's PATH caught up (tools/ytdlp.mjs)
+  const yt = findYtdlp();
+  if (!yt || spawnSync(yt.bin, ['--version']).status !== 0) throw new Error(`thumbs inspire lists videos with yt-dlp: install it first (mm doctor --fix does, or ${installHint().replace(/`/g, '')})`);
+  const env = envWith(yt);
   const set = job.replace(/^inspire-/, '');
   const dir = path.join(DIRS.out, 'thumbnail-inspiration', `inspire-${set}`);
   const lib = hasConfig() ? loadConfig() : null;
@@ -645,7 +649,7 @@ const inspire = () => {
   const filed = lib ? path.join(lib.root, 'references', subject) : path.join(dir, 'downloads');
   const dest = lib ? path.join(lib.inbox, 'youtube-thumbnails', set) : filed;
   const py = (...a: string[]) => {
-    const r = spawnSync('uv', ['run', '--quiet', '--with', 'pillow', 'python', 'thumbnails/tools/inspire.py', ...a], { cwd: ROOT, stdio: 'inherit' });
+    const r = spawnSync('uv', ['run', '--quiet', '--with', 'pillow', 'python', 'thumbnails/tools/inspire.py', ...a], { cwd: ROOT, stdio: 'inherit', env });
     if (r.status !== 0) process.exit(r.status ?? 1);
   };
   py('grab', `--dir=${dir}`, `--dest=${dest}`, `--have=${filed}`, ...flags.filter(f => /^--(winners|losers|search|limit)=/.test(f)), ...handles);

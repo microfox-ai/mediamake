@@ -71,7 +71,7 @@ const ABOUT = {
   todo: "your projects' to-do queue: steps a cloud session could not do, waiting for a computer that can; mm todo pick <id> picks one up",
   run: "a production's run record: every step saved to the project, so a run stops in one place and goes on in another; mm run resume <slug> continues one",
   library: 'the Cloud Library: collections (Songs) of entries with fields and files, the same everywhere; search and read before fetching (mm library help)',
-  doctor: 'checks this machine and checkout (Node, uv, dependencies, builds, git, workspace, keys); --fix repairs',
+  doctor: 'checks this machine and checkout (Node, uv, yt-dlp, dependencies, builds, git, workspace, keys); --fix repairs',
 };
 
 const help = () => {
