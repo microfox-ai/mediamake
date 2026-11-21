@@ -62,6 +62,12 @@ Check each; install what is missing, saying in one line what you're installing f
 | Node 22.6+ | `node -v` | `brew install node` (or `nvm install 22`) · `winget install OpenJS.NodeJS.LTS` |
 | uv | `uv --version` | `brew install uv` · `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | ffmpeg (optional) | `ffmpeg -version` | `brew install ffmpeg` · `winget install Gyan.FFmpeg` |
+| yt-dlp | `yt-dlp --version` | `brew install yt-dlp` · `winget install --id yt-dlp.yt-dlp -e` (`--skip-dependencies` when ffmpeg is already there) |
+
+- yt-dlp is what `mm thumbs inspire`, `mm yt-grab` and the downloads of the user's skills run.
+  `mm doctor --fix` (step 7) installs it the way the table says (uv's tools on a computer with neither
+  Homebrew nor winget) and updates a copy older than two months the way it was installed: YouTube
+  breaks old versions.
 
 - No Homebrew on a Mac: **Ask** before installing it (it asks for their password).
 - Not signed in to GitHub: **Ask** whether they have an account (if not, https://github.com/signup),

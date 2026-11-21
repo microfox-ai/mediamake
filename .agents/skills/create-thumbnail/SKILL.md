@@ -491,7 +491,7 @@ mm thumbs inspire <set> @channel @channel …        # each channel's hits and m
 mm thumbs inspire <set> --search="<what a viewer would type>"   # the most-viewed results for a search
 ```
 
-It needs yt-dlp (no key) and takes a minute: the thumbnails are filed in the media library
+It needs yt-dlp (no key; `mm doctor --fix` installs it) and takes a minute: the thumbnails are filed in the media library
 (`references/youtube-thumbnails-<set>`), and `out/thumbnail-inspiration/inspire-<set>/` gets a
 labelled `sheet.jpg` and a review set. Then:
 

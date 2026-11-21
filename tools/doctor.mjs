@@ -4,6 +4,8 @@
  * what is safe to repair on its own:
  *   - Node (22.6 or newer: the studio's scripts run TypeScript directly), npm, git and who commits
  *   - uv (mm analyze, mattes, cutouts and the ElevenLabs MCP run on it), ffmpeg (optional)
+ *   - yt-dlp (mm thumbs inspire, mm yt-grab and the use-yt-dlp skill; fix: install it with Homebrew,
+ *     winget or uv, or update a copy older than two months the way it was installed: tools/ytdlp.mjs)
  *   - node_modules against package-lock.json (fix: npm ci), the built @microfox/remotion (fix: build
  *     it), the studio's generated presets (fix: build them), Remotion's browser (fix: download it)
  *   - mm on your PATH, for this checkout (fix: mm link)
@@ -41,7 +43,9 @@ const run = (cmd, args, o = {}) =>
   spawnSync(cmd, args, { encoding: 'utf8', shell: WIN, timeout: 20000, ...o });
 const version = (cmd, args = ['--version']) => {
   const r = run(cmd, args);
-  return r.status === 0 ? (r.stdout || r.stderr).trim().split('\n')[0] : null;
+  return r.status === 0
+    ? (r.stdout || r.stderr).trim().split(/\r?\n/)[0]
+    : null;
 };
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const gib = n => `${(n / 2 ** 30).toFixed(n < 10 * 2 ** 30 ? 1 : 0)} GB`;
@@ -271,6 +275,60 @@ export async function checks({ top, fetch = true } = {}) {
         ? '`brew install ffmpeg` for your own.'
         : '',
     );
+
+  // yt-dlp: mm thumbs inspire and mm yt-grab list videos with it, the use-yt-dlp skill downloads with it
+  try {
+    const { STALE_DAYS, inspectYtdlp, installHint } = await import(
+      pathToFileURL(path.join(HERE, 'ytdlp.mjs')).href
+    );
+    const yt = inspectYtdlp({
+      has: cmd => (cmd === 'uv' ? !!uv : !!version(cmd)),
+      ffmpeg: !!ffmpeg,
+    });
+    const auto = p => (p ? { ...p, cwd: top } : null);
+    const install = yt.install ? `\`${yt.install.what}\`` : installHint();
+    if (!yt.found)
+      add(
+        'yt-dlp',
+        'warn',
+        'yt-dlp is missing: mm thumbs inspire and mm yt-grab list videos with it, and the use-yt-dlp skill downloads with it',
+        install,
+        auto(yt.install),
+      );
+    else if (!yt.version)
+      add(
+        'yt-dlp',
+        'warn',
+        `${tilde(yt.found.bin)} doesn't run`,
+        `Install it again: ${install}`,
+        auto(yt.install),
+      );
+    else if (yt.age !== null && yt.age > STALE_DAYS)
+      add(
+        'yt-dlp',
+        'warn',
+        `yt-dlp ${yt.version} is ${yt.age} days old: YouTube changes often, and an old yt-dlp stops working there`,
+        yt.update
+          ? `\`${yt.update.what}\``
+          : '`choco upgrade yt-dlp` in an admin terminal',
+        auto(yt.update),
+      );
+    else if (!yt.found.onPath)
+      add(
+        'yt-dlp',
+        'info',
+        `yt-dlp ${yt.version} is at ${tilde(yt.found.bin)}, which this terminal's PATH doesn't name yet: mm finds it there, and a new terminal (or Claude, restarted) has it`,
+        yt.manager === 'uv' ? '`uv tool update-shell` puts it on your PATH.' : '',
+      );
+    else
+      add(
+        'yt-dlp',
+        'ok',
+        `yt-dlp ${yt.version}${yt.manager === 'standalone' ? '' : ` (${yt.manager})`}`,
+      );
+  } catch (e) {
+    add('yt-dlp', 'warn', `couldn't check yt-dlp: ${e.message}`);
+  }
 
   // ── this checkout's dependencies and built files
   const lockFile = path.join(top, 'package-lock.json');

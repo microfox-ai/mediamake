@@ -12,7 +12,7 @@
  * (a table) and <out>/videos/NN-<slug>.md (title, facts, description, transcript).
  *
  * Backends
- *   yt-dlp (no key): listing, descriptions, dates, views, captions. `brew install yt-dlp`.
+ *   yt-dlp (no key): listing, descriptions, dates, views, captions. `mm doctor --fix` installs it.
  *   YouTube Data API v3 (optional, faster listing + exact metadata, 50 videos a call):
  *     key from --api-key, env YOUTUBE_API_KEY, or ~/.mediamake/config.json → youtube.apiKey.
  *     Captions still come through yt-dlp: the API only serves a video's own captions to
@@ -25,6 +25,7 @@ import { existsSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { DIRS } from './paths.ts';
+import { findYtdlp, installHint } from '../../../tools/ytdlp.mjs';
 
 type Video = {
   id: string;
@@ -96,6 +97,9 @@ const lang = opts.lang ?? 'en';
 
 // ---------- helpers ----------
 
+/** yt-dlp on the PATH, or where an installer put it before this terminal's PATH caught up (tools/ytdlp.mjs). */
+const YTDLP = findYtdlp()?.bin ?? 'yt-dlp';
+
 const expandHome = (p: string) => (p.startsWith('~') ? path.join(homedir(), p.slice(1)) : p);
 
 function run(cmd: string, args: string[]): Promise<string> {
@@ -115,7 +119,7 @@ function run(cmd: string, args: string[]): Promise<string> {
 
 async function haveYtdlp(): Promise<boolean> {
   try {
-    await run('yt-dlp', ['--version']);
+    await run(YTDLP, ['--version']);
     return true;
   } catch {
     return false;
@@ -220,7 +224,7 @@ function parseSource(arg: string): Source {
 // ---------- yt-dlp backend ----------
 
 async function ytdlpJson(target: string, extra: string[] = []): Promise<any> {
-  const out = await run('yt-dlp', ['--no-warnings', '--ignore-config', '-J', '--skip-download', ...extra, target]);
+  const out = await run(YTDLP, ['--no-warnings', '--ignore-config', '-J', '--skip-download', ...extra, target]);
   return JSON.parse(out);
 }
 
@@ -291,7 +295,7 @@ async function downloadTranscript(id: string, info: any): Promise<{ text: string
     await rm(dir, { recursive: true, force: true });
     await mkdir(dir, { recursive: true });
     try {
-      await run('yt-dlp', [
+      await run(YTDLP, [
         '--no-warnings', '--ignore-config', '--skip-download',
         c.kind === 'manual' ? '--write-subs' : '--write-auto-subs',
         '--sub-langs', c.lang, '--sub-format', 'json3/vtt/best',
@@ -454,7 +458,7 @@ async function main() {
   if (opts.search) sources.push({ kind: 'search', query: opts.search });
 
   if (!(await haveYtdlp())) {
-    console.error('yt-dlp is not installed. Install it with:  brew install yt-dlp');
+    console.error(`yt-dlp is not installed: mm doctor --fix installs it, or ${installHint().replace(/`/g, '')}`);
     process.exit(2);
   }
   const key = await loadApiKey();
