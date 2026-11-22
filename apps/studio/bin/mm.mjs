@@ -176,11 +176,13 @@ const main = () => {
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)
-  const r = spawnSync(NPM, ['--prefix', REPO, 'run', '--silent', script, '-w', pkg.name, '--', ...rest], {
-    cwd: process.env.INIT_CWD ?? process.cwd(),
-    stdio: 'inherit',
-    shell: WIN,
-  });
+  const npmArgs = ['--prefix', REPO, 'run', '--silent', script, '-w', pkg.name, '--', ...rest];
+  const opts = { cwd: process.env.INIT_CWD ?? process.cwd(), stdio: 'inherit' };
+  // Windows runs npm.cmd through cmd.exe, which would split a path with spaces into words: quote each one
+  const cmdArg = a => (/^[\w@+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
+  const r = WIN
+    ? spawnSync([NPM, ...npmArgs].map(cmdArg).join(' '), { ...opts, shell: true })
+    : spawnSync(NPM, npmArgs, opts);
   if (r.error) throw r.error;
   process.exit(r.status ?? 1);
 };
