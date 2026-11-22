@@ -396,10 +396,14 @@ def cmd_cutout(a):
     out = d / "input" / "cutouts"
     out.mkdir(parents=True, exist_ok=True)
     checks = []
+    # rembg's onnxruntime has no build for the newest Python uv may pick: ask tools/uvpython.mjs for one it has
+    r = subprocess.run(["node", str(ROOT.parents[1] / "tools" / "uvpython.mjs"), "--install"], capture_output=True, text=True)
+    python = r.stdout.strip() or "3.12"
     for f in a.files:
         src = d / f if (d / f).exists() else user_path(f)
         dst = out / f"{src.stem}.png"
-        cmd = ["uv", "run", "-q", "--with", "rembg[cpu]", "--with", "scipy", "--with", "pillow", "python",
+        cmd = ["uv", "run", "-q", "--no-project", "--python", python,
+               "--with", "rembg[cpu]", "--with", "scipy", "--with", "pillow", "python",
                str(ROOT / "scripts" / "kinetictype" / "cutout.py"), str(src), str(dst), f"--size={a.size}"]
         if a.all:
             cmd.append("--all")

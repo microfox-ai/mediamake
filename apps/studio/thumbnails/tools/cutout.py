@@ -6,8 +6,8 @@ the `photo` layer it was cut from (both use the variant's `hero`). Keeps only th
 connected part (or the part under --point), so specks of background don't float around the subject.
 A green-background preview goes next to it (<name>.check.jpg) to look at before using it.
 
-Usage (from apps/studio):
-  uv run --with "rembg[cpu]" --with scipy --with pillow python thumbnails/tools/cutout.py <job> input/photo.jpg
+Usage (from apps/studio; `mm thumbs cutout <job> input/photo.jpg` runs it and finds the Python):
+  uv run --python 3.12 --with "rembg[cpu]" --with scipy --with pillow python thumbnails/tools/cutout.py <job> input/photo.jpg
     [--model=birefnet-portrait]   people (default birefnet-general; also isnet-anime for drawn art)
     [--point=0.5,0.4]             keep the part under this point (fractions of width, height)
     [--all]                       keep every part (groups, several objects)

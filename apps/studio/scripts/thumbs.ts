@@ -76,6 +76,7 @@ import { type Baked, INSTALL_HINT, type Probe, buildScript, figcraftCli, planLay
 import { DIRS, repoPath, shown } from './paths.ts';
 import { hasConfig, loadConfig } from './library/config.ts';
 import { envWith, findYtdlp, installHint } from '../../../tools/ytdlp.mjs';
+import { pythonArgs } from '../../../tools/uvpython.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JOBS = DIRS.thumbnailJobs;
@@ -309,7 +310,9 @@ const init = () => {
 
 const cutout = () => {
   if (!third) throw new Error('Usage: thumbs cutout <job> input/<file> [--model=…] [--point=x,y] [--all]');
-  const r = spawnSync('uv', ['run', '--with', 'rembg[cpu]', '--with', 'scipy', '--with', 'pillow', 'python', 'thumbnails/tools/cutout.py', job, third, ...flags], { cwd: ROOT, encoding: 'utf8' });
+  // on a Python onnxruntime has a build for, not the newest one uv has (tools/uvpython.mjs); in UTF-8,
+  // because Windows writes a pipe in its ANSI code page, which has no ✔
+  const r = spawnSync('uv', ['run', '--no-project', ...pythonArgs(), '--with', 'rembg[cpu]', '--with', 'scipy', '--with', 'pillow', 'python', 'thumbnails/tools/cutout.py', job, third, ...flags], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } });
   // the model download draws a progress bar; keep only the result lines
   const out = `${r.stdout}\n${r.stderr}`.split(/[\r\n]/).filter(l => /✔|Error|error|Traceback|No such/.test(l));
   console.log(out.join('\n'));
@@ -733,7 +736,10 @@ const swapTool = () => {
   const name = flag('name');
   if (!third || !pic || !name) throw new Error('Usage: thumbs swap <job> <generated.png> <real picture> --name=<name> [--model=birefnet-general]');
   const py = (deps: string[], ...a: string[]) => {
-    const r = spawnSync('uv', ['run', '--quiet', ...deps.flatMap(d => ['--with', d]), 'python', ...a], { cwd: ROOT, stdio: 'inherit' });
+    // rembg's onnxruntime needs a Python it has a build for, not the newest one uv has (tools/uvpython.mjs)
+    const pin = deps.some(d => d.startsWith('rembg')) ? ['--no-project', ...pythonArgs()] : [];
+    // UTF-8: Windows writes a pipe in its ANSI code page, which has no ✔
+    const r = spawnSync('uv', ['run', '--quiet', ...pin, ...deps.flatMap(d => ['--with', d]), 'python', ...a], { cwd: ROOT, stdio: 'inherit', env: { ...process.env, PYTHONUTF8: '1' } });
     if (r.status !== 0) process.exit(r.status ?? 1);
   };
   const abs = (f: string) => (path.isAbsolute(f) ? f : path.resolve(process.cwd(), f));

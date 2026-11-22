@@ -1,7 +1,7 @@
 """Cut the subject out of a picture (rembg, isnet-anime for drawn art), for the type-behind-the-subject shots
 (make-kinetictype). Called by `mm kinetictype cutout`.
 
-  uv run --with "rembg[cpu]" --with scipy --with pillow python scripts/kinetictype/cutout.py \
+  uv run --python 3.12 --with "rembg[cpu]" --with scipy --with pillow python scripts/kinetictype/cutout.py \
       <in.png> <out.png> [--model=isnet-anime] [--all] [--size=2048]
 
 Writes an RGBA PNG the same size as <in> (or resized to --size square, to match the plates) and a
