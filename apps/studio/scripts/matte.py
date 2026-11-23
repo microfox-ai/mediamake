@@ -6,7 +6,7 @@
 # ///
 """Subject mattes for a remix edit: one RGBA cutout video per shot, from BiRefNet on the Apple GPU.
 
-    uv run --script matte.py JOBS.json [--model lite|full] [--size 1024] [--force]
+    mm py matte.py JOBS.json [--model lite|full] [--size 1024] [--force]
 
 JOBS.json: {"src": "<video>", "out": "<dir>", "crop": [w, h, x, y] (optional, applied first),
             "width": 1920 (output width, optional), "shots": {"<id>": [from_s, to_s], ...}}

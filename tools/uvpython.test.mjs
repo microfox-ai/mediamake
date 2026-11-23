@@ -1,8 +1,8 @@
-// Tests for tools/uvpython.mjs: the Python uv runs rembg's cutouts on, when uv names it, by path, or fetched.
+// Tests for tools/uvpython.mjs: the Python uv runs rembg's cutouts and capped scripts on, when uv names it, by path, or fetched.
 // Run: node --test tools/
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { findPython, managedPythons } from './uvpython.mjs';
+import { cappedPython, findPython, managedPythons, scriptArgs } from './uvpython.mjs';
 
 const WIN_DIR = 'C:\\Users\\me\\AppData\\Roaming\\uv\\python';
 const winFolder = [
@@ -91,4 +91,32 @@ test('uvpython: fetched once when uv has none, then found (even when the install
 test("uvpython: the version itself when nothing works, so uv says why", () => {
   const { run } = fakeUv({});
   assert.deepEqual(findPython('3.12', { run, install: true, ...win }), { python: '3.12', how: 'missing' });
+});
+
+/** A script's head, as uv reads it (`# /// script`). */
+const script = requires => `#!/usr/bin/env -S uv run --script\r\n# /// script\r\n${requires === undefined ? '' : `# requires-python = "${requires}"\r\n`}# dependencies = ["numpy>=1.26"]\r\n# ///\r\n"""doc: requires-python = "<3.9" here is not metadata"""\r\nprint("hi")\r\n`;
+
+test("uvpython: a script's Python cap is the newest minor its requires-python allows", () => {
+  assert.equal(cappedPython(script('>=3.11,<3.13')), '3.12');
+  assert.equal(cappedPython(script('>=3.10, <=3.11')), '3.11');
+  assert.equal(cappedPython(script('==3.12.*')), '3.12');
+  assert.equal(cappedPython(script('>=3.10,<3.12.4')), '3.12');
+  assert.equal(cappedPython(script('<3.14,<3.13')), '3.12');
+  // no cap, no requires-python, no metadata: uv's newest Python is fine
+  assert.equal(cappedPython(script('>=3.11')), null);
+  assert.equal(cappedPython(script(undefined)), null);
+  assert.equal(cappedPython('print("no metadata")\n# requires-python = "<3.13"\n'), null);
+});
+
+test('uvpython: scriptArgs pins a capped script by path, and leaves the rest to uv', () => {
+  const { run, calls } = fakeUv({ 'python dir': { status: 0, stdout: WIN_DIR } });
+  const file = 'C:\studio\scripts\matte.py';
+  assert.deepEqual(scriptArgs(file, { read: () => script('>=3.11,<3.13'), run, ...win }), ['--python', PY, '--script', file]);
+  assert.deepEqual(scriptArgs(file, { read: () => script('>=3.11'), run, ...win }), ['--script', file]);
+  // an unreadable file: uv says what is wrong with it
+  const gone = () => {
+    throw new Error('ENOENT');
+  };
+  assert.deepEqual(scriptArgs(file, { read: gone, run, ...win }), ['--script', file]);
+  assert.equal(calls.filter(c => c.startsWith('python find')).length, 1, 'uv asked only for the capped one');
 });

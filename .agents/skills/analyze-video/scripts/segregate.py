@@ -5,7 +5,9 @@
 # ///
 """Segregate an edited video: shots -> scenes -> recurring locations, with contact sheets and clips.
 
-    uv run --script segregate.py VIDEO [--out DIR] [--clips none|shots|scenes|both] [...]
+    mm py segregate.py VIDEO [--out DIR] [--clips none|shots|scenes|both] [...]
+
+(`mm py` is `uv run --script` on a Python uv can use: some Windows computers can't find one by version.)
 
 Steps (each cached in OUT/cache, so a rerun after editing OUT/overrides.json or OUT/notes.json is quick):
   1. analyse   one decode at ~128 px: per-frame HSV histogram + 32x18 luma grid + brightness
@@ -51,6 +53,15 @@ PALETTE = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#4
 
 def log(*a):
     print(*a, file=sys.stderr, flush=True)
+
+
+def uv_script(script: Path, *args: str) -> list[str]:
+    """`uv run --script` on the Python the script's requires-python allows. The repo's tools/uvpython.mjs
+    names it by path, where uv can't find it by version (some Windows); without the repo or Node, uv picks."""
+    helper = next((p / "tools" / "uvpython.mjs" for p in HERE.parents if (p / "tools" / "uvpython.mjs").exists()), None)
+    if helper and shutil.which("node"):
+        return ["node", str(helper), "run", str(script), *args]
+    return ["uv", "run", "--script", str(script), *args]
 
 
 # ---------------------------------------------------------------- time helpers
@@ -501,7 +512,7 @@ def embed_frames(frames: list[int], frames_dir: Path, cache: Path, F: Feats, mod
             lst = cache / "embed_list.txt"
             lst.write_text("\n".join(str(frames_dir / f"f{x:07d}.jpg") for x in miss))
             out = cache / "embed_out.npy"
-            r = subprocess.run(["uv", "run", "--script", str(HERE / "embed.py"), "--list", str(lst), "--out", str(out)])
+            r = subprocess.run(uv_script(HERE / "embed.py", "--list", str(lst), "--out", str(out)))
             if r.returncode == 0 and out.exists():
                 vecs = np.load(out)
                 have.update({x: v for x, v in zip(miss, vecs)})

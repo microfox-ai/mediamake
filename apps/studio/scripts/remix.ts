@@ -36,6 +36,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveAll, sourceTime, type Footage } from '../src/remix/resolve.ts';
 import { DIRS, shown } from './paths.ts';
+import { scriptArgs } from '../../../tools/uvpython.mjs';
 import './workspace-node.ts'; // the project's own code, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -302,7 +303,8 @@ if (flag('matte')) {
   const only = opt('only') ?? (missing.length ? missing.join(',') : undefined);
   if (only) {
     for (const jobFile of jobFiles) {
-      const r = spawnSync('uv', ['run', '-q', '--script', path.join(ROOT, 'scripts/matte.py'), jobFile, '--only', only], { stdio: 'inherit' });
+      // on the Python its requires-python allows, by path where uv can't find it by version (tools/uvpython.mjs)
+      const r = spawnSync('uv', ['run', '-q', ...scriptArgs(path.join(ROOT, 'scripts/matte.py')), jobFile, '--only', only], { stdio: 'inherit' });
       if (r.status) process.exit(r.status);
     }
   }

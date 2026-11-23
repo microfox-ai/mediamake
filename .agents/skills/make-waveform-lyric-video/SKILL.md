@@ -181,7 +181,7 @@ prefs.md.
 - **Segmentation** (when the idea needs it), with this skill's tool:
 
   ```bash
-  uv run --script .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder> [--src input/picture-clean.png]
+  mm py .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder> [--src input/picture-clean.png]
   ```
 
   It writes `input/cutout/` (`subject.png`, `matte.png`, a clean `plate.png`, `check.jpg`) and keeps

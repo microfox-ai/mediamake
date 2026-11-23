@@ -7,7 +7,7 @@
 """Cut the subject out of a project's picture with BiRefNet (local, Apple GPU, free) and paint them out of the
 background, so the plate can be the cover and the cutout a Subject layer over the visualizers.
 
-    uv run --script .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder>
+    mm py .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder>
         [--src input/picture.png] [--model full|lite] [--size 1024] [--matte <grey png>]
         [--keep x0,y0,x1,y1 ...] [--patch cx0,cy0,cx1,cy1:bx0,by0,bx1,by1 ...] [--fill x,y x,y … [--fill-luma 80]]
 

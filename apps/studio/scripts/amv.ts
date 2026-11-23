@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DIRS } from './paths.ts';
+import { scriptArgs } from '../../../tools/uvpython.mjs';
 import './workspace-node.ts'; // the project's own code, imported below, finds the engine from a workspace
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -100,7 +101,8 @@ if (flags.includes('--matte')) {
     // matte.py wants the crop (here the whole 2560×1440 proxy) as well as the output width
     fs.writeFileSync(job, JSON.stringify({ src: path.join(dir, footage[src].proxy), out, crop: [2560, 1440, 0, 0], width: 1920, shots }, null, 1));
     console.log(`matte ${src}: ${Object.keys(shots).join(', ')}`);
-    const r = spawnSync('uv', ['run', '--script', path.join(ROOT, 'scripts/matte.py'), job], { stdio: 'inherit' });
+    // on the Python its requires-python allows, by path where uv can't find it by version (tools/uvpython.mjs)
+    const r = spawnSync('uv', ['run', ...scriptArgs(path.join(ROOT, 'scripts/matte.py')), job], { stdio: 'inherit' });
     if (r.status !== 0) process.exit(r.status ?? 1);
   }
 }

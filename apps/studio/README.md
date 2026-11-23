@@ -14,6 +14,12 @@ newest Python), ffmpeg, yt-dlp (installed with Homebrew or winget, and updated w
 dependencies, the built engine and presets, the render browser, git, your workspace and library, and
 an ElevenLabs key (`--fix` repairs what it can).
 
+The Python scripts that carry their own packages (`# /// script`: `scripts/matte.py`, `amv-drums.py`,
+analyze-video's `segregate.py`, …) run as `mm py <script> [args]`: `uv run --script` on the newest
+Python their `requires-python` allows, named by path, since some Windows computers' uv can't find a
+Python by its version (`tools/uvpython.mjs`). Every Python an `mm` command starts runs in UTF-8
+(`PYTHONUTF8=1`): on Windows, Python before 3.15 writes a pipe in the ANSI code page, which has no ✔.
+
 Your projects, renders and brand kits belong outside the checkout, in your workspace (below).
 `mm migrate` shows what would move there; `mm migrate --yes` moves them. After pulling the rename it
 also brings what git left in `apps/lyrics_videos` (git only moves the files it tracks).
