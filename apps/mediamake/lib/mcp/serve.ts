@@ -44,6 +44,15 @@ export function mcpHandler(kind: McpConnector, maxDuration: number) {
       return Response.json({ error: 'access_denied', error_description: connector.locked }, { status: 403, headers: CORS_HEADERS });
     }
 
+    // No server-to-client stream: each request gets a fresh server that closes
+    // when it answers, so a GET stream would end at once and the client would
+    // reconnect in a loop (about twice a second, all day, for every connected
+    // app). 405 is the spec's way to say there is no stream at this address;
+    // clients then keep using POST only.
+    if (req.method === 'GET') {
+      return new Response(null, { status: 405, headers: { ...CORS_HEADERS, Allow: 'POST, DELETE, OPTIONS' } });
+    }
+
     const origin = publicOrigin(req);
     const client = new MediamakeClient({
       // Self-calls go to the deployment's own URL unless pointed elsewhere.
