@@ -834,3 +834,38 @@ test('unlink takes it from that project\'s people only, and an editor can be mad
   assert.deepEqual(accessOf(thumbRepo).collaborators, []);
   assert.match((await ann.space(['link', thumb])).out, /yours, linked to nobody yet/);
 });
+
+test("a new skill starts with what its maker said it is: its nature, its type and a subset's superset", async () => {
+  // a subset names its superset, a type is one of the four, and only a skill has them
+  const noSuperset = await ann.space(['new', 'skill', 'make-zone-intro-like-neon', '--type=subset']);
+  assert.equal(noSuperset.status, 1);
+  assert.match(noSuperset.out, /A subset names its superset/);
+  const badType = await ann.space(['new', 'skill', 'make-zone-sting', '--type=plugin']);
+  assert.equal(badType.status, 1);
+  assert.match(badType.out, /--type is internal, superset, subset, mcp-use, not "plugin"/);
+  const stray = await ann.space(['new', 'skill', 'make-zone-sting', '--superset=make-zone-intro']);
+  assert.equal(stray.status, 1);
+  assert.match(stray.out, /Only a subset names a superset/);
+  const notSkill = await ann.space(['new', 'mcp', 'zone-tools', '--type=internal']);
+  assert.equal(notSkill.status, 1);
+  assert.match(notSkill.out, /Only a skill has a nature, a type and a superset/);
+  // the ones that stopped made nothing
+  for (const item of ['skills/make-zone-intro-like-neon', 'skills/make-zone-sting', 'mcps/zone-tools']) assert.ok(!fs.existsSync(path.join(ann.dir, item)), item);
+
+  const made = await ann.space(['new', 'skill', 'make-zone-intro-like-neon', '--nature=shared-use', '--type=subset', '--superset=make-zone-intro']);
+  assert.equal(made.status, 0, made.out);
+  assert.match(made.out, /shared-use, subset of make-zone-intro/);
+  const readme = ann.read('skills/make-zone-intro-like-neon/README.md');
+  assert.match(readme, /^nature: shared-use$/m);
+  assert.match(readme, /^type: subset$/m);
+  assert.match(readme, /^superset: make-zone-intro$/m);
+  assert.doesNotMatch(readme, /^# (nature|type|superset):/m);
+
+  // with nothing said it is private use, and its type is left for its maker to answer
+  const plain = await ann.space(['new', 'skill', 'make-zone-sting']);
+  assert.equal(plain.status, 0, plain.out);
+  assert.match(plain.out, /private-use, no type yet/);
+  const plainReadme = ann.read('skills/make-zone-sting/README.md');
+  assert.match(plainReadme, /^nature: private-use$/m);
+  assert.match(plainReadme, /^# type: internal \| superset \| subset \| mcp-use/m);
+});

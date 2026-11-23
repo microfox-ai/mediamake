@@ -376,7 +376,7 @@ export function mcpUsage(usage: SkillUsage[], skills: RegistrySkill[]): { mcp: s
   return [...byMcp.values()].sort((a, b) => b.runs - a.runs || b.lastAt.localeCompare(a.lastAt) || a.mcp.localeCompare(b.mcp));
 }
 
-/** A skill whose name says it is a variant of `base`: `<base>-like-<ref>` or `<base>-v<N>` (fork-skill's names). */
+/** A skill whose name says it is a variant of `base`: `<base>-like-<ref>` or `<base>-v<N>` (mm-fork-skill's names). */
 export function variantBase(name: string, known: (base: string) => boolean): string | null {
   const like = name.indexOf('-like-');
   if (like > 0 && known(name.slice(0, like))) return name.slice(0, like);

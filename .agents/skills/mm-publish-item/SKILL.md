@@ -1,23 +1,33 @@
 ---
-name: publish-skill
-description: Add new Claude Code skills to this repo, where every skill is public — find the user's own skills (variants from fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), name the finished production made with it when there is one (maintainers and Cohort members need not), then send it as a pull request into .agents/skills (linked from .claude/skills) without touching the checkout. Also lists every skill. Use when the user says "publish a skill", "publish my variant", "add <skill> to the repo", "commit my new skill", "list the skills", "/publish-skill [category]", or asks to update the skills list.
+name: mm-publish-item
+description: The admins' and maintainers' direct path for getting an item into the store with no review, whether it is a skill, an MCP or an app. A skill everyone may open goes into this repo, where every skill is public — find the user's own skills (variants from mm-fork-skill and ones their team shared, kept in the workspace outside the repo) and folders made in .claude/skills, check each for things that must not be on GitHub (paths on this machine, keys, tokens, emails, personal notes), name the finished production made with it when there is one (maintainers and Cohort members need not), then send it as a pull request into .agents/skills (linked from .claude/skills) without touching the checkout. An MCP, an app, or a skill opened by Plus, Pro or Cohort is released directly as a package with `mm submit --tier`, in Beta, and a new version of an item already in the store goes out the same way. Also lists every skill. Use when an admin or a maintainer says "publish a skill", "publish my variant", "publish this MCP / app", "release it to Plus / Pro / Cohort", "add <skill> to the repo", "commit my new skill", "list the skills", "/mm-publish-item [name]" or the old "/publish-skill", or asks to update the skills list. A member who is not an admin goes through mm-submit-to-store.
 metadata:
-  category: skill
+  category: mm
 ---
 
-# publish-skill
+# mm-publish-item
+
+The admins' direct path into the store, for any item. Which path depends on what it is and who it opens for:
+
+| The item | Path |
+|---|---|
+| A skill everyone may open (Public) | A pull request into this repo: steps 1 to 4 below |
+| An MCP, an app, or a skill opened by Plus, Pro or Cohort | Released as a package, with no review: "MCPs, apps and gated skills" below |
+| A new version of an item already in the store | `mm submit <name> --yes`: published at once at the membership it has |
+
+Only an admin or a maintainer publishes this way (`mm items` says the account's membership). Anyone
+else sends their item for review with `mm-submit-to-store`.
 
 **Every skill in this repo is public.** Nothing about a skill is hidden: its files live in
 `.agents/skills/<name>/` (committed) and `.claude/skills/<name>` is a committed symlink to them,
-so the skill loads for anyone who opens the repo in Claude Code and shows on GitHub. Apps and MCPs
-are the gated ones (`private/` and the catalog releases at `/app/releases`); skills never go
-through a gate.
+so the skill loads for anyone who opens the repo in Claude Code and shows on GitHub. MCPs, apps and
+the skills a membership above Public opens are not in this repo: they are released as packages.
 
 **We publish nothing we don't use.** This is the maintainers' (admins') path, and they need not name a
 production: step 3 asks for one, and the pull request carries it when there is one. A member below
-Cohort goes through `submit-to-store`, which asks them for it.
+Cohort goes through `mm-submit-to-store`, which asks them for it.
 
-A skill starts as the user's own when it isn't in the repo yet: a variant from `fork-skill`, or one
+A skill starts as the user's own when it isn't in the repo yet: a variant from `mm-fork-skill`, or one
 their team shared through `media sync`. Those live in the workspace (`~/MediaMake/skills/<name>`,
 outside the repo) and are linked from `~/.claude/skills/<name>`, so every session on that computer
 loads them and making one never changes a file git tracks. Publishing is how one becomes public:
@@ -129,29 +139,62 @@ same; a copy that differs is kept, and `list` warns that it shadows the repo's).
 copies one of the user's) into `.agents/skills` and links it, and you commit it. The rule is the
 same: name the production in that pull request's "Made with this" section when there is one.
 
+## MCPs, apps and gated skills
+
+An MCP, an app, or a skill that Plus, Pro or Cohort opens never comes into this repo. An admin
+releases it directly, from the space it lives in (`mm space` lists every item):
+
+1. **Ready.** An MCP or an app has an `item.json` with a real `title`, `summary` and `version`; a
+   skill has its run sheet. Its README.md is its store listing (`mm-upload-item` writes it).
+2. **Check it:** `mm submit <name>` (without `--yes` it only checks; add `--kind=mcp|app` when two
+   items share a name). It stops on a path on this computer, something that looks like a key or a
+   token, or more than 3 MB in all. Read every file yourself too, as step 2 above says.
+3. **An MCP's build.** A built `.mcpb` at the top of its folder, under 1 MB, lets it be released the
+   moment it arrives. Without one it is built and released by hand, which takes longer.
+4. **Ask which membership opens it**: Public, Plus, Pro or Cohort. It is the user's word, never a
+   guess.
+5. **Publish**, once they say yes:
+
+   ```bash
+   mm submit <name> --yes --tier=<public|plus|pro|cohort> [--made="<title>" [--made-url=<link>]]
+   ```
+
+   It is released at that membership, in Beta, the moment it arrives, and the command prints its
+   page. A Public skill sent this way becomes a pull request on this repo, as in step 4 above. When
+   something stops it (a leak check, a version already released), it waits on `/app/submissions`
+   and the command says why.
+6. **Give the user its links**: its release page,
+   `https://mediamake.microfox.app/app/releases/<skill|mcp|app>/<name>`, and its public page,
+   `https://mediamake.microfox.app/<skills|mcps|apps>/<name>`.
+
+A new version later: raise `version` (in `item.json`, or `metadata.version` in a SKILL.md) and run
+`mm submit <name> --yes`, with no `--tier`. Marking an item Ready is a separate call an admin makes,
+never done unasked.
+
 ## Naming and categories
 
 The category comes from the name's verb (`metadata.category` in the frontmatter overrides it):
 
 | prefix | category |
 |--------|----------|
-| `make-` | media making: videos only (`make-lyrics-video`, `make-video-music-remix`) |
+| `make-` | media making: videos and audio (`make-lyrics-video`, `make-loudness-remaster`) |
 | `create-` | images and artwork (`create-thumbnail`, `create-music-poster`) |
 | `pack-` | kits and packs (`pack-brand-kit`) |
 | `revise-` | review loops (`revise-video`) |
 | `analyze-` | breaking media down |
 | `write-` | text and metadata |
 | `update-` | keeping what MediaMake installed up to date (`update-mediamake-items`) |
-| `*-skill` | managing skills (`publish-skill`, `fork-skill`) |
+| `mm-` | managing MediaMake items (`mm-new-item`, `mm-fork-skill`, `mm-upload-item`, `mm-submit-to-store`, `mm-publish-item`) |
 | `remotion-` | Remotion reference |
 
-A new category is one line in `CATEGORIES` in `tools/skills.mjs`.
+A new category is one line in `CATEGORIES` in `tools/skills.mjs`. A new skill is made with `mm-new-item`, which
+reads the guide for its kind (`.agents/skills/mm-new-item/guides/`).
 
 **Dependencies are one-way.** A skill that needs another's output names it in its frontmatter,
 `metadata: depends-on: <name>[, <name>]` (create-thumbnail depends on pack-brand-kit, which
 makes the brand's thumbnail.json); the other skill doesn't mention it back. `list` shows
 "(needs …)" and `add` warns when a dependency isn't in the repo. Variants (`<base>-like-<ref>`,
-`<base>-v<N>`) come from the `fork-skill` skill.
+`<base>-v<N>`) come from the `mm-fork-skill` skill.
 
 ## Feedback log
 
@@ -159,11 +202,11 @@ This log is shared: everyone who pulls gets it, and it changes only in a pull re
 session. New lessons go in your notes, outside the repo. Read them with this log before planning:
 
 ```bash
-mm notes add publish-skill "<what the user said> → <the rule>"   # a new lesson, dated for you
-mm notes publish-skill                                           # your notes for this skill
+mm notes add mm-publish-item "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes mm-publish-item                                           # your notes for this skill
 ```
 
-When the user wants them shared, `mm notes promote publish-skill` offers them to this log as a pull request.
+When the user wants them shared, `mm notes promote mm-publish-item` offers them to this log as a pull request.
 
 - 2026-10-25 · "create a skill call it publish skill which will list out all the private skills still available of particular category and user can choose which skill to publish… public skills are committed and hence visible on github and also in the application" → this skill, `tools/skills.mjs`, public skills in `.agents/skills/` with committed symlinks (`.gitignore` ignores only real folders under `.claude/skills/`), `SKILLS.md` listing every skill.
 - 2026-10-27 · "create-thumbnail has a dependency of pack-brand-kit, but not the pack-brand-kit for create-thumbnails" → dependencies are declared one-way in `metadata.depends-on`; the skill depended on doesn't name the one that uses it.

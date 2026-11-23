@@ -305,7 +305,7 @@ export const planPromote = (skills: string[], repo = REPO, opts: { again?: boole
     const problems: string[] = [];
     const warnings: string[] = [];
     if (!ref.committed && !ref.space)
-      problems.push('it is your own skill, not in the repo or a space: publish it first (publish-skill) or put it in a space (mm space add), then promote its notes');
+      problems.push('it is your own skill, not in the repo or a space: publish it first (mm-publish-item) or put it in a space (mm space add), then promote its notes');
     const at = logSection(fs.readFileSync(ref.file, 'utf8').split('\n'));
     if ((ref.committed || ref.space) && !at) problems.push('its SKILL.md has no "## Feedback log" or "## Lessons log" to add them to');
     for (const n of notes) for (const p of leaksIn(n.text)) problems.push(`the note on line ${n.line} ${p}: reword it in ${tilde(notesFile(skill))}`);

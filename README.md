@@ -116,10 +116,10 @@ brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for 
 images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
 `.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
 [mediamake.microfox.app/skills](https://mediamake.microfox.app/skills) lists them all (and
-`node tools/skills.mjs list` here). A variant you fork (`fork-skill`) or your team shares starts as
+`node tools/skills.mjs list` here). A variant you fork (`mm-fork-skill`) or your team shares starts as
 yours, in your workspace (`~/MediaMake/skills/`, linked from `~/.claude/skills/`), and
 `node tools/skills.mjs publish <name> --yes --made="<the production made with it>"` sends it to the repo
-as a pull request (`publish-skill`; it refuses without the production, see [The rule](#the-rule));
+as a pull request (`mm-publish-item`; it refuses without the production, see [The rule](#the-rule));
 `node tools/skills.mjs check` (also run in CI) fails when a skill holds an API key, a token or a path
 on your machine. The registry the site reads, `skills.json`, is built (by the app's `build` and `dev`),
 never committed.

@@ -111,7 +111,7 @@ environment (`mm cloud`, `apps/studio/README.md` › Cloud sessions).
 | --- | --- |
 | `mm space` | Every space on this computer: what changed here and on GitHub, every item |
 | `mm space sync` | Bring everything down and show what would go up (`--yes` sends it too), then show each space's files waiting to come down or go up (`mm media sync status`; nothing is moved, `--no-files` skips it) |
-| `mm space new <skill\|mcp\|app> <name>` | Start an item in your space (`--project=<project>` starts it in a project's) |
+| `mm space new <skill\|mcp\|app> <name>` | Start an item in your space (`--project=<project>` starts it in a project's). A skill takes what its maker said it is: `--nature=<private-use\|shared-use>`, `--type=<internal\|superset\|subset\|mcp-use>` and, for a subset, `--superset=<skill>`. The `mm-new-item` skill asks and runs it |
 | `mm space add <skill>` | Move one of your workspace skills (a variant) into your space (dry run, `--yes`) |
 | `mm space share <item> --project=<project>` | Move an item into a project's space, so everyone on it gets it (dry run, `--yes`; `--copy` keeps yours too). It pushes only your space and the project's, and the dry run lists every change that goes up with it |
 | `mm space link <item> --project=<project> [--project=…] [--to=<email>] [--editor=<email>]` | Keep an item yours and give it to more people: everyone on each linked project, and the members you name (dry run, `--yes`). With only the item, it says where it is linked |
