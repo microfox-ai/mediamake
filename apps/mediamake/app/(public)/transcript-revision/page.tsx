@@ -1,11 +1,11 @@
-import type { Metadata } from 'next';
-import { TranscriptRevisionsWorkspace } from '@/components/transcript-revisions/TranscriptRevisionsWorkspace';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  title: 'Transcript Revisions · MediaMake',
-  description: "Review a song's timed words by ear: play it with the words lit, mark wrong words and timings, drag word times on a timeline, saved beside the transcript for Claude",
-};
-
-export default function TranscriptRevisionPage() {
-  return <TranscriptRevisionsWorkspace />;
+/** The screen's first name: it is the Transcript Cleaner now (/transcript-cleaner), with the same ?path= and &song=. */
+export default async function TranscriptRevisionRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, v);
+  }
+  const q = query.toString();
+  redirect(`/transcript-cleaner${q ? `?${q}` : ''}`);
 }

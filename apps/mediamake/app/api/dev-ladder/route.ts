@@ -6,12 +6,12 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /*
- * A folder opened by its path on the public /remaster-revision and /transcript-revision pages
+ * A folder opened by its path on the public /remaster-revision and /transcript-cleaner pages
  * (development only, like dev-lyrics and dev-library): the dev server runs on the user's own computer, so a review
  * link can name the folder instead of asking for the folder picker. It lists a folder, serves its
- * files, and writes only what the screen writes: rev-NNN.json / .md inside a `<folder>.revisions`
- * subfolder (created on demand). Only paths under the home folder; nothing is run or deleted
- * outside a .revisions folder.
+ * files, and writes only what the screens write: rev-NNN.json / .md, and the Transcript Cleaner's
+ * clean.json (a song marked clean), inside a `<folder>.revisions` subfolder (created on demand).
+ * Only paths under the home folder; nothing is run or deleted outside a .revisions folder.
  */
 
 const TYPES: Record<string, string> = {
@@ -29,7 +29,8 @@ const TYPES: Record<string, string> = {
   '.aif': 'audio/aiff',
 };
 
-const REVISION_FILE = /^rev-\d+\.(json|md)$/;
+/** rev-NNN.json / .md, and clean.json: the Transcript Cleaner's mark that a song's transcript is clean. */
+const REVISION_FILE = /^(rev-\d+\.(json|md)|clean\.json)$/;
 const notFound = () => Response.json({ message: 'Not found' }, { status: 404 });
 const bad = (message: string) => Response.json({ message }, { status: 400 });
 
@@ -88,12 +89,12 @@ export async function POST(request: NextRequest) {
   return Response.json({ created: path.join(folder, dir) });
 }
 
-/** Writes `<folder>/<file>`: a rev-NNN.json or .md inside a .revisions folder only. */
+/** Writes `<folder>/<file>`: a rev-NNN.json or .md, or clean.json, inside a .revisions folder only. */
 export async function PUT(request: NextRequest) {
   const folder = folderOf(request);
   if (!folder) return notFound();
   const file = request.nextUrl.searchParams.get('file');
-  if (!path.basename(folder).endsWith('.revisions') || !safeName(file) || !REVISION_FILE.test(file)) return bad('Only rev-NNN.json / .md inside a .revisions folder can be written');
+  if (!path.basename(folder).endsWith('.revisions') || !safeName(file) || !REVISION_FILE.test(file)) return bad('Only rev-NNN.json / .md or clean.json inside a .revisions folder can be written');
   const abs = path.join(folder, file);
   const tmp = `${abs}.${process.pid}.tmp`;
   await fs.writeFile(tmp, new Uint8Array(await request.arrayBuffer()));

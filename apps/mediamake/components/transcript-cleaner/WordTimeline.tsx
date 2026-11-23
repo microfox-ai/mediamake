@@ -1,23 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { clock, lineOf } from '@/lib/transcript-revisions/transcript';
-import type { TWord } from '@/lib/transcript-revisions/types';
+import { clock, lanesOf, lineOf } from '@/lib/transcript-cleaner/transcript';
+import type { TWord } from '@/lib/transcript-cleaner/types';
 import { followStart, MIN_WORD, useTranscriptStore, type TimeChange } from './store';
-import { useRevisionWords } from './Stage';
+import { isLong, RewriteInput, useRevisionWords, WordMenu } from './WordMenu';
 
 /*
  * A few seconds of the song, zoomed in: the waveform, the playhead, and every word as a block at its time. Drag a
- * word's edges to change its start or end, its middle to move it (⇧ moves the rest of its line with it, ⌥ lets it pass
- * its neighbours). Drag the empty part or scroll to look around; ⌘/Ctrl-scroll zooms. Moved words show their old place
- * as a dashed outline.
+ * word's edges to change its start or end, its middle to move it (⇧ moves the rest of its line with it); a word may
+ * run over its neighbours (several voices, a choir), and words that overlap stack in lanes. Right-click a word for its
+ * menu. Drag the empty part or scroll to look around; ⌘/Ctrl-scroll zooms. Moved words show their old place as a
+ * dashed outline; long words (maybe stretched across a gap) are striped amber.
  */
 
-const HEIGHT = 168;
-const LANE = 30;
 const LANES_TOP = 6;
-const WAVE_TOP = LANES_TOP + LANE * 2 + 8;
+const WAVE_HEIGHT = 94;
+/** Lane height by how many lanes the song needs: two lanes of room always, so the first overlap doesn't move anything. */
+const laneHeight = (lanes: number) => (lanes <= 2 ? 30 : lanes === 3 ? 24 : 20);
+const LONG_STRIPES = 'repeating-linear-gradient(135deg, rgba(251,191,36,0.22) 0 6px, rgba(251,191,36,0.06) 6px 12px)';
 
 const COLORS = {
   wave: 'rgba(161, 161, 170, 0.55)',
@@ -60,8 +62,14 @@ export function WordTimeline() {
   const span = useTranscriptStore(s => s.span);
   const viewStart = useTranscriptStore(s => s.viewStart);
   const selected = useTranscriptStore(s => s.selected);
+  const editing = useTranscriptStore(s => (s.editing?.where === 'timeline' ? s.editing.i : null));
   const revision = useTranscriptStore(s => s.revision);
-  const { marked, moved } = useRevisionWords();
+  const { marked, moved, rewritten, relined } = useRevisionWords();
+  const { lane, count } = useMemo(() => lanesOf(words), [words]);
+  const lanes = Math.max(2, count);
+  const LANE = laneHeight(lanes);
+  const WAVE_TOP = LANES_TOP + LANE * lanes + 8;
+  const HEIGHT = WAVE_TOP + WAVE_HEIGHT;
   const dragRef = useRef<Drag | null>(null);
   const panRef = useRef<{ x0: number; v0: number; moved: boolean } | null>(null);
   const [live, setLive] = useState<{ i: number; start: number; end: number } | null>(null);
@@ -164,11 +172,11 @@ export function WordTimeline() {
     // the playhead
     ctx.fillStyle = COLORS.playhead;
     ctx.fillRect(Math.round(x(time)) - 0.5, 0, 1.5, HEIGHT);
-  }, [width, song?.peaks, duration, v0, span, time, marksKey]); // x and pps follow from v0, span and width
+  }, [width, song?.peaks, duration, v0, span, time, marksKey, HEIGHT, WAVE_TOP]); // x and pps follow from v0, span and width
 
   const visible = words.filter(w => w.end >= v0 - 0.5 && w.start <= v0 + span + 0.5);
 
-  /** Where a drag of word i may go: its neighbours bound it, unless ⌥ is held. */
+  /** Where a drag of word i may go: anywhere in the song (words may overlap: voices, a choir), never shorter than MIN_WORD. */
   const beginDrag = (e: React.PointerEvent, w: TWord, mode: Mode) => {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -176,30 +184,26 @@ export function WordTimeline() {
     const s = useTranscriptStore.getState();
     if (s.viewStart === null) s.setViewStart(v0);
     s.selectWord(w.i);
-    const free = e.altKey;
     const ripple = mode === 'move' && e.shiftKey;
     const all = s.words;
-    const prev = all[w.i - 1];
     let group = [{ i: w.i, start: w.start, end: w.end }];
     if (ripple) {
       const line = lineOf(s.lines, w);
       group = (line?.words ?? [w]).filter(x => x.i >= w.i).map(x => ({ i: x.i, start: all[x.i].start, end: all[x.i].end }));
     }
-    const last = group[group.length - 1];
-    const next = all[last.i + 1];
     const total = s.song?.duration || Infinity;
     let lo: number;
     let hi: number;
     if (mode === 'start') {
-      lo = free || !prev ? 0 : Math.min(prev.end, w.start);
+      lo = 0;
       hi = w.end - MIN_WORD;
     } else if (mode === 'end') {
       lo = w.start + MIN_WORD;
-      hi = free || !next ? total : Math.max(next.start, w.end);
+      hi = total;
     } else {
       // how far the group may shift (seconds, negative = earlier)
-      lo = (free || !prev ? 0 : Math.min(prev.end, w.start)) - w.start;
-      hi = (free || !next ? total : Math.max(next.start, last.end)) - last.end;
+      lo = -Math.min(...group.map(g => g.start));
+      hi = total - Math.max(...group.map(g => g.end));
     }
     dragRef.current = { mode, i: w.i, x0: e.clientX, pps, group, lo, hi, moved: false };
   };
@@ -278,44 +282,67 @@ export function WordTimeline() {
             <div
               key={`was-${w.i}`}
               className="pointer-events-none absolute rounded border border-dashed border-sky-400/50"
-              style={{ left: x(o.start), width: Math.max(2, (o.end - o.start) * pps), top: LANES_TOP + (w.i % 2) * LANE, height: LANE - 4 }}
+              style={{ left: x(o.start), width: Math.max(2, (o.end - o.start) * pps), top: LANES_TOP + (lane.get(w.i) ?? 0) * LANE, height: LANE - 4 }}
             />
           );
         })}
       {visible.map(w => {
         const left = x(w.start);
         const wpx = Math.max(3, (w.end - w.start) * pps);
-        const now = w.start <= time && time < w.end;
+        const top = LANES_TOP + (lane.get(w.i) ?? 0) * LANE;
+        if (editing === w.i)
+          return (
+            <div key={w.i} className="absolute z-20" style={{ left, top, height: LANE - 4 }}>
+              <RewriteInput w={w} className="h-full text-xs" />
+            </div>
+          );
+        const now = !w.deleted && w.start <= time && time < w.end;
         const unconfirmed = w.verified && w.verified !== 'heard';
+        const long = isLong(w);
+        const was = song?.base[w.i]?.text;
         return (
-          <div
-            key={w.i}
-            className={cn(
-              'group absolute flex items-center overflow-hidden rounded border text-[11px] leading-none',
-              moved.has(w.i) ? 'border-sky-400 bg-sky-500/30 text-sky-50' : unconfirmed ? 'border-dashed border-orange-400/80 bg-orange-500/15 text-orange-100' : 'border-zinc-600 bg-zinc-800/90 text-zinc-100',
-              now && 'bg-amber-400/40 text-white',
-              selected === w.i && 'ring-2 ring-sky-300',
-              marked.has(w.i) && 'border-red-500',
-            )}
-            style={{ left, width: wpx, top: LANES_TOP + (w.i % 2) * LANE, height: LANE - 4, cursor: 'grab' }}
-            title={`#${w.i} "${w.text}" ${w.start.toFixed(3)}–${w.end.toFixed(3)} s · drag the edges or the middle (⇧ moves the rest of the line, ⌥ passes the neighbours)`}
-            onPointerDown={e => beginDrag(e, w, 'move')}
-            onDoubleClick={e => {
-              e.stopPropagation();
-              useTranscriptStore.getState().playRange(w.start - 0.15, w.end + 0.15);
-            }}
-          >
-            <span className="pointer-events-none truncate px-1.5">{w.text}</span>
-            {/* the edges */}
-            <span
-              className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
-              onPointerDown={e => beginDrag(e, w, 'start')}
-            />
-            <span
-              className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
-              onPointerDown={e => beginDrag(e, w, 'end')}
-            />
-          </div>
+          <WordMenu key={w.i} w={w} where="timeline">
+            <div
+              className={cn(
+                'group absolute flex items-center overflow-hidden rounded border text-[11px] leading-none',
+                moved.has(w.i) ? 'border-sky-400 bg-sky-500/30 text-sky-50' : unconfirmed ? 'border-dashed border-orange-400/80 bg-orange-500/15 text-orange-100' : 'border-zinc-600 bg-zinc-800/90 text-zinc-100',
+                long && 'border-amber-400/90',
+                relined.has(w.i) && 'border-violet-400',
+                rewritten.has(w.i) && 'border-emerald-400 text-emerald-100',
+                now && 'bg-amber-400/40 text-white',
+                w.deleted && 'border-dashed border-red-500/80 bg-red-500/10 text-red-200/70 line-through opacity-70',
+                selected === w.i && 'ring-2 ring-sky-300',
+                marked.has(w.i) && 'border-red-500',
+              )}
+              style={{ left, width: wpx, top, height: LANE - 4, cursor: 'grab', ...(long && !now ? { backgroundImage: LONG_STRIPES } : {}) }}
+              title={[
+                `#${w.i} "${w.text}" ${w.start.toFixed(3)}–${w.end.toFixed(3)} s`,
+                rewritten.has(w.i) && was ? `was "${was}"` : '',
+                w.deleted ? 'to delete' : '',
+                long ? `${(w.end - w.start).toFixed(1)} s long: may run into a gap (right-click to trim)` : '',
+                'drag the edges or the middle (⇧ moves the rest of the line) · right-click: menu',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+              onPointerDown={e => beginDrag(e, w, 'move')}
+              onDoubleClick={e => {
+                e.stopPropagation();
+                useTranscriptStore.getState().playRange(w.start - 0.15, w.end + 0.15);
+              }}
+            >
+              <span className="pointer-events-none truncate px-1.5">{w.text}</span>
+              {long && wpx > 70 && <span className="pointer-events-none ml-auto shrink-0 pr-1.5 font-mono text-[9px] text-amber-300">{(w.end - w.start).toFixed(1)} s</span>}
+              {/* the edges */}
+              <span
+                className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
+                onPointerDown={e => beginDrag(e, w, 'start')}
+              />
+              <span
+                className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
+                onPointerDown={e => beginDrag(e, w, 'end')}
+              />
+            </div>
+          </WordMenu>
         );
       })}
       {live && (

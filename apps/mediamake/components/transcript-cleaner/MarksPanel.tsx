@@ -1,18 +1,19 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { CheckCheckIcon, ClipboardCopyIcon, PlayIcon, RotateCcwIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
+import { useEffect, useMemo, useRef } from 'react';
+import { CheckCheckIcon, ClipboardCopyIcon, PlayIcon, RotateCcwIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
-import { clock } from '@/lib/transcript-revisions/transcript';
-import { MARK_LABELS, type Mark, type MarkKind } from '@/lib/transcript-revisions/types';
+import { changeCount, clock, LONG_WORD, longWords, TRIM_TO } from '@/lib/transcript-cleaner/transcript';
+import { MARK_LABELS, type LineMove, type Mark, type MarkKind } from '@/lib/transcript-cleaner/types';
 import { useTranscriptStore } from './store';
 
 /*
- * The open revision: every mark with the user's note, every word moved on the timeline, and the button that copies it
- * all for Claude. It saves itself beside the transcript (<song>.transcript.revisions/rev-NNN.json and .md).
+ * The open revision: every mark with the user's note, every word moved on the timeline, deleted, rewritten or pushed to
+ * another line (each one undoable), the long words to check, and the button that copies it all for Claude. It saves
+ * itself beside the transcript (<song>.transcript.revisions/rev-NNN.json and .md).
  */
 
 const KIND_COLORS: Record<MarkKind, string> = {
@@ -151,6 +152,123 @@ function Moves() {
   );
 }
 
+function LongWords() {
+  const words = useTranscriptStore(s => s.words);
+  const selected = useTranscriptStore(s => s.selected);
+  const playRange = useTranscriptStore(s => s.playRange);
+  const selectWord = useTranscriptStore(s => s.selectWord);
+  const trimWord = useTranscriptStore(s => s.trimWord);
+  const long = useMemo(() => longWords(words), [words]);
+  if (!long.length) return null;
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-semibold">
+        Long words ({long.length}) <span className="font-normal text-muted-foreground">· {LONG_WORD} s or more</span>
+      </div>
+      <p className="text-[10px] leading-snug text-muted-foreground">
+        The aligner sometimes stretches a word's start or end across a gap or an instrumental. Play it: trim the side that runs on, or select it and press S or E where it really starts or ends.
+      </p>
+      {long.map(w => (
+        <div key={w.i} className={cn('flex items-center gap-1 rounded border border-amber-500/30 px-2 py-1 text-xs', selected === w.i && 'border-sky-400')}>
+          <button
+            className="min-w-0 flex-1 truncate text-left hover:underline"
+            onClick={() => {
+              selectWord(w.i);
+              playRange(w.start - 1, w.end + 0.5);
+            }}
+            title="Select it and play it, from a second before"
+          >
+            “{w.text}” <span className="font-mono text-[10px] text-muted-foreground">{clock(w.start, 1)}</span>
+          </button>
+          <span className="shrink-0 font-mono text-[10px] text-amber-300">{(w.end - w.start).toFixed(1)} s</span>
+          <Hint label={`Trim its start: keep the last ${TRIM_TO} s`}>
+            <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground" onClick={() => trimWord(w.i, 'start')}>
+              <ScissorsIcon className="size-3" />
+              start
+            </Button>
+          </Hint>
+          <Hint label={`Trim its end: keep the first ${TRIM_TO} s`}>
+            <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-muted-foreground" onClick={() => trimWord(w.i, 'end')}>
+              <ScissorsIcon className="size-3" />
+              end
+            </Button>
+          </Hint>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Line moves in runs: the words one push moved together, undone together so the line stays whole. */
+function runsOf(moves: LineMove[]): LineMove[][] {
+  const runs: LineMove[][] = [];
+  for (const m of [...moves].sort((a, b) => a.i - b.i)) {
+    const run = runs.at(-1);
+    const last = run?.at(-1);
+    if (run && last && last.i === m.i - 1 && last.to.stanza === m.to.stanza && last.to.line === m.to.line && last.from.stanza === m.from.stanza && last.from.line === m.from.line) run.push(m);
+    else runs.push([m]);
+  }
+  return runs;
+}
+
+function EditRow({ onPlay, onUndo, undo, children }: { onPlay: () => void; onUndo: () => void; undo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded border border-emerald-500/30 px-2 py-1 text-xs">
+      <button className="min-w-0 flex-1 truncate text-left hover:underline" onClick={onPlay} title="Select it and play it">
+        {children}
+      </button>
+      <Hint label={undo}>
+        <Button variant="ghost" size="sm" className="h-5 px-1 text-muted-foreground" onClick={onUndo}>
+          <RotateCcwIcon className="size-3" />
+        </Button>
+      </Hint>
+    </div>
+  );
+}
+
+function Edits() {
+  const revision = useTranscriptStore(s => s.revision);
+  const words = useTranscriptStore(s => s.words);
+  const selectWord = useTranscriptStore(s => s.selectWord);
+  const playRange = useTranscriptStore(s => s.playRange);
+  const toggleDelete = useTranscriptStore(s => s.toggleDelete);
+  const undoRewrite = useTranscriptStore(s => s.undoRewrite);
+  const undoLineMoves = useTranscriptStore(s => s.undoLineMoves);
+  const rewrites = [...(revision?.rewrites ?? [])].sort((a, b) => a.i - b.i);
+  const runs = runsOf(revision?.lineMoves ?? []);
+  const deleted = [...(revision?.deleted ?? [])].sort((a, b) => a.i - b.i);
+  const n = rewrites.length + (revision?.lineMoves?.length ?? 0) + deleted.length;
+  if (!n) return null;
+  const play = (i: number) => {
+    const w = words[i];
+    if (!w) return;
+    selectWord(i);
+    playRange(w.start - 0.6, w.end + 0.6);
+  };
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-semibold">Edited words ({n})</div>
+      {rewrites.map(r => (
+        <EditRow key={`rw-${r.i}`} onPlay={() => play(r.i)} onUndo={() => undoRewrite(r.i)} undo="Undo the rewrite">
+          <span className="text-muted-foreground line-through">{r.from}</span> → <span className="text-emerald-300">{r.to}</span>{' '}
+          <span className="font-mono text-[10px] text-muted-foreground">#{r.i}</span>
+        </EditRow>
+      ))}
+      {runs.map(run => (
+        <EditRow key={`ln-${run[0].i}`} onPlay={() => play(run[0].i)} onUndo={() => undoLineMoves(run.map(m => m.i))} undo="Back to their own line">
+          “{run.map(m => m.text).join(' ')}” <span className="text-violet-300">→ {run[0].to.line === undefined ? 'another' : `line ${run[0].to.stanza ?? ''}.${run[0].to.line}`}</span>{' '}
+          <span className="text-muted-foreground">“{run[0].toLine}”</span>
+        </EditRow>
+      ))}
+      {deleted.map(d => (
+        <EditRow key={`del-${d.i}`} onPlay={() => play(d.i)} onUndo={() => toggleDelete(d.i)} undo="Keep it (undo the delete)">
+          <span className="text-red-300 line-through">{d.text}</span> <span className="font-mono text-[10px] text-muted-foreground">#{d.i} · delete</span>
+        </EditRow>
+      ))}
+    </div>
+  );
+}
+
 function HowTo() {
   return (
     <div className="space-y-2 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
@@ -162,10 +280,17 @@ function HowTo() {
           what you hear.
         </li>
         <li>
-          Or fix a time yourself: drag a word's edges or middle on the timeline (⇧ drags the rest of the line with it). With a word selected, <b>S</b> and <b>E</b> set its start and end at the playhead.
+          Or fix a time yourself: drag a word's edges or middle on the timeline (⇧ drags the rest of the line with it); words may overlap. With a word selected, <b>S</b> and <b>E</b> set its start and end
+          at the playhead.
+        </li>
+        <li>
+          Right-click a word to <b>rewrite</b> it (↵), <b>delete</b> it (⌫), mark it, or <b>push it to the next or previous line</b>.
         </li>
         <li>
           <b>Copy for Claude</b> and paste it in the chat. Nothing changes in the transcript until Claude applies it.
+        </li>
+        <li>
+          When the song is right, <b>Mark clean</b> (⇧C): it gets a green check in the song list.
         </li>
       </ol>
     </div>
@@ -178,7 +303,8 @@ export function MarksPanel() {
   const copyInstructions = useTranscriptStore(s => s.copyInstructions);
   const setStatus = useTranscriptStore(s => s.setStatus);
   const marks = [...(revision?.marks ?? [])].sort((a, b) => a.at - b.at);
-  const count = marks.length + (revision?.timings.length ?? 0);
+  const count = changeCount(revision);
+  const edits = (revision?.deleted?.length ?? 0) + (revision?.rewrites?.length ?? 0) + (revision?.lineMoves?.length ?? 0);
   if (!song) return <div className="p-4 text-xs text-muted-foreground">Open a song to mark what's wrong in it.</div>;
   return (
     <div className="flex h-full flex-col">
@@ -186,7 +312,9 @@ export function MarksPanel() {
         <div className="min-w-0 flex-1">
           <div className="text-xs font-semibold">{revision ? revision.id : 'No revision yet'}</div>
           <div className="text-[10px] text-muted-foreground">
-            {revision ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks · ${revision.timings.length} moved` : 'starts with your first mark'}
+            {revision
+              ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks · ${revision.timings.length} moved${edits ? ` · ${edits} edited` : ''}`
+              : 'starts with your first change'}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -197,7 +325,7 @@ export function MarksPanel() {
               </Button>
             </Hint>
           )}
-          <Hint label="Copy the marks and moved words as instructions for Claude" keys="C">
+          <Hint label="Copy the marks and changed words as instructions for Claude" keys="C">
             <Button size="sm" className="h-7 px-2 text-xs" disabled={!count} onClick={() => void copyInstructions()}>
               <ClipboardCopyIcon className="size-3.5" /> Copy for Claude
             </Button>
@@ -215,7 +343,9 @@ export function MarksPanel() {
               ))}
             </div>
           )}
+          <Edits />
           <Moves />
+          <LongWords />
           {!count && <HowTo />}
         </div>
       </div>
