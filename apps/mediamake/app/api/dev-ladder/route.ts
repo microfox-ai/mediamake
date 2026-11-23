@@ -6,8 +6,8 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /*
- * A ladder folder opened by its path on the public /remaster-revision page (development only,
- * like dev-lyrics and dev-library): the dev server runs on the user's own computer, so a review
+ * A folder opened by its path on the public /remaster-revision and /transcript-revision pages
+ * (development only, like dev-lyrics and dev-library): the dev server runs on the user's own computer, so a review
  * link can name the folder instead of asking for the folder picker. It lists a folder, serves its
  * files, and writes only what the screen writes: rev-NNN.json / .md inside a `<folder>.revisions`
  * subfolder (created on demand). Only paths under the home folder; nothing is run or deleted

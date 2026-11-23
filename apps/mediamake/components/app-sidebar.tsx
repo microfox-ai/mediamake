@@ -38,7 +38,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { StudioConfig } from "@/microfox.config"
-import { RocketIcon, MagnetIcon, ListIcon, KeyIcon, MonitorSmartphoneIcon, AudioLinesIcon, FolderOpenIcon, TvIcon, TypeIcon, SparklesIcon, CreditCardIcon, BoxIcon, GaugeIcon, FolderIcon, FilmIcon, ClapperboardIcon, MessageSquareTextIcon, ImagesIcon, LayersIcon, PlugIcon } from "lucide-react"
+import { RocketIcon, MagnetIcon, ListIcon, KeyIcon, MonitorSmartphoneIcon, AudioLinesIcon, CaptionsIcon, FolderOpenIcon, TvIcon, TypeIcon, SparklesIcon, CreditCardIcon, BoxIcon, GaugeIcon, FolderIcon, FilmIcon, ClapperboardIcon, MessageSquareTextIcon, ImagesIcon, LayersIcon, PlugIcon } from "lucide-react"
 import { aiRouterRegistry } from "@/app/ai"
 
 const aiagents = Object.entries(aiRouterRegistry.map).map(([path, value]) => {
@@ -85,6 +85,11 @@ const data = {
       title: "Remaster Revisions",
       url: "/remaster-revision",
       icon: <AudioLinesIcon />,
+    },
+    {
+      title: "Transcript Revisions",
+      url: "/transcript-revision",
+      icon: <CaptionsIcon />,
     },
     {
       title: "Library",
