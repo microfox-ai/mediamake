@@ -1,0 +1,329 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { clock, lineOf } from '@/lib/transcript-revisions/transcript';
+import type { TWord } from '@/lib/transcript-revisions/types';
+import { followStart, MIN_WORD, useTranscriptStore, type TimeChange } from './store';
+import { useRevisionWords } from './Stage';
+
+/*
+ * A few seconds of the song, zoomed in: the waveform, the playhead, and every word as a block at its time. Drag a
+ * word's edges to change its start or end, its middle to move it (⇧ moves the rest of its line with it, ⌥ lets it pass
+ * its neighbours). Drag the empty part or scroll to look around; ⌘/Ctrl-scroll zooms. Moved words show their old place
+ * as a dashed outline.
+ */
+
+const HEIGHT = 168;
+const LANE = 30;
+const LANES_TOP = 6;
+const WAVE_TOP = LANES_TOP + LANE * 2 + 8;
+
+const COLORS = {
+  wave: 'rgba(161, 161, 170, 0.55)',
+  played: 'rgba(251, 191, 36, 0.75)',
+  grid: 'rgba(161, 161, 170, 0.12)',
+  ruler: 'rgba(161, 161, 170, 0.9)',
+  playhead: '#ffffff',
+  mark: '#ef4444',
+};
+
+type Mode = 'start' | 'end' | 'move';
+
+interface Drag {
+  mode: Mode;
+  i: number;
+  x0: number;
+  pps: number;
+  /** The words that move, with their times when the drag began. */
+  group: { i: number; start: number; end: number }[];
+  /** How far the drag may go, in seconds (move), or the edge's bounds (start/end). */
+  lo: number;
+  hi: number;
+  moved: boolean;
+}
+
+function tickStep(span: number): number {
+  if (span <= 5) return 0.5;
+  if (span <= 12) return 1;
+  if (span <= 20) return 2;
+  return 5;
+}
+
+export function WordTimeline() {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [width, setWidth] = useState(0);
+  const song = useTranscriptStore(s => s.song);
+  const words = useTranscriptStore(s => s.words);
+  const time = useTranscriptStore(s => s.time);
+  const span = useTranscriptStore(s => s.span);
+  const viewStart = useTranscriptStore(s => s.viewStart);
+  const selected = useTranscriptStore(s => s.selected);
+  const revision = useTranscriptStore(s => s.revision);
+  const { marked, moved } = useRevisionWords();
+  const dragRef = useRef<Drag | null>(null);
+  const panRef = useRef<{ x0: number; v0: number; moved: boolean } | null>(null);
+  const [live, setLive] = useState<{ i: number; start: number; end: number } | null>(null);
+
+  const duration = song?.duration ?? 0;
+  const v0 = viewStart ?? followStart(time, span);
+  const pps = width ? width / span : 1;
+  const x = (t: number) => (t - v0) * pps;
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const ro = new ResizeObserver(() => setWidth(box.clientWidth));
+    ro.observe(box);
+    setWidth(box.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  // scroll pans, ⌘/Ctrl-scroll (and a trackpad pinch) zooms; needs a listener that may cancel the page's scroll
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const onWheel = (e: WheelEvent) => {
+      const s = useTranscriptStore.getState();
+      if (!s.song) return;
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        s.zoom(e.deltaY > 0 ? 1 : -1);
+        return;
+      }
+      const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const start = s.viewStart ?? followStart(s.time, s.span);
+      const w = box.clientWidth || 1;
+      s.setViewStart(Math.max(0, Math.min(Math.max(0, (s.song.duration || 0) - s.span), start + (d / w) * s.span)));
+    };
+    box.addEventListener('wheel', onWheel, { passive: false });
+    return () => box.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const marksKey = (revision?.marks ?? []).map(m => m.at).join(',');
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !width) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(HEIGHT * dpr);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, HEIGHT);
+    // the grid and the ruler
+    const step = tickStep(span);
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.textBaseline = 'bottom';
+    for (let t = Math.ceil(v0 / step) * step; t <= v0 + span; t += step) {
+      const px = Math.round(x(t)) + 0.5;
+      ctx.fillStyle = COLORS.grid;
+      ctx.fillRect(px, 0, 1, HEIGHT - 12);
+      ctx.fillStyle = COLORS.ruler;
+      ctx.fillRect(px, HEIGHT - 5, 1, 5);
+      const whole = Math.abs(t - Math.round(t)) < 1e-6;
+      if (whole || span <= 5) ctx.fillText(clock(t, whole ? 0 : 1), px + 3, HEIGHT - 1);
+    }
+    // the waveform under the words
+    const peaks = song?.peaks;
+    const top = WAVE_TOP;
+    const h = HEIGHT - 14 - top;
+    const mid = top + h / 2;
+    if (peaks) {
+      const perSec = peaks.length / (duration || 1);
+      for (let i = 0; i < width; i++) {
+        const t0 = v0 + i / pps;
+        const t1 = t0 + 1 / pps;
+        if (t0 < 0 || t0 > duration) continue;
+        const from = Math.floor(t0 * perSec);
+        const to = Math.max(from + 1, Math.ceil(t1 * perSec));
+        let p = 0;
+        for (let j = from; j < to && j < peaks.length; j++) if (peaks[j] > p) p = peaks[j];
+        const ph = Math.max(1, p * (h / 2));
+        ctx.fillStyle = t0 < time ? COLORS.played : COLORS.wave;
+        ctx.fillRect(i, mid - ph, 1, ph * 2);
+      }
+    } else {
+      ctx.fillStyle = COLORS.wave;
+      ctx.fillRect(0, mid, width, 1);
+    }
+    // the marks
+    ctx.fillStyle = COLORS.mark;
+    for (const t of marksKey ? marksKey.split(',').map(Number) : []) {
+      const px = x(t);
+      if (px < -6 || px > width + 6) continue;
+      ctx.beginPath();
+      ctx.moveTo(px - 5, HEIGHT - 12);
+      ctx.lineTo(px + 5, HEIGHT - 12);
+      ctx.lineTo(px, HEIGHT - 19);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // the playhead
+    ctx.fillStyle = COLORS.playhead;
+    ctx.fillRect(Math.round(x(time)) - 0.5, 0, 1.5, HEIGHT);
+  }, [width, song?.peaks, duration, v0, span, time, marksKey]); // x and pps follow from v0, span and width
+
+  const visible = words.filter(w => w.end >= v0 - 0.5 && w.start <= v0 + span + 0.5);
+
+  /** Where a drag of word i may go: its neighbours bound it, unless ⌥ is held. */
+  const beginDrag = (e: React.PointerEvent, w: TWord, mode: Mode) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const s = useTranscriptStore.getState();
+    if (s.viewStart === null) s.setViewStart(v0);
+    s.selectWord(w.i);
+    const free = e.altKey;
+    const ripple = mode === 'move' && e.shiftKey;
+    const all = s.words;
+    const prev = all[w.i - 1];
+    let group = [{ i: w.i, start: w.start, end: w.end }];
+    if (ripple) {
+      const line = lineOf(s.lines, w);
+      group = (line?.words ?? [w]).filter(x => x.i >= w.i).map(x => ({ i: x.i, start: all[x.i].start, end: all[x.i].end }));
+    }
+    const last = group[group.length - 1];
+    const next = all[last.i + 1];
+    const total = s.song?.duration || Infinity;
+    let lo: number;
+    let hi: number;
+    if (mode === 'start') {
+      lo = free || !prev ? 0 : Math.min(prev.end, w.start);
+      hi = w.end - MIN_WORD;
+    } else if (mode === 'end') {
+      lo = w.start + MIN_WORD;
+      hi = free || !next ? total : Math.max(next.start, w.end);
+    } else {
+      // how far the group may shift (seconds, negative = earlier)
+      lo = (free || !prev ? 0 : Math.min(prev.end, w.start)) - w.start;
+      hi = (free || !next ? total : Math.max(next.start, last.end)) - last.end;
+    }
+    dragRef.current = { mode, i: w.i, x0: e.clientX, pps, group, lo, hi, moved: false };
+  };
+
+  const onDragMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.moved && Math.abs(e.clientX - d.x0) < 3) return;
+    d.moved = true;
+    const dt = (e.clientX - d.x0) / d.pps;
+    const g = d.group[0];
+    let changes: TimeChange[];
+    if (d.mode === 'start') changes = [{ i: g.i, start: Math.max(d.lo, Math.min(d.hi, g.start + dt)), end: g.end }];
+    else if (d.mode === 'end') changes = [{ i: g.i, start: g.start, end: Math.max(d.lo, Math.min(d.hi, g.end + dt)) }];
+    else {
+      const shift = Math.max(d.lo, Math.min(d.hi, dt));
+      changes = d.group.map(x => ({ i: x.i, start: x.start + shift, end: x.end + shift }));
+    }
+    useTranscriptStore.getState().setTimes(changes);
+    const first = changes.find(c => c.i === d.i)!;
+    setLive({ i: d.i, start: first.start, end: first.end });
+  };
+
+  const endDrag = () => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setLive(null);
+    if (d && !d.moved) {
+      const s = useTranscriptStore.getState();
+      const w = s.words[d.i];
+      if (w) s.seek(w.start);
+    }
+  };
+
+  const timeAt = (clientX: number) => {
+    const rect = boxRef.current!.getBoundingClientRect();
+    return v0 + (clientX - rect.left) / pps;
+  };
+
+  return (
+    <div
+      ref={boxRef}
+      className="relative w-full select-none overflow-hidden rounded-md bg-zinc-950"
+      style={{ height: HEIGHT }}
+      onPointerDown={e => {
+        if (e.button !== 0 || !song) return;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        panRef.current = { x0: e.clientX, v0, moved: false };
+      }}
+      onPointerMove={e => {
+        if (dragRef.current) return onDragMove(e);
+        const p = panRef.current;
+        if (!p) return;
+        if (!p.moved && Math.abs(e.clientX - p.x0) < 4) return;
+        p.moved = true;
+        useTranscriptStore.getState().setViewStart(p.v0 - (e.clientX - p.x0) / pps);
+      }}
+      onPointerUp={e => {
+        if (dragRef.current) return endDrag();
+        const p = panRef.current;
+        panRef.current = null;
+        if (p && !p.moved) {
+          const s = useTranscriptStore.getState();
+          s.selectWord(null);
+          s.seek(timeAt(e.clientX));
+        }
+      }}
+    >
+      <canvas ref={canvasRef} style={{ width, height: HEIGHT }} className="pointer-events-none absolute inset-0 block" />
+      {/* where moved words were; drags on a word bubble their moves here (the word captures the pointer) */}
+      {visible
+        .filter(w => moved.has(w.i) && song?.original[w.i])
+        .map(w => {
+          const o = song!.original[w.i];
+          return (
+            <div
+              key={`was-${w.i}`}
+              className="pointer-events-none absolute rounded border border-dashed border-sky-400/50"
+              style={{ left: x(o.start), width: Math.max(2, (o.end - o.start) * pps), top: LANES_TOP + (w.i % 2) * LANE, height: LANE - 4 }}
+            />
+          );
+        })}
+      {visible.map(w => {
+        const left = x(w.start);
+        const wpx = Math.max(3, (w.end - w.start) * pps);
+        const now = w.start <= time && time < w.end;
+        const unconfirmed = w.verified && w.verified !== 'heard';
+        return (
+          <div
+            key={w.i}
+            className={cn(
+              'group absolute flex items-center overflow-hidden rounded border text-[11px] leading-none',
+              moved.has(w.i) ? 'border-sky-400 bg-sky-500/30 text-sky-50' : unconfirmed ? 'border-dashed border-orange-400/80 bg-orange-500/15 text-orange-100' : 'border-zinc-600 bg-zinc-800/90 text-zinc-100',
+              now && 'bg-amber-400/40 text-white',
+              selected === w.i && 'ring-2 ring-sky-300',
+              marked.has(w.i) && 'border-red-500',
+            )}
+            style={{ left, width: wpx, top: LANES_TOP + (w.i % 2) * LANE, height: LANE - 4, cursor: 'grab' }}
+            title={`#${w.i} "${w.text}" ${w.start.toFixed(3)}–${w.end.toFixed(3)} s · drag the edges or the middle (⇧ moves the rest of the line, ⌥ passes the neighbours)`}
+            onPointerDown={e => beginDrag(e, w, 'move')}
+            onDoubleClick={e => {
+              e.stopPropagation();
+              useTranscriptStore.getState().playRange(w.start - 0.15, w.end + 0.15);
+            }}
+          >
+            <span className="pointer-events-none truncate px-1.5">{w.text}</span>
+            {/* the edges */}
+            <span
+              className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
+              onPointerDown={e => beginDrag(e, w, 'start')}
+            />
+            <span
+              className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-white/0 hover:bg-white/40 group-hover:bg-white/15"
+              onPointerDown={e => beginDrag(e, w, 'end')}
+            />
+          </div>
+        );
+      })}
+      {live && (
+        <div className="pointer-events-none absolute right-2 top-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] text-sky-200">
+          {live.start.toFixed(3)}–{live.end.toFixed(3)} s
+        </div>
+      )}
+      {!song?.peaks && song?.url && <div className="pointer-events-none absolute bottom-4 left-2 text-[10px] text-zinc-500">Decoding the waveform…</div>}
+    </div>
+  );
+}
