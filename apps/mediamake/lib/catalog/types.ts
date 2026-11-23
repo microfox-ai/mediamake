@@ -540,7 +540,7 @@ export function parseAdvice(value: unknown): ItemAdvice | null {
  * (an admin may mark one without, their call), shown
  * on its page as "Made with this", a gallery like a store listing's
  * (components/catalog/made-with.tsx, tiles from ./gallery). Also in
- * the README, CLAUDE.md, the pull request template and publish-skill.
+ * the README, CLAUDE.md, the pull request template and mm-publish-item.
  */
 export const RULE = "We publish nothing we don't use.";
 

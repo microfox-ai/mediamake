@@ -184,7 +184,7 @@ function ProductionDetail({ production }: { production: Production }) {
 function ForkButton({ skill }: { skill: Skill }) {
   const library = useLibraryStore(s => s.library);
   const [style, setStyle] = useState('');
-  const prompt = (ref: string) => `/fork-skill ${skill.name} ${ref}`;
+  const prompt = (ref: string) => `/mm-fork-skill ${skill.name} ${ref}`;
   const productions = [...skill.productions.map(p => library.production[p]).filter(Boolean), ...library.productions.filter(p => !skill.productions.includes(p.slug))];
   return (
     <Popover>

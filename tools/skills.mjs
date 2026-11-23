@@ -146,7 +146,7 @@ export const CATEGORIES = [
   { id: 'write', prefix: 'write-', about: 'Text: titles, descriptions, metadata' },
   { id: 'cleanup', prefix: 'cleanup-', about: 'Housekeeping: disk space, archives and backups', internal: true },
   { id: 'update', prefix: 'update-', about: 'Keeping what MediaMake installed up to date', internal: true },
-  { id: 'skill', suffix: '-skill', about: 'Managing skills themselves', internal: true },
+  { id: 'mm', prefix: 'mm-', about: 'Managing MediaMake items: making, forking, uploading, submitting and publishing them', internal: true },
   { id: 'remotion', prefix: 'remotion-', about: 'Remotion reference (installed from remotion-dev/skills)', internal: true },
   { id: 'other', about: 'Everything else' },
 ];
@@ -582,7 +582,7 @@ export const lessonProblems = skill => {
   const problems = [];
   const old = text.split('\n').findIndex(l => OLD_LOG_RULES.test(l));
   if (old >= 0) problems.push(`SKILL.md:${old + 1} tells sessions to write lessons into the skill: they go in the user's notes (mm notes add ${skill.name} "…")`);
-  if (LOG_HEADING.test(text) && !text.includes(`mm notes add ${skill.name} `)) problems.push(`its log doesn't say where new lessons go: \`mm notes add ${skill.name} "…"\` (see publish-skill)`);
+  if (LOG_HEADING.test(text) && !text.includes(`mm notes add ${skill.name} `)) problems.push(`its log doesn't say where new lessons go: \`mm notes add ${skill.name} "…"\` (see mm-publish-item)`);
   return problems;
 };
 
@@ -906,7 +906,7 @@ const publish = () => {
   if (!flags.includes('--yes')) {
     console.log(`${skill.name} (${what}, ${skill.own ? `yours, in ${tilde(skill.dir)}` : rel(skill.dir)}) can be published.`);
     console.log(`A dry run, nothing changed. With --yes: a branch from origin/${base} in a temporary worktree (this checkout stays as it is) with it in .agents/skills/${skill.name}, linked from .claude/skills, one commit${push ? ', pushed, and a pull request (gh) or its link' : ', kept here'}.`);
-    console.log('Every skill in the repo is public on GitHub: read it for anything private first (publish-skill).');
+    console.log('Every skill in the repo is public on GitHub: read it for anything private first (mm-publish-item).');
     console.log(made ? `Made with it: ${madeLine}` : `No production named: an admin or a Cohort member need not name one (--made="<its title>" [--made-url=<its link>] when there is one; never make one up).`);
     return;
   }

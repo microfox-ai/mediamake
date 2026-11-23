@@ -209,6 +209,24 @@ worked once, the fix for one picture, timings, seeds, file names, this computer'
 Turn a correction into the rule it teaches, or leave it out; the run's details stay in its job folder or
 `prefs.md`.
 
+## Making items: the `mm-` skills
+
+Five skills look after items (skills, MCPs and apps), all named `mm-…`:
+
+- **A new item is made with `mm-new-item`**, never written by hand. It asks first what the item is, and
+  for a skill its kind (make videos, create designs, pack kits…), who it is for, its type (`internal`,
+  `superset`, `subset`, `mcp-use`) and, for a subset, its superset, picked from the skills that exist.
+  Then `mm space new`, the guide for its kind, and only then the generic skill-creator the agent has
+  (Anthropic's `skill-creator`, or another).
+- **The guides** are `.agents/skills/mm-new-item/guides/`: `general.md` for every skill and one file a
+  kind (`make.md`, `create.md`, `pack.md`…). They are MediaMake's standard for each kind of skill, kept
+  by its admins: a guide changes only in a pull request, on an admin's word, never in a session. Where a
+  guide and a generic skill-creator differ, the guide wins.
+- `mm-fork-skill` makes a variant of a skill. It asks what the variant is: a subset of its base is the
+  usual answer, never assumed.
+- `mm-upload-item` writes an item's README and details and pushes it (a space, a project, the store),
+  `mm-submit-to-store` sends it for an admin's review, and `mm-publish-item` is the admins' direct path.
+
 ## MediaMake Spaces: the user's personal space and their projects'
 
 A space keeps everything for one body of work, the same on every computer: a personal one (`space/` in
@@ -220,7 +238,8 @@ Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`)
 `use-mediamake-spaces` skill says what to run for each thing a user asks.
 
 - Repos are made without asking: a new skill of the user's own goes in their space
-  (`mm space new skill <name>`, or `mm space add <name>` for a variant in the workspace), never in this
+  (the `mm-new-item` skill starts it with `mm space new skill <name>`; `mm space add <name>` moves a
+  variant in from the workspace), never in this
   repo, and the space is created by itself when there is none. Only a missing GitHub sign-in
   (`gh auth login`) is the user's step.
 - "Share it with the <project> project" is `mm space share <item> --project=<project>` (a dry run, then
@@ -435,7 +454,7 @@ rest on `/app/feedback`. How it works and what to set up: `apps/mediamake/docs/f
 A member's own skill, MCP or app gets into the store through a private review, never a pull request
 they open (`apps/mediamake/docs/submissions.md`).
 
-- "Make this public" is the `submit-to-store` skill: `mm submit <name>` checks it (keys, tokens,
+- "Make this public" is the `mm-submit-to-store` skill: `mm submit <name>` checks it (keys, tokens,
   paths on this computer) and `mm submit <name> --yes --made="…"` sends it with the production that
   proves it. The rule at the top holds: no production, no submission.
 - An admin decides on `/app/submissions`: the lowest membership that opens it (Public, Plus, Pro or

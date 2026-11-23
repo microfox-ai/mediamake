@@ -9,6 +9,8 @@
  *   mm space sync                  bring everything down, show what would go up (--yes sends it too), then
  *                                  show each space's files waiting to come down or go up (--no-files skips)
  *   mm space new <skill|mcp|app> <name> [--project=<project>]   start an item (makes your space when you have none)
+ *                                  A skill takes what its maker said it is: --nature=<private-use|shared-use>,
+ *                                  --type=<internal|superset|subset|mcp-use> and, for a subset, --superset=<skill>
  *   mm space add <skill>           move one of your workspace skills into your space (a dry run; --yes)
  *   mm space share <item> --project=<project>   move an item into a project's space, so everyone on the
  *                                  project gets it (a dry run; --yes). --copy keeps yours too. It pushes only
@@ -1961,10 +1963,35 @@ what a place that lacks the need does instead, or "a to-do …" when the step ha
 | 1. <The first step> | nothing | no | yes | - |
 `;
 
+/** Who a skill is for, and how it sits among other skills (also SKILL_NATURES and SKILL_TYPES in apps/mediamake/lib/catalog/skill-profile.ts). */
+const SKILL_NATURES = ['private-use', 'shared-use'];
+const SKILL_TYPES = ['internal', 'superset', 'subset', 'mcp-use'];
+
+/**
+ * What its maker said a new skill is: --nature, --type and, for a subset, --superset. They are asked
+ * of the person (the mm-new-item skill does), never guessed, so a subset with no superset stops here.
+ */
+function skillDetails(kind, name, flags) {
+  const value = key => flags.find(f => f.startsWith(`--${key}=`))?.slice(key.length + 3);
+  const [nature, type, superset] = [value('nature'), value('type'), value('superset')];
+  if (kind !== 'skill') {
+    if (nature || type || superset) throw new Error(`Only a skill has a nature, a type and a superset: leave them out for an ${kind === 'mcp' ? 'MCP' : 'app'}.`);
+    return {};
+  }
+  if (nature && !SKILL_NATURES.includes(nature)) throw new Error(`--nature is ${SKILL_NATURES.join(' or ')}, not "${nature}".`);
+  if (type && !SKILL_TYPES.includes(type)) throw new Error(`--type is ${SKILL_TYPES.join(', ')}, not "${type}". Leave it out when none fits.`);
+  if (type === 'subset' && !superset) throw new Error('A subset names its superset: --superset=<the skill it is a style or a part of>. Ask its maker which.');
+  if (superset && type !== 'subset') throw new Error('Only a subset names a superset: add --type=subset, or leave --superset out.');
+  if (superset && !ITEM_NAME.test(superset)) throw new Error(`"${superset}" isn't a skill's name: lower-case words joined by hyphens, like make-kinetictype.`);
+  if (superset === name) throw new Error('A skill is not its own superset.');
+  return { nature: nature ?? 'private-use', type, superset };
+}
+
 async function create(args, flags, env) {
   const [kind, name] = args;
-  if (!KINDS[kind] || !name) throw new Error('mm space new <skill|mcp|app> <name> [--project=<project>]');
+  if (!KINDS[kind] || !name) throw new Error('mm space new <skill|mcp|app> <name> [--project=<project>] (a skill: [--nature=<private-use|shared-use>] [--type=<internal|superset|subset|mcp-use>] [--superset=<skill>])');
   if (!ITEM_NAME.test(name)) throw new Error(`"${name}" isn't a name: lower-case words joined by hyphens, like make-my-intro.`);
+  const details = skillDetails(kind, name, flags);
   if (kind === 'skill' && lstat(path.join(ownSkillsDir(), name))) throw new Error(`You already have a skill called ${name} in ${tilde(ownSkillsDir())}: mm space add ${name} moves it into your space.`);
   const wanted = flags.find(f => f.startsWith('--project='))?.slice('--project='.length);
   let space;
@@ -1981,13 +2008,17 @@ async function create(args, flags, env) {
     // its store listing (apps/mediamake/docs/item-readme.md): its details in the frontmatter, then the guide's parts, ending with what it outputs
     fs.writeFileSync(
       path.join(at, 'README.md'),
-      `---\ndescription: <What it is, for people, in a line or two>\ntags: <words people look for it by, with commas between them>\nnature: private-use\n# nature: shared-use when it is for other people (it can then be listed in the store, and needs every part below)\n# type: internal | superset | subset | mcp-use (ask its maker; leave out when none fits)\n# superset: <the skill this one is a style or a part of> (every subset names one)\n---\n\n<A YouTube link to its video, alone on this line. None yet: delete this line.>\n\n# ${humanize(name)}\n\n<What it does, in a line or two.>\n\n## How to use\n\n1. <What to say to Claude>\n2. <What happens next>\n\n## What it uses\n\n<The skills it runs and the MCPs and apps it works with, a line each: the part it plays. Uses none: delete this section.>\n\n## What the skill outputs\n\n<What you end up with and where it lands, with an example: a picture, a video or a link.>\n`,
+      `---\ndescription: <What it is, for people, in a line or two>\ntags: <words people look for it by, with commas between them>\n${details.nature === 'shared-use' ? 'nature: shared-use' : 'nature: private-use\n# nature: shared-use when it is for other people (it can then be listed in the store, and needs every part below)'}\n${details.type ? `type: ${details.type}${details.superset ? `\nsuperset: ${details.superset}` : ''}` : '# type: internal | superset | subset | mcp-use (ask its maker; leave out when none fits)\n# superset: <the skill this one is a style or a part of> (every subset names one)'}\n---\n\n<A YouTube link to its video, alone on this line. None yet: delete this line.>\n\n# ${humanize(name)}\n\n<What it does, in a line or two.>\n\n## How to use\n\n1. <What to say to Claude>\n2. <What happens next>\n\n## What it uses\n\n<The skills it runs and the MCPs and apps it works with, a line each: the part it plays. Uses none: delete this section.>\n\n## What the skill outputs\n\n<What you end up with and where it lands, with an example: a picture, a video or a link.>\n`,
     );
   } else {
     writeJson(path.join(at, 'item.json'), { title: humanize(name), summary: `<What this ${kind === 'mcp' ? 'MCP' : 'app'} does, in one line>`, version: '0.1.0', needs: [], media: [] });
     fs.writeFileSync(path.join(at, 'README.md'), `# ${humanize(name)}\n\n<What it is, and how to run or install it on a new computer.>\n`);
   }
   console.log(`✔ ${tilde(at)}${space.project ? ` (${space.project.name}'s space: everyone on the project gets it)` : ' (your space: only you)'}`);
+  if (kind === 'skill') {
+    console.log(`  ${details.nature}${details.type ? `, ${details.type}${details.superset ? ` of ${details.superset}` : ''}` : ", no type yet: ask its maker (internal, superset, subset or mcp-use), or leave it out when none fits"}. It is in its README.md.`);
+    console.log('  The mm-new-item skill writes it: the guide for its kind first, then the generic skill-creator.');
+  }
   afterChange(space);
   await sendReports([space], env);
   return 0;

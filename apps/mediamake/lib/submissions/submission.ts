@@ -2,7 +2,7 @@ import { isGrantableTier, tierLabel, tierRank, type GrantableTier, type MemberTi
 
 /**
  * Store submissions. A member asks Claude to make something they built public
- * (the `submit-to-store` skill, `mm submit`, or mm-use's `submit_item`); its
+ * (the `mm-submit-to-store` skill, `mm submit`, or mm-use's `submit_item`); its
  * files come here privately, with the production that proves it works when the
  * sender is below Cohort (Cohort members and admins may leave it out). An
  * admin reads it on /app/submissions, picks the lowest membership that opens

@@ -6,7 +6,7 @@ we don't use.**
 
 ## The path
 
-1. **The member asks Claude to make it public.** The `submit-to-store` skill
+1. **The member asks Claude to make it public.** The `mm-submit-to-store` skill
    finds the item in their space or workspace, runs the leak checks and sends
    it: `mm submit <name> --yes [--made="<production>" [--made-url=<link>]]`
    (`tools/submit.mjs`). A member below Cohort names the finished production
@@ -141,7 +141,7 @@ merges; nothing else depends on it.
 | Member API, admin API | `app/api/submissions`, `app/api/admin/submissions` |
 | The page | `components/submissions`, `app/app/(admin)/submissions` |
 | Suggested grants | `lib/memberships/suggestions.ts`, `suggestions-store.ts`, `components/memberships/suggested.tsx` |
-| The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
+| The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/mm-submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
 
 Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts`,
 `node --test tools/submit.test.mjs`.

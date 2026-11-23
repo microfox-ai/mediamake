@@ -1,11 +1,11 @@
 ---
-name: fork-skill
-description: Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-music-remix-like-f1xhitit), or <base>-v<N> that keeps an older version as it was before a big change — with its differences written down, a description that only triggers when asked for, and its lineage in the frontmatter. Use when the user says "make a variant of <skill>", "save this style as a skill", "fork <skill>", "keep the old version of <skill>", "a skill like <project>", or "/fork-skill <base> <ref>".
+name: mm-fork-skill
+description: Make a variant of one of this repo's skills as it improves or changes — a copy named <base>-like-<ref> that captures one finished project's style (e.g. make-video-music-remix-like-f1xhitit), or <base>-v<N> that keeps an older version as it was before a big change — with its differences written down, a description that only triggers when asked for, its lineage in the frontmatter, and its type asked of the user (a variant is usually a subset of its base, but it is asked, never assumed). Use when the user says "make a variant of <skill>", "save this style as a skill", "fork <skill>", "keep the old version of <skill>", "a skill like <project>", or "/mm-fork-skill <base> <ref>" or the old "/fork-skill".
 metadata:
-  category: skill
+  category: mm
 ---
 
-# fork-skill
+# mm-fork-skill
 
 A skill keeps improving with every project, and sometimes a project's style is worth keeping on
 its own (the F1 × Hit It edit), or an old behaviour is worth keeping before the base changes. A
@@ -18,7 +18,7 @@ its own (the F1 × Hit It edit), or an old behaviour is worth keeping before the
 A new variant starts as **yours**: it lives in your workspace (`~/MediaMake/skills/<name>`, outside
 the repo) and is linked from `~/.claude/skills/<name>`, so every session on this computer loads it
 and no file git tracks changes. When the user is happy with it, it goes public like every skill,
-as a pull request (step 6, and `publish-skill`).
+as a pull request (step 7, and `mm-publish-item`).
 
 ## Steps
 
@@ -34,24 +34,33 @@ as a pull request (step 6, and `publish-skill`).
    checkout's `.agents/skills` instead, linked from `.claude/skills`, for a branch and a PR you
    make yourself. The variant's log points at its own notes (`mm notes add <variant>`);
    `mm notes <variant>` shows those and the base's, so general lessons logged for the base still reach it.
-3. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
+3. **Ask what it is.** A variant is usually a **subset** of its base: one style, or one part, of
+   that skill. Ask, never assume: "Is `<name>` a subset of `<base>`, or something else?" The other
+   answers are a superset of its own, internal, MCP use, or none
+   (`apps/mediamake/docs/item-readme.md` says what each means). Write the answer in the variant's
+   README.md frontmatter: `type: subset` and `superset: <base>`, or what they said. That README was
+   copied from the base and still says what the base is, so its `type`, `superset`, `description`
+   and `tags` are the variant's to set. A variant starts as the user's own: `nature: private-use`
+   until they say it is for other people. A base with no README.md: write a short one with those
+   lines.
+4. **Write "This variant"**: the rules that make the look, concrete and checkable (pacing per
    section, transitions, type, sound, colour, what the user praised and rejected), each with where
    it came from. Each is a rule the next project in this style can follow, never this project's
    one-offs (its file names, timings, the fix for one shot). Then edit the body only where the variant really differs; the rest stays the base
    as of today. When the variant's steps need something else (another key, a sign-in, a device), change
    its run sheet too (`## Where it runs`; a base with none yet needs one written before the variant is
    published).
-4. **Description**: replace the `<what is different>` placeholder with one sentence. Keep the
+5. **Description**: replace the `<what is different>` placeholder with one sentence. Keep the
    trigger narrow ("Use only when the user names this variant or asks for the <ref> style;
    otherwise <base>"), so the base stays the default and the two never compete.
-5. Show the user the new "This variant" section and the description; adjust on their notes.
-6. **Publish** once the user is happy with it: `node tools/skills.mjs publish <name>` runs the
+6. Show the user the new "This variant" section and the description; adjust on their notes.
+7. **Publish** once the user is happy with it: `node tools/skills.mjs publish <name>` runs the
    checks (a dry run), and with `--yes` sends it as a pull request from a temporary worktree (this
    checkout is never touched), in `.agents/skills`, linked from `.claude/skills`. Give the user the
    PR link, and once it merges the variant's release page,
    `https://mediamake.microfox.app/app/releases/skill/<name>`. Their copy keeps loading until they
    pull the merge; then `node tools/skills.mjs tidy --yes` drops it. Read it for anything private
-   first, as `publish-skill` says. Until then, a channel's team gets it with `media sync` (see the
+   first, as `mm-publish-item` says. Until then, a channel's team gets it with `media sync` (see the
    library README).
 
 ## Keeping variants alive
@@ -68,10 +77,10 @@ This log is shared: everyone who pulls gets it, and it changes only in a pull re
 session. New lessons go in your notes, outside the repo. Read them with this log before planning:
 
 ```bash
-mm notes add fork-skill "<what the user said> → <the rule>"   # a new lesson, dated for you
-mm notes fork-skill                                           # your notes for this skill
+mm notes add mm-fork-skill "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes mm-fork-skill                                           # your notes for this skill
 ```
 
-When the user wants them shared, `mm notes promote fork-skill` offers them to this log as a pull request.
+When the user wants them shared, `mm notes promote mm-fork-skill` offers them to this log as a pull request.
 
 - 2026-10-25 · "provide support to create variants of skills as they improve or change, so something like make-video-music-remix-like-f1xhitit" → this skill and `node tools/skills.mjs fork`; variants are `<base>-like-<ref>` or `<base>-v<N>` with `metadata.variant-of`.

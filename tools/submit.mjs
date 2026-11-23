@@ -25,7 +25,7 @@
  *   --json                                  the same as JSON, for Claude
  *
  * <name> is a skill, MCP or app of your own: in your space or a project's (mm space), or a skill in
- * your workspace (a variant from fork-skill). The rule is "We publish nothing we don't use.": a member
+ * your workspace (a variant from mm-fork-skill). The rule is "We publish nothing we don't use.": a member
  * below Cohort names a finished production (the server refuses one without it, and a test render or a
  * demo is not one); Cohort members and admins need not.
  *

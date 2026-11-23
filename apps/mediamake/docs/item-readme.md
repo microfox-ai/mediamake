@@ -80,11 +80,12 @@ app). More types are added in `lib/catalog/skill-profile.ts` (`SKILL_TYPES`).
 Every subset names its superset (`superset: make-kinetictype` in the frontmatter, or Edit details):
 `make-kinetictype-like-screamingtowin` is a subset of `make-kinetictype`. Its page says "Subset of"
 with a link, and the superset's page lists its subset skills. A variant made with `skills.mjs fork`
-is a subset of the skill it was forked from until someone says otherwise.
+is a subset of the skill it was forked from until someone says otherwise (`mm-fork-skill` asks).
 
 Collect these when a skill is made or released (ask its maker, never guess): its nature, its type,
 a subset's superset, its tags and description, and for a shared-use skill the production that proves
-it. `mm space new skill` starts the README with them.
+it. `mm space new skill` starts the README with them (`--nature`, `--type`, `--superset`): the
+`mm-new-item` skill asks when a skill is made, `mm-upload-item` when it is sent.
 
 Whoever may change the skill (an admin for a store skill; the owner or an editor of its space for a
 private one) sees two buttons on its page: **Edit details** (tags, nature, type) and **README

@@ -1,12 +1,11 @@
 ---
-name: submit-to-store
-description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask a member below Cohort for the finished production that was made with it (we publish nothing we don't use; Cohort members and admins need not name one), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. An admin's own item is published directly, with no review (`--tier`). Accepted, it earns the user a membership for 3 months. Every store item has authors, like a git repo's collaborators: the first is its sender, and an author or an admin adds or removes others by email (`mm submit authors`); a Cohort author's updates are published directly. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", "add <someone> as an author / co-author of my skill", "who are the authors of <item>", "remove me as an author", or "/submit-to-store [name]".
+name: mm-submit-to-store
+description: Send a skill, MCP or app the user built to the MediaMake store for review — find it in their space or workspace, run the leak checks (keys, tokens, paths on this computer, emails, private notes), ask a member below Cohort for the finished production that was made with it (we publish nothing we don't use; Cohort members and admins need not name one), and submit it privately with `mm submit`; an admin then picks the membership that opens it (Public, Plus, Pro or Cohort) and approves, and it enters as Beta. An admin's own item is published directly, with no review (`--tier`). Accepted, it earns the user a membership for 3 months. Every store item has authors, like a git repo's collaborators: the first is its sender, and an author or an admin adds or removes others by email (`mm submit authors`); a Cohort author's updates are published directly. Use when the user says "make this public", "make my skill / MCP / app public", "submit this to the store", "list it in the store", "publish my skill" (when they are not a maintainer of the repo), "share this with everyone", "how do I get Plus / Pro", "what happened to my submission", "withdraw my submission", "add <someone> as an author / co-author of my skill", "who are the authors of <item>", "remove me as an author", "/mm-submit-to-store [name]" or the old "/submit-to-store".
 metadata:
-  category: other
-  internal: 'true'
+  category: mm
 ---
 
-# submit-to-store
+# mm-submit-to-store
 
 **We publish nothing we don't use.** A member below Cohort (Public, Plus, Pro) names the finished
 production made with it: step 3 asks for it and stops without one. Cohort members and admins need not
@@ -40,7 +39,7 @@ Where there is no MediaMake repo (the Claude web or phone app), mm-use's `submit
 `my_submissions` and `withdraw_submission` do the same: read the item's files and pass them in.
 
 Maintainers who push to the public repo can still open a skill's pull request themselves with
-`publish-skill`. Everyone else, and anything that is not a Public skill, comes through here.
+`mm-publish-item`. Everyone else, and anything that is not a Public skill, comes through here.
 
 ## 1. Find the item
 
@@ -50,7 +49,7 @@ ask which one. A skill that is already in the repo is public already: there is n
 
 Something written in a project folder or in `.claude/skills` is not theirs yet: move it into their
 space first (`mm space new <kind> <name>`, or `mm space add <skill>`; `use-mediamake-spaces` has
-the rest). The space is made by itself when there is none.
+the rest). Its README and details are `mm-upload-item`'s job. The space is made by itself when there is none.
 
 ## 2. Check it
 
@@ -74,7 +73,7 @@ user anything that looks private and let them reword it. Never send an item you 
 
 An MCP or an app needs an `item.json` with a real `title`, `summary` and `version`
 (`mm space new` writes a placeholder summary: replace it). A skill's come from its SKILL.md. A
-skill that calls MCP tools needs its `## First: check the MCPs` table (`publish-skill` has the
+skill that calls MCP tools needs its `## First: check the MCPs` table (`mm-publish-item` has the
 format), and one that keeps a feedback log sends new lessons to `mm notes`, not into the file.
 Its steps and its log hold general rules only: one run's details (a prompt that worked once, timings,
 seeds, file names, this computer's GPU, drives or paths) come out, or become the rule they teach.
@@ -100,8 +99,8 @@ read, and nothing is public until one of them approves. Then:
 mm submit <name> --yes [--made="<title>" [--made-url=<link>]] [--note="<anything the reviewers should know>"]
 ```
 
-**An admin publishes directly**, with no review: say which membership opens it (the user's word:
-Public, Plus, Pro or Cohort), then
+**An admin publishes directly**, with no review (`mm-publish-item` is the admins' skill for it): say
+which membership opens it (the user's word: Public, Plus, Pro or Cohort), then
 
 ```bash
 mm submit <name> --yes --tier=<public|plus|pro|cohort>
