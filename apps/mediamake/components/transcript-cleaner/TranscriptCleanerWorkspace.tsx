@@ -2,26 +2,30 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeftIcon, CheckIcon, FolderOpenIcon, KeyboardIcon, LoaderIcon, RefreshCwIcon, TriangleAlertIcon } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, CircleCheckIcon, FolderOpenIcon, KeyboardIcon, LoaderIcon, RefreshCwIcon, TriangleAlertIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Hint, isTextField, useKeys } from '@/components/revisions/keyboard';
-import { lineOf, wordAt } from '@/lib/transcript-revisions/transcript';
-import type { MarkKind } from '@/lib/transcript-revisions/types';
+import { cn } from '@/lib/utils';
+import { LONG_WORD, momentAt } from '@/lib/transcript-cleaner/transcript';
+import type { MarkKind } from '@/lib/transcript-cleaner/types';
 import { MarksPanel } from './MarksPanel';
 import { SongsPanel } from './SongsPanel';
 import { LinesList, Stage } from './Stage';
 import { WordTimeline } from './WordTimeline';
+import { isLong } from './WordMenu';
 import { RATES, useTranscriptStore } from './store';
 
 /*
- * /transcript-revision: review a song's timed words by ear. Open a folder of songs (a channel folder whose song
- * folders each hold <audio>.transcript.json beside the audio), play a song with its words lit as they're sung, pause
- * where something is off and mark it, or drag the words' times on the timeline. The marks and moved words are saved
- * as a revision beside the transcript, and "Copy for Claude" gives the text to paste in the chat; Claude changes the
- * transcript. In development the folder can be named in the link: ?path=/Users/…/Downloads/GIZ&song=<song folder>.
+ * /transcript-cleaner, the Transcript Cleaner: clean a song's timed words by ear. Open a folder of songs (a channel
+ * folder whose song folders each hold <audio>.transcript.json beside the audio), play a song with its words lit as
+ * they're sung, pause where something is off and mark it, drag the words' times on the timeline, or right-click a word
+ * to delete, rewrite or re-line it. Everything is saved as a revision beside the transcript, and "Copy for Claude"
+ * gives the text to paste in the chat; Claude changes the transcript. A song that's right is marked clean (a green
+ * check in the song list). In development the folder can be named in the link:
+ * ?path=/Users/…/Downloads/GIZ&song=<song folder>.
  */
 
 const SHORTCUTS: [string, string][] = [
@@ -31,6 +35,9 @@ const SHORTCUTS: [string, string][] = [
   ['↑ ↓', 'Previous / next line'],
   [', .', 'Previous / next word (selects it)'],
   ['P', 'Play the selected word'],
+  ['Right-click a word', 'Its menu: rewrite, delete, mark, push to the next or previous line, trim'],
+  ['↵', 'Rewrite the selected word'],
+  ['⌫', 'Delete the selected word (again: keep it)'],
   ['W', 'Mark a wrong word'],
   ['T', 'Mark a wrong timing'],
   ['M', 'Mark a missing word'],
@@ -38,11 +45,12 @@ const SHORTCUTS: [string, string][] = [
   ['N', 'Write a note'],
   ['S / E', 'Selected word starts / ends at the playhead'],
   ['⌥ ← →', 'Move the selected word 0.02 s (⇧: 0.1 s)'],
-  ['Drag a word', 'Its edges: start or end; its middle: move it (⇧ the rest of the line too, ⌥ past its neighbours)'],
+  ['Drag a word', 'Its edges: start or end; its middle: move it (⇧ the rest of the line too); it may overlap others'],
   ['- =', 'Zoom the timeline out / in (⌘-scroll too)'],
   ['[ ]', 'Slower / faster'],
   ['⌥ ↑ ↓', 'Previous / next song'],
   ['C', 'Copy the revision for Claude'],
+  ['⇧ C', 'Mark the song clean (again: not clean)'],
   ['Esc', 'Deselect the word'],
   ['Mod S', 'Save now'],
   ['?', 'Show these shortcuts'],
@@ -56,8 +64,7 @@ function ShortcutKeys({ keys }: { keys: string }) {
 
 function stepLine(d: number) {
   const s = useTranscriptStore.getState();
-  const l = lineOf(s.lines, wordAt(s.words, s.time + s.lead));
-  const at = l ? s.lines.indexOf(l) : -1;
+  const at = s.lines.length ? momentAt(s.words, s.lines, s.time + s.lead).line : -1;
   const next = s.lines[Math.max(0, Math.min(s.lines.length - 1, at + d))];
   if (!next) return;
   s.selectWord(null);
@@ -163,7 +170,27 @@ function useShortcuts() {
           break;
         case 'c':
         case 'C':
-          void s.copyInstructions();
+          // ⇧C marks the song clean (by the shift key, not the letter's case: Caps Lock alone still copies)
+          if (e.shiftKey) void s.toggleClean();
+          else void s.copyInstructions();
+          break;
+        case 'Enter': {
+          if (target?.closest('button,a,[role="button"]:not([data-slot="context-menu-trigger"])')) break;
+          if (s.selected === null) {
+            toast.message('Select a word first (click it), then press Enter to rewrite it');
+            break;
+          }
+          e.preventDefault();
+          const w = s.words[s.selected];
+          // rewritten on the stage: its line stays there while the box is open
+          if (w) s.startRewrite(w.i, 'stage');
+          break;
+        }
+        case 'Backspace':
+        case 'Delete':
+          e.preventDefault();
+          if (s.selected !== null) s.toggleDelete(s.selected);
+          else toast.message('Select a word first (click it), then press ⌫ to delete it');
           break;
         case 'Escape':
           s.selectWord(null);
@@ -201,9 +228,28 @@ function SaveIndicator() {
   return null;
 }
 
+function CleanButton() {
+  const clean = useTranscriptStore(s => !!s.song?.entry.clean);
+  const toggleClean = useTranscriptStore(s => s.toggleClean);
+  return (
+    <Hint label={clean ? 'Marked clean: click to unmark' : 'Mark this transcript clean: you went through it and it is right'} keys="⇧ C" side="bottom">
+      <Button
+        variant={clean ? 'secondary' : 'outline'}
+        size="sm"
+        className={cn('h-7 gap-1 px-2 text-xs', clean && 'text-emerald-400 hover:text-emerald-300')}
+        onClick={() => void toggleClean()}
+      >
+        <CircleCheckIcon className={cn('size-3.5', clean && 'text-emerald-400')} />
+        {clean ? 'Clean' : 'Mark clean'}
+      </Button>
+    </Hint>
+  );
+}
+
 function Header() {
   const song = useTranscriptStore(s => s.song);
   const words = useTranscriptStore(s => s.words.length);
+  const long = useTranscriptStore(s => s.words.filter(isLong).length);
   const unheard = useTranscriptStore(s => s.words.filter(w => w.verified && w.verified !== 'heard').length);
   const checks = useTranscriptStore(s => s.lines.filter(l => l.check).length);
   const reloadSong = useTranscriptStore(s => s.reloadSong);
@@ -218,14 +264,16 @@ function Header() {
           </Link>
         </Button>
       </Hint>
-      <span className="text-sm font-semibold">Transcript Revisions</span>
+      <span className="text-sm font-semibold">Transcript Cleaner</span>
       {song && (
         <span className="min-w-0 truncate text-xs text-muted-foreground">
           <span className="text-foreground">{song.entry.folder || song.entry.title}</span> · {words} words
           {unheard ? ` · ${unheard} not heard by a transcription` : ''}
           {checks ? ` · ${checks} lines to check` : ''}
+          {long ? <span className="text-amber-300" title={`Words ${LONG_WORD} s or longer: the aligner may have stretched them across a gap`}>{` · ${long} long words`}</span> : ''}
         </span>
       )}
+      {song && <CleanButton />}
       <div className="ml-auto flex items-center gap-3">
         <Hint label="Songs are mastered and compared here" side="bottom">
           <Link href="/remaster-revision" className="text-xs text-muted-foreground hover:text-foreground">
@@ -323,7 +371,7 @@ function Center() {
   );
 }
 
-export function TranscriptRevisionsWorkspace() {
+export function TranscriptCleanerWorkspace() {
   const init = useTranscriptStore(s => s.init);
   const flushSave = useTranscriptStore(s => s.flushSave);
 
@@ -349,7 +397,7 @@ export function TranscriptRevisionsWorkspace() {
   return (
     <div className="relative flex h-screen flex-col overflow-hidden bg-background">
       <Header />
-      <ResizablePanelGroup direction="horizontal" autoSaveId="transcript-revisions" className="min-h-0 flex-1">
+      <ResizablePanelGroup direction="horizontal" autoSaveId="transcript-cleaner" className="min-h-0 flex-1">
         <ResizablePanel defaultSize={17} minSize={10} maxSize={30}>
           <SongsPanel />
         </ResizablePanel>

@@ -87,8 +87,8 @@ const data = {
       icon: <AudioLinesIcon />,
     },
     {
-      title: "Transcript Revisions",
-      url: "/transcript-revision",
+      title: "Transcript Cleaner",
+      url: "/transcript-cleaner",
       icon: <CaptionsIcon />,
     },
     {

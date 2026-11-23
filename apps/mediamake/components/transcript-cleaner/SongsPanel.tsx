@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderOpenIcon, LoaderIcon, MusicIcon } from 'lucide-react';
+import { CircleCheckIcon, FolderOpenIcon, LoaderIcon, MusicIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,7 +8,7 @@ import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
 import { useTranscriptStore } from './store';
 
-/** The songs in the opened folder (each one transcript and its audio), filtered by name. */
+/** The songs in the opened folder (each one transcript and its audio), filtered by name; a green check marks a clean one. */
 export function SongsPanel() {
   const root = useTranscriptStore(s => s.root);
   const songs = useTranscriptStore(s => s.songs);
@@ -18,6 +18,7 @@ export function SongsPanel() {
   const current = useTranscriptStore(s => s.song?.entry.id ?? null);
   const openSong = useTranscriptStore(s => s.openSong);
   const pickRoot = useTranscriptStore(s => s.pickRoot);
+  const clean = songs.filter(s => s.clean).length;
   const f = filter.trim().toLowerCase();
   const list = f ? songs.filter(s => s.title.toLowerCase().includes(f) || s.folder.toLowerCase().includes(f)) : songs;
   return (
@@ -28,7 +29,7 @@ export function SongsPanel() {
             {root?.name ?? 'No folder'}
           </div>
           <div className="text-[10px] text-muted-foreground">
-            {scanning ? `Looking… ${scanning.done}/${scanning.total || '?'}` : `${songs.length} songs`}
+            {scanning ? `Looking… ${scanning.done}/${scanning.total || '?'}` : `${songs.length} songs${clean ? ` · ${clean} clean` : ''}`}
           </div>
         </div>
         <Hint label="Open another folder" side="bottom">
@@ -54,11 +55,16 @@ export function SongsPanel() {
               className={cn('flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-muted/50', s.id === current && 'bg-secondary')}
             >
               <MusicIcon className={cn('mt-0.5 size-3.5 shrink-0', s.audio ? 'text-muted-foreground' : 'text-destructive')} />
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs">{s.folder || s.title}</span>
                 {s.folder && s.folder !== s.title && <span className="block truncate text-[10px] text-muted-foreground">{s.title}</span>}
                 {!s.audio && <span className="block text-[10px] text-destructive">no audio beside it</span>}
               </span>
+              {s.clean && (
+                <span title="Marked clean" className="mt-0.5 shrink-0">
+                  <CircleCheckIcon className="size-3.5 text-emerald-400" aria-label="Marked clean" />
+                </span>
+              )}
             </button>
           ))}
         </div>

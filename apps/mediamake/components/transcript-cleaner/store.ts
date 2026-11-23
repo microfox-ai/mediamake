@@ -3,28 +3,31 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
 import { isAbortError } from '@/lib/local-media/file-access';
-import { getFolderSupport, getSubdir, listFileNames, pickFolder, readFileIn, readJsonIn, requestReadWrite, writeFileIn } from '@/lib/revisions/fs';
+import { getFolderSupport, getSubdir, listFileNames, pickFolder, readFileIn, readJsonIn, removeFileIn, requestReadWrite, writeFileIn } from '@/lib/revisions/fs';
 import { openDevFolder } from '@/lib/remaster-revisions/dev-folder';
 import { waveformPeaks } from '@/lib/remaster-revisions/loudness';
 import {
+  changeCount,
   instructionsOf,
-  lineOf,
   linesOf,
+  momentAt,
   revisionFileName,
   revisionIdOf,
   revisionNumber,
   revisionsDirOf,
   revisionToMarkdown,
   scanSongs,
-  wordAt,
+  TRIM_TO,
+  wordNear,
   wordsOf,
-} from '@/lib/transcript-revisions/transcript';
-import type { Mark, MarkKind, SongEntry, TLine, TranscriptFile, TranscriptRevision, TWord } from '@/lib/transcript-revisions/types';
+} from '@/lib/transcript-cleaner/transcript';
+import { CLEAN_FILE, type CleanMark, type LineMove, type Mark, type MarkKind, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from '@/lib/transcript-cleaner/types';
 
 /*
- * State for /transcript-revision: the opened folder and the songs in it, the song being reviewed (its words, lines,
- * audio and waveform), playback, the marks and word-time changes of the current revision, and saving that revision
- * beside the transcript. The transcript file itself is never written: Claude applies a revision when the user pastes it.
+ * State for /transcript-cleaner: the opened folder and the songs in it (and which are marked clean), the song being
+ * cleaned (its words, lines, audio and waveform), playback, the open revision (marks, moved words, and words deleted,
+ * rewritten or pushed to another line), and saving that revision beside the transcript. The transcript file itself is
+ * never written: Claude applies a revision when the user pastes it.
  */
 
 export type Support = 'checking' | 'ok' | 'insecure' | 'browser';
@@ -49,6 +52,8 @@ export interface OpenSong {
   entry: SongEntry;
   dir: FileSystemDirectoryHandle;
   doc: TranscriptFile;
+  /** The words as the transcript has them (text, line, times), by index. */
+  base: TWord[];
   /** The times as the transcript has them, by word index. */
   original: Record<number, { start: number; end: number }>;
   url: string | null;
@@ -86,6 +91,8 @@ interface State {
   /** Where the timeline starts when it doesn't follow the playhead (paused and panned). */
   viewStart: number | null;
   selected: number | null;
+  /** The word whose text is being rewritten, and where its text box is. */
+  editing: { i: number; where: 'stage' | 'timeline' } | null;
   revision: TranscriptRevision | null;
   focusMark: string | null;
   saveState: SaveState;
@@ -111,9 +118,19 @@ interface State {
   selectWord: (i: number | null, seek?: boolean) => void;
   stepWord: (d: number) => void;
   setTimes: (changes: TimeChange[]) => void;
-  setEdgeAtPlayhead: (edge: 'start' | 'end') => void;
+  setEdgeAtPlayhead: (edge: 'start' | 'end', i?: number) => void;
+  trimWord: (i: number, side: 'start' | 'end') => void;
   resetWord: (i: number) => void;
   resetAll: () => void;
+  toggleDelete: (i: number) => void;
+  startRewrite: (i: number, where: 'stage' | 'timeline') => void;
+  endRewrite: () => void;
+  rewriteWord: (i: number, text: string) => void;
+  pushLine: (i: number, d: 1 | -1) => void;
+  undoRewrite: (i: number) => void;
+  undoLineMoves: (is: number[]) => void;
+  restoreWord: (i: number) => void;
+  toggleClean: () => Promise<void>;
   addMark: (kind: MarkKind) => void;
   updateMark: (id: string, note: string) => void;
   setMarkKind: (id: string, kind: MarkKind) => void;
@@ -134,6 +151,25 @@ let stopAt: number | null = null;
 const now = () => new Date().toISOString();
 const uid = () => Math.random().toString(36).slice(2, 9);
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** The words as the open revision has them: the times as moved, and its rewrites, line moves and deletions. */
+function derive(base: TWord[], times: TWord[], rev: TranscriptRevision | null): TWord[] {
+  const rewrites = new Map((rev?.rewrites ?? []).map(r => [r.i, r.to]));
+  const moves = new Map((rev?.lineMoves ?? []).map(m => [m.i, m.to]));
+  const deleted = new Set((rev?.deleted ?? []).map(d => d.i));
+  return base.map(b => {
+    const t = times[b.i] ?? b;
+    const to = moves.get(b.i);
+    return {
+      ...b,
+      start: t.start,
+      end: t.end,
+      text: rewrites.get(b.i) ?? b.text,
+      ...(to ? { stanza: to.stanza, line: to.line } : {}),
+      ...(deleted.has(b.i) ? { deleted: true } : {}),
+    };
+  });
+}
 
 function urlState(path?: string, song?: string) {
   const u = new URL(window.location.href);
@@ -186,7 +222,20 @@ export const useTranscriptStore = create<State>((set, get) => {
       updatedAt: now(),
       marks: [],
       timings: [],
+      deleted: [],
+      rewrites: [],
+      lineMoves: [],
     };
+  };
+
+  /** A revision with new word edits: the words on screen follow it, and it saves. */
+  const commit = (rev: TranscriptRevision) => {
+    const { song } = get();
+    if (!song) return;
+    const words = derive(song.base, get().words, rev);
+    set({ words, lines: linesOf(words, song.doc) });
+    set({ revision: withTimings({ ...rev, status: rev.status === 'done' ? 'open' : rev.status }) });
+    scheduleSave();
   };
 
   const tick = () => {
@@ -232,6 +281,7 @@ export const useTranscriptStore = create<State>((set, get) => {
     span: 8,
     viewStart: null,
     selected: null,
+    editing: null,
     revision: null,
     focusMark: null,
     saveState: 'idle',
@@ -287,16 +337,16 @@ export const useTranscriptStore = create<State>((set, get) => {
       const old = get().song;
       if (old?.url) URL.revokeObjectURL(old.url);
       audio = null;
-      set({ loading: `Opening ${entry.title}…`, error: null, song: null, words: [], lines: [], revision: null, selected: null, time: 0, playing: false, viewStart: null, focusMark: null, saveState: 'idle' });
+      set({ loading: `Opening ${entry.title}…`, error: null, song: null, words: [], lines: [], revision: null, selected: null, editing: null, time: 0, playing: false, viewStart: null, focusMark: null, saveState: 'idle' });
       try {
         const dir = entry.folder ? await getSubdir(root.handle, entry.folder, false) : root.handle;
         if (!dir) throw new Error(`Folder ${entry.folder} not found`);
         const read = await readJsonIn<TranscriptFile>(dir, entry.transcript);
         if (!read) throw new Error(`${entry.transcript} not found`);
         const doc = read.data;
-        const words = wordsOf(doc);
+        const base = wordsOf(doc);
         const original: OpenSong['original'] = {};
-        for (const w of words) original[w.i] = { start: w.start, end: w.end };
+        for (const w of base) original[w.i] = { start: w.start, end: w.end };
         // the latest revision that Claude hasn't applied yet carries on; otherwise the next one starts when something is marked
         let revision: TranscriptRevision | null = null;
         let nextRev = 1;
@@ -307,11 +357,14 @@ export const useTranscriptStore = create<State>((set, get) => {
           if (last) {
             nextRev = revisionNumber(last) + 1;
             const r = await readJsonIn<TranscriptRevision>(revDir, last);
-            if (r && r.data.status !== 'done') revision = { ...r.data, marks: r.data.marks ?? [], timings: r.data.timings ?? [] };
+            if (r && r.data.status !== 'done')
+              revision = { ...r.data, marks: r.data.marks ?? [], timings: r.data.timings ?? [], deleted: r.data.deleted ?? [], rewrites: r.data.rewrites ?? [], lineMoves: r.data.lineMoves ?? [] };
           }
         }
-        // words moved in the open revision show where they were moved to
-        if (revision) for (const t of revision.timings) if (words[t.i]) words[t.i] = { ...words[t.i], start: t.to.start, end: t.to.end };
+        // words moved, rewritten, deleted or re-lined in the open revision show as it has them
+        const times = base.slice();
+        if (revision) for (const t of revision.timings) if (times[t.i]) times[t.i] = { ...times[t.i], start: t.to.start, end: t.to.end };
+        const words = derive(base, times, revision);
         const file = entry.audio ? await readFileIn(dir, entry.audio) : null;
         const url = file ? URL.createObjectURL(file) : null;
         if (url) {
@@ -332,7 +385,7 @@ export const useTranscriptStore = create<State>((set, get) => {
           audio = a;
         }
         set({
-          song: { entry, dir, doc, original, url, duration: 0, peaks: null, nextRev },
+          song: { entry, dir, doc, base, original, url, duration: 0, peaks: null, nextRev },
           words,
           lines: linesOf(words, doc),
           revision,
@@ -396,7 +449,7 @@ export const useTranscriptStore = create<State>((set, get) => {
 
     replayLine: () => {
       const { words, lines, time, lead } = get();
-      const l = lineOf(lines, wordAt(words, time + lead));
+      const l = lines[momentAt(words, lines, time + lead).line];
       if (!l || !audio) return;
       stopAt = null;
       audio.currentTime = Math.max(0, l.start - 0.4);
@@ -449,9 +502,9 @@ export const useTranscriptStore = create<State>((set, get) => {
     },
 
     stepWord: d => {
-      const { words, selected, time, lead } = get();
+      const { words, lines, selected, time, lead } = get();
       if (!words.length) return;
-      const cur = selected ?? wordAt(words, time + lead)?.i ?? 0;
+      const cur = selected ?? wordNear(words, lines, time + lead)?.i ?? 0;
       const next = Math.max(0, Math.min(words.length - 1, cur + d));
       get().selectWord(next, true);
     },
@@ -467,16 +520,25 @@ export const useTranscriptStore = create<State>((set, get) => {
       scheduleSave();
     },
 
-    setEdgeAtPlayhead: edge => {
+    setEdgeAtPlayhead: (edge, i) => {
       const { selected, words, time } = get();
-      if (selected === null) {
+      const at = i ?? selected;
+      if (at === null) {
         toast.message('Select a word first (click it), then press S or E at the playhead');
         return;
       }
-      const w = words[selected];
+      const w = words[at];
       if (!w) return;
       if (edge === 'start') get().setTimes([{ i: w.i, start: Math.min(time, w.end - MIN_WORD), end: w.end }]);
       else get().setTimes([{ i: w.i, start: w.start, end: Math.max(time, w.start + MIN_WORD) }]);
+    },
+
+    trimWord: (i, side) => {
+      const w = get().words[i];
+      if (!w || w.end - w.start <= TRIM_TO) return;
+      get().selectWord(i);
+      if (side === 'end') get().setTimes([{ i, start: w.start, end: w.start + TRIM_TO }]);
+      else get().setTimes([{ i, start: w.end - TRIM_TO, end: w.end }]);
     },
 
     resetWord: i => {
@@ -496,14 +558,111 @@ export const useTranscriptStore = create<State>((set, get) => {
       get().setTimes(changes);
     },
 
+    toggleDelete: i => {
+      const { song } = get();
+      const base = ensureRevision();
+      if (!song || !base || !song.base[i]) return;
+      const deleted = base.deleted ?? [];
+      const o = song.original[i];
+      commit({
+        ...base,
+        deleted: deleted.some(d => d.i === i) ? deleted.filter(d => d.i !== i) : [...deleted, { i, text: song.base[i].text, start: o.start, end: o.end }],
+      });
+    },
+
+    startRewrite: (i, where) => {
+      if (audio && !audio.paused) audio.pause();
+      set({ editing: { i, where }, selected: i });
+    },
+
+    endRewrite: () => set({ editing: null }),
+
+    rewriteWord: (i, text) => {
+      const { song } = get();
+      set({ editing: null });
+      const to = text.trim().replace(/\s+/g, ' ');
+      if (!song?.base[i] || !to || to === get().words[i]?.text) return;
+      const base = ensureRevision();
+      if (!base) return;
+      const rest = (base.rewrites ?? []).filter(r => r.i !== i);
+      commit({ ...base, rewrites: to === song.base[i].text ? rest : [...rest, { i, from: song.base[i].text, to }] });
+    },
+
+    pushLine: (i, d) => {
+      const { song, words, lines } = get();
+      const w = words[i];
+      if (!song || !w) return;
+      const k = lines.findIndex(l => l.words.some(x => x.i === i));
+      const target = lines[k + d];
+      if (k < 0 || !target) {
+        toast.message(d > 0 ? 'There is no line after this one' : 'There is no line before this one');
+        return;
+      }
+      if ((w.stanza === undefined && w.line === undefined) || (target.stanza === undefined && target.line === undefined)) {
+        toast.message('This transcript has no stanza and line numbers to move words between');
+        return;
+      }
+      const base = ensureRevision();
+      if (!base) return;
+      // the word takes the words after it (next line) or before it (previous line) along, so every line stays in one piece
+      const moving = lines[k].words.filter(x => (d > 0 ? x.i >= i : x.i <= i));
+      const moves = new Map((base.lineMoves ?? []).map(m => [m.i, m]));
+      const to = { stanza: target.stanza, line: target.line };
+      for (const x of moving) {
+        const o = song.base[x.i];
+        if (o.stanza === to.stanza && o.line === to.line) moves.delete(x.i);
+        else moves.set(x.i, { i: x.i, text: o.text, from: { stanza: o.stanza, line: o.line }, to, toLine: target.text } satisfies LineMove);
+      }
+      commit({ ...base, lineMoves: [...moves.values()].sort((a, b) => a.i - b.i) });
+      get().selectWord(i);
+    },
+
+    undoRewrite: i => {
+      const base = get().revision;
+      if (base) commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i) });
+    },
+
+    undoLineMoves: is => {
+      const base = get().revision;
+      if (base) commit({ ...base, lineMoves: (base.lineMoves ?? []).filter(m => !is.includes(m.i)) });
+    },
+
+    restoreWord: i => {
+      const base = get().revision;
+      if (!base) return;
+      commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i), deleted: (base.deleted ?? []).filter(d => d.i !== i) });
+      get().resetWord(i);
+    },
+
+    toggleClean: async () => {
+      const { song, revision } = get();
+      if (!song) return;
+      const clean = !song.entry.clean;
+      try {
+        const dir = await getSubdir(song.dir, revisionsDirOf(song.entry), clean);
+        if (clean && dir) {
+          const mark: CleanMark = { schema: 'mediamake.transcript-clean/v1', song: song.entry.title, transcript: song.entry.transcript, words: song.base.length, markedAt: now() };
+          await writeFileIn(dir, CLEAN_FILE, JSON.stringify(mark, null, 2) + '\n');
+        } else if (dir) await removeFileIn(dir, CLEAN_FILE);
+        const entry = { ...song.entry, clean };
+        set(s => ({ song: s.song?.entry.id === entry.id ? { ...s.song, entry } : s.song, songs: s.songs.map(x => (x.id === entry.id ? entry : x)) }));
+        const pending = revision && revision.status !== 'done' ? changeCount(revision) : 0;
+        if (!clean) toast.message(`${entry.folder || entry.title} is no longer marked clean`);
+        else if (pending) toast.message(`Marked clean · ${revision!.id} still has ${pending} change${pending === 1 ? '' : 's'} for Claude to apply`);
+        else toast.success(`${entry.folder || entry.title} is marked clean`);
+      } catch (err) {
+        toast.error(`Could not ${clean ? 'mark' : 'unmark'} it clean: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    },
+
     addMark: kind => {
       const { words, lines, time, lead, selected } = get();
       const base = ensureRevision();
       if (!base) return;
       if (audio && !audio.paused) audio.pause();
       // the word the user means: the selected one, else the one on screen now
-      const w = selected !== null ? words[selected] : wordAt(words, time + lead);
-      const l = lineOf(lines, w);
+      const w = selected !== null ? words[selected] : wordNear(words, lines, time + lead);
+      const l = w ? lines.find(x => x.words.some(y => y.i === w.i)) : null;
       const mark: Mark = {
         id: uid(),
         kind,
@@ -549,12 +708,12 @@ export const useTranscriptStore = create<State>((set, get) => {
 
     copyInstructions: async () => {
       const r = get().revision;
-      if (!r || (!r.marks.length && !r.timings.length)) {
-        toast.message('Nothing marked or moved yet');
+      if (!changeCount(r)) {
+        toast.message('Nothing marked or changed yet');
         return;
       }
       await get().flushSave();
-      const text = instructionsOf(get().revision ?? r);
+      const text = instructionsOf(get().revision ?? r!);
       try {
         await navigator.clipboard.writeText(text);
         toast.success('Copied: paste it in the chat with Claude');
@@ -570,7 +729,7 @@ export const useTranscriptStore = create<State>((set, get) => {
       }
       const { revision, song } = get();
       if (!revision || !song) return;
-      if (!revision.marks.length && !revision.timings.length && revision.status === 'open') return;
+      if (!changeCount(revision) && revision.status === 'open') return;
       set({ saveState: 'saving' });
       try {
         const dir = await getSubdir(song.dir, revisionsDirOf(song.entry), true);

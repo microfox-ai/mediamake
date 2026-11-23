@@ -1,76 +1,103 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, Undo2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
-import { clock, lineOf, wordAt } from '@/lib/transcript-revisions/transcript';
-import { MARK_LABELS, type MarkKind, type TLine, type TWord } from '@/lib/transcript-revisions/types';
+import { clock, momentAt } from '@/lib/transcript-cleaner/transcript';
+import { MARK_LABELS, type TLine, type TWord } from '@/lib/transcript-cleaner/types';
 import { RATES, SPANS, useTranscriptStore } from './store';
+import { isLong, MARK_KEYS, RewriteInput, useRevisionWords, WordMenu } from './WordMenu';
 
 /*
- * The lyrics as they play: the line on screen large, its words lit as they're sung (shown `lead` seconds early, as the
- * videos show them), the lines before and after it dim. Under it the transport and the marking buttons, and at the
- * bottom every line of the song to jump to.
+ * The lyrics as they play: the line on screen large, every word lit while it sounds (shown `lead` seconds early, as the
+ * videos show them; several at once when voices overlap), the lines before and after it small. In a gap or an
+ * instrumental nothing is lit and the line dims, until the next line comes up. Right-click a word for its menu. Under
+ * it the transport and the marking buttons, and at the bottom every line of the song to jump to.
  */
 
-export const MARK_KEYS: [MarkKind, string][] = [
-  ['wrong-word', 'W'],
-  ['wrong-timing', 'T'],
-  ['missing-word', 'M'],
-  ['extra-word', 'X'],
-  ['note', 'N'],
-];
+type WordState = 'now' | 'sung' | 'todo';
 
-/** Word indexes the open revision marks or moves. */
-export function useRevisionWords() {
-  const revision = useTranscriptStore(s => s.revision);
-  return useMemo(() => {
-    const marked = new Set<number>();
-    const moved = new Set<number>();
-    for (const m of revision?.marks ?? []) if (m.word) marked.add(m.word.i);
-    for (const t of revision?.timings ?? []) moved.add(t.i);
-    return { marked, moved };
-  }, [revision]);
+interface WordProps {
+  w: TWord;
+  state: WordState;
+  big: boolean;
+  selected: boolean;
+  editing: boolean;
+  marked: boolean;
+  moved: boolean;
+  rewritten: boolean;
+  relined: boolean;
 }
 
-function Word({ w, shown, onLine }: { w: TWord; shown: number | null; onLine: boolean }) {
-  const selected = useTranscriptStore(s => s.selected);
+// props are all plain values, so a word re-renders only when its own state changes (the stage renders every frame)
+const Word = memo(function Word({ w, state, big, selected, editing, ...flags }: WordProps) {
   const selectWord = useTranscriptStore(s => s.selectWord);
   const playRange = useTranscriptStore(s => s.playRange);
-  const { marked, moved } = useRevisionWords();
-  const sung = shown !== null && w.i <= shown;
-  const now = shown === w.i;
+  if (editing) return <RewriteInput w={w} className={big ? 'text-3xl font-semibold leading-tight' : 'text-base'} />;
   const unconfirmed = w.verified && w.verified !== 'heard';
+  const long = isLong(w);
+  const was = useTranscriptStore.getState().song?.base[w.i]?.text;
   return (
-    <span
-      role="button"
-      tabIndex={-1}
-      title={`#${w.i} · ${w.start.toFixed(2)}–${w.end.toFixed(2)} s${unconfirmed ? ` · ${w.verified}` : ''} · click: select, double-click: play it`}
-      onClick={() => selectWord(w.i, true)}
-      onDoubleClick={() => playRange(w.start - 0.15, w.end + 0.15)}
-      className={cn(
-        'relative cursor-pointer rounded px-[0.12em] transition-colors',
-        onLine ? (sung ? 'text-foreground' : 'text-muted-foreground/60') : 'text-inherit',
-        now && 'bg-amber-400/20 text-amber-300',
-        selected === w.i && 'ring-2 ring-sky-400',
-        unconfirmed && 'underline decoration-orange-400 decoration-dotted underline-offset-4',
-        moved.has(w.i) && 'underline decoration-sky-400 decoration-2 underline-offset-4',
-      )}
-    >
-      {w.text}
-      {marked.has(w.i) && <span className="absolute -top-1 right-0 size-1.5 rounded-full bg-red-500" />}
-    </span>
+    <WordMenu w={w} where="stage">
+      <span
+        role="button"
+        tabIndex={-1}
+        title={[
+          `#${w.i} · ${w.start.toFixed(2)}–${w.end.toFixed(2)} s`,
+          unconfirmed ? w.verified : '',
+          flags.rewritten && was ? `was “${was}”` : '',
+          flags.relined ? 'pushed to this line' : '',
+          w.deleted ? 'to delete' : '',
+          long ? `${(w.end - w.start).toFixed(1)} s long: may run into a gap` : '',
+          'click: select, double-click: play it, right-click: menu',
+        ]
+          .filter(Boolean)
+          .join(' · ')}
+        onClick={() => selectWord(w.i, true)}
+        onDoubleClick={() => playRange(w.start - 0.15, w.end + 0.15)}
+        className={cn(
+          'relative cursor-pointer rounded px-[0.12em] transition-colors',
+          // the stage is dark in either theme: its words get fixed light colours
+          big ? (state === 'todo' ? 'text-zinc-500' : 'text-zinc-50') : 'text-inherit',
+          state === 'now' && 'bg-amber-400/20 text-amber-300',
+          selected && 'ring-2 ring-sky-400',
+          unconfirmed && 'underline decoration-orange-400 decoration-dotted underline-offset-4',
+          flags.moved && 'underline decoration-sky-400 decoration-2 underline-offset-4',
+          flags.relined && 'underline decoration-violet-400 decoration-2 underline-offset-4',
+          flags.rewritten && 'underline decoration-emerald-400 decoration-2 underline-offset-4',
+          w.deleted && 'line-through decoration-red-500 decoration-2 opacity-50',
+        )}
+      >
+        {w.text}
+        {flags.marked && <span className="absolute -top-1 right-0 size-1.5 rounded-full bg-red-500" />}
+        {long && <span className="absolute -bottom-1 left-1/2 h-[3px] w-3 -translate-x-1/2 rounded-full bg-amber-400" />}
+      </span>
+    </WordMenu>
   );
-}
+});
 
-function LineView({ line, shown, size }: { line: TLine | undefined; shown: number | null; size: 'big' | 'small' }) {
+function LineView({ line, active, t, size }: { line: TLine | undefined; active: Set<number>; t: number; size: 'big' | 'small' }) {
+  const selected = useTranscriptStore(s => s.selected);
+  const editing = useTranscriptStore(s => (s.editing?.where === 'stage' ? s.editing.i : null));
+  const { marked, moved, rewritten, relined } = useRevisionWords();
   if (!line) return <div className={size === 'big' ? 'h-12' : 'h-6'} />;
   return (
-    <div className={cn('flex flex-wrap justify-center gap-x-1.5 gap-y-1 text-center', size === 'big' ? 'text-3xl font-semibold leading-tight' : 'text-base text-muted-foreground/50')}>
+    <div className={cn('flex flex-wrap justify-center gap-x-1.5 gap-y-1 text-center', size === 'big' ? 'text-3xl font-semibold leading-tight' : 'text-base text-zinc-500')}>
       {line.words.map(w => (
-        <Word key={w.i} w={w} shown={shown} onLine={size === 'big'} />
+        <Word
+          key={w.i}
+          w={w}
+          state={active.has(w.i) ? 'now' : !w.deleted && w.start <= t ? 'sung' : 'todo'}
+          big={size === 'big'}
+          marked={marked.has(w.i)}
+          moved={moved.has(w.i)}
+          rewritten={rewritten.has(w.i)}
+          relined={relined.has(w.i)}
+          selected={selected === w.i}
+          editing={editing === w.i}
+        />
       ))}
     </div>
   );
@@ -79,17 +106,28 @@ function LineView({ line, shown, size }: { line: TLine | undefined; shown: numbe
 function Lyrics() {
   const words = useTranscriptStore(s => s.words);
   const lines = useTranscriptStore(s => s.lines);
-  const shown = useTranscriptStore(s => wordAt(s.words, s.time + s.lead)?.i ?? null);
-  const at = useMemo(() => {
-    const l = lineOf(lines, shown === null ? null : words[shown]);
-    return l ? lines.indexOf(l) : 0;
-  }, [lines, words, shown]);
+  const t = useTranscriptStore(s => s.time + s.lead);
+  const editing = useTranscriptStore(s => (s.editing?.where === 'stage' ? s.editing.i : null));
+  const moment = useMemo(() => momentAt(words, lines, t), [words, lines, t]);
+  const active = useMemo(() => new Set(moment.active), [moment]);
+  // a word being rewritten keeps its line on stage
+  const at = editing !== null ? Math.max(0, lines.findIndex(l => l.words.some(w => w.i === editing))) : moment.line;
   const line = lines[at];
+  const dim = editing === null && (moment.mode === 'gap' || moment.mode === 'after');
+  const wait = moment.next ? Math.ceil(moment.next.start - t) : 0;
   return (
-    <div className="flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-md bg-zinc-950 px-6 py-5">
-      <LineView line={lines[at - 1]} shown={shown} size="small" />
-      <LineView line={line} shown={shown} size="big" />
-      <LineView line={lines[at + 1]} shown={shown} size="small" />
+    <div className="relative flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-md bg-zinc-950 px-6 py-5">
+      <LineView line={lines[at - 1]} active={active} t={t} size="small" />
+      <div className={cn('transition-opacity duration-300', dim && 'opacity-35')}>
+        <LineView line={line} active={active} t={t} size="big" />
+      </div>
+      <LineView line={lines[at + 1]} active={active} t={t} size="small" />
+      {editing === null && (moment.mode === 'gap' || moment.mode === 'before' || moment.mode === 'after') && (
+        <div className="absolute right-3 top-2 font-mono text-[11px] text-zinc-400">
+          {moment.mode === 'after' ? '♪ after the last word' : moment.mode === 'before' ? `♪ words start in ${wait} s` : `♪ gap · next line in ${wait} s`}
+        </div>
+      )}
+      {moment.mode === 'coming' && editing === null && <div className="absolute right-3 top-2 font-mono text-[11px] text-zinc-400">coming up</div>}
       {line?.check && (
         <div className="mt-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">The transcript lists this line to check: {line.check.join(' · ')}</div>
       )}
@@ -184,13 +222,11 @@ function Transport() {
 
 export function LinesList() {
   const lines = useTranscriptStore(s => s.lines);
-  const words = useTranscriptStore(s => s.words);
   const playing = useTranscriptStore(s => s.playing);
-  const shown = useTranscriptStore(s => wordAt(s.words, s.time + s.lead)?.i ?? null);
+  const current = useTranscriptStore(s => s.lines[momentAt(s.words, s.lines, s.time + s.lead).line]?.key ?? null);
   const seek = useTranscriptStore(s => s.seek);
   const selectWord = useTranscriptStore(s => s.selectWord);
-  const { marked, moved } = useRevisionWords();
-  const current = useMemo(() => lineOf(lines, shown === null ? null : words[shown])?.key ?? null, [lines, words, shown]);
+  const { marked, moved, rewritten, relined } = useRevisionWords();
   const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!playing || !current) return;
@@ -202,6 +238,8 @@ export function LinesList() {
       {lines.map(l => {
         const nMarked = l.words.filter(w => marked.has(w.i)).length;
         const nMoved = l.words.filter(w => moved.has(w.i)).length;
+        const nEdited = l.words.filter(w => w.deleted || rewritten.has(w.i) || relined.has(w.i)).length;
+        const nLong = l.words.filter(isLong).length;
         const unconfirmed = l.words.filter(w => w.verified && w.verified !== 'heard').length;
         return (
           <button
@@ -214,11 +252,24 @@ export function LinesList() {
             className={cn('flex w-full items-baseline gap-3 px-3 py-1 text-left text-sm hover:bg-muted/40', l.key === current && 'bg-amber-400/10')}
           >
             <span className="w-12 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">{clock(l.start, 1)}</span>
-            <span className={cn('min-w-0 flex-1', l.key === current ? 'text-foreground' : 'text-foreground/80')}>{l.text}</span>
+            <span className={cn('min-w-0 flex-1', l.key === current ? 'text-foreground' : 'text-foreground/80')}>
+              {l.words.map((w, n) => (
+                <span key={w.i} className={cn(w.deleted && 'text-red-400/70 line-through')}>
+                  {n ? ' ' : ''}
+                  {w.text}
+                </span>
+              ))}
+            </span>
             <span className="flex shrink-0 gap-1 text-[10px]">
               {l.check && <span className="rounded bg-amber-500/15 px-1 text-amber-300" title={l.check.join(' · ')}>check</span>}
               {unconfirmed > 0 && <span className="rounded bg-orange-500/15 px-1 text-orange-300" title="Words no transcription heard (placed by the aligner or unconfirmed)">{unconfirmed} unheard</span>}
+              {nLong > 0 && (
+                <span className="rounded bg-amber-500/15 px-1 text-amber-300" title="Words 2.5 s or longer: the aligner may have stretched them across a gap">
+                  {nLong} long
+                </span>
+              )}
               {nMoved > 0 && <span className="rounded bg-sky-500/15 px-1 text-sky-300">{nMoved} moved</span>}
+              {nEdited > 0 && <span className="rounded bg-emerald-500/15 px-1 text-emerald-300">{nEdited} edited</span>}
               {nMarked > 0 && <span className="rounded bg-red-500/15 px-1 text-red-300">{nMarked} marked</span>}
             </span>
           </button>

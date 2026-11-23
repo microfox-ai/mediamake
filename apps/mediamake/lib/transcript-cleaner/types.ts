@@ -1,8 +1,9 @@
 /*
- * Transcript revisions: a song's timed words (<audio stem>.transcript.json, the format the transcript skills write:
- * `words` with text, start, end, type, stanza, line…) reviewed by ear on /transcript-revision. The screen never changes
- * the transcript: what the user marks and the word times they drag are saved as a revision beside it,
- * <audio stem>.transcript.revisions/rev-NNN.json (+ .md), for Claude to apply.
+ * The Transcript Cleaner: a song's timed words (<audio stem>.transcript.json, the format the transcript skills write:
+ * `words` with text, start, end, type, stanza, line…) reviewed by ear on /transcript-cleaner. The screen never changes
+ * the transcript: what the user marks, the word times they drag and the words they delete, rewrite or move to another
+ * line are saved as a revision beside it, <audio stem>.transcript.revisions/rev-NNN.json (+ .md), for Claude to apply.
+ * A song the user has checked through is marked clean there too (clean.json).
  */
 
 export const TRANSCRIPT_SUFFIX = '.transcript.json';
@@ -18,6 +19,8 @@ export interface TWord {
   line?: number;
   verified?: string;
   confidence?: number;
+  /** Marked for deletion in the open revision (still shown, struck through). */
+  deleted?: boolean;
 }
 
 export interface TLine {
@@ -47,7 +50,21 @@ export interface SongEntry {
   folder: string;
   transcript: string;
   audio: string | null;
+  /** The user marked this transcript clean (clean.json in its revisions folder). */
+  clean?: boolean;
 }
+
+/** <song>.transcript.revisions/clean.json: the user went through the song and its transcript is right. */
+export interface CleanMark {
+  schema: 'mediamake.transcript-clean/v1';
+  song: string;
+  transcript: string;
+  /** The words the transcript had when it was marked clean. */
+  words: number;
+  markedAt: string;
+}
+
+export const CLEAN_FILE = 'clean.json';
 
 export type MarkKind = 'wrong-word' | 'wrong-timing' | 'missing-word' | 'extra-word' | 'note';
 
@@ -79,6 +96,31 @@ export interface TimingEdit {
   to: { start: number; end: number };
 }
 
+/** A word to take out of the transcript (not sung). */
+export interface WordDeletion {
+  i: number;
+  text: string;
+  start: number;
+  end: number;
+}
+
+/** A word whose text is wrong: what it should read. */
+export interface WordRewrite {
+  i: number;
+  from: string;
+  to: string;
+}
+
+/** A word that belongs to another line (stanza + line), next to it: pushed to the next or the previous line. */
+export interface LineMove {
+  i: number;
+  text: string;
+  from: { stanza?: number; line?: number };
+  to: { stanza?: number; line?: number };
+  /** The line it joins, as it read before the move. */
+  toLine: string;
+}
+
 export interface TranscriptRevision {
   schema: 'mediamake.transcript-revision/v1';
   id: string;
@@ -96,4 +138,8 @@ export interface TranscriptRevision {
   updatedAt: string;
   marks: Mark[];
   timings: TimingEdit[];
+  /** Words to delete, rewrite or move to another line (older revisions lack these). */
+  deleted?: WordDeletion[];
+  rewrites?: WordRewrite[];
+  lineMoves?: LineMove[];
 }
