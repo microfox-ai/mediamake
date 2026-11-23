@@ -55,6 +55,7 @@ const ABOUT = {
   glyphs: "a project's fonts as outline data (video/glyphs.ts) for GlyphLyrics and ChannelTitle",
   'clip-loop': "an overlay clip's seam and jumps; --pingpong writes a loop that has none",
   media: 'the shared media library (mm media help)',
+  py: "a Python script with its own packages (# /// script) through uv, on a Python they have builds for, in UTF-8",
   golden: 'fixed frames of the fixtures compared with another commit',
   migrate: 'moves your projects, renders and brand kits into your workspace, ~/MediaMake (dry run; --yes to move)',
   workspace: 'where your work is on this machine: projects, renders, brand kits, notes…',
@@ -170,6 +171,10 @@ const main = () => {
       if (typeof browser === 'string' && fs.existsSync(browser)) process.env.MM_BROWSER = browser;
     } catch {}
   }
+  // every Python a script starts (mm analyze, kinetictype, thumbs, py…) speaks UTF-8: on Windows,
+  // Python before 3.15 writes a pipe (Claude's shell, a captured spawn) in the ANSI code page, which
+  // has no ✔ or →, and its first such print ends the run. Set PYTHONUTF8=0 yourself to opt out.
+  process.env.PYTHONUTF8 ??= '1';
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
   if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud', 'access', 'todo', 'run', 'library'].includes(script)) ensurePresets(APP, { soft: true });

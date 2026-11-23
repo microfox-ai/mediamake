@@ -278,7 +278,7 @@ eyesofpink session) and write intro / verse / pre-chorus / chorus / break / brid
 
 ### 2. Map the footage
 
-`uv run --script .claude/skills/analyze-video/scripts/segregate.py "projects/<slug>/input/footage/<name>.mp4"
+`mm py .claude/skills/analyze-video/scripts/segregate.py "projects/<slug>/input/footage/<name>.mp4"
 --out projects/<slug>/footage --min-shot 0.1` (a 4K60 AV1 3.6-min edit: ~3.5 min): run it on the copy in
 `input/`, since `segregation.json` keeps the path it was given. First try the cache:
 `media cache get projects/<slug>/input/footage/<name>.mp4 segregation --into=projects/<slug>/footage/<name>`.

@@ -8,7 +8,7 @@
 where the picture is not: the subject's cutout (BiRefNet-lite) and the brightness, as coarse grids, from
 the picture without its words, at three moments of each caption.
 
-    uv run --script scripts/amv-space.py <slug> [--sheet]
+    mm py scripts/amv-space.py <slug> [--sheet]
 
 Needs projects/<slug>/analysis/clean/clean.mp4 (the composition rendered with --props='{"clean":true}',
 any size) and analysis/captions.json (mm amv <slug> --captions).

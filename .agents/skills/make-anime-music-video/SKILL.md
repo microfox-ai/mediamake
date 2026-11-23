@@ -78,7 +78,7 @@ makes that reference the target: build to its standard, compare stills side by s
 
 Two rejections taught this (honoredone, 2026-11-02): a cut of whips, flashes and dips with words on
 top ("do not like it one bit"), then a Darkside-style flowing edit on an epic, half-time song ("this
-is more of a slow mo video"). Before choosing devices, read the song: `uv run --script
+is more of a slow mo video"). Before choosing devices, read the song: `mm py
 scripts/amv-drums.py <slug>` charts drum onsets per bar and writes `analysis/drummap.json`.
 
 - **Epic or slow** (half-time drums, 3–5 onsets a bar): the **story edit** (honoredone v4).
@@ -161,7 +161,7 @@ Written with `src/amv/build.ts`: `seq(start, section, shots)` lays shots end to 
 from the word you mean); `b(329)` = beat 329. Words, overlays, pieces and sound effects are placed by
 beat or word. `export const make(footage, timing, match?)` returns `{ cut, warnings, jobs }`.
 
-**Match cuts:** run `uv run --script scripts/amv-match.py <slug>` once the packs are catalogued.
+**Match cuts:** run `mm py scripts/amv-match.py <slug>` once the packs are catalogued.
 - It cuts out the subject in every shot's first, middle and last keyframe and finds the eyes (Gojo's
   irises by colour: `--eye-hue` for others).
 - It writes `video/match.json`: the descriptors, `dups` (the same footage twice), the best silhouette
@@ -291,7 +291,7 @@ render's map (`render-project` maps clips itself).
       patches, and shrinks to 58 % of its size if it has to. The map behind this is `video/space.json`.
     - To make that map: render the composition with `--props='{"clean":true}'` (no words, quarter size)
       into `analysis/clean/clean.mp4`. Then run `mm amv <slug> --captions`, then
-      `uv run --script scripts/amv-space.py <slug> --sheet`. Redo it whenever captions move.
+      `mm py scripts/amv-space.py <slug> --sheet`. Redo it whenever captions move.
   - **The xl `look`:**
     - `outline`: a fine stroke, the picture showing through.
     - `cutout`: the fill behind his matte and the outline over him. It needs the shot's `matte`, so

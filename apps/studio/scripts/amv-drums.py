@@ -5,7 +5,7 @@
 # ///
 """Where the drums go full speed (make-anime-music-video): onsets in the drum stem, counted per bar.
 
-    uv run --script scripts/amv-drums.py <slug>
+    mm py scripts/amv-drums.py <slug>
 
 Reads projects/<slug>/analysis/stems/drums.wav (the analyze step's Demucs stems) and video/timing.json
 (the beat grid). Prints a bar-by-bar chart (onsets per bar, loudness) and writes

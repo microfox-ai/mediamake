@@ -44,8 +44,11 @@ much worse; say so if it happens.
 ### 1. Run it
 
 ```bash
-uv run --script .claude/skills/analyze-video/scripts/segregate.py "<video>"
+mm py .claude/skills/analyze-video/scripts/segregate.py "<video>"
 ```
+
+`mm py` is `uv run --script` on a Python the script's packages have builds for, found by path where
+uv can't find one by version (some Windows computers); without the repo, `uv run --script` does the same.
 
 - Output goes next to the video as `<video name>_segregation/` unless you pass `--out <dir>`. If the
   video is in the repo (e.g. a project's `input/`), put the output somewhere gitignored.

@@ -7,7 +7,7 @@
 """Match cuts for an anime music video (make-anime-music-video): the subject's shape and the eyes in
 every shot's first, middle and last keyframe, then the shot pairs that line up across a cut.
 
-    uv run --script scripts/amv-match.py <slug> [--skip=stn] [--sheet=40]
+    mm py scripts/amv-match.py <slug> [--skip=stn] [--sheet=40]
 
 Reads projects/<slug>/video/footage.json (packs and shots) and each pack's analyze-video keyframes
 (projects/<slug>/footage/<pack>/frames, 480 px). Per keyframe: BiRefNet-lite matte → area, centroid,

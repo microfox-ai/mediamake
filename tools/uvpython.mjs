@@ -16,6 +16,15 @@
  *
  *   node tools/uvpython.mjs [version] [--install]   prints it (kinetictype's cli.py asks this way)
  *
+ * A script with its own packages (`# /// script` metadata, `uv run --script`) that caps Python
+ * (`requires-python = ">=3.11,<3.13"`, for torch and the like) hits the same missing link: uv looks
+ * for "a 3.12" and fails before the script starts. scriptArgs() gives `uv run` the newest version
+ * the cap allows, by path, and runScript() runs one that way, in UTF-8 (Windows writes a pipe in its
+ * ANSI code page, which has no ✔):
+ *
+ *   node tools/uvpython.mjs run <script.py> [args…]  `mm py <script.py> [args…]`; paths are
+ *                                                    relative to the folder you are in
+ *
  * Plain JavaScript that runs on old Node too (mm doctor imports it).
  */
 import { spawnSync } from 'node:child_process';
@@ -113,13 +122,72 @@ export const pythonArgs = (version = STUDIO_PYTHON) => [
   findPython(version, { install: true }).python,
 ];
 
+/**
+ * The newest Python 3 minor version a script's inline metadata allows (`# /// script`, its
+ * requires-python): "<3.13" and "<=3.12" and "==3.12.*" all say 3.12. Null when it sets no upper
+ * bound, or has no metadata: uv's newest Python is fine there.
+ */
+export const cappedPython = text => {
+  const block = /^# \/\/\/ script\s*$([\s\S]*?)^# \/\/\/\s*$/m.exec(text)?.[1] ?? '';
+  const spec = /^#\s*requires-python\s*=\s*["']([^"']*)["']/m.exec(block)?.[1];
+  if (!spec) return null;
+  const caps = spec.split(',').flatMap(s => {
+    const m = /^\s*(<=|<|==)\s*3\.(\d+)(\.[\d*]+)?\s*$/.exec(s);
+    if (!m) return [];
+    const minor = Number(m[2]);
+    // "<3.13" excludes 3.13 itself; "<3.12.4" still allows 3.12.0–3.12.3
+    return [m[1] === '<' && !m[3] ? minor - 1 : minor];
+  });
+  return caps.length ? `3.${Math.min(...caps)}` : null;
+};
+
+/**
+ * `uv run` arguments for a script with its own metadata: `--python <path>` when it caps Python (by
+ * path, so it works where uv can't follow its minor-version link), then `--script <file>`.
+ */
+export const scriptArgs = (file, { read = f => fs.readFileSync(f, 'utf8'), ...o } = {}) => {
+  let version = null;
+  try {
+    version = cappedPython(read(file));
+  } catch {}
+  const pin = version ? ['--python', findPython(version, { install: true, ...o }).python] : [];
+  return [...pin, '--script', file];
+};
+
+/**
+ * Runs a script with its own metadata through uv (scriptArgs), from the folder you are in (npm's
+ * INIT_CWD under mm), in UTF-8, and exits with its status.
+ */
+export const runScript = (file, args = []) => {
+  const cwd = process.env.INIT_CWD ?? process.cwd();
+  const abs = path.resolve(cwd, file ?? '');
+  if (!file || !fs.existsSync(abs)) {
+    console.error(
+      file
+        ? `mm py: no ${file} here (${cwd}); paths are relative to the folder you are in`
+        : 'Usage: mm py <script.py> [args…]   (a Python script with its own # /// script metadata)',
+    );
+    process.exit(1);
+  }
+  const r = spawnSync('uv', ['run', ...scriptArgs(abs), ...args], {
+    cwd,
+    stdio: 'inherit',
+    env: { ...process.env, PYTHONUTF8: process.env.PYTHONUTF8 ?? '1' },
+  });
+  if (r.error) throw r.error;
+  process.exit(r.status ?? 1);
+};
+
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const args = process.argv.slice(2);
-  const version = args.find(a => !a.startsWith('--')) ?? STUDIO_PYTHON;
-  console.log(
-    findPython(version, { install: args.includes('--install') }).python,
-  );
+  if (args[0] === 'run') runScript(args[1], args.slice(2));
+  else {
+    const version = args.find(a => !a.startsWith('--')) ?? STUDIO_PYTHON;
+    console.log(
+      findPython(version, { install: args.includes('--install') }).python,
+    );
+  }
 }
