@@ -5,7 +5,7 @@ import { AppPage } from '@/components/app-shell/app-page';
 import { MemberTierPill } from '@/components/memberships/parts';
 import { AskAdmin } from '@/components/subscription/ask-admin';
 import { getEntitlements } from '@/lib/access';
-import { pageOpens } from '@/lib/app-shell/nav';
+import { MY_ITEMS_HREF, pageOpens } from '@/lib/app-shell/nav';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 import { listCatalog, type CatalogEntry } from '@/lib/catalog';
 import { accessRequestsDB } from '@/lib/catalog/store';
@@ -231,6 +231,13 @@ export default async function SubscriptionPage() {
 
         {submissions.length > 0 && (
           <Card label="Your submissions">
+            <p className="text-sm text-muted-foreground">
+              The ones that were accepted are on{' '}
+              <Link href={MY_ITEMS_HREF} className="font-medium text-foreground underline underline-offset-2">
+                My store items
+              </Link>
+              , where you edit how each shows and send new versions.
+            </p>
             <ul className="flex flex-col divide-y">
               {submissions.map(submission => (
                 <li key={submission.submissionId} className="flex flex-col gap-0.5 py-2.5 first:pt-0 last:pb-0">

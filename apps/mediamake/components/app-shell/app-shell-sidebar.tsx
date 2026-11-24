@@ -18,6 +18,7 @@ import {
   MonitorSmartphoneIcon,
   PlugIcon,
   RocketIcon,
+  StoreIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ const ICONS: Record<AppNavIcon, LucideIcon> = {
   keys: KeyIcon,
   devices: MonitorSmartphoneIcon,
   subscription: BadgeCheckIcon,
+  storeItems: StoreIcon,
 };
 
 /**

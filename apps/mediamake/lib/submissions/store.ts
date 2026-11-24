@@ -112,6 +112,11 @@ export const submissionsDB = {
     return (await collection()).countDocuments({ clientId, updatedAt: { $gte: since } });
   },
 
+  /** The items an account had a submission accepted for (approved, or live). */
+  async acceptedItemsOf(clientId: string): Promise<string[]> {
+    return (await collection()).distinct('itemId', { clientId, status: { $in: ['approved', 'live'] } });
+  },
+
   /** One account's, newest first. */
   async listFor(clientId: string, limit = 100): Promise<Submission[]> {
     return (await collection()).find({ clientId }, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).limit(limit).toArray();

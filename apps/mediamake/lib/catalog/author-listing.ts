@@ -1,28 +1,29 @@
-import { LISTING_PICTURE_TYPE, parsePictures, withPictures, type ListingFields, type ListingPictures } from './listing';
+import { LISTING_PICTURES, LISTING_PICTURE_TYPE, parseAuthorListing, withAuthorListing, type AuthorListing, type ListingFields } from './listing';
 
 /**
- * An item's pictures (its headshot and, for an MCP or an app, its icon), changed by the people who
- * look after the item: its authors (./authors) and admins. Here is who may and what each request
- * does. The reads and writes are passed in, so the rules are tested without a database
- * (./pictures.test.ts); app/api/catalog/listing gives them the real ones.
+ * The part of an item's store listing that the people who look after it change themselves: its
+ * description and its pictures (the headshot and, for an MCP or an app, the icon). They are its
+ * authors (./authors) and admins. Here is who may and what each request does. The reads and writes
+ * are passed in, so the rules are tested without a database (./author-listing.test.ts);
+ * app/api/catalog/listing gives them the real ones.
  *
- * The rest of a listing (tags, screenshots, description, README, editors' pick, advice) is an
- * admin's, and nothing here reads or changes it.
+ * The rest of a listing (tags, screenshots, README, editors' pick, advice) is an admin's, and
+ * nothing here reads or changes it.
  */
 
 /** An item with a store listing of its own. */
 export const LISTED_ITEM = /^(skill|mcp|app)\/[a-z0-9][a-z0-9-]{0,63}$/;
 
-export type PicturesRole = 'admin' | 'author';
+export type AuthorRole = 'admin' | 'author';
 
-export interface PicturesStore {
+export interface AuthorListingStore {
   /** The item's record, or null when the store has none. */
-  record(itemId: string): Promise<{ id: string; kind: string; madeBy?: { name: string } } | null>;
+  record(itemId: string): Promise<{ id: string; kind: string; summary?: string; madeBy?: { name: string } } | null>;
   isAdmin(clientId: string): Promise<boolean>;
   isAuthor(itemId: string, clientId: string): Promise<boolean>;
   listing(itemId: string): Promise<ListingFields | null>;
   /** Saves the listing and answers with it as kept (null when nothing is left of it). */
-  save(itemId: string, listing: ListingFields, clientId: string): Promise<ListingPictures | null>;
+  save(itemId: string, listing: ListingFields, clientId: string): Promise<AuthorListing | null>;
   /** A signed PUT for one picture of the item, public once uploaded. */
   upload(input: { clientId: string; itemId: string; filename: string; contentType: string }): Promise<{ uploadUrl: string; publicUrl: string }>;
   /** Where uploads are kept, as their public links start: `https://<cdn>/mediamake/`. */
@@ -45,37 +46,40 @@ export function isUploadedFor(itemId: string, link: string, uploadsBase: string)
 }
 
 /** What a request answers with; `changed` is the item whose listing was saved, so its pages are built again. */
-export type PicturesAnswer = { status: number; body: Record<string, unknown>; changed?: string };
+export type AuthorListingAnswer = { status: number; body: Record<string, unknown>; changed?: string };
 
-const fail = (status: number, error: string): PicturesAnswer => ({ status, body: { error } });
+const fail = (status: number, error: string): AuthorListingAnswer => ({ status, body: { error } });
 
 /** What the caller is to the item: an admin, one of its authors, or neither. */
-export async function picturesRole(store: Pick<PicturesStore, 'isAdmin' | 'isAuthor'>, itemId: string, clientId: string): Promise<PicturesRole | null> {
+export async function authorRole(store: Pick<AuthorListingStore, 'isAdmin' | 'isAuthor'>, itemId: string, clientId: string): Promise<AuthorRole | null> {
   if (await store.isAdmin(clientId)) return 'admin';
   return (await store.isAuthor(itemId, clientId)) ? 'author' : null;
 }
 
 /**
- * Whether the caller may change the item's pictures, with the ones its listing has when they may.
- * Anyone else, signed in or not, gets `canEdit: false` and nothing more.
+ * Whether the caller may change the item's description and pictures, with the ones its listing has
+ * when they may (`summary` is the item's own, shown while the listing has no description). Anyone
+ * else, signed in or not, gets `canEdit: false` and nothing more.
  */
-export async function readPictures(store: PicturesStore, itemId: string, clientId: string | null): Promise<PicturesAnswer> {
+export async function readAuthorListing(store: AuthorListingStore, itemId: string, clientId: string | null): Promise<AuthorListingAnswer> {
   if (!LISTED_ITEM.test(itemId)) return fail(400, 'item names a skill, MCP or app');
-  const no: PicturesAnswer = { status: 200, body: { item: itemId, canEdit: false } };
-  if (!clientId || !(await store.record(itemId))) return no;
-  const role = await picturesRole(store, itemId, clientId);
+  const no: AuthorListingAnswer = { status: 200, body: { item: itemId, canEdit: false } };
+  if (!clientId) return no;
+  const item = await store.record(itemId);
+  if (!item) return no;
+  const role = await authorRole(store, itemId, clientId);
   if (!role) return no;
   const listing = await store.listing(itemId);
-  return { status: 200, body: { item: itemId, canEdit: true, role, headshot: listing?.headshot, icon: listing?.icon } };
+  return { status: 200, body: { item: itemId, canEdit: true, role, description: listing?.description, summary: item.summary, headshot: listing?.headshot, icon: listing?.icon } };
 }
 
 /**
  * `{ type: 'create_upload', itemId, filename, contentType }`: a signed link to upload one picture.
- * `{ type: 'set', itemId, headshot?, icon? }`: puts the links on the listing; the rest of it stays.
- * Both only for the item's authors and admins. An author sets a picture uploaded for the item
- * (`isUploadedFor`); an admin any https link, as on the release page.
+ * `{ type: 'set', itemId, description?, headshot?, icon? }`: puts them on the listing; the rest of
+ * it stays. Both only for the item's authors and admins. An author sets a picture uploaded for the
+ * item (`isUploadedFor`); an admin any https link, as on the release page.
  */
-export async function changePictures(store: PicturesStore, clientId: string | null, sent: unknown): Promise<PicturesAnswer> {
+export async function changeAuthorListing(store: AuthorListingStore, clientId: string | null, sent: unknown): Promise<AuthorListingAnswer> {
   if (!clientId) return fail(401, 'Sign in first');
   const body = (sent && typeof sent === 'object' ? sent : {}) as Record<string, unknown>;
   if (body.type !== 'create_upload' && body.type !== 'set') return fail(400, "type is 'create_upload' or 'set'");
@@ -83,13 +87,13 @@ export async function changePictures(store: PicturesStore, clientId: string | nu
   if (!LISTED_ITEM.test(itemId)) return fail(400, 'itemId names a skill, MCP or app, e.g. mcp/browse-hack');
   const item = await store.record(itemId);
   if (!item) return fail(404, `No ${itemId} in the store`);
-  const role = await picturesRole(store, itemId, clientId);
+  const role = await authorRole(store, itemId, clientId);
   if (!role) {
     return fail(
       403,
       item.madeBy
-        ? `${itemId} is made by ${item.madeBy.name}, outside MediaMake: an admin sets its pictures`
-        : `Only the authors of ${itemId} and admins change its pictures. Its page names them`,
+        ? `${itemId} is made by ${item.madeBy.name}, outside MediaMake: an admin sets its description and pictures`
+        : `Only the authors of ${itemId} and admins change its description and pictures. Its page names them`,
     );
   }
 
@@ -101,15 +105,16 @@ export async function changePictures(store: PicturesStore, clientId: string | nu
     return { status: 200, body: { uploadUrl, publicUrl } };
   }
 
-  const parsed = parsePictures(body, item.kind);
+  const parsed = parseAuthorListing(body, item.kind);
   if ('error' in parsed) return fail(400, parsed.error);
   if (role === 'author') {
-    for (const [key, link] of Object.entries(parsed.pictures)) {
+    for (const key of LISTING_PICTURES) {
+      const link = parsed.change[key];
       if (link && !isUploadedFor(itemId, link, store.uploadsBase)) {
         return fail(400, `${key} must be a picture uploaded for ${itemId}: ask for an upload link (create_upload), send the picture to it, and give its publicUrl`);
       }
     }
   }
-  const kept = await store.save(itemId, withPictures(await store.listing(itemId), parsed.pictures), clientId);
-  return { status: 200, body: { item: itemId, headshot: kept?.headshot, icon: kept?.icon }, changed: itemId };
+  const kept = await store.save(itemId, withAuthorListing(await store.listing(itemId), parsed.change), clientId);
+  return { status: 200, body: { item: itemId, description: kept?.description, headshot: kept?.headshot, icon: kept?.icon }, changed: itemId };
 }

@@ -16,7 +16,8 @@ how, is simple:
   submission is the first, and an author or an admin adds or removes others by their MediaMake account's
   email (`mm submit authors <name> --add=<email>` or `--remove=<email or name>`, a dry run, then `--yes`,
   only on the user's word). An item always keeps one. Its page names them by GitHub login or display
-  name, never an email. An author sets its headshot and icon themselves (below, READMEs).
+  name, never an email. An author edits its card themselves (below, READMEs), and finds every item
+  they author on My store items in the app (`/app/my-items`).
 - **Updates go out directly** for admins and Cohort authors: a new version of an item already in the
   store (Public, Plus, Pro or Cohort), sent with `mm submit <name> --yes` by an admin or by a Cohort
   member who is one of its authors, is published at once at the membership it has, with no review. Any
@@ -426,11 +427,12 @@ the format.
 - A skill's is `README.md` beside its SKILL.md, with `description`, `tags` and `headshot` (its 16:9
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
   release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`), its pictures uploaded (`catalog_upload_picture`), never committed.
-- An item's authors, and admins, set its headshot and icon without the admins' connector: Change
-  pictures on its page, or mm-use's `upload_item_picture` (run the `curl` line it gives) and then
-  `set_item_pictures` with the `publicUrl`. It is live at once, with no review, so only on the user's
-  word, after they have seen the picture. An item made outside MediaMake has no authors: an admin
-  sets its pictures. The rest of a listing stays an admin's.
+- An item's authors, and admins, set its description, headshot and icon without the admins'
+  connector: Edit card on its page or on My store items (`/app/my-items`), or mm-use's
+  `set_item_listing` (for a picture, `upload_item_picture` first: run the `curl` line it gives, then
+  pass its `publicUrl`). It is live at once, with no review, so only on the user's word, after they
+  have read the description or seen the picture. An item made outside MediaMake has no authors: an
+  admin sets these. The rest of a listing (README, tags, screenshots) stays an admin's.
 - Wherever an item lives, its own README.md is what shows: a public skill's from this repo, a private
   one's (a member's own space, a project's, a linked item) in its dialog, to the people who can see that
   space, sent with its pictures by every `mm space sync`. Write it in the item's folder and sync; never

@@ -1,5 +1,5 @@
 import { getUserByClientId, getUserByEmail } from '@/lib/auth/users';
-import { authorName, authorNamed, shownAuthor, withAuthor, withoutAuthor, type AuthorShown, type ItemAuthor } from '@/lib/catalog/authors';
+import { authorName, authorNamed, authoredItems, shownAuthor, withAuthor, withoutAuthor, type AuthorShown, type ItemAuthor } from '@/lib/catalog/authors';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { catalogAuthorsDB } from '@/lib/catalog/store';
 import type { MemberTier } from '@/lib/memberships/tiers';
@@ -21,6 +21,12 @@ export async function authorsOf(itemId: string): Promise<ItemAuthor[]> {
 }
 
 export const isAuthor = async (itemId: string, clientId: string) => (await authorsOf(itemId)).some(author => author.clientId === clientId);
+
+/** The store items an account is an author of, by id (My store items lists them). */
+export async function itemsAuthoredBy(clientId: string): Promise<string[]> {
+  const [named, accepted] = await Promise.all([catalogAuthorsDB.itemsOf(clientId), submissionsDB.acceptedItemsOf(clientId)]);
+  return authoredItems(named, accepted, itemId => isAuthor(itemId, clientId));
+}
 
 /** After a submission of the item is accepted: an item with no authors written down gets its first (the first accepted sender). */
 export async function settleAuthors(itemId: string): Promise<void> {
