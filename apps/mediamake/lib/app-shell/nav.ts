@@ -18,6 +18,7 @@ export const APP_HOME = '/app';
 
 export const SPACES_HREF = '/app/spaces';
 export const LIBRARY_HREF = '/app/library';
+export const MY_ITEMS_HREF = '/app/my-items';
 
 export type AppNavIcon =
   | 'home'
@@ -34,7 +35,8 @@ export type AppNavIcon =
   | 'submissions'
   | 'keys'
   | 'devices'
-  | 'subscription';
+  | 'subscription'
+  | 'storeItems';
 
 export interface AppNavItem {
   title: string;
@@ -82,6 +84,8 @@ export const APP_NAV: AppNavSection[] = [
       { title: 'API Keys', href: '/app/api-keys', icon: 'keys' },
       { title: 'Signed In Devices', href: '/app/devices', icon: 'devices' },
       { title: 'Subscription', href: '/app/subscription', icon: 'subscription' },
+      // the store items the person is an author of: a page for everyone, empty until they publish one
+      { title: 'My store items', href: MY_ITEMS_HREF, icon: 'storeItems' },
     ],
   },
 ];

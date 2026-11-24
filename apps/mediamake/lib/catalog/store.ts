@@ -83,6 +83,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.readiness).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.listing).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.authors).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.authors).createIndex({ 'authors.clientId': 1 });
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -571,6 +572,13 @@ export const catalogAuthorsDB = {
     const db = await getDatabase();
     const doc = await db.collection<StoredAuthors>(COL.authors).findOne({ id }, { projection: { _id: 0 } });
     return doc?.authors.length ? doc.authors : null;
+  },
+
+  /** The ids of the items that name this account as an author. */
+  async itemsOf(clientId: string): Promise<string[]> {
+    const db = await getDatabase();
+    const docs = await db.collection<StoredAuthors>(COL.authors).find({ 'authors.clientId': clientId }, { projection: { _id: 0, id: 1 } }).toArray();
+    return docs.map(doc => doc.id);
   },
 
   /** Replaces the item's authors (never empty: ./authors keeps one). */

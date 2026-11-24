@@ -12,8 +12,8 @@ import { itemPagePath, json, mimeFromName, safe } from '../util.js';
  * back too: what the account sent and what came of it, and each item's known
  * issues. A member also sends what they built to the store from here, for an
  * admin to review (submit_item, my_submissions, withdraw_submission), and an
- * item's authors set its headshot and icon (upload_item_picture,
- * set_item_pictures): the server only hands out the link a picture is sent to.
+ * item's authors set its description, headshot and icon (upload_item_picture,
+ * set_item_listing): the server only hands out the link a picture is sent to.
  */
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -360,7 +360,7 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
     {
       title: "Upload a picture for an item's listing",
       description:
-        "A link to upload one picture from the user's computer for the store listing of an item they look after: its headshot (16:9) or, for an MCP or an app, its icon (square). Only the item's authors and MediaMake's admins can; an item made outside MediaMake has no authors here, so only an admin. Give the file's name (its extension says its type), not its folder. Answers with publicUrl, the picture's link once it is uploaded (public to anyone who has it), and curl, the line that uploads it: run it on the user's computer in the file's folder (or put the file's full path after --upload-file; curl.exe in Windows PowerShell), and it must exit 0 and print nothing. Then pass publicUrl to set_item_pictures. The link works for an hour and for that one file: a changed picture needs a new call. Only on the user's word, and only a real picture of the item.",
+        "A link to upload one picture from the user's computer for the store listing of an item they look after: its headshot (16:9) or, for an MCP or an app, its icon (square). Only the item's authors and MediaMake's admins can; an item made outside MediaMake has no authors here, so only an admin. Give the file's name (its extension says its type), not its folder. Answers with publicUrl, the picture's link once it is uploaded (public to anyone who has it), and curl, the line that uploads it: run it on the user's computer in the file's folder (or put the file's full path after --upload-file; curl.exe in Windows PowerShell), and it must exit 0 and print nothing. Then pass publicUrl to set_item_listing. The link works for an hour and for that one file: a changed picture needs a new call. Only on the user's word, and only a real picture of the item.",
       inputSchema: {
         item: LISTED_ITEM,
         filename: z
@@ -384,32 +384,34 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
       });
       // the link is signed for this type, public-read, so the headers must match it
       const curl = `curl -sSf -X PUT -H "Content-Type: ${contentType}" -H "x-amz-acl: public-read" --upload-file "${name}" "${uploadUrl}"`;
-      return json({ item, publicUrl, curl, contentType, expires: 'in an hour', next: 'set_item_pictures puts publicUrl on the listing', page: page(item) });
+      return json({ item, publicUrl, curl, contentType, expires: 'in an hour', next: 'set_item_listing puts publicUrl on the listing', page: page(item) });
     }),
   );
 
   server.registerTool(
-    'set_item_pictures',
+    'set_item_listing',
     {
-      title: "Set an item's headshot and icon",
+      title: "Set an item's description, headshot and icon",
       description:
-        "Set the pictures on the store listing of an item the user looks after: headshot, the 16:9 picture its cards and its page show, and icon, an MCP's or an app's square icon, each by its link. An author gives the publicUrl that upload_item_picture gave for a picture uploaded for this item, and no other link; an admin may give any https link. Only the item's authors and MediaMake's admins can. Each one given replaces what was there; an empty one clears it; left out, it stays. It is live at once, with no review: only on the user's word, after they have seen the picture, and only a real picture of the item. The rest of a listing (its description, README, tags and screenshots) is set by MediaMake's admins. Answers with the item's page: give it to the user.",
+        "Set what the people who look after a store item may change on its listing: description, what it is, for people, in a line or two (shown on its cards and at the top of its page in place of its own summary); headshot, the 16:9 picture its cards and its page show; and icon, an MCP's or an app's square icon. Only the item's authors and MediaMake's admins can. For a picture, an author gives the publicUrl that upload_item_picture gave for a picture uploaded for this item, and no other link; an admin may give any https link. Each one given replaces what was there; an empty one clears it; left out, it stays. It is live at once, with no review: only on the user's word, after they have read the description or seen the picture, and only their own words and a real picture of the item. The rest of a listing (its README, tags and screenshots) is set by MediaMake's admins. Answers with the item's page: give it to the user.",
       inputSchema: {
         item: LISTED_ITEM,
+        description: z.string().max(300).optional().describe('What it is, for people, in a line or two; empty clears it'),
         headshot: z.string().max(1000).optional().describe("Its 16:9 picture: upload_item_picture's publicUrl; empty clears it"),
         icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon: upload_item_picture's publicUrl; empty clears it"),
       },
       annotations: { ...WRITE, idempotentHint: true },
     },
-    safe(async ({ item, headshot, icon }) => {
-      if (headshot === undefined && icon === undefined) throw new Error('Give headshot or icon');
-      const saved = await client.post<{ headshot?: string; icon?: string }>('/api/catalog/listing', {
+    safe(async ({ item, description, headshot, icon }) => {
+      if (description === undefined && headshot === undefined && icon === undefined) throw new Error('Give description, headshot or icon');
+      const saved = await client.post<{ description?: string; headshot?: string; icon?: string }>('/api/catalog/listing', {
         type: 'set',
         itemId: item,
+        ...(description !== undefined && { description }),
         ...(headshot !== undefined && { headshot }),
         ...(icon !== undefined && { icon }),
       });
-      return json({ item, headshot: saved.headshot ?? null, icon: saved.icon ?? null, live: true, page: page(item) });
+      return json({ item, description: saved.description ?? null, headshot: saved.headshot ?? null, icon: saved.icon ?? null, live: true, page: page(item) });
     }),
   );
 }

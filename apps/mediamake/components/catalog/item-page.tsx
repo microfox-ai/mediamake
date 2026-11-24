@@ -7,7 +7,7 @@ import { HeroInstall } from '@/components/catalog/access-actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AboutCard, AdviceBanner, ItemHero, ItemMedia, ReadmeView } from '@/components/catalog/item-listing';
-import { ItemPicturesTools } from '@/components/catalog/item-pictures';
+import { ItemCardTools } from '@/components/catalog/item-card-editor';
 import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { ItemRating } from '@/components/ratings/item-rating';
@@ -252,7 +252,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
                   </a>
                 </p>
               )}
-              <ItemPicturesTools itemId={item.id} kind={kind} title={item.title} />
+              <ItemCardTools itemId={item.id} kind={kind} title={item.title} />
             </AboutCard>
   
             {uses.length > 0 && (

@@ -81,40 +81,49 @@ export const LISTING_PICTURE_TYPE = /^image\/(png|jpeg|webp|gif|avif)$/;
 export const isPictureLink = (value: string) => /^https:\/\/\S{1,1000}$/.test(value);
 
 /**
- * An item's pictures: its headshot and, for an MCP or an app, its icon. They are what the people who
- * look after the item set themselves (its authors, see ./authors); the rest of a listing is an admin's.
+ * The part of a listing the people who look after an item set themselves (its authors, see
+ * ./authors): its description and its pictures, the headshot and, for an MCP or an app, the icon.
+ * The rest of a listing is an admin's.
  */
-export type ListingPictures = Pick<ItemListing, 'headshot' | 'icon'>;
+export type AuthorListing = Pick<ItemListing, 'description' | 'headshot' | 'icon'>;
 export const LISTING_PICTURES = ['headshot', 'icon'] as const;
 
 /**
- * A change to an item's pictures as it is sent: `headshot` and `icon`, each an https link. One given
- * replaces what was there, an empty one clears it, one left out stays. A skill has no icon.
+ * A change to that part as it is sent: `description` (text, in a line or two), `headshot` and `icon`
+ * (each an https link). One given replaces what was there, an empty one clears it, one left out
+ * stays. A skill has no icon. Nothing else of a listing is read.
  */
-export function parsePictures(body: unknown, kind: string): { pictures: ListingPictures } | { error: string } {
+export function parseAuthorListing(body: unknown, kind: string): { change: AuthorListing } | { error: string } {
   const sent = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-  const pictures: ListingPictures = {};
+  const change: AuthorListing = {};
+  if (sent.description !== undefined) {
+    if (typeof sent.description !== 'string') return { error: 'description must be text, or empty to clear it' };
+    const description = sent.description.trim();
+    if (description.length > MAX_LISTING_DESCRIPTION) return { error: `Keep the description under ${MAX_LISTING_DESCRIPTION} characters` };
+    change.description = description;
+  }
   for (const key of LISTING_PICTURES) {
     const value = sent[key];
     if (value === undefined) continue;
     if (typeof value !== 'string') return { error: `${key} must be an https link to a picture, or empty to clear it` };
     const link = value.trim();
     if (link && !isPictureLink(link)) return { error: `${key} must be an https link to a picture` };
-    pictures[key] = link;
+    change[key] = link;
   }
-  if (pictures.headshot === undefined && pictures.icon === undefined) return { error: 'Give headshot or icon' };
-  if (pictures.icon && kind === 'skill') return { error: 'Only an MCP or an app has an icon' };
-  return { pictures };
+  if (change.description === undefined && change.headshot === undefined && change.icon === undefined) return { error: 'Give description, headshot or icon' };
+  if (change.icon && kind === 'skill') return { error: 'Only an MCP or an app has an icon' };
+  return { change };
 }
 
-/** A listing with its pictures changed: everything else on it stays as it is. */
-export function withPictures(current: ListingFields | null | undefined, pictures: ListingPictures): ListingFields {
+/** A listing with that part changed: everything else on it stays as it is. */
+export function withAuthorListing(current: ListingFields | null | undefined, change: AuthorListing): ListingFields {
+  const next = (key: keyof AuthorListing) => (change[key] === undefined ? current?.[key] : change[key] || undefined);
   return {
     tags: current?.tags ?? [],
     media: current?.media ?? [],
-    description: current?.description,
-    headshot: pictures.headshot === undefined ? current?.headshot : pictures.headshot || undefined,
-    icon: pictures.icon === undefined ? current?.icon : pictures.icon || undefined,
+    description: next('description'),
+    headshot: next('headshot'),
+    icon: next('icon'),
     readme: current?.readme,
     editorsPick: current?.editorsPick,
     advice: current?.advice,

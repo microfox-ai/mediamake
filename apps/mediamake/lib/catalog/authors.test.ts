@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { MAX_AUTHORS, authorName, authorNamed, shownAuthor, withAuthor, withoutAuthor, type ItemAuthor } from './authors';
+import { authoredItems, authorName, authorNamed, MAX_AUTHORS, shownAuthor, type ItemAuthor, withAuthor, withoutAuthor } from './authors';
 
 const author = (clientId: string, name = clientId): ItemAuthor => ({ clientId, name, addedAt: '2026-11-20T10:00:00.000Z', addedBy: 'store' });
 
@@ -41,5 +41,20 @@ describe('an item’s authors', () => {
     assert.equal(authorNamed(authors, shown, '@Ana-Dev')?.clientId, 'ana');
     assert.equal(authorNamed(authors, shown, 'ravi'), null);
     assert.equal(authorNamed(authors, shown, 'nobody'), null);
+  });
+});
+
+
+describe('authoredItems', () => {
+  it('lists the items that name the account, and the earlier ones it is still an author of', async () => {
+    const asked: string[] = [];
+    const still = async (itemId: string) => {
+      asked.push(itemId);
+      return itemId !== 'mcp/handed-over';
+    };
+    assert.deepEqual(await authoredItems(['skill/b', 'mcp/a'], ['mcp/a', 'app/old', 'mcp/handed-over'], still), ['app/old', 'mcp/a', 'skill/b']);
+    // an item that already names the account is not asked about again
+    assert.deepEqual(asked, ['app/old', 'mcp/handed-over']);
+    assert.deepEqual(await authoredItems([], [], still), []);
   });
 });

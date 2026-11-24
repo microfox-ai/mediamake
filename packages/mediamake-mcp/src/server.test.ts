@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'set_item_pictures', 'submit_item', 'upload_item_picture', 'withdraw_submission', 'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'library_made_from'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'set_item_listing', 'submit_item', 'upload_item_picture', 'withdraw_submission', 'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'library_made_from'].sort(),
     );
   });
 
@@ -782,33 +782,34 @@ describe('mm-use', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("sets an item's headshot and icon, and nothing else of its listing", async () => {
-    const calls = stubApi((_m, _p, body) => ({ item: body.itemId, headshot: body.headshot || undefined, icon: 'https://cdn.test/old-icon.png' }));
-    const { out } = await call('set_item_pictures', { item: 'mcp/mine', headshot: 'https://cdn.test/h.jpg' });
+  it("sets an item's description, headshot and icon, and nothing else of its listing", async () => {
+    const calls = stubApi((_m, _p, body) => ({ item: body.itemId, description: body.description || undefined, headshot: body.headshot || undefined, icon: 'https://cdn.test/old-icon.png' }));
+    const { out } = await call('set_item_listing', { item: 'mcp/mine', headshot: 'https://cdn.test/h.jpg', description: 'A mixing desk Claude drives.' });
     expect([calls[0].method, calls[0].url.pathname]).toEqual(['POST', '/api/catalog/listing']);
-    expect(calls[0].body).toEqual({ type: 'set', itemId: 'mcp/mine', headshot: 'https://cdn.test/h.jpg' });
-    expect(out).toEqual({ item: 'mcp/mine', headshot: 'https://cdn.test/h.jpg', icon: 'https://cdn.test/old-icon.png', live: true, page: 'http://mm.test/mcps/mine' });
+    expect(calls[0].body).toEqual({ type: 'set', itemId: 'mcp/mine', description: 'A mixing desk Claude drives.', headshot: 'https://cdn.test/h.jpg' });
+    expect(out).toEqual({ item: 'mcp/mine', description: 'A mixing desk Claude drives.', headshot: 'https://cdn.test/h.jpg', icon: 'https://cdn.test/old-icon.png', live: true, page: 'http://mm.test/mcps/mine' });
 
     // an empty one clears it, and is sent as given
-    const cleared = (await call('set_item_pictures', { item: 'mcp/mine', headshot: '' })).out;
-    expect(calls[1].body).toEqual({ type: 'set', itemId: 'mcp/mine', headshot: '' });
-    expect(cleared.headshot).toBeNull();
+    const cleared = (await call('set_item_listing', { item: 'mcp/mine', description: '' })).out;
+    expect(calls[1].body).toEqual({ type: 'set', itemId: 'mcp/mine', description: '' });
+    expect(cleared.description).toBeNull();
 
     // what an admin sets is not an argument here: it never reaches the server
-    await call('set_item_pictures', { item: 'mcp/mine', icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, tags: ['x'] });
+    await call('set_item_listing', { item: 'mcp/mine', icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, tags: ['x'] });
     expect(calls[2].body).toEqual({ type: 'set', itemId: 'mcp/mine', icon: 'https://cdn.test/i.png' });
 
-    const none = await call('set_item_pictures', { item: 'mcp/mine' });
+    const none = await call('set_item_listing', { item: 'mcp/mine' });
     expect(none.isError).toBe(true);
-    expect(none.out).toContain('Give headshot or icon');
+    expect(none.out).toContain('Give description, headshot or icon');
+    expect((await call('set_item_listing', { item: 'mcp/mine', description: 'x'.repeat(301) })).isError).toBe(true);
     expect(calls).toHaveLength(3);
   });
 
   it('says who can when the account is not an author of the item', async () => {
-    vi.stubGlobal('fetch', async () => Response.json({ error: 'Only the authors of mcp/theirs and admins change its pictures. Its page names them' }, { status: 403 }));
+    vi.stubGlobal('fetch', async () => Response.json({ error: 'Only the authors of mcp/theirs and admins change its description and pictures. Its page names them' }, { status: 403 }));
     for (const [name, args] of [
       ['upload_item_picture', { item: 'mcp/theirs', filename: 'h.png' }],
-      ['set_item_pictures', { item: 'mcp/theirs', headshot: 'https://cdn.test/h.jpg' }],
+      ['set_item_listing', { item: 'mcp/theirs', description: 'Not mine to say' }],
     ] as const) {
       const refused = await call(name, args);
       expect(refused.isError).toBe(true);

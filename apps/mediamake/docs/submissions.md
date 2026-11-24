@@ -71,12 +71,18 @@ Every store item has authors, like the collaborators on a git repo
   email. An item always keeps one author; one can remove themself while
   another remains.
 - **What it gives**: any author may send a new version (for review), and a
-  Cohort author's is published directly (above). Any author also sets the
-  item's headshot and icon, live at once: Change pictures on its page, or
-  mm-use's `upload_item_picture` and `set_item_pictures`
+  Cohort author's is published directly (above). Any author also edits the
+  item's card (its description, headshot and icon), live at once: Edit card
+  on its page, or mm-use's `set_item_listing` and `upload_item_picture`
   (`GET`/`POST /api/catalog/listing`). An author sets only a picture uploaded
   for that item, never a link to somewhere else. Admins can do all of it for
   every item.
+- **Where an author finds them**: My store items in the app (`/app/my-items`,
+  under Account) lists every store item the account is an author of
+  (`itemsAuthoredBy`), each with Edit card, Authors (add by email, remove) and
+  Send an update (the `mm submit` line to copy: a new version goes from the
+  computer that has the files). Below them, what the account sent that is
+  not in the store yet.
 - **Where they show**: the item's page (`/skills`, `/mcps`, `/apps`) and its
   release page name each one by GitHub login (linked) when their account has
   GitHub linked, else by display name; never an email, and the API answers
@@ -142,11 +148,12 @@ merges; nothing else depends on it.
 | GitHub calls | `lib/submissions/github.ts` |
 | Send, approve, ask for changes, decline, withdraw, merged | `lib/submissions/actions.ts` |
 | Authors: the rules, who they are, changing them | `lib/catalog/authors.ts`, `lib/submissions/authors.ts`, `app/api/submissions/authors` |
-| An item's pictures, set by its authors | `lib/catalog/pictures.ts` (who may, what each request does), `lib/catalog/listing.ts` (`parsePictures`, `withPictures`), `app/api/catalog/listing`, `components/catalog/item-pictures.tsx` |
+| An item's card (description, headshot, icon), set by its authors | `lib/catalog/author-listing.ts` (who may, what each request does), `lib/catalog/listing.ts` (`parseAuthorListing`, `withAuthorListing`), `app/api/catalog/listing`, `components/catalog/item-card-editor.tsx` |
+| My store items | `app/app/(account)/my-items`, `components/my-items`, `itemsAuthoredBy` in `lib/submissions/authors.ts` |
 | Member API, admin API | `app/api/submissions`, `app/api/admin/submissions` |
 | The page | `components/submissions`, `app/app/(admin)/submissions` |
 | Suggested grants | `lib/memberships/suggestions.ts`, `suggestions-store.ts`, `components/memberships/suggested.tsx` |
 | The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/mm-submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
 
-Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts lib/catalog/pictures.test.ts`,
+Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts lib/catalog/author-listing.test.ts`,
 `node --test tools/submit.test.mjs`.

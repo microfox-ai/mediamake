@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { LISTING_PICTURE_TYPE, headshotOf, isEmptyListing, listingBadges, listingTiles, mediaKindOf, parsePictures, parseTag, parseTags, sizeLabel, withListing, withPictures } from './listing';
+import { LISTING_PICTURE_TYPE, headshotOf, isEmptyListing, listingBadges, listingTiles, mediaKindOf, parseAuthorListing, parseTag, parseTags, sizeLabel, withAuthorListing, withListing } from './listing';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -122,33 +122,39 @@ describe('listingTiles', () => {
   });
 });
 
-describe('parsePictures', () => {
-  it('takes https links, trimmed, and an empty one to clear', () => {
-    assert.deepEqual(parsePictures({ headshot: '  https://cdn.test/h.jpg ', icon: '' }, 'mcp'), { pictures: { headshot: 'https://cdn.test/h.jpg', icon: '' } });
-    assert.deepEqual(parsePictures({ headshot: 'https://cdn.test/h.jpg' }, 'skill'), { pictures: { headshot: 'https://cdn.test/h.jpg' } });
+describe('parseAuthorListing', () => {
+  it('takes a description and https links, trimmed, and an empty one to clear', () => {
+    assert.deepEqual(parseAuthorListing({ description: '  What it does.  ', headshot: '  https://cdn.test/h.jpg ', icon: '' }, 'mcp'), {
+      change: { description: 'What it does.', headshot: 'https://cdn.test/h.jpg', icon: '' },
+    });
+    assert.deepEqual(parseAuthorListing({ headshot: 'https://cdn.test/h.jpg' }, 'skill'), { change: { headshot: 'https://cdn.test/h.jpg' } });
+    assert.deepEqual(parseAuthorListing({ description: '' }, 'skill'), { change: { description: '' } });
   });
 
-  it('reads only the pictures: the rest of a listing is not an author\'s', () => {
-    assert.deepEqual(parsePictures({ icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, advice: 'deprecated', tags: ['x'] }, 'app'), {
-      pictures: { icon: 'https://cdn.test/i.png' },
+  it("reads only the description and the pictures: the rest of a listing is not an author's", () => {
+    assert.deepEqual(parseAuthorListing({ icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, advice: 'deprecated', tags: ['x'], media: [] }, 'app'), {
+      change: { icon: 'https://cdn.test/i.png' },
     });
   });
 
-  it('stops on what is not an https link, on nothing given, and on a skill\'s icon', () => {
-    assert.ok('error' in parsePictures({ headshot: 'http://cdn.test/h.jpg' }, 'mcp'));
-    assert.ok('error' in parsePictures({ headshot: 'https://cdn.test/h one.jpg' }, 'mcp'));
-    assert.ok('error' in parsePictures({ headshot: 7 }, 'mcp'));
-    assert.ok('error' in parsePictures({ icon: null }, 'mcp'));
-    assert.ok('error' in parsePictures({}, 'mcp'));
-    assert.ok('error' in parsePictures(null, 'mcp'));
-    assert.ok('error' in parsePictures({ description: 'words' }, 'mcp'));
-    assert.ok('error' in parsePictures({ icon: 'https://cdn.test/i.png' }, 'skill'));
+  it("stops on what is not an https link, on nothing given, on a long description and on a skill's icon", () => {
+    assert.ok('error' in parseAuthorListing({ headshot: 'http://cdn.test/h.jpg' }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ headshot: 'https://cdn.test/h one.jpg' }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ headshot: 7 }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ icon: null }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ description: 7 }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ description: 'x'.repeat(301) }, 'mcp'));
+    assert.ok(!('error' in parseAuthorListing({ description: 'x'.repeat(300) }, 'mcp')));
+    assert.ok('error' in parseAuthorListing({}, 'mcp'));
+    assert.ok('error' in parseAuthorListing(null, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ readme: 'words' }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ icon: 'https://cdn.test/i.png' }, 'skill'));
     // clearing an icon a skill never had changes nothing, so it is let through
-    assert.deepEqual(parsePictures({ icon: '' }, 'skill'), { pictures: { icon: '' } });
+    assert.deepEqual(parseAuthorListing({ icon: '' }, 'skill'), { change: { icon: '' } });
   });
 });
 
-describe('withPictures', () => {
+describe('withAuthorListing', () => {
   const current = {
     tags: ['anime'],
     media: [{ kind: 'image' as const, url: 'https://cdn.test/s.png' }],
@@ -162,17 +168,18 @@ describe('withPictures', () => {
     insteadOf: 'mcp/other',
   };
 
-  it('changes the pictures given and keeps the rest of the listing', () => {
-    assert.deepEqual(withPictures(current, { headshot: 'https://cdn.test/new.jpg' }), { ...current, headshot: 'https://cdn.test/new.jpg' });
-    assert.deepEqual(withPictures(current, { headshot: '', icon: 'https://cdn.test/new.png' }), { ...current, headshot: undefined, icon: 'https://cdn.test/new.png' });
+  it('changes what is given and keeps the rest of the listing', () => {
+    assert.deepEqual(withAuthorListing(current, { headshot: 'https://cdn.test/new.jpg' }), { ...current, headshot: 'https://cdn.test/new.jpg' });
+    assert.deepEqual(withAuthorListing(current, { description: 'New words' }), { ...current, description: 'New words' });
+    assert.deepEqual(withAuthorListing(current, { headshot: '', description: '', icon: 'https://cdn.test/new.png' }), { ...current, headshot: undefined, description: undefined, icon: 'https://cdn.test/new.png' });
   });
 
   it('starts a listing for an item that has none', () => {
-    const made = withPictures(null, { headshot: 'https://cdn.test/h.jpg' });
-    assert.equal(made.headshot, 'https://cdn.test/h.jpg');
+    const made = withAuthorListing(null, { description: 'What it does' });
+    assert.equal(made.description, 'What it does');
     assert.deepEqual([made.tags, made.media], [[], []]);
     assert.equal(isEmptyListing(made), false);
-    assert.equal(isEmptyListing(withPictures(null, { headshot: '' })), true);
+    assert.equal(isEmptyListing(withAuthorListing(null, { headshot: '' })), true);
   });
 });
 

@@ -57,6 +57,17 @@ export function withoutAuthor(authors: ItemAuthor[], clientId: string): AuthorsC
 }
 
 /**
+ * The items an account is an author of, in order: the ones that name it (`named`), then those it
+ * had a submission accepted for (`accepted`) and is still an author of. The second kind is an item
+ * accepted before authors were written down, whose first accepted sender counts as its author.
+ */
+export async function authoredItems(named: string[], accepted: string[], isAuthor: (itemId: string) => Promise<boolean>): Promise<string[]> {
+  const ids = new Set(named);
+  for (const itemId of accepted) if (!ids.has(itemId) && (await isAuthor(itemId))) ids.add(itemId);
+  return [...ids].sort();
+}
+
+/**
  * The author a name points at, among the names shown (a GitHub login or a display name, any case), for
  * removing one by the name the list shows. Null when none or several match.
  */
