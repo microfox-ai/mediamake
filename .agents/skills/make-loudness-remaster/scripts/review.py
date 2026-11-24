@@ -2,7 +2,7 @@
 # requires-python = ">=3.9"
 # dependencies = ["numpy", "soundfile", "pyloudnorm"]
 # ///
-"""Make a ladder reviewable on MediaMake's Remaster Revisions screen and print its review link.
+"""Make a ladder reviewable in MediaMake's Stem Player and print its review link.
 
 usage: review.py <ladder folder> [--title="Song Title"] [--note="what this ladder tries"]
 
@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from remaster_lib import ffmpeg_meters  # noqa: E402
 
 AUDIO = {".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".aiff", ".aif"}
-BASE_URL = "https://mediamake.microfox.app/remaster-revision"
+BASE_URL = "https://mediamake.microfox.app/stem-player"
 
 
 def common_prefix(names):

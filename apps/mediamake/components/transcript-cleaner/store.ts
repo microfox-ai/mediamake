@@ -4,8 +4,8 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 import { isAbortError } from '@/lib/local-media/file-access';
 import { getFolderSupport, getSubdir, listFileNames, pickFolder, readFileIn, readJsonIn, removeFileIn, requestReadWrite, writeFileIn } from '@/lib/revisions/fs';
-import { openDevFolder } from '@/lib/remaster-revisions/dev-folder';
-import { waveformPeaks } from '@/lib/remaster-revisions/loudness';
+import { openDevFolder } from '@/lib/stem-player/dev-folder';
+import { waveformPeaks } from '@/lib/stem-player/loudness';
 import {
   changeCount,
   instructionsOf,

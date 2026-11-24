@@ -1,13 +1,21 @@
 /*
- * The remaster revision screen (/remaster-revision) reviews a ladder: a folder of versions of one
- * song (apps/studio … <song folder>/remaster/v<N>/, made by make-loudness-remaster). It
+ * The Stem Player (/stem-player) plays folders of audio from one playhead: the stems of a song
+ * together, or the versions of a song one after the other (a remaster ladder, made by
+ * make-loudness-remaster in <song folder>/remaster/v<N>/). A versions folder is reviewed too: it
  * writes the same revision files as /file-revision (mediamake.image-revision/v1, see
  * lib/file-revisions/types.ts): the final is the version the user picked, a note on a version is a
  * comment on its ID, and a note at a moment is a pinned comment with `t`. See
- * components/remaster-revisions/README.md.
+ * components/stem-player/README.md.
  */
 
 export const REMASTER_SCHEMA = 'mediamake.remaster/v1';
+
+/**
+ * Formats a browser decodes, best first: lossless before lossy, and the quickest to decode first.
+ * A stem that comes in several (Suno's zips hold a WAV and an MP3 of each) is listed once, in the
+ * first of these it has.
+ */
+export const AUDIO_FORMATS = ['wav', 'flac', 'm4a', 'mp3', 'ogg', 'oga', 'opus', 'aac'];
 
 /** What the remaster scripts know about one version of the ladder (every field but `file` optional). */
 export interface RemasterVersionInfo {
@@ -65,3 +73,9 @@ export interface LoopRange {
 
 /** Versions further apart than this are flagged: the louder one sounds better by itself. */
 export const LEVEL_WARN_LU = 1;
+
+/** A track quieter than this is left out when levels are matched (near silence: matching to it would bury the rest). */
+export const QUIET_LUFS = -50;
+
+/** Decoded audio kept in memory, in bytes: past it the tracks used longest ago are freed. */
+export const MEMORY_BUDGET = 1.5 * 1024 ** 3;

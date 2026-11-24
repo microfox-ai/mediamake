@@ -276,8 +276,8 @@ function Header() {
       {song && <CleanButton />}
       <div className="ml-auto flex items-center gap-3">
         <Hint label="Songs are mastered and compared here" side="bottom">
-          <Link href="/remaster-revision" className="text-xs text-muted-foreground hover:text-foreground">
-            Remaster revisions
+          <Link href="/stem-player" className="text-xs text-muted-foreground hover:text-foreground">
+            Stem Player
           </Link>
         </Hint>
         <Hint label="Videos are reviewed here" side="bottom">

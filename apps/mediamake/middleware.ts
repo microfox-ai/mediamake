@@ -180,7 +180,7 @@ export const config = {
    * - dev-lyrics (development-only file access for the public /remotion-editor page)
    * - dev-reveal (development-only "Show in Finder" for the public /file-revision page)
    * - dev-library (development-only media library export for the public /library page)
-   * - dev-ladder (development-only folder access for the public /remaster-revision and /transcript-cleaner pages)
+   * - dev-ladder (development-only folder access for the public /stem-player and /transcript-cleaner pages)
    * - catalog (product catalog: browsable signed out; the routes resolve the
    *   viewer themselves and never trust x-client-id, see lib/access)
    * - feedback-hook (the feedback fix workflow in GitHub Actions; the route

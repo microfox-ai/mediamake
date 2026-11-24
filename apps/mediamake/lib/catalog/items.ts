@@ -84,14 +84,15 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     releasedAt: '2026-10-22',
   },
   {
+    // the id stays (it was Remaster Revisions): it keys the stored item and its grants
     id: 'app/remaster-revision',
     kind: 'app',
-    title: 'Remaster Revisions',
-    summary: 'Compare the versions of a remaster by ear from one shared playhead, loop a part, pick the final and leave notes, saved beside the files for Claude.',
+    title: 'Stem Player',
+    summary: "Hear a song's stems or versions from one playhead: move between tracks with the arrow keys, select several to play them together, loop a part, and for versions match their levels, pick the final and leave notes, saved beside the files for Claude.",
     visibility: 'public',
     openToAll: true,
     status: 'beta',
-    href: '/remaster-revision',
+    href: '/stem-player',
     tags: ['review', 'audio'],
     releasedAt: '2026-11-04',
   },
