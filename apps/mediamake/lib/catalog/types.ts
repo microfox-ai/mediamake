@@ -205,7 +205,7 @@ export interface CatalogItem {
   icon?: string;
   /** An editors' pick (see ItemListing): an admin's choice for the top of Explore. */
   editorsPick?: boolean;
-  /** Not recommended or deprecated (see ItemAdvice, set on its listing); none: recommended. */
+  /** Not recommended or deprecated (see ItemAdvice): its listing's, else the one its entry in the repo carries; none: recommended. */
   advice?: Exclude<ItemAdvice, 'recommended'>;
   /** Why it is not recommended or deprecated. */
   adviceNote?: string;
@@ -520,6 +520,8 @@ export function parseReadiness(value: unknown): Readiness | null {
  *  - not-recommended: it works, but there is a better way; hidden in Explore unless the Not recommended filter is on, and its page warns, with why.
  *  - deprecated: on its way out; hidden in Explore unless the Deprecated filter is on, still installs by its link.
  * A non-default one says why (adviceNote) and can name the item to use instead (insteadOf).
+ * An item made by others can carry one in third-party.json (`advice`, `adviceNote`): it holds
+ * from the first deploy, an admin's on the listing replaces it, and only the file clears it.
  */
 export type ItemAdvice = 'recommended' | 'not-recommended' | 'deprecated';
 export const ADVICE: { id: ItemAdvice; label: string; about: string }[] = [

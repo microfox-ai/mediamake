@@ -108,6 +108,8 @@ export interface ItemDetail {
     advice?: ItemAdvice;
     adviceNote?: string;
     insteadOf?: string;
+    /** The advice is the one its entry in the repo carries (third-party.json), not an admin's: Recommended here cannot clear it. */
+    adviceFromRepo?: boolean;
   };
   /** The productions on its readiness mark, kept while it is Alpha or Beta. */
   savedProof?: ReadyProof[];

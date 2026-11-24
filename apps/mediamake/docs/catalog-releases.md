@@ -226,6 +226,9 @@ are uploaded there (`create_thumbnail_upload`) or pasted by link.
   page warns, with why. `deprecated`: on its way out;
   Explore hides it behind the Deprecated filter, and it still installs by its link. The last two
   need `adviceNote` (why, shown with it) and may name `insteadOf`, the item to use instead.
+  An item made by others can carry its advice in `third-party.json` instead (`"advice":
+  "not-recommended"`, `"adviceNote": "…"`): it holds from the first deploy, with no listing saved.
+  An admin's advice on the listing replaces it; Recommended there does not clear it, only the file does.
 
 Explore's New row goes by the day an item first came out. A released item has its release date; a
 skill from the repo has the day of its first commit, in `lib/catalog/skill-dates.json`: a pull

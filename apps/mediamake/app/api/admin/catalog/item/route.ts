@@ -159,9 +159,11 @@ export async function GET(req: NextRequest) {
       icon: listings.get(id)?.icon,
       readme: listings.get(id)?.readme,
       editorsPick: !!listings.get(id)?.editorsPick,
-      advice: listings.get(id)?.advice ?? 'recommended',
-      adviceNote: listings.get(id)?.adviceNote,
-      insteadOf: listings.get(id)?.insteadOf,
+      // an admin's, on the listing, else the one its entry in the repo carries (the index puts either on the item)
+      advice: item.advice ?? 'recommended',
+      adviceNote: item.adviceNote,
+      insteadOf: item.insteadOf,
+      adviceFromRepo: !!item.advice && !listings.get(id)?.advice,
       // a repo skill's README.md is a file in its folder: it is edited there, not here
       readmeFile: isRepoSkill(id) && !!skillNamed(slugOf(id))?.readme,
     },

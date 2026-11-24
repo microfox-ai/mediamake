@@ -626,9 +626,11 @@ export async function POST(req: NextRequest) {
           icon: listing?.icon,
           readme: listing?.readme,
           editorsPick: !!listing?.editorsPick,
-          advice: listing?.advice ?? 'recommended',
-          adviceNote: listing?.adviceNote,
-          insteadOf: listing?.insteadOf,
+          // an admin's, on the listing, else the one its entry in the repo carries
+          advice: listing?.advice ?? item.advice ?? 'recommended',
+          adviceNote: listing?.advice ? listing.adviceNote : item.adviceNote,
+          insteadOf: listing?.advice ? listing.insteadOf : item.insteadOf,
+          adviceFromRepo: !!item.advice && !listing?.advice,
         },
       });
     }
