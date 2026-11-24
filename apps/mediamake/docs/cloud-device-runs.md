@@ -272,7 +272,7 @@ A session runs a production like this:
 | A step starts | `mm run step <slug> <n>` | Marks it started here (`--hours=<n>` when it takes more than 2). Refused when this place lacks what the step needs |
 | This place lacks what a step needs, and the sheet says what to do instead | `mm run step <slug> <n> --without` | Marks it started here, done the sheet's other way. The record keeps what the place lacked. Refused when the sheet's "Without it" is "a to-do …" |
 | A step's work is done | `mm run save <slug> <n>` | Marks it saved. `--production` sends `projects/<slug>` and `out/<slug>` to the project's Productions, `--release[=<folder>]` sends the release kit (`out/youtube/<slug>` unless named) to its Releases, `--output="<a link>"` records what it made. Only changed files go up, and nothing changed makes no new version |
-| The next step can't run here, and the sheet says it waits | `mm run wait <slug> [<n>]` | Posts the step as a to-do (its needs, its yes, the production or release and its version) and lets go of the run. The session ends: it never waits |
+| The next step can't run here, and the sheet says it waits | `mm run wait <slug> [<n>]` | Posts the step as a to-do (its needs, its yes, the production or release and its version) and lets go of the run. A release kit here (`out/youtube/<slug>`) that the run never saved goes to the project's Releases first. The session ends: it never waits |
 | Another place goes on | `mm run resume <slug>` | Takes the run, brings the project's space up to date, fetches what the run saved into the workspace, and says what is next |
 | It stops for now | `mm run stop <slug>` | Lets go of the run, so any place may continue it |
 
@@ -327,7 +327,7 @@ Where people and sessions meet it:
 | The space's page › Runs | A small card per run, three to a row: its state (Waiting for a to-do, Paused when any place may continue it, Running, Done), how many steps are saved and what comes next. A tab a skill; a filter at the right (Open, Waiting, Paused, Running, Finished). A card opens a popup: every step with where it was saved and what it made, which place can do the next step, the line to paste with a copy button, and the to-do it waits for. Cancel, and Let go of it for a run you have. Read again every 30 seconds and when the window is looked at |
 | `mm run` | Everything above |
 | The start of a session | One line when a run is ready to continue that this place can do, in a project it is open to (`tools/run.mjs --hook`). It is quiet otherwise (a closed or busy computer always is), and Claude continues one only when the user says so |
-| The to-do queue | A run's step that waits shows there as a to-do; picking it up fetches what the run saved |
+| The to-do queue | A run's step that waits shows there as a to-do; picking it up fetches what the run saved, and the project's release of the same slug (made for this production) when the run saved none |
 
 | Call | What |
 | --- | --- |

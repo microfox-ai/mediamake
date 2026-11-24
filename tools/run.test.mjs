@@ -96,7 +96,7 @@ function bundleCall(kind, method, sub, query, body) {
   const map = bundles[kind];
   const answer = (doc, version) => {
     const v = doc.versions.find(x => x.version === (version ?? doc.latest));
-    return { id: doc.id, slug: doc.slug, latestVersion: doc.latest, version: v?.version ?? null, files: (v?.files ?? []).map(f => ({ ...f, ...(query.links && { url: `${url}/storage/${f.sha256}` }) })) };
+    return { id: doc.id, slug: doc.slug, latestVersion: doc.latest, version: v?.version ?? null, ...(kind === 'release' && { release: { platform: doc.platform, ...(doc.productionId && { productionId: doc.productionId }) } }), files:(v?.files ?? []).map(f => ({ ...f, ...(query.links && { url: `${url}/storage/${f.sha256}` }) })) };
   };
   if (method === 'GET') {
     const doc = map.get(query.slug);
@@ -378,6 +378,42 @@ test('a run starts in the cloud, saves each step, hands the upload over, and con
   // the hook never fails a session: a server that is gone says nothing
   const gone = await mac.mm(['--hook'], { MEDIAMAKE_API_URL: 'http://127.0.0.1:9' });
   assert.deepEqual([gone.code, gone.out], [0, '']);
+});
+
+test("a release kit the run didn't save still travels with the to-do: wait sends it, and the pick-up finds the project's", async () => {
+  run = null;
+  const slug = 'doomcat-0413';
+  write(path.join(cloud.work, 'projects', slug, 'src', 'short.tsx'), 'export const Short = () => 13;\n');
+  write(path.join(cloud.work, 'out', slug, `${slug}.mp4`), 'the 0413 short');
+  write(path.join(cloud.work, 'out', 'youtube', slug, 'info.json'), '{"title":"0413"}\n');
+  assert.equal((await cloud.mm(['start', 'Doomcat', slug, '--skill=doomcat'])).code, 0);
+  assert.equal((await cloud.mm(['save', slug, '1', '--production'])).code, 0);
+  // the pack's step saved without --release: the run knows of no release kit
+  assert.equal((await cloud.mm(['save', slug, '2', '--output=pack ready'])).code, 0);
+  assert.equal(run.saved.release, undefined);
+
+  const waits = await cloud.mm(['wait', slug]);
+  assert.equal(waits.code, 0, waits.out);
+  assert.match(waits.out, /The release kit out\/youtube\/doomcat-0413 wasn't saved with the run: it is now release doomcat-0413 v1 in the project, and the pick-up fetches it\./);
+  assert.doesNotMatch(waits.out, /has saved no production or release/);
+  const kit = bundles.release.get(slug);
+  assert.deepEqual([kit.platform, kit.productionId, kit.versions[0].note], ['youtube', bundles.production.get(slug).id, 'Step 3: Upload to YouTube (the kit, handed over with the to-do)']);
+
+  // the Mac continues it and gets the project's kit with the production
+  Object.assign(run.steps[2], { state: 'todo', todo: undefined });
+  const resumed = await mac.mm(['resume', slug, '--project=Doomcat']);
+  assert.equal(resumed.code, 0, resumed.out);
+  assert.match(resumed.out, /Fetched: production doomcat-0413 v1 → projects\/doomcat-0413 and out\/doomcat-0413 \(2 files fetched, 0 already here\)/);
+  assert.match(resumed.out, /Fetched: release doomcat-0413 v1 \(the project's: the run saved none\) → out\/youtube\/doomcat-0413 \(1 file fetched, 0 already here\)/);
+  assert.equal(read(path.join(mac.work, 'out', 'youtube', slug, 'info.json')), '{"title":"0413"}\n');
+
+  // a release of the same slug made for another production never comes with it
+  kit.productionId = 'production-other';
+  fs.rmSync(path.join(mac.work, 'out', 'youtube', slug), { recursive: true });
+  const again = await mac.mm(['resume', slug, '--project=Doomcat']);
+  assert.equal(again.code, 0, again.out);
+  assert.doesNotMatch(again.out, /release doomcat-0413/);
+  assert.ok(!fs.existsSync(path.join(mac.work, 'out', 'youtube', slug)));
 });
 
 test("a step this place lacks something for is done the run sheet's other way, when the sheet says one", async () => {
