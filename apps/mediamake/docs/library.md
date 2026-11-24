@@ -204,8 +204,12 @@ opens their address is sent away by the page's layout.
   (`storeLinks.spotify`, whose cell is that platform's link). They are folded under their field
   ("9 inside"). A part's cell is changed in its field's editor.
 
-- The space is picked at the top right, in a dropdown that searches. Personal is first, and it is
-  the one shown when no project was chosen. The last pick is remembered in the browser.
+- The space is picked at the top right, in a dropdown that searches: All spaces, then Personal, then
+  the projects. With none picked the page opens on All: every collection of every space the account
+  can open, as cards, each with its space's name as a badge at the top right of its picture, and a
+  search over their names. A collection another space shares shows once, under its own space, when
+  the account can open that space too. A card opens the collection in its space, and the breadcrumb
+  (Library › space › collection) leads back.
 - No collection open: the space's collections as cards, each with its picture, its name and how many
   entries it holds as a big number, and New collection (a template, then a name). Whoever can change
   the space sets the picture from the card (an image from the computer, or an https link);

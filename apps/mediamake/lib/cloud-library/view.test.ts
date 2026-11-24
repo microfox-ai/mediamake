@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { cellLine, cellsOf, cleanColumns, factsOf, parseSearch, pictureOf, type EntryRecord } from './index';
 import { SONGS } from './templates';
-import { NOT_SET, cellEditor, columnChoices, addPrompt, applyFill, listOf, readsAsText, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type FieldView, type SlotView } from './view';
+import { NOT_SET, allCollections, cellEditor, columnChoices, addPrompt, applyFill, listOf, readsAsText, cellText, foldersOf, folderFields, sheetColumns, sortRows, viewOf, changedFields, clock, dollars, formatBytes, libraryHref, listQuery, placeFiles, slotFor, tidyValue, valueLine, type CollectionView, type FieldView, type SpaceOverview, type SlotView } from './view';
 
 const slots: SlotView[] = SONGS.slots;
 const fields: FieldView[] = SONGS.fields;
@@ -194,4 +194,14 @@ test('a field\'s parts can be columns: a group\'s keys and a list of links\' pla
   // its cell arrives as a line, and it is changed in its field's editor
   assert.equal(cellText({ facts: {}, has: {}, updatedAt: '', title: 'A', cells: { 'distrokid.upc': '1234' } }, upc), '1234');
   assert.equal(cellEditor(upc), 'dialog');
+});
+
+test('the All view lists every space’s collections once, the personal space first', () => {
+  const col = (slug: string, extra: Partial<CollectionView> = {}): CollectionView => ({ slug, name: slug, template: 'songs', noun: 'song', titleField: 'title', about: '', entries: 0, updatedAt: '', fields: [], slots: [], learned: {}, ...extra });
+  const spaces: SpaceOverview[] = [
+    { space: { id: 'p1', name: 'Get Into Zone', personal: false, role: 'owner' }, collections: [col('songs'), col('art')] },
+    { space: { id: 'me', name: 'Personal', personal: true, role: 'owner' }, collections: [col('notes'), col('songs-gz', { shared: { by: 'Get Into Zone', from: 'p1', collection: 'songs', role: 'viewer' } }), col('beats', { shared: { by: 'Someone', from: 'x9', collection: 'beats', role: 'viewer' } })] },
+  ];
+  assert.deepEqual(allCollections(spaces).map(({ space, collection }) => `${space.id}/${collection.slug}`), ['me/notes', 'me/beats', 'p1/songs', 'p1/art']);
+  assert.deepEqual(allCollections(spaces, 'zone art').map(({ collection }) => collection.slug), ['art']);
 });

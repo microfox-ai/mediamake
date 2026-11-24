@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BookOpenIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, SparklesIcon, UserIcon, UsersIcon } from 'lucide-react';
+import { BookOpenIcon, LayersIcon, CheckIcon, ChevronRightIcon, ChevronsUpDownIcon, CloudIcon, FolderIcon, Loader2Icon, MonitorIcon, PlusIcon, SearchIcon, SparklesIcon, UserIcon, UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppPage } from '@/components/app-shell/app-page';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { canChange, DEFAULT_VIEW, filtersOf, folderFields, libraryHref, listQuery, sheetColumns, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
+import { allCollections, canChange, DEFAULT_VIEW, filtersOf, folderFields, libraryHref, listQuery, sheetColumns, spaceFor, viewOf, type CollectionView, type EntryAnswer, type EntryRow, type LibraryView, type SpaceOverview, type SpaceView, type TemplateCard } from '@/lib/cloud-library/view';
 import { libraryApi } from './api';
 import { CollectionCard } from './collection-card';
 import { CollectionSettings } from './collection-settings';
@@ -24,8 +24,9 @@ import { EntryViews, ViewSwitch } from './entry-views';
 import { Invitations, ShareDialog, SharedInfo } from './share-dialog';
 
 /**
- * /app/library: the Cloud Library. The space is picked at the top right (Personal when no project
- * is chosen). With no collection open, the space's collections are cards; with one open, a
+ * /app/library: the Cloud Library. The space is picked at the top right. With none picked the page
+ * opens on All: every collection of every space the account can open, each card badged with its
+ * space. With a space picked and no collection open, the space's collections are cards; with one open, a
  * breadcrumb sits under the search, its filters at the right end, and the entries are cards; an
  * entry opens in tabs. The address holds the place (?space=&c=&e=), so a link opens the same view.
  * A switch beside the space picks the cloud or the computers (?on=computers, ./device-library).
@@ -34,13 +35,12 @@ import { Invitations, ShareDialog, SharedInfo } from './share-dialog';
  */
 
 const ANY = '__any__';
-const REMEMBER = 'mediamake.library.space';
 const REMEMBER_VIEW = 'mediamake.library.view';
 const button = 'inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50';
 const primary = 'inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
 const card = 'flex flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted/50';
 
-function SpacePicker({ spaces, current, onPick }: { spaces: SpaceView[]; current: SpaceView | null; onPick: (id: string) => void }) {
+function SpacePicker({ spaces, current, onPick }: { spaces: SpaceView[]; current: SpaceView | null; onPick: (id: string | null) => void }) {
   const [open, setOpen] = React.useState(false);
   const personal = spaces.filter(space => space.personal);
   const projects = spaces.filter(space => !space.personal);
@@ -62,8 +62,8 @@ function SpacePicker({ spaces, current, onPick }: { spaces: SpaceView[]; current
       <PopoverTrigger asChild>
         <button type="button" className={`${button} w-56 justify-between`} aria-label="Choose a space">
           <span className="flex min-w-0 items-center gap-1.5">
-            {current?.personal ? <UserIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />}
-            <span className="truncate">{current?.name ?? 'Choose a space'}</span>
+            {!current ? <LayersIcon className="size-4 shrink-0" /> : current.personal ? <UserIcon className="size-4 shrink-0" /> : <FolderIcon className="size-4 shrink-0" />}
+            <span className="truncate">{current?.name ?? 'All spaces'}</span>
           </span>
           <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
         </button>
@@ -74,6 +74,17 @@ function SpacePicker({ spaces, current, onPick }: { spaces: SpaceView[]; current
           <CommandList>
             <CommandEmpty>No project by that name</CommandEmpty>
             <CommandGroup>
+              <CommandItem
+                value="All spaces"
+                onSelect={() => {
+                  onPick(null);
+                  setOpen(false);
+                }}
+              >
+                <LayersIcon className="size-4" />
+                <span className="min-w-0 flex-1 truncate">All spaces</span>
+                {!current && <CheckIcon className="size-4" />}
+              </CommandItem>
               {personal.map(space => (
                 <Row key={space.id} space={space} />
               ))}
@@ -309,17 +320,14 @@ export function LibraryPage() {
     };
   }, [tick]);
 
-  // the space in the address, else the one used last, else Personal
+  // the space in the address; with none, All (the computers side always needs one: Personal)
   const spaceId = React.useMemo(() => {
     if (!spaces?.length) return null;
-    const known = (id: string | null) => (id && spaces.some(s => s.space.id === id) ? id : null);
-    let last: string | null = null;
-    try {
-      last = window.localStorage.getItem(REMEMBER);
-    } catch {}
-    return known(spaceParam) ?? known(last) ?? spaces[0].space.id;
-  }, [spaces, spaceParam]);
+    const known = spaceParam && spaces.some(s => s.space.id === spaceParam) ? spaceParam : null;
+    return known ?? (computers ? spaces[0].space.id : null);
+  }, [spaces, spaceParam, computers]);
   const space = spaces?.find(s => s.space.id === spaceId)?.space ?? null;
+  const all = !!spaces?.length && !space;
 
   const go = React.useCallback((at: { space?: string | null; collection?: string | null; entry?: string | null }) => router.push(libraryHref({ space: spaceId, ...at })), [router, spaceId]);
 
@@ -392,12 +400,9 @@ export function LibraryPage() {
     };
   }, [spaceId, collectionSlug, entrySlug, tick, router]);
 
-  const pick = (id: string) => {
-    try {
-      window.localStorage.setItem(REMEMBER, id);
-    } catch {}
+  const pick = (id: string | null) => {
     setTyped('');
-    router.push(computers ? computersHref(id) : libraryHref({ space: id }));
+    router.push(id && computers ? computersHref(id) : libraryHref({ space: id }));
   };
   const saved = (ref: string, warnings: string[]) => {
     for (const warning of warnings) toast.warning(warning);
@@ -449,6 +454,32 @@ export function LibraryPage() {
           </p>
         )}
 
+        {all && spaces && (
+          <>
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Search every space’s collections" value={typed} onChange={event => setTyped(event.target.value)} aria-label="Search" />
+            </div>
+            {spaces
+              .filter(s => s.invitations?.length)
+              .map(s => (
+                <Invitations key={s.space.id} space={s.space} invitations={s.invitations!} onAccepted={slug => (reload(), router.push(libraryHref({ space: s.space.id, collection: slug })))} onChanged={reload} />
+              ))}
+            {(() => {
+              const everything = allCollections(spaces, q);
+              if (everything.length)
+                return (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {everything.map(({ space: home, collection: item }) => (
+                      <CollectionCard key={`${home.id}/${item.slug}`} space={home} collection={item} href={libraryHref({ space: home.id, collection: item.slug })} may={false} badge onChanged={reload} />
+                    ))}
+                  </div>
+                );
+              return q.trim() ? <Empty title="Nothing matches" about="Try fewer words." /> : <Empty title="No collections yet" about="Pick a space at the top right to make its first collection." />;
+            })()}
+          </>
+        )}
+
         {space && computers && <DeviceLibrary space={space} deviceId={params.get('d')} />}
         {space && !computers && (
           <>
@@ -476,8 +507,12 @@ export function LibraryPage() {
             {collection && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <nav aria-label="Where you are" className="flex min-w-0 items-center gap-1 text-sm">
-                  <Link href={libraryHref({ space: space.id })} className="text-muted-foreground hover:text-foreground">
+                  <Link href={libraryHref({})} className="text-muted-foreground hover:text-foreground">
                     Library
+                  </Link>
+                  <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <Link href={libraryHref({ space: space.id })} className="truncate text-muted-foreground hover:text-foreground">
+                    {space.name}
                   </Link>
                   <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
                   {entrySlug || (view === 'folders' && folder !== null) ? (
