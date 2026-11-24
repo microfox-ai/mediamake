@@ -23,6 +23,8 @@ const SHORTCUTS: [string, string][] = [
   ['Mod click', 'Add a track to what plays, or take it out'],
   ['⇧ click', 'Select a range of tracks'],
   ['Mod A', 'Every track of this folder'],
+  ['Mod C', 'Copy the tracks loaded in the player, to paste into Claude'],
+  ['R', 'Read the folders again (new or changed files)'],
   ['1–9', 'That track of this folder (or a version by its letter)'],
   ['← →', '5 s back / ahead (⇧: 1 s)'],
   ['Home', 'Back to the start'],
@@ -32,7 +34,7 @@ const SHORTCUTS: [string, string][] = [
   ['Esc / double-click', 'Clear the range'],
   ['M', 'Match levels on / off (a folder of versions)'],
   ['Enter / Delete', 'Final / drop the version you are on'],
-  ['N', 'Write a note on it'],
+  ['N', 'Write a note at this moment, on the selected tracks'],
   ['Mod Enter', 'Add the note'],
   ['Mod S', 'Save now'],
   ['?', 'Show these shortcuts'],
@@ -65,6 +67,12 @@ function useShortcuts() {
       if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         store.selectProject();
+        return;
+      }
+      // text selected on the page (a note, a path) is copied as usual
+      if (mod && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
+        e.preventDefault();
+        void store.copySelection();
         return;
       }
       if (mod || e.altKey) return;
@@ -127,10 +135,11 @@ function useShortcuts() {
       } else if (key === 'M') {
         if (folder && reviewable) store.setMatched(!store.matched[folder.key]);
         else toast.message('Match levels is for a folder of versions of one song: open Notes to compare versions here');
+      } else if (key === 'R') {
+        void store.refreshTree();
       } else if (key === 'N') {
         e.preventDefault();
-        if (reviewable) store.requestComposerFocus();
-        else store.setNotesOpen(true);
+        if (focus) store.requestComposerFocus();
       } else if (store.selectByKey(key)) e.preventDefault();
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -229,7 +238,7 @@ function Header() {
           </span>
         )}
         {folder && (
-          <Hint label={notes ? 'Hide the notes' : 'Notes, the final pick and Match levels, for versions of one song'} keys="N" side="bottom">
+          <Hint label={notes ? 'Hide the notes' : 'Notes on the selected tracks, at a moment or on the whole track, saved beside the files for Claude'} keys="N" side="bottom">
             <Button variant={notes ? 'secondary' : 'ghost'} size="sm" className="h-7 gap-1.5 px-2 text-xs" onClick={() => setNotesOpen(!notes)}>
               <MessageSquareTextIcon className="size-4" /> Notes
             </Button>
@@ -322,6 +331,7 @@ function Stage() {
 export function StemPlayerWorkspace() {
   const init = useStemStore(s => s.init);
   const refresh = useStemStore(s => s.refresh);
+  const refreshTree = useStemStore(s => s.refreshTree);
   const flushSaves = useStemStore(s => s.flushSaves);
   const notes = useStemStore(notesVisible);
 
@@ -331,9 +341,10 @@ export function StemPlayerWorkspace() {
     void init();
   }, [init]);
 
-  // Claude answers revisions and re-renders versions while we're away: re-read the folder under review on focus and every 5 s.
+  // Files change while we're away (a new version is bounced, Claude answers a revision): every unfolded folder is
+  // read again when the tab comes back, and the folder under review every 5 s.
   useEffect(() => {
-    const onFocus = () => void refresh();
+    const onFocus = () => void refreshTree();
     const onVisible = () => {
       if (document.visibilityState === 'visible') onFocus();
       else void flushSaves();
@@ -348,7 +359,7 @@ export function StemPlayerWorkspace() {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [refresh, flushSaves]);
+  }, [refresh, refreshTree, flushSaves]);
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {

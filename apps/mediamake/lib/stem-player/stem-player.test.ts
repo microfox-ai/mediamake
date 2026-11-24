@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { afterSwitch, fitLoop, frameAfter, playFrom, positionAt, snap, wrap } from './clock';
-import { findFolder, readFolder, reviewIndex } from './folders';
+import { selectionText, stamp } from './copy';
+import { revisionToMarkdown } from '../file-revisions/revision-file';
+import { findFolder, findNearest, readFolder, reviewIndex } from './folders';
 import { EMPTY, click, move, prune, selectAll, type Selection } from './selection';
 import { isVersionsFolder, labelsOf, linkTries, skipFolder, tracksOf } from './tracks';
 
@@ -253,4 +255,109 @@ test('the set a review writes about: the ladder\'s title, path and versions by I
   assert.deepEqual(index.styles[0].variants.map(v => v.id), ['song - 00 original', 'song - A lift']);
   // a folder the user only chose to compare was not made by the remaster skill
   assert.equal(reviewIndex('takes', { tracks: v1.tracks, remaster: null, index: null }, { ladder: false }).workflow, undefined);
+});
+
+// ── copying the selection for Claude ──────────────────────────────────────────
+
+test('times read as minutes, seconds and tenths, and never as 60 seconds', () => {
+  assert.equal(stamp(0), '0:00.0');
+  assert.equal(stamp(83.44), '1:23.4');
+  assert.equal(stamp(59.96), '1:00.0');
+  assert.equal(stamp(200.8), '3:20.8');
+});
+
+test('the copied text names every loaded track, its file and folder, the playhead and the loop', () => {
+  const folder = '/Users/me/Downloads/song/stems';
+  const text = selectionText({
+    tracks: [
+      { label: 'Vocals', file: 'song (Vocals).wav', folder, fullPath: true, length: 200.8 },
+      { label: 'Bass', file: 'song (Bass).wav', folder, fullPath: true, length: 200.8 },
+      { label: 'Keyboard', file: 'other (Keyboard).wav', folder: '/Users/me/Downloads/other/stems/', fullPath: true },
+    ],
+    position: 83.44,
+    duration: 200.8,
+    loop: { start: 62, end: 91 },
+  });
+  assert.equal(
+    text,
+    [
+      'Stem Player: 3 tracks playing together',
+      'Playhead 1:23.4 of 3:20.8 · loop 1:02.0–1:31.0',
+      '',
+      '/Users/me/Downloads/song/stems/',
+      '- Vocals: song (Vocals).wav (3:20.8)',
+      '- Bass: song (Bass).wav (3:20.8)',
+      '',
+      '/Users/me/Downloads/other/stems/',
+      '- Keyboard: other (Keyboard).wav',
+    ].join('\n'),
+  );
+});
+
+test('one track, a folder the browser gave no path for, nothing loaded yet', () => {
+  const text = selectionText({ tracks: [{ label: 'take 3', file: 'take 3.wav', folder: 'Downloads/takes', fullPath: false }], position: 0, duration: 0 });
+  assert.equal(text, ['Stem Player: 1 track', 'Playhead 0:00.0', '', 'Downloads/takes/', '- take 3.wav', '', '(Folders are named as they were opened in the browser, which does not give their full path.)'].join('\n'));
+});
+
+test('the notes of the folder go with the copied tracks, by time', () => {
+  const text = selectionText({
+    tracks: [{ label: 'Vocals', file: 'song (Vocals).wav', folder: '/songs/stems', fullPath: true }],
+    position: 0,
+    duration: 0,
+    notes: [
+      { tracks: ['Vocals'], text: 'too bright' },
+      { tracks: ['Vocals', 'Bass'], t: 97.62, text: 'bring the keyboard in here\n louder than before' },
+      { tracks: [], t: 12, text: 'start later' },
+    ],
+  });
+  assert.deepEqual(text.split('\n').slice(6), ['Notes (3):', '- 0:12.0: start later', '- 1:37.6 · Vocals + Bass: bring the keyboard in here / louder than before', '- Vocals: too bright']);
+});
+
+// ── opening exactly the folder a link names ───────────────────────────────────
+
+test('a link opens from the nearest folder the user gave: the song\'s own before one above it', async () => {
+  const downloads = fakeDir('Downloads', DOWNLOADS);
+  const song = await (await downloads.getDirectoryHandle('AMZ')).getDirectoryHandle('song');
+  const v1 = await (await song.getDirectoryHandle('remaster')).getDirectoryHandle('v1');
+  // whatever the order they were given in
+  for (const places of [[downloads, song, v1], [v1, song, downloads]]) {
+    const hit = await findNearest(places, 'AMZ/song/remaster/v1');
+    assert.deepEqual([hit?.parts, hit && places[hit.index].name], [[], 'v1']);
+  }
+  assert.deepEqual((await findNearest([downloads, song], 'AMZ/song/remaster/v1'))?.parts, ['remaster', 'v1']);
+  assert.deepEqual((await findNearest([downloads], 'AMZ/song/remaster/v1'))?.parts, ['AMZ', 'song', 'remaster', 'v1']);
+  assert.equal(await findNearest([downloads], 'AMZ/other/remaster/v1'), null);
+  assert.equal(await findNearest([], 'AMZ/song/remaster/v1'), null);
+});
+
+// ── notes on tracks that are not versions ─────────────────────────────────────
+
+test('notes in a plain folder are written as notes on tracks, with the moment and every track they are about', async () => {
+  const v1 = await readFolder(await (await (await (await fakeDir('Downloads', DOWNLOADS).getDirectoryHandle('AMZ')).getDirectoryHandle('song')).getDirectoryHandle('remaster')).getDirectoryHandle('v1'), 'remaster');
+  const plain = reviewIndex('stems', { tracks: v1.tracks, remaster: null, index: null }, { ladder: false, versions: false, path: '/songs/stems' });
+  assert.deepEqual([plain.kind, plain.pick, plain.styles[0].name], ['audio', undefined, 'Tracks']);
+  assert.equal(reviewIndex('takes', { tracks: v1.tracks, remaster: null, index: null }, { ladder: false, versions: true }).kind, 'remaster');
+  const md = revisionToMarkdown(
+    {
+      schema: 'mediamake.image-revision/v1',
+      id: 'rev-001',
+      title: 'Revision 1',
+      status: 'ready',
+      job: 'stems',
+      createdAt: '',
+      updatedAt: '',
+      final: [],
+      keep: [],
+      drop: [],
+      renders: {},
+      comments: [{ id: 'c01', images: ['song - 00 original', 'song - A lift'], text: 'bring the keyboard in here', createdAt: '', status: 'open', pin: { image: 'song - A lift', x: 0, y: 0, t: 97.62 } }],
+    },
+    plain,
+    { revisionsDir: 'stems.revisions' },
+  );
+  assert.match(md, /^# Revision 1 · tracks for song/);
+  assert.match(md, /notes on audio tracks, written while listening in the Stem Player/);
+  assert.match(md, /- About: \*\*song - 00 original\*\* .*; \*\*song - A lift\*\*/);
+  assert.match(md, /- At 1:37\.6 into the audio \(97\.62 s\)/);
+  assert.doesNotMatch(md, /final master/);
 });

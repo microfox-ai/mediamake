@@ -137,6 +137,6 @@ export function formatOf(index: ImageSetIndex | null | undefined) {
     small: poster ? 160 : thumbnail ? 246 : 200,
     smallLabel: poster ? 'List size' : thumbnail ? 'Feed size' : 'Small',
     smallHint: poster ? "How it reads in a streaming app's list" : thumbnail ? "How it reads in YouTube's feed" : 'How it reads small',
-    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : remaster ? 'versions' : 'files',
+    noun: poster ? 'posters' : thumbnail ? 'thumbnails' : remaster ? 'versions' : kind === 'audio' ? 'tracks' : 'files',
   };
 }
