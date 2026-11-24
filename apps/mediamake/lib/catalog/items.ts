@@ -96,6 +96,19 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     releasedAt: '2026-11-04',
   },
   {
+    id: 'app/transcript-cleaner',
+    kind: 'app',
+    title: 'Transcript Cleaner',
+    summary:
+      "Check a song's timed words by ear: every word lit as it's sung, word times on a timeline, words to rewrite, delete or move to another line, and songs marked clean, saved beside the transcript for Claude.",
+    visibility: 'public',
+    openToAll: true,
+    status: 'beta',
+    href: '/transcript-cleaner',
+    tags: ['review', 'audio', 'lyrics'],
+    releasedAt: '2026-11-23',
+  },
+  {
     // the id stays: it keys the stored item and its grants
     id: 'app/skill-library',
     kind: 'app',
