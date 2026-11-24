@@ -1,19 +1,22 @@
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["numpy", "soundfile", "pyloudnorm"]
+# ///
 """Make a ladder reviewable on MediaMake's Remaster Revisions screen and print its review link.
 
 usage: review.py <ladder folder> [--title="Song Title"] [--note="what this ladder tries"]
 
 Writes <ladder folder>/remaster.json (mediamake.remaster/v1): the song's title, the folder's path
 (Show in Finder, the message to Claude), and for every audio file in the folder its integrated
-loudness (pyloudnorm, LUFS), true peak (ffmpeg ebur128, dBTP), loudness range (LU) and PLR. The
-screen measures loudness itself without this file, but not true peak or LRA. Versions already in the
-file keep their key, label and note. Runs in the reaper-mcp-server tool environment (no REAPER
-needed):
-    "$(uv tool dir)/reaper-mcp-server/bin/python" review.py "<song folder>/remaster/v1"
+loudness (pyloudnorm, LUFS), true peak (ffmpeg, dBTP, the louder channel), loudness range (LU) and
+PLR. The screen measures loudness itself without this file, but not true peak or LRA. Versions already
+in the file keep their key, label and note; a version with no note gets the one ladder.py recorded for
+it (which engine and limiter settings made it). No engine is needed:
+    uv run review.py "<song folder>/remaster/v1"
 """
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -21,16 +24,11 @@ from urllib.parse import quote
 import pyloudnorm as pyln
 import soundfile as sf
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from remaster_lib import ffmpeg_meters  # noqa: E402
+
 AUDIO = {".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".aiff", ".aif"}
 BASE_URL = "https://mediamake.microfox.app/remaster-revision"
-
-
-def ebur128(path):
-    out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-af", "ebur128=peak=true",
-                          "-f", "null", "-"], capture_output=True, text=True).stderr
-    tail = out[out.rfind("Summary:"):]
-    grab = lambda key: float(re.search(key + r":\s+([-+\d.]+)", tail).group(1))
-    return grab("LRA"), grab("Peak")
 
 
 def common_prefix(names):
@@ -65,6 +63,13 @@ def main():
         except (ValueError, KeyError, TypeError):
             existing = {}
 
+    made = {}                       # what ladder.py recorded: the engine and settings behind each file
+    if (folder / "ladder.json").exists():
+        try:
+            made = json.loads((folder / "ladder.json").read_text()).get("files", {})
+        except (ValueError, TypeError):
+            made = {}
+
     stems = [p.stem for p in files]
     prefix = common_prefix(stems)
     # the song folder: <song>/remaster/v<N>
@@ -77,15 +82,17 @@ def main():
     for p in files:
         x, sr = sf.read(str(p), always_2d=True)
         lufs = float(pyln.Meter(sr).integrated_loudness(x))
-        lra, tp = ebur128(p)
+        lra, tp = ffmpeg_meters(p)
         label = p.stem[len(prefix):].lstrip(" -_") or p.stem
         m = re.match(r"^([A-Z0-9])(?:[\s\-_.):]|$)", label)
         keep = existing.get(p.name, {})
+        note = keep.get("note") or made.get(p.name, {}).get("note")
         v = {
             "file": p.name,
             "key": keep.get("key") or (m.group(1) if m else None),
             "label": keep.get("label") or label,
-            **({"note": keep["note"]} if keep.get("note") else {}),
+            **({"note": note} if note else {}),
+            **({"engine": made[p.name]["engine"]} if made.get(p.name, {}).get("engine") else {}),
             "lufs": round(lufs, 2),
             "truePeak": round(tp, 2),
             "lra": round(lra, 1),
