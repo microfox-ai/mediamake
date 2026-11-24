@@ -1,0 +1,9 @@
+# A starting vocal chain: clear the lows, tame the esses, level it. A start to adjust by the numbers
+# and the user's ears, not a finished sound.
+# Run on a session that has the track: replace <TRACK>. Then:
+#   soundcraft-cli script vocal-chain.txt --in "<mix>.scraft" --save "<mix>-2.scraft"
+# Check: solo the track and compare scripts/measure.py stats before and after (sub and bass bands down,
+# peaks a few dB lower, loudness about the same).
+mix.insert {"track":"<TRACK>","plugin":"eq_7band","params":{"hpf_on":1,"hpf_freq":90,"hpf_slope":2,"low_mid_freq":300,"low_mid_gain":-2,"low_mid_q":1.2,"high_shelf_freq":10000,"high_shelf_gain":1.5}}
+mix.insert {"track":"<TRACK>","plugin":"de_esser","params":{"freq":6500,"range":6,"threshold":-28}}
+mix.insert {"track":"<TRACK>","plugin":"compressor","params":{"threshold":-18,"ratio":3,"attack":8,"release":120,"knee":6,"makeup":2}}
