@@ -3,7 +3,7 @@
 A listening screen at `/stem-player`: open folders of audio, move through the tracks with the
 keyboard, and hear one track or several together from **a playhead that never resets**. It is for
 understanding audio by ear: the stems of a song (Suno's zips, a session's bounces), or the versions
-of a song to choose between (the loudness steps make-loudness-remaster builds in
+of a song to choose between (the loudness steps make-music-remaster-loudness builds in
 `<song folder>/remaster/v<N>/`). It replaced Remaster Revisions (`/remaster-revision` redirects
 here). Nothing is uploaded: folders are read through the File System Access API (Chromium only), or
 by path on the local app. The page is public (`app/(public)/`): no sign-in, no API calls.
@@ -117,7 +117,7 @@ bury the rest.
   "song": "fma-edwardeleric", // the song folder's name
   "path": "/Users/…/fma-edwardeleric/remaster/v1", // absolute: Show in Finder / Copy path / the message to Claude
   "songPath": "/Users/…/fma-edwardeleric",
-  "workflow": "make-loudness-remaster",
+  "workflow": "make-music-remaster-loudness",
   "note": "clarity only, level matched at -15.4 LUFS",
   "versions": [
     { "file": "fullmetal-gregorian - 00 original.wav", "key": "0", "label": "original", "lufs": -15.4, "truePeak": -1.0, "lra": 9.1, "plr": 14.4 },

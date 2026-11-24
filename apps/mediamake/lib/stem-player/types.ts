@@ -1,7 +1,7 @@
 /*
  * The Stem Player (/stem-player) plays folders of audio from one playhead: the stems of a song
  * together, or the versions of a song one after the other (a remaster ladder, made by
- * make-loudness-remaster in <song folder>/remaster/v<N>/). A versions folder is reviewed too: it
+ * make-music-remaster-loudness in <song folder>/remaster/v<N>/). A versions folder is reviewed too: it
  * writes the same revision files as /file-revision (mediamake.image-revision/v1, see
  * lib/file-revisions/types.ts): the final is the version the user picked, a note on a version is a
  * comment on its ID, and a note at a moment is a pinned comment with `t`. See
@@ -51,7 +51,7 @@ export interface RemasterIndex {
   path?: string;
   /** The song folder's absolute path. */
   songPath?: string;
-  /** The skill that made the ladder (make-loudness-remaster unless said otherwise). */
+  /** The skill that made the ladder (make-music-remaster-loudness unless said otherwise; ladders made before 2026-11-24 say make-loudness-remaster). */
   workflow?: string;
   /** What this ladder tries (e.g. "clarity only, level matched at -15.4 LUFS"). */
   note?: string;

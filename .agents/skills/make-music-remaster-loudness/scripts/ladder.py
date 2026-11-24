@@ -5,11 +5,11 @@
 """Loudness ladder from a song's own mix: a gain-only copy with peaks at -1 dBTP, then one file per
 target loudness made with a single limiter and nothing else.
 
-usage: ladder.py <mix.wav> <out dir> <title> [--engine=reaper|soundcraft|both] [--targets=-11,-10,-9,-8]
+usage: ladder.py <mix.wav> <out dir> <title> [--engine=soundcraft|reaper|both] [--targets=-11,-10,-9,-8]
 
 Two engines make the limiter steps, each with its own limiter:
-  reaper      REAPER's ReaLimit (the default). REAPER must be open; run with the reaper-mcp-server tool's Python.
-  soundcraft  SoundCraft's Maximizer, through soundcraft-cli. Nothing has to be open; `uv run ladder.py …` is enough.
+  soundcraft  SoundCraft's Maximizer, through soundcraft-cli (the default). Nothing has to be open; `uv run ladder.py …` is enough.
+  reaper      REAPER's ReaLimit. REAPER must be open; run with the reaper-mcp-server tool's Python.
   both        each step from both, side by side in one folder, to compare by ear.
 
 Writes into <out dir>:
@@ -44,9 +44,9 @@ if len(args) < 3:
     sys.exit(__doc__)
 mix, out, title = Path(args[0]), Path(args[1]), args[2]
 targets = [float(t) for t in opts.get("targets", "-11,-10,-9,-8").split(",")]
-choice = opts.get("engine", "reaper").lower()
-if choice not in ("reaper", "soundcraft", "both"):
-    sys.exit("--engine is reaper, soundcraft or both")
+choice = opts.get("engine", "soundcraft").lower()
+if choice not in ("soundcraft", "reaper", "both"):
+    sys.exit("--engine is soundcraft (the default), reaper or both")
 names = ["reaper", "soundcraft"] if choice == "both" else [choice]
 engines = [importlib.import_module(f"engine_{n}") for n in names]   # fails here, before any work, when one can't run
 
