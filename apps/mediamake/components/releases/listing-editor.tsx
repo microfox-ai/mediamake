@@ -263,7 +263,17 @@ export function StatusSection({ detail, tier, state, onChanged }: { detail: Item
       <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
         <LevelSelect detail={detail} onChanged={onChanged} />
         {storeKind && (
-          <Field label="Advice" htmlFor="item-advice" hint={draft.advice === 'recommended' ? undefined : adviceInfo(draft.advice).about}>
+          <Field
+            label="Advice"
+            htmlFor="item-advice"
+            hint={
+              detail.listing?.adviceFromRepo
+                ? `The repo's own: ${adviceInfo(item.advice).label.toLowerCase()}. To recommend it again, change its entry in the repo.`
+                : draft.advice === 'recommended'
+                  ? undefined
+                  : adviceInfo(draft.advice).about
+            }
+          >
             <Select value={draft.advice} onValueChange={value => set('advice', value as ItemAdvice)}>
               <SelectTrigger id="item-advice" className="w-full">
                 <SelectValue />

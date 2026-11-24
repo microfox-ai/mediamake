@@ -297,6 +297,8 @@
       "status": "live",
       "tags": ["design", "websites", "frontend"],
       "releasedAt": "2026-11-24",
+      "advice": "not-recommended",
+      "adviceNote": "Reference work better than this skill",
       "madeBy": { "name": "Leonxlnx", "repo": "Leonxlnx/taste-skill", "license": "MIT", "homepage": "https://tasteskill.dev" },
       "install": {
         "source": { "type": "github-skill", "repo": "Leonxlnx/taste-skill", "path": "skills/taste-skill", "ref": "v2.5.1" },

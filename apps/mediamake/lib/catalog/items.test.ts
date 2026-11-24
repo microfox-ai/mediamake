@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { registry } from '@/lib/skills/registry';
 import { getStaticRecords, staticRecord, thirdPartyRecords } from './items';
+import { withListing } from './listing';
 import { UNAVAILABLE, planInstall } from './plan';
 import { updatePromptFor } from './install-prompt';
 import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth, type ItemHealth } from './types';
@@ -43,6 +44,19 @@ describe('third-party.json', () => {
       plan.steps.map(s => s.type),
       ['source'],
     );
+  });
+
+  it('lists it as not recommended, with why, from its entry in third-party.json; a listing saying otherwise wins', () => {
+    const skill = staticRecord('skill/design-taste-frontend')!;
+    assert.equal(skill.advice, 'not-recommended');
+    assert.equal(skill.adviceNote, 'Reference work better than this skill');
+    // no listing, or one without advice: the entry's own stays
+    assert.equal(withListing([skill], [])[0].advice, 'not-recommended');
+    const [kept] = withListing([skill], [{ id: skill.id, tags: ['ui'] }]);
+    assert.deepEqual([kept.advice, kept.adviceNote], ['not-recommended', 'Reference work better than this skill']);
+    // an admin's advice on the listing replaces it
+    const [replaced] = withListing([skill], [{ id: skill.id, tags: [], advice: 'deprecated', adviceNote: 'Its maker stopped it' }]);
+    assert.deepEqual([replaced.advice, replaced.adviceNote], ['deprecated', 'Its maker stopped it']);
   });
 
   it('points an old alternative at an item the catalog has, which is not old itself', () => {

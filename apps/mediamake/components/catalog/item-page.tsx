@@ -111,8 +111,12 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
   const proof = proofOf(readiness);
   // Production is the admin's mark; the productions made with it are shown when there are any
   const level: Readiness = readiness?.readiness === 'ready' ? 'ready' : readiness?.readiness === 'alpha' ? 'alpha' : 'beta';
+  // what MediaMake says about using it: its listing's (an admin's), else the one its entry in the repo carries
+  const advice = listing?.advice ?? item.advice;
+  const adviceNote = listing?.advice ? listing.adviceNote : item.adviceNote;
+  const insteadOf = listing?.advice ? listing.insteadOf : item.insteadOf;
   // what to use instead, named and linked when this viewer can open it
-  const insteadRecord = listing?.advice && listing.insteadOf ? await getCatalogRecord(listing.insteadOf).catch(() => null) : null;
+  const insteadRecord = advice && insteadOf ? await getCatalogRecord(insteadOf).catch(() => null) : null;
   const instead = insteadRecord ? { title: insteadRecord.title, ...(accessLevel(entitlements, insteadRecord) !== 'locked' && { href: itemPagePath(insteadRecord.id) }) } : undefined;
   const description = listing?.description ?? item.summary;
   const headshot = listing?.headshot ?? item.headshot ?? video?.thumbnail;
@@ -145,7 +149,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
           title={title}
           description={description}
           icon={icon}
-          badges={listingBadges({ level, advice: listing?.advice, failed, tier, version: item.version, size, deps: uses.length })}
+          badges={listingBadges({ level, advice, failed, tier, version: item.version, size, deps: uses.length })}
           actions={
             <div className="flex flex-col gap-3">
               {kind === 'app' && item.href && (
@@ -178,7 +182,7 @@ export async function CatalogItemPage({ kind, slug }: { kind: 'skill' | 'mcp' | 
             ) : undefined
           }
         />
-        <AdviceBanner advice={listing?.advice} note={listing?.adviceNote} instead={instead} />
+        <AdviceBanner advice={advice} note={adviceNote} instead={instead} />
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div className="flex min-w-0 flex-col gap-6">
