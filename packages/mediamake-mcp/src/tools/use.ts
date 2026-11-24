@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { MediamakeClient } from '../client.js';
-import { itemPagePath, json, safe } from '../util.js';
+import { itemPagePath, json, mimeFromName, safe } from '../util.js';
 
 /**
  * mm-use: what every MediaMake member does from Claude. Explore the catalog,
@@ -11,7 +11,9 @@ import { itemPagePath, json, safe } from '../util.js';
  * comes from Claude, or from the repo's hook and `mm usage`. Feedback is read
  * back too: what the account sent and what came of it, and each item's known
  * issues. A member also sends what they built to the store from here, for an
- * admin to review (submit_item, my_submissions, withdraw_submission).
+ * admin to review (submit_item, my_submissions, withdraw_submission), and an
+ * item's authors set its headshot and icon (upload_item_picture,
+ * set_item_pictures): the server only hands out the link a picture is sent to.
  */
 
 const READ = { readOnlyHint: true, openWorldHint: true } as const;
@@ -24,6 +26,13 @@ const ITEM_ID = z
   .string()
   .regex(/^(skill|mcp|app|tutorial|course)\/[a-z0-9][a-z0-9-]{0,63}$/, 'a catalog id such as skill/pack-brand-kit or mcp/browse-hack')
   .describe('Catalog item id, e.g. "skill/pack-brand-kit" or "mcp/browse-hack"');
+/** An item with a store listing of its own: a skill, an MCP or an app. */
+const LISTED_ITEM = z
+  .string()
+  .regex(/^(skill|mcp|app)\/[a-z0-9][a-z0-9-]{0,63}$/, 'a skill, MCP or app such as mcp/browse-hack')
+  .describe('The skill, MCP or app, e.g. "mcp/browse-hack"');
+/** The picture types a listing takes (LISTING_PICTURE_TYPE in the app's lib/catalog/listing.ts). */
+const PICTURE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
 /** A skill's name as Claude Code has it: its folder's name, or plugin:skill. */
 const SKILL_NAME = z
   .string()
@@ -344,5 +353,63 @@ export function registerUseTools(server: McpServer, client: MediamakeClient) {
       annotations: WRITE,
     },
     safe(async ({ submission }) => json(await client.request('DELETE', '/api/submissions', { query: { id: submission } }))),
+  );
+
+  server.registerTool(
+    'upload_item_picture',
+    {
+      title: "Upload a picture for an item's listing",
+      description:
+        "A link to upload one picture from the user's computer for the store listing of an item they look after: its headshot (16:9) or, for an MCP or an app, its icon (square). Only the item's authors and MediaMake's admins can; an item made outside MediaMake has no authors here, so only an admin. Give the file's name (its extension says its type), not its folder. Answers with publicUrl, the picture's link once it is uploaded (public to anyone who has it), and curl, the line that uploads it: run it on the user's computer in the file's folder (or put the file's full path after --upload-file; curl.exe in Windows PowerShell), and it must exit 0 and print nothing. Then pass publicUrl to set_item_pictures. The link works for an hour and for that one file: a changed picture needs a new call. Only on the user's word, and only a real picture of the item.",
+      inputSchema: {
+        item: LISTED_ITEM,
+        filename: z
+          .string()
+          .min(1)
+          .max(200)
+          .describe('The picture file\'s name, e.g. "headshot.jpg": a PNG, JPEG, WebP, GIF or AVIF'),
+      },
+      annotations: WRITE,
+    },
+    safe(async ({ item, filename }) => {
+      // only the name: the folder it sits in on the user's computer is theirs
+      const name = filename.split(/[\\/]/).pop() ?? '';
+      const contentType = mimeFromName(name);
+      if (!name || !contentType || !PICTURE_TYPES.includes(contentType)) throw new Error(`${filename} is not a PNG, JPEG, WebP, GIF or AVIF picture`);
+      const { uploadUrl, publicUrl } = await client.post<{ uploadUrl: string; publicUrl: string }>('/api/catalog/listing', {
+        type: 'create_upload',
+        itemId: item,
+        filename: name,
+        contentType,
+      });
+      // the link is signed for this type, public-read, so the headers must match it
+      const curl = `curl -sSf -X PUT -H "Content-Type: ${contentType}" -H "x-amz-acl: public-read" --upload-file "${name}" "${uploadUrl}"`;
+      return json({ item, publicUrl, curl, contentType, expires: 'in an hour', next: 'set_item_pictures puts publicUrl on the listing', page: page(item) });
+    }),
+  );
+
+  server.registerTool(
+    'set_item_pictures',
+    {
+      title: "Set an item's headshot and icon",
+      description:
+        "Set the pictures on the store listing of an item the user looks after: headshot, the 16:9 picture its cards and its page show, and icon, an MCP's or an app's square icon, each by its link. An author gives the publicUrl that upload_item_picture gave for a picture uploaded for this item, and no other link; an admin may give any https link. Only the item's authors and MediaMake's admins can. Each one given replaces what was there; an empty one clears it; left out, it stays. It is live at once, with no review: only on the user's word, after they have seen the picture, and only a real picture of the item. The rest of a listing (its description, README, tags and screenshots) is set by MediaMake's admins. Answers with the item's page: give it to the user.",
+      inputSchema: {
+        item: LISTED_ITEM,
+        headshot: z.string().max(1000).optional().describe("Its 16:9 picture: upload_item_picture's publicUrl; empty clears it"),
+        icon: z.string().max(1000).optional().describe("An MCP's or an app's square icon: upload_item_picture's publicUrl; empty clears it"),
+      },
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    safe(async ({ item, headshot, icon }) => {
+      if (headshot === undefined && icon === undefined) throw new Error('Give headshot or icon');
+      const saved = await client.post<{ headshot?: string; icon?: string }>('/api/catalog/listing', {
+        type: 'set',
+        itemId: item,
+        ...(headshot !== undefined && { headshot }),
+        ...(icon !== undefined && { icon }),
+      });
+      return json({ item, headshot: saved.headshot ?? null, icon: saved.icon ?? null, live: true, page: page(item) });
+    }),
   );
 }

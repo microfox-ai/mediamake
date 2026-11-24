@@ -9,6 +9,7 @@ import { ItemTabs } from '@/components/catalog/item-tabs';
 import { ListingScreenshots } from '@/components/catalog/listing';
 import { MadeWithThis } from '@/components/catalog/made-with';
 import { ItemFeedback } from '@/components/feedback/item-feedback';
+import { ItemPicturesTools } from '@/components/catalog/item-pictures';
 import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/components/catalog/skill-details';
 import { MadeByLine } from '@/components/catalog/uses';
 import { AuthorsLine } from '@/components/catalog/authors';
@@ -239,6 +240,7 @@ export default async function SkillPage({ params }: Props) {
                 Runs and outputs in the Library <LibraryIcon className="size-3" />
               </Link>
               <SkillOwnerTools itemKey={key} title={title} view={details} checks={readmeChecks(written, details.nature, depends.length > 0)} />
+              <ItemPicturesTools itemId={id} kind="skill" title={title} />
             </AboutCard>
   
             {depends.length > 0 && (

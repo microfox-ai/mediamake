@@ -71,7 +71,11 @@ Every store item has authors, like the collaborators on a git repo
   email. An item always keeps one author; one can remove themself while
   another remains.
 - **What it gives**: any author may send a new version (for review), and a
-  Cohort author's is published directly (above). Admins can do both for
+  Cohort author's is published directly (above). Any author also sets the
+  item's headshot and icon, live at once: Change pictures on its page, or
+  mm-use's `upload_item_picture` and `set_item_pictures`
+  (`GET`/`POST /api/catalog/listing`). An author sets only a picture uploaded
+  for that item, never a link to somewhere else. Admins can do all of it for
   every item.
 - **Where they show**: the item's page (`/skills`, `/mcps`, `/apps`) and its
   release page name each one by GitHub login (linked) when their account has
@@ -138,10 +142,11 @@ merges; nothing else depends on it.
 | GitHub calls | `lib/submissions/github.ts` |
 | Send, approve, ask for changes, decline, withdraw, merged | `lib/submissions/actions.ts` |
 | Authors: the rules, who they are, changing them | `lib/catalog/authors.ts`, `lib/submissions/authors.ts`, `app/api/submissions/authors` |
+| An item's pictures, set by its authors | `lib/catalog/pictures.ts` (who may, what each request does), `lib/catalog/listing.ts` (`parsePictures`, `withPictures`), `app/api/catalog/listing`, `components/catalog/item-pictures.tsx` |
 | Member API, admin API | `app/api/submissions`, `app/api/admin/submissions` |
 | The page | `components/submissions`, `app/app/(admin)/submissions` |
 | Suggested grants | `lib/memberships/suggestions.ts`, `suggestions-store.ts`, `components/memberships/suggested.tsx` |
 | The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/mm-submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
 
-Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts`,
+Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts lib/catalog/pictures.test.ts`,
 `node --test tools/submit.test.mjs`.

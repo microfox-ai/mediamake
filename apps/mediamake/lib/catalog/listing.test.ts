@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { headshotOf, isEmptyListing, listingBadges, listingTiles, mediaKindOf, parseTag, parseTags, sizeLabel, withListing } from './listing';
+import { LISTING_PICTURE_TYPE, headshotOf, isEmptyListing, listingBadges, listingTiles, mediaKindOf, parsePictures, parseTag, parseTags, sizeLabel, withListing, withPictures } from './listing';
 
 const ID = 'dQw4w9WgXcQ';
 
@@ -119,5 +119,66 @@ describe('listingTiles', () => {
     assert.equal(tiles[0].youtubeId, ID);
     assert.equal(tiles[1].src, 'https://cdn.test/demo.mp4');
     assert.equal(tiles[2].poster, 'https://cdn.test/shot.png');
+  });
+});
+
+describe('parsePictures', () => {
+  it('takes https links, trimmed, and an empty one to clear', () => {
+    assert.deepEqual(parsePictures({ headshot: '  https://cdn.test/h.jpg ', icon: '' }, 'mcp'), { pictures: { headshot: 'https://cdn.test/h.jpg', icon: '' } });
+    assert.deepEqual(parsePictures({ headshot: 'https://cdn.test/h.jpg' }, 'skill'), { pictures: { headshot: 'https://cdn.test/h.jpg' } });
+  });
+
+  it('reads only the pictures: the rest of a listing is not an author\'s', () => {
+    assert.deepEqual(parsePictures({ icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, advice: 'deprecated', tags: ['x'] }, 'app'), {
+      pictures: { icon: 'https://cdn.test/i.png' },
+    });
+  });
+
+  it('stops on what is not an https link, on nothing given, and on a skill\'s icon', () => {
+    assert.ok('error' in parsePictures({ headshot: 'http://cdn.test/h.jpg' }, 'mcp'));
+    assert.ok('error' in parsePictures({ headshot: 'https://cdn.test/h one.jpg' }, 'mcp'));
+    assert.ok('error' in parsePictures({ headshot: 7 }, 'mcp'));
+    assert.ok('error' in parsePictures({ icon: null }, 'mcp'));
+    assert.ok('error' in parsePictures({}, 'mcp'));
+    assert.ok('error' in parsePictures(null, 'mcp'));
+    assert.ok('error' in parsePictures({ description: 'words' }, 'mcp'));
+    assert.ok('error' in parsePictures({ icon: 'https://cdn.test/i.png' }, 'skill'));
+    // clearing an icon a skill never had changes nothing, so it is let through
+    assert.deepEqual(parsePictures({ icon: '' }, 'skill'), { pictures: { icon: '' } });
+  });
+});
+
+describe('withPictures', () => {
+  const current = {
+    tags: ['anime'],
+    media: [{ kind: 'image' as const, url: 'https://cdn.test/s.png' }],
+    description: 'What it is',
+    headshot: 'https://cdn.test/old.jpg',
+    icon: 'https://cdn.test/old.png',
+    readme: '# It',
+    editorsPick: true,
+    advice: 'deprecated' as const,
+    adviceNote: 'Use the other',
+    insteadOf: 'mcp/other',
+  };
+
+  it('changes the pictures given and keeps the rest of the listing', () => {
+    assert.deepEqual(withPictures(current, { headshot: 'https://cdn.test/new.jpg' }), { ...current, headshot: 'https://cdn.test/new.jpg' });
+    assert.deepEqual(withPictures(current, { headshot: '', icon: 'https://cdn.test/new.png' }), { ...current, headshot: undefined, icon: 'https://cdn.test/new.png' });
+  });
+
+  it('starts a listing for an item that has none', () => {
+    const made = withPictures(null, { headshot: 'https://cdn.test/h.jpg' });
+    assert.equal(made.headshot, 'https://cdn.test/h.jpg');
+    assert.deepEqual([made.tags, made.media], [[], []]);
+    assert.equal(isEmptyListing(made), false);
+    assert.equal(isEmptyListing(withPictures(null, { headshot: '' })), true);
+  });
+});
+
+describe('LISTING_PICTURE_TYPE', () => {
+  it('takes the pictures browsers show, and nothing that can run', () => {
+    for (const type of ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif']) assert.ok(LISTING_PICTURE_TYPE.test(type));
+    for (const type of ['image/svg+xml', 'text/html', 'video/mp4', 'image/png; charset=x']) assert.equal(LISTING_PICTURE_TYPE.test(type), false);
   });
 });
