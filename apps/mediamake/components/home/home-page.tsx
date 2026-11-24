@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -15,7 +16,10 @@ import { homeTabs, type HomeTab } from './tabs';
 const MEDIAMAKE_REPO = 'https://github.com/microfox-ai/mediamake';
 const EXTENSIONS_REPO = 'https://github.com/microfox-ai/extensions';
 
-
+/**
+ * The store: one tab a kind (`/?tab=mcps|skills|apps|tutorials`). Its Home tab and its logo lead
+ * back to the homepage at `/` (components/home/landing), which app/page.tsx renders instead of this.
+ */
 export function HomePage({
   cards,
   initialTab,
@@ -28,14 +32,16 @@ export function HomePage({
   /** What the Skills tab searches and filters by (see SkillsTab). */
   skills: { facets: Record<string, SkillFacet>; categories: SkillCategoryInfo[]; initial: SkillFilters };
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<HomeTab>(initialTab);
   const active = homeTabs.find((t) => t.value === tab)!;
 
   const selectTab = (value: HomeTab) => {
+    // Home is the homepage, a page of its own
+    if (value === 'home') return router.push('/');
     setTab(value);
     const url = new URL(window.location.href);
-    if (value === 'home') url.searchParams.delete('tab');
-    else url.searchParams.set('tab', value);
+    url.searchParams.set('tab', value);
     // the Skills tab's search and filters belong to it
     if (value !== 'skills') for (const key of SKILL_FILTER_PARAMS) url.searchParams.delete(key);
     window.history.replaceState(null, '', url);
@@ -47,9 +53,8 @@ export function HomePage({
     if (name && cards.some((c) => c.id === `skill/${name}`)) window.location.replace(`/skills/${encodeURIComponent(name)}`);
   }, [cards]);
 
-  // every skill in the repo is a card (always public, never released through a gate): they have
-  // their own tab, so Latest releases stays the apps, MCPs and tutorials. Archived items stay
-  // installable by their link but are left off every tab.
+  // every skill in the repo is a card (always public, never released through a gate), on its own
+  // tab. Archived items stay installable by their link but are left off every tab.
   const listed = cards.filter((c) => !c.archivedAt);
   const visible =
     'kinds' in active
@@ -61,11 +66,7 @@ export function HomePage({
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <SetupBanner />
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
-          <Link
-            href="/"
-            onClick={() => selectTab('home')}
-            className="flex items-center gap-2 text-xl font-bold tracking-tight"
-          >
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight">
             <img src="/brand/mediamake-mark.svg" alt="" className="size-7" />
             MediaMake
           </Link>
@@ -94,23 +95,8 @@ export function HomePage({
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4">
-        {tab === 'home' && (
-          // Hero is intentionally minimal for now.
-          <section className="flex min-h-[40vh] flex-col items-center justify-center gap-3 py-16 text-center">
-            <img src="/brand/mediamake-mark-glow.svg" alt="" className="h-20 w-auto" />
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">MediaMake</h1>
-            <p className="max-w-xl text-muted-foreground">
-              MCPs, skills, apps, tutorials and courses for making content.
-            </p>
-          </section>
-        )}
-
-        <section className={cn('pb-16', tab !== 'home' && 'pt-10')}>
-          {tab !== 'skills' && (
-            <h2 className="mb-4 text-sm font-medium text-muted-foreground">
-              {tab === 'home' ? 'Latest releases' : active.label}
-            </h2>
-          )}
+        <section className="pb-16 pt-10">
+          {tab !== 'skills' && <h2 className="mb-4 text-sm font-medium text-muted-foreground">{active.label}</h2>}
           {tab === 'skills' ? (
             <SkillsTab cards={cards.filter((c) => c.kind === 'skill')} {...skills} />
           ) : visible.length > 0 ? (
