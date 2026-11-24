@@ -177,7 +177,7 @@ The category comes from the name's verb (`metadata.category` in the frontmatter 
 
 | prefix | category |
 |--------|----------|
-| `make-` | media making: videos and audio (`make-lyrics-video`, `make-loudness-remaster`) |
+| `make-` | media making: videos and audio (`make-lyrics-video`, `make-music-remaster-loudness`) |
 | `create-` | images and artwork (`create-thumbnail`, `create-music-poster`) |
 | `pack-` | kits and packs (`pack-brand-kit`) |
 | `revise-` | review loops (`revise-video`) |

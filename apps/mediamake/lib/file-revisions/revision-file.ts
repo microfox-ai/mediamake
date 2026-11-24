@@ -90,6 +90,11 @@ export function staleImages(
     .map(([id]) => id);
 }
 
+/** The remaster skill's name, and the one it had before 2026-11-24 (older ladders' remaster.json still say it). */
+export const REMASTER_WORKFLOW = 'make-music-remaster-loudness';
+export const isRemasterWorkflow = (workflow?: string | null) =>
+  workflow === REMASTER_WORKFLOW || workflow === 'make-loudness-remaster';
+
 const list = (ids: string[]) => (ids.length ? ids.join(', ') : '—');
 
 /** The workflow-specific part of the instructions, when the set says which workflow made it. */
@@ -97,7 +102,7 @@ const howTo = (index: ImageSetIndex | null, job: string) => {
   const workflow = index?.workflow;
   // make-* are the skills' names before the rename; older index.json files still carry them
   const thumbs = ['create-thumbnail', 'create-music-poster', 'make-thumbnail', 'make-music-poster'];
-  if (workflow === 'make-loudness-remaster' || formatOf(index).remaster)
+  if (isRemasterWorkflow(workflow) || formatOf(index).remaster)
     return 'The final is the version the user picked by ear in the Stem Player, /stem-player (IDs are the file names without their extension): copy it next to the song\'s mix as `<Title> - final master (…).wav` (`cp -n`, then `cmp`) and use it as the song\'s audio from then on. A note on a version says what they heard in it (a time means that moment); a dropped version is out.';
   if ((workflow && thumbs.includes(workflow)) || (!workflow && formatOf(index).thumbnail))
     return `Finals → \`mm thumbs pick ${job} <IDs>\`${index?.kind === 'poster' ? ' (add `--to=<release folder>` to copy the cover there as cover.jpg)' : ''}; keep → \`thumbs keep\`. Fix each comment as a change to that variant or as a new variant (IDs never change once seen) and re-render those IDs.`;

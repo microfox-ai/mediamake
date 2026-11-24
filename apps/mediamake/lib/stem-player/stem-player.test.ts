@@ -248,7 +248,7 @@ test('the set a review writes about: the ladder\'s title, path and versions by I
   const index = reviewIndex('v1', v1, { ladder: true, path: '/Users/me/Downloads/AMZ/song/remaster/v1' });
   assert.equal(index.kind, 'remaster');
   assert.equal(index.title, 'Song');
-  assert.equal(index.workflow, 'make-loudness-remaster');
+  assert.equal(index.workflow, 'make-music-remaster-loudness');
   assert.equal(index.path, '/Users/me/Downloads/AMZ/song/remaster/v1');
   assert.deepEqual(index.styles[0].variants.map(v => v.id), ['song - 00 original', 'song - A lift']);
   // a folder the user only chose to compare was not made by the remaster skill

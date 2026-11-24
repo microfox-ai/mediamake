@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
-import { STATUS_LABEL, clock, staleImages } from '@/lib/file-revisions/revision-file';
+import { STATUS_LABEL, clock, isRemasterWorkflow, staleImages } from '@/lib/file-revisions/revision-file';
 import { getEngine, isReviewable, jobNameOf, selectActiveRevision, selectCurrent, uidOf, useReviewJob, useStemStore } from './store';
 
 /*
@@ -78,7 +78,7 @@ function SubmitBox() {
   if (!revision || !job) return null;
   const stale = staleImages(revision, job.files);
   const where = job.index.path ? `${job.index.path.replace(/\/$/, '')}/` : `…/${jobName}/`;
-  const kind = job.index.workflow === 'make-loudness-remaster' ? 'Remaster revision' : 'Audio revision';
+  const kind = isRemasterWorkflow(job.index.workflow) ? 'Remaster revision' : 'Audio revision';
   const message = `${kind} ${revision.id} for ${jobName} is ready (${where}${job.name}.revisions/${revision.id}.md)`;
   const empty = !revision.comments.length && !revision.final.length && !revision.drop.length;
   return (

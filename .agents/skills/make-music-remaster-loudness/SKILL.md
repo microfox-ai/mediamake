@@ -1,12 +1,12 @@
 ---
-name: make-loudness-remaster
-description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else) with SoundCraft's Maximizer (the default: it needs nothing open and runs in a cloud session) or REAPER's ReaLimit, or both side by side to compare, measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
+name: make-music-remaster-loudness
+description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else) with SoundCraft's Maximizer (the default: it needs nothing open and runs in a cloud session) or REAPER's ReaLimit, or both side by side to compare, measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-music-remaster-loudness", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
   version: 0.3.0
 ---
 
-# make-loudness-remaster
+# make-music-remaster-loudness
 
 Suno (and most AI music) already arrives mixed and mastered, just quiet: around -15 LUFS with
 3–5 dB of unused headroom. The user's ears decided what a remaster should be here. Three songs in,
@@ -60,7 +60,7 @@ Run the scripts with `uv run`, which brings what they need; the REAPER engine al
 tool's Python, which has reapy:
 
 ```bash
-SK=.claude/skills/make-loudness-remaster/scripts
+SK=.claude/skills/make-music-remaster-loudness/scripts
 uv run $SK/ladder.py …                                    # the ladder with SoundCraft (the default), measuring, the review file
 RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # only for --engine=reaper and --engine=both: $RPY $SK/ladder.py …
 ```
@@ -201,11 +201,11 @@ This log is shared: everyone who pulls gets it, and it changes only in a pull re
 session. New lessons go in your notes, outside the repo. Read them with this log before planning:
 
 ```bash
-mm notes add make-loudness-remaster "<what the user corrected or confirmed> → <the rule>"   # a new lesson, dated for you
-mm notes make-loudness-remaster                                                             # your notes for this skill
+mm notes add make-music-remaster-loudness "<what the user corrected or confirmed> → <the rule>"   # a new lesson, dated for you
+mm notes make-music-remaster-loudness                                                             # your notes for this skill
 ```
 
-When the user wants them shared, `mm notes promote make-loudness-remaster` offers them to this log as a pull request.
+When the user wants them shared, `mm notes promote make-music-remaster-loudness` offers them to this log as a pull request.
 
 - 2026-10-30 (Honored One): v1 rebuilt the song from Suno's 12 stems (EQ per track, buses, glue
   comp, -12 LUFS). User: louder, it's "a grand workout song, loud volume is better", and "there is
@@ -242,3 +242,7 @@ When the user wants them shared, `mm notes promote make-loudness-remaster` offer
   (`--engine=reaper`, or `both` to compare again). File names don't change: SoundCraft's steps keep
   their `(SoundCraft)` tag, so a ladder's files still say which engine made them and the two engines
   never write over each other in one folder.
+- 2026-11-24: renamed from `make-loudness-remaster` to `make-music-remaster-loudness`, a subset of
+  `make-music-remix` (the music skills' superset, new the same day). The Stem Player still opens
+  ladders whose `remaster.json` says the old name. `mm notes` reads notes by the skill's name, so a
+  notes file kept under the old name is renamed to the new one.

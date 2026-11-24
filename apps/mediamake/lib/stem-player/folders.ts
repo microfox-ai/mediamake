@@ -1,3 +1,4 @@
+import { REMASTER_WORKFLOW } from '@/lib/file-revisions/revision-file';
 import { normalizeIndex } from '@/lib/file-revisions/sets';
 import type { ImageSetIndex } from '@/lib/file-revisions/types';
 import { readJsonIn } from '@/lib/revisions/fs';
@@ -87,7 +88,7 @@ export function reviewIndex(name: string, listing: Pick<FolderListing, 'tracks' 
     ...(index ?? { job: name }),
     kind: 'remaster',
     title,
-    workflow: index?.workflow ?? remaster?.workflow ?? (opts.ladder ? 'make-loudness-remaster' : undefined),
+    workflow: index?.workflow ?? remaster?.workflow ?? (opts.ladder ? REMASTER_WORKFLOW : undefined),
     path,
     // the folder may be just "v1": the Markdown names the full path so Claude finds the right song
     location: index?.location ?? path,

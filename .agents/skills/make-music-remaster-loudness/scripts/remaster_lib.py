@@ -1,4 +1,4 @@
-"""Shared measuring for make-loudness-remaster: loudness, true peak and loudness range of a file.
+"""Shared measuring for make-music-remaster-loudness: loudness, true peak and loudness range of a file.
 
 No engine is loaded here, so measure.py and review.py run anywhere ffmpeg is, with or without REAPER
 or SoundCraft. Needs numpy, soundfile and pyloudnorm (the scripts name them for `uv run`; the

@@ -109,7 +109,7 @@ def main():
         "song": song_dir.name,
         "path": str(folder),
         "songPath": str(song_dir),
-        "workflow": "make-loudness-remaster",
+        "workflow": "make-music-remaster-loudness",
         **({"note": opts["note"]} if opts.get("note") else
            ({"note": json.loads(out_path.read_text()).get("note")} if out_path.exists() and json.loads(out_path.read_text()).get("note") else {})),
         "versions": versions,
