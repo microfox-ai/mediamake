@@ -187,6 +187,38 @@
       }
     },
     {
+      "id": "mcp/soundcraft",
+      "title": "Soundcraft",
+      "summary": "An open-source digital audio workstation (tracks, a mixer with plugins, sends, buses and automation, MIDI and built-in instruments, offline processing, bounce) that Claude drives from its MCP server and command line with no window: it mixes a song from its stems, masters to a loudness target, edits and converts audio, and saves .scraft sessions that open in the SoundCraft app for you to mix by hand. Free, local, no account.",
+      "status": "live",
+      "tags": ["mcp", "audio", "music"],
+      "releasedAt": "2026-11-24",
+      "madeBy": { "name": "Storyteller (ArtCraft)", "repo": "storytold/soundcraft", "license": "MIT OR Apache-2.0", "homepage": "https://getartcraft.com/apps/soundcraft" },
+      "install": {
+        "source": {
+          "type": "mcp-server",
+          "name": "soundcraft",
+          "local": {
+            "command": "soundcraft-cli",
+            "args": ["mcp"],
+            "install": [
+              "Get soundcraft-cli from the latest release at https://github.com/storytold/soundcraft/releases/latest, for this computer, and check it against the release's SHA256SUMS.txt:",
+              "On a Mac: soundcraft-cli-<version>-macos-universal.zip (signed and notarized); unzip it and put soundcraft-cli in ~/.local/bin.",
+              "On Windows: the SoundCraft app, soundcraft-<version>-windows-x64.msi (windows-arm64 on an ARM computer); soundcraft-cli.exe comes with it, in its folder.",
+              "On Linux: soundcraft-<version>-linux-x86_64.tar.gz (aarch64 on ARM) carries soundcraft-cli; put it in ~/.local/bin.",
+              "Check: `soundcraft-cli --version` (by its full path when its folder isn't on the PATH)."
+            ],
+            "find": ["~/.local/bin", "%LOCALAPPDATA%/Programs/ArtCraft/SoundCraft", "%ProgramFiles%/ArtCraft/SoundCraft"]
+          },
+          "setup": [
+            "For mixing by hand and for listening, the SoundCraft app from the same release (on a Mac soundcraft-<version>-macos-universal.dmg). Started as `soundcraft --control 7801`, a second server, `soundcraft-cli mcp --connect 7801`, lets Claude change the open window while you watch and listen."
+          ],
+          "guide": "https://github.com/storytold/soundcraft/blob/main/docs/mcp.md"
+        },
+        "notes": "Pre-alpha, by its makers' own account. Runs on your computer and needs no account or key. Headless it has no sound: you listen to a bounce, or in the app. `--automation-read-root` and `--automation-write-root` keep the server to the folders you name. The use-soundcraft skill says how Claude mixes, checks and bounces with it."
+      }
+    },
+    {
       "id": "mcp/comfy-mcp",
       "title": "Comfy MCP",
       "summary": "Comfy-Org's MCP server for the ComfyUI on your own computer: Claude runs gallery templates and your own workflows with open image, video, audio and 3D models on your GPU, waits on the jobs and fetches the results, searches templates, nodes and models, downloads the models a workflow needs, and starts or stops ComfyUI. Free to run; only partner-model nodes spend Comfy credits. The use-comfy skill says how Claude uses it.",

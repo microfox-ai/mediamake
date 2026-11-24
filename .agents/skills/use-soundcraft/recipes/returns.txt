@@ -1,0 +1,14 @@
+# Space for a mix: a plate reverb and an echo, each on its own return, with sends from one track.
+# Run on a session that has the track: replace <TRACK>, <ECHO_MS> (60000 ÷ BPM is a quarter note) and
+# the send levels to taste. Then:
+#   soundcraft-cli script returns.txt --in "<mix>.scraft" --save "<mix>-2.scraft" --bounce "<out>.flac" --start 0 --end <length plus the tail>
+# The tail: bounce 5 s past the end once, read last_sound_s (scripts/measure.py stats), end 0.3 s after it.
+mix.new_bus {"name":"Plate"}
+mix.new_bus {"name":"Echo"}
+track.new {"rows":[{"kind":"aux","format":"stereo","name":"Plate Return"},{"kind":"aux","format":"stereo","name":"Echo Return"}]}
+track.input {"tracks":["Plate Return"],"input":"Plate"}
+track.input {"tracks":["Echo Return"],"input":"Echo"}
+mix.insert {"track":"Plate Return","plugin":"plate_reverb","params":{"mix":100,"decay":1.8,"pre_delay":30,"low_cut":250,"damping":8000}}
+mix.insert {"track":"Echo Return","plugin":"mod_delay","params":{"time":<ECHO_MS>,"feedback":25,"mix":100,"lpf":5000}}
+mix.send {"track":"<TRACK>","bus":"Plate","level_db":-14}
+mix.send {"track":"<TRACK>","bus":"Echo","level_db":-22}

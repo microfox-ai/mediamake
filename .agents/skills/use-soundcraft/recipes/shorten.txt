@@ -1,0 +1,11 @@
+# A shorter song: one section taken out, the join crossfaded.
+# Replace <SONG>, <TRACK> (the file's name without its extension), <CUT_FROM> and <CUT_TO> (seconds; cut
+# on a downbeat, at the same place in the bar on both sides), <XF_FROM> and <XF_TO> (30 ms each side of
+# <CUT_FROM>). Then:
+#   soundcraft-cli script shorten.txt --bounce "<out>.wav" --start 0 --end <the song's length minus the cut>
+# Set sample_rate to the song's own (soundcraft-cli info "<SONG>"), so nothing is resampled.
+# Check the join: uv run scripts/measure.py join "<out>.wav" <CUT_FROM>
+session.new {"name":"shorter","sample_rate":48000}
+file.import_audio {"path":"<SONG>"}
+event.cut_time {"start":{"seconds":<CUT_FROM>},"end":{"seconds":<CUT_TO>}}
+edit.fades_create {"tracks":["<TRACK>"],"start":{"seconds":<XF_FROM>},"end":{"seconds":<XF_TO>},"shape":"equal power"}

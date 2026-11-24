@@ -1,0 +1,12 @@
+# A teaser: one part of a song, moved to the start, faded in and out.
+# Replace <SONG> (the file), <TRACK> (the file's name without its extension), <FROM> and <TO> (seconds),
+# <FADE_IN> and <FADE_OUT> (samples: seconds × the session's rate). Then:
+#   soundcraft-cli script teaser.txt --bounce "<out>.wav" --start 0 --end <TO minus FROM>
+# Set sample_rate to the song's own (soundcraft-cli info "<SONG>"), so nothing is resampled.
+# Clip 3 is the first imported file's clip in a new session (check with --inspect if steps are added).
+session.new {"name":"teaser","sample_rate":48000}
+file.import_audio {"path":"<SONG>"}
+edit.trim_to_selection {"tracks":["<TRACK>"],"start":{"seconds":<FROM>},"end":{"seconds":<TO>}}
+edit.move_clips {"clips":[3],"to":{"seconds":0}}
+edit.fades_create {"clip":3,"side":"in","length":<FADE_IN>,"shape":"s-curve"}
+edit.fades_create {"clip":3,"side":"out","length":<FADE_OUT>,"shape":"equal power"}
