@@ -129,7 +129,7 @@ export const catalogItems: (CatalogItem & { install?: InstallSpec })[] = [
     kind: 'mcp',
     title: 'mm-use',
     summary:
-      'MediaMake for every member, from Claude: explore the skills, MCPs and apps, see which membership opens each, get install plans, check for updates, and send feedback. An item's authors set its headshot and icon from it. It also keeps your "most used" list: the names of the skills you run and when, never their arguments or files. The hosted connector: sign in with your MediaMake account.',
+      'MediaMake for every member, from Claude: explore the skills, MCPs and apps, see which membership opens each, get install plans, check for updates, and send feedback. The authors of an item set its headshot and icon from it. It also keeps your "most used" list: the names of the skills you run and when, never their arguments or files. The hosted connector: sign in with your MediaMake account.',
     visibility: 'public',
     tier: 'public',
     // every signed-in account, also while public releases are locked
