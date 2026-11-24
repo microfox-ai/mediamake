@@ -289,6 +289,19 @@
         },
         "notes": "Hosted by Comfy Org: nothing runs on your computer. Any run needs a Comfy Cloud subscription, and partner models spend credits on top; searching is free. On a computer with a capable GPU, the Comfy MCP (local, free for open models) comes first."
       }
+    },
+    {
+      "id": "skill/design-taste-frontend",
+      "title": "Taste Skill",
+      "summary": "Makes a coding agent build company websites that look designed instead of templated: plain copy, one design system, one section per screen, real photographs and real product UI, checked in a real browser before the page is handed over. Builds static HTML, or inside an existing React, Next.js, Vue, Svelte, Astro or Tailwind project.",
+      "status": "live",
+      "tags": ["design", "websites", "frontend"],
+      "releasedAt": "2026-11-24",
+      "madeBy": { "name": "Leonxlnx", "repo": "Leonxlnx/taste-skill", "license": "MIT", "homepage": "https://tasteskill.dev" },
+      "install": {
+        "source": { "type": "github-skill", "repo": "Leonxlnx/taste-skill", "path": "skills/taste-skill", "ref": "v2.5.1" },
+        "notes": "Installs as design-taste-frontend, the name its maker gives it, at v2.5.1 (about 39 MB, 1,600 files). Needs Node 22 or newer and Chrome, Edge or Chromium; ffmpeg is optional. No API keys. Its scripts run on your computer: a headless browser checks each page, and extra photographs, icons and fonts are downloaded when a page needs them. While a build is open its Stop hook holds the session until the checks pass, three rounds at most."
+      }
     }
   ]
 }

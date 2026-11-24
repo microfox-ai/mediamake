@@ -32,6 +32,19 @@ describe('third-party.json', () => {
     }
   });
 
+  it("lists a skill someone else makes: its folder in their repo at a tag, under its SKILL.md's name, with no MediaMake repo first", async () => {
+    const skill = staticRecord('skill/design-taste-frontend')!;
+    assert.equal(skill.kind, 'skill');
+    assert.equal(skill.title, 'Taste Skill');
+    assert.deepEqual(skill.install?.source, { type: 'github-skill', repo: 'Leonxlnx/taste-skill', path: 'skills/taste-skill', ref: 'v2.5.1' });
+    const plan = await planInstall(skill.id, { getRecord: async id => staticRecord(id), canOpen: () => true, downloadUrl: async key => key });
+    assert.ok(plan.ok);
+    assert.deepEqual(
+      plan.steps.map(s => s.type),
+      ['source'],
+    );
+  });
+
   it('points an old alternative at an item the catalog has, which is not old itself', () => {
     const old = items.filter(i => i.alternativeTo);
     for (const item of old) {
