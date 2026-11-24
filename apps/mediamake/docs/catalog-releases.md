@@ -804,6 +804,7 @@ session cookie or Bearer key themselves):
 | `GET /api/catalog/versions?items=<id>,<id>[&notes=10]` (Bearer update token or API key, or the session) | Live version of each item and its releases with notes, newest first; no links, not logged |
 | `POST /api/catalog/update-token { items, token? }` (Bearer API key) | An update token for the installed items (or adds them to `token`); `mm items install` asks for it |
 | `GET/POST /api/catalog/access-requests` | List / create the caller's access requests (off while releases are locked) |
+| `GET/POST /api/catalog/listing` | An item's headshot and icon, for its authors and admins: `GET ?item=<id>` says whether the caller may change them (`canEdit`, `role`); `POST { type: 'create_upload', itemId, filename, contentType }` gives a signed PUT for one picture; `POST { type: 'set', itemId, headshot?, icon? }` puts the links on the listing (empty clears one; an author's is a picture uploaded for the item, an admin's any https link). 403 for anyone else |
 | `GET/POST /api/admin/catalog` | Admin: items, versions, grants, groups, requests, API key holders; `schedule_release`, `cancel_release`, `set_never_publish`, `set_archived`, `set_video`, `set_listing`, `create_video_item`, `create_thumbnail_upload` |
 | `GET /api/admin/catalog/items[?kind=][&tier=][&archived=][&q=]` | Admin: every item in a line (`ItemSummary`), read-only |
 | `GET /api/admin/catalog/item?id=<id>` | Admin: one item as its release page shows it, read-only |

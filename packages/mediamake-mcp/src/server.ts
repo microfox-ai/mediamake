@@ -30,6 +30,7 @@ const USE_INSTRUCTIONS = `mm-use is MediaMake for every member: the skills, MCPs
 explore lists what there is (with the membership that opens each item, and Beta or Ready), get_item shows one, item_versions says what is live, and install_item gives an item's install plan: this server is hosted and installs nothing itself, so carry the plan out on the user's computer as https://github.com/microfox-ai/mediamake/blob/main/install.md says.
 Usage is a skill's name and the time it ran, never its arguments, files or folders: report_skill_run where no MediaMake hook runs, my_usage to read it back, report_local_skills for the names and versions of the skills on their computer. A user who turned usage reports off (mm usage off) gets none sent.
 send_feedback sends the user's own words to the MediaMake team, only when they say yes. When a MediaMake item went wrong in this conversation, read known_issues for it, then offer once to send what happened. my_feedback shows what they sent before and the team's answers. rate_item gives an item 1 to 5 stars, only on the user's word.
+An item's authors and admins set its headshot and icon from here, with no pull request and no review: upload_item_picture gives the link to send a picture on the user's computer to, and set_item_pictures puts it on the listing, live at once. Only on the user's word; everyone else is told who can.
 When the user asks to make something they built public, submit_item sends it privately for an admin to review, with the finished production that was made with it (we publish nothing we don't use: never make one up); on a computer with the MediaMake repo, \`mm submit <name>\` does it from the files on disk. my_submissions shows where each stands and withdraw_submission takes one back.
 The Cloud Library (Cohort members for now) is read from here too: what a space reuses, kept as collections of entries (a channel's songs with their lyrics, transcripts, release details and links). list_library shows the spaces and collections, search_library answers with cards (byMeaning for what an entry is about), get_library_entry and read_library_entry give fields and text, and library_made_from says what was already made from an exact file. Nothing is saved or downloaded from here: that is the MediaMake Spaces MCP or \`mm library\` on a computer. Every search and read is counted.
 Memberships are a ladder (Public, Plus, Pro): each opens everything below it. Plus and Pro come from contributing or from an admin, never from paying: an accepted submission earns one for 3 months, renewed by contributing again.`;
@@ -81,7 +82,8 @@ export function createReleaseServer(client = new MediamakeClient(configFromEnv()
 /**
  * mm-use, for every member: explore and install items, usage (a skill's name
  * and time; local skill names and versions) and feedback. Served at /mcp/use.
- * It also reads the Cloud Library (cards, entries, texts; never a file's bytes).
+ * It also reads the Cloud Library (cards, entries, texts; never a file's bytes),
+ * and an item's authors set its headshot and icon from it.
  * None of its tools read or write files, so it is the same hosted or local.
  */
 export function createUseServer(client = new MediamakeClient(configFromEnv()), options: ServerOptions = { localFiles: true }) {

@@ -168,6 +168,8 @@ outputs section):
 
 A picture an admin sets (a headshot, an icon, a screenshot) is uploaded, never committed: the release page's Upload, or mm-release's `catalog_upload_picture` from Claude. It is live at once, with no pull request and no deploy, and a listing's headshot shows in place of a repo skill's own.
 
+An item's authors set two of those pictures themselves, its headshot and its icon: Change pictures on the item's page, or mm-use's `upload_item_picture` and `set_item_pictures` from Claude (`/api/catalog/listing`). The same upload, live at once and with no review; an author sets only a picture uploaded for that item, never a link to somewhere else. An item made outside MediaMake has no authors, so its pictures stay an admin's, like the rest of every listing (screenshots, description, README, tags).
+
 **In a space, the README goes with the item.** Every report a computer sends (`mm space sync`, `mm space
 report`) carries each item's README.md (at most 32 KB) and names the pictures it shows from its own
 folder: its `headshot` and every `![…](relative/path.png)`, PNG, JPEG, GIF, WebP or AVIF, at most 2 MB a

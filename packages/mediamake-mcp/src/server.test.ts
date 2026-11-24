@@ -60,7 +60,7 @@ describe('the three servers', () => {
 
   it('gives mm-use what a member does, with no admin or video tool', async () => {
     expect((await names('use')).sort()).toEqual(
-      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'submit_item', 'withdraw_submission', 'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'library_made_from'].sort(),
+      ['explore', 'get_item', 'install_item', 'item_versions', 'known_issues', 'my_feedback', 'my_submissions', 'my_usage', 'rate_item', 'report_local_skills', 'report_skill_run', 'send_feedback', 'set_item_pictures', 'submit_item', 'upload_item_picture', 'withdraw_submission', 'list_library', 'search_library', 'get_library_entry', 'read_library_entry', 'library_made_from'].sort(),
     );
   });
 
@@ -760,5 +760,59 @@ describe('mm-use', () => {
     const { out } = await call('known_issues', { item: 'skill/make-lyrics-video' });
     expect(out.issues).toHaveLength(1);
     expect(out.page).toBe('http://mm.test/skills/make-lyrics-video');
+  });
+
+  it("gives an item's author a signed link to upload a picture, from its name only", async () => {
+    const calls = stubApi((_m, _p, body) => (body?.type === 'create_upload' ? { uploadUrl: 'https://store.test/put?sig=1', publicUrl: 'https://cdn.test/catalog-thumbnails/mcp/mine/1-headshot.jpg' } : {}));
+    const { isError, out } = await call('upload_item_picture', { item: 'mcp/mine', filename: '/Users/me/art/headshot.jpg' });
+    expect(isError).toBe(false);
+    // the members' route, never the admins'
+    expect([calls[0].method, calls[0].url.pathname]).toEqual(['POST', '/api/catalog/listing']);
+    expect(calls[0].body).toEqual({ type: 'create_upload', itemId: 'mcp/mine', filename: 'headshot.jpg', contentType: 'image/jpeg' });
+    expect(out.publicUrl).toBe('https://cdn.test/catalog-thumbnails/mcp/mine/1-headshot.jpg');
+    expect(out.curl).toBe('curl -sSf -X PUT -H "Content-Type: image/jpeg" -H "x-amz-acl: public-read" --upload-file "headshot.jpg" "https://store.test/put?sig=1"');
+    expect(out.page).toBe('http://mm.test/mcps/mine');
+
+    for (const filename of ['notes.txt', 'logo.svg', 'clip.mp4']) {
+      const bad = await call('upload_item_picture', { item: 'mcp/mine', filename });
+      expect(bad.isError).toBe(true);
+      expect(bad.out).toContain('not a PNG, JPEG, WebP, GIF or AVIF picture');
+    }
+    expect((await call('upload_item_picture', { item: 'tutorial/intro', filename: 'a.png' })).isError).toBe(true);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("sets an item's headshot and icon, and nothing else of its listing", async () => {
+    const calls = stubApi((_m, _p, body) => ({ item: body.itemId, headshot: body.headshot || undefined, icon: 'https://cdn.test/old-icon.png' }));
+    const { out } = await call('set_item_pictures', { item: 'mcp/mine', headshot: 'https://cdn.test/h.jpg' });
+    expect([calls[0].method, calls[0].url.pathname]).toEqual(['POST', '/api/catalog/listing']);
+    expect(calls[0].body).toEqual({ type: 'set', itemId: 'mcp/mine', headshot: 'https://cdn.test/h.jpg' });
+    expect(out).toEqual({ item: 'mcp/mine', headshot: 'https://cdn.test/h.jpg', icon: 'https://cdn.test/old-icon.png', live: true, page: 'http://mm.test/mcps/mine' });
+
+    // an empty one clears it, and is sent as given
+    const cleared = (await call('set_item_pictures', { item: 'mcp/mine', headshot: '' })).out;
+    expect(calls[1].body).toEqual({ type: 'set', itemId: 'mcp/mine', headshot: '' });
+    expect(cleared.headshot).toBeNull();
+
+    // what an admin sets is not an argument here: it never reaches the server
+    await call('set_item_pictures', { item: 'mcp/mine', icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, tags: ['x'] });
+    expect(calls[2].body).toEqual({ type: 'set', itemId: 'mcp/mine', icon: 'https://cdn.test/i.png' });
+
+    const none = await call('set_item_pictures', { item: 'mcp/mine' });
+    expect(none.isError).toBe(true);
+    expect(none.out).toContain('Give headshot or icon');
+    expect(calls).toHaveLength(3);
+  });
+
+  it('says who can when the account is not an author of the item', async () => {
+    vi.stubGlobal('fetch', async () => Response.json({ error: 'Only the authors of mcp/theirs and admins change its pictures. Its page names them' }, { status: 403 }));
+    for (const [name, args] of [
+      ['upload_item_picture', { item: 'mcp/theirs', filename: 'h.png' }],
+      ['set_item_pictures', { item: 'mcp/theirs', headshot: 'https://cdn.test/h.jpg' }],
+    ] as const) {
+      const refused = await call(name, args);
+      expect(refused.isError).toBe(true);
+      expect(refused.out).toContain('Only the authors of mcp/theirs and admins');
+    }
   });
 });

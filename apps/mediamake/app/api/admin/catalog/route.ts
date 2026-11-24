@@ -16,7 +16,7 @@ import {
   ensureCatalogIndexes,
 } from '@/lib/catalog/store';
 import { catalogIndex } from '@/lib/catalog/admin-index';
-import { MAX_ADVICE_NOTE, MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
+import { LISTING_PICTURE_TYPE, MAX_ADVICE_NOTE, MAX_LISTING_DESCRIPTION, MAX_LISTING_MEDIA, MAX_LISTING_README, MAX_LISTING_TAGS, isPictureLink, parseTags, withListing, type ItemListing } from '@/lib/catalog/listing';
 import { cardRecords, isRepoSkill, skillRecords, staticRecord, thirdPartyRecords, withRegistryUses } from '@/lib/catalog/items';
 import { isEmptyPlan, planTierMigration } from '@/lib/catalog/migrate-tiers';
 import { isMembershipSource } from '@/lib/memberships/membership';
@@ -589,7 +589,7 @@ export async function POST(req: NextRequest) {
       if ((texts.description?.length ?? 0) > MAX_LISTING_DESCRIPTION) return bad(`Keep the description under ${MAX_LISTING_DESCRIPTION} characters`);
       if ((texts.readme?.length ?? 0) > MAX_LISTING_README) return bad('The README is too long: keep it under 32 KB');
       for (const key of ['headshot', 'icon'] as const) {
-        if (texts[key] && !/^https:\/\/\S{1,1000}$/.test(texts[key]!)) return bad(`${key} must be an https link to a picture`);
+        if (texts[key] && !isPictureLink(texts[key]!)) return bad(`${key} must be an https link to a picture`);
       }
       if (texts.icon && item.kind === 'skill') return bad('Only an MCP or an app has an icon');
       const editorsPick = body.editorsPick === undefined ? !!current?.editorsPick : body.editorsPick;
@@ -657,7 +657,7 @@ export async function POST(req: NextRequest) {
 
     case 'create_thumbnail_upload': {
       const contentType = typeof body.contentType === 'string' ? body.contentType : '';
-      if (!/^image\/(png|jpeg|webp|gif|avif)$/.test(contentType)) return bad('contentType must be a PNG, JPEG, WebP, GIF or AVIF image');
+      if (!LISTING_PICTURE_TYPE.test(contentType)) return bad('contentType must be a PNG, JPEG, WebP, GIF or AVIF image');
       if (typeof body.itemId !== 'string' || !parseCatalogItemId(body.itemId)) return bad('itemId must be a catalog id such as skill/pack-brand-kit');
       const { uploadUrl, publicUrl } = await createPresignedUpload({
         clientId: adminId,

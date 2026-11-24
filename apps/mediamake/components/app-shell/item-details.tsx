@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ArrowLeftIcon, ArrowUpRightIcon, BookOpenIcon, CheckIcon, ChevronRightIcon, CloudIcon, CopyIcon, ExternalLinkIcon, ImagesIcon, LockIcon, MonitorIcon, PencilIcon, PlayIcon, RocketIcon, StoreIcon } from 'lucide-react';
 import { AboutCard, ReadmeView } from '@/components/catalog/item-listing';
+import { ItemPicturesTools } from '@/components/catalog/item-pictures';
 import { AddMadeButton, RemoveMade, useMade, type Made } from '@/components/catalog/made-members';
 import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/components/catalog/skill-details';
 import { ItemRating } from '@/components/ratings/item-rating';
@@ -364,6 +365,7 @@ export function ItemView({ itemKey, item, crumbs }: { itemKey: string; item: Ite
                 </ul>
               )}
               {item.skill && item.canEdit && <SkillOwnerTools itemKey={itemKey} title={item.title} view={item.skill} checks={item.readmeChecks} canEdit />}
+              {item.itemId && <ItemPicturesTools itemId={item.itemId} kind={item.kind} title={item.title} />}
             </AboutCard>
           </section>
 

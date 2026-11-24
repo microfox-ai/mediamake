@@ -74,6 +74,55 @@ export function isEmptyListing(listing: ListingFields): boolean {
 export const MAX_LISTING_TAGS = 12;
 export const MAX_LISTING_MEDIA = 12;
 
+/** The picture types a listing takes: a headshot, an icon, a screenshot. */
+export const LISTING_PICTURE_TYPE = /^image\/(png|jpeg|webp|gif|avif)$/;
+
+/** A picture as a listing keeps it: an https link. */
+export const isPictureLink = (value: string) => /^https:\/\/\S{1,1000}$/.test(value);
+
+/**
+ * An item's pictures: its headshot and, for an MCP or an app, its icon. They are what the people who
+ * look after the item set themselves (its authors, see ./authors); the rest of a listing is an admin's.
+ */
+export type ListingPictures = Pick<ItemListing, 'headshot' | 'icon'>;
+export const LISTING_PICTURES = ['headshot', 'icon'] as const;
+
+/**
+ * A change to an item's pictures as it is sent: `headshot` and `icon`, each an https link. One given
+ * replaces what was there, an empty one clears it, one left out stays. A skill has no icon.
+ */
+export function parsePictures(body: unknown, kind: string): { pictures: ListingPictures } | { error: string } {
+  const sent = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+  const pictures: ListingPictures = {};
+  for (const key of LISTING_PICTURES) {
+    const value = sent[key];
+    if (value === undefined) continue;
+    if (typeof value !== 'string') return { error: `${key} must be an https link to a picture, or empty to clear it` };
+    const link = value.trim();
+    if (link && !isPictureLink(link)) return { error: `${key} must be an https link to a picture` };
+    pictures[key] = link;
+  }
+  if (pictures.headshot === undefined && pictures.icon === undefined) return { error: 'Give headshot or icon' };
+  if (pictures.icon && kind === 'skill') return { error: 'Only an MCP or an app has an icon' };
+  return { pictures };
+}
+
+/** A listing with its pictures changed: everything else on it stays as it is. */
+export function withPictures(current: ListingFields | null | undefined, pictures: ListingPictures): ListingFields {
+  return {
+    tags: current?.tags ?? [],
+    media: current?.media ?? [],
+    description: current?.description,
+    headshot: pictures.headshot === undefined ? current?.headshot : pictures.headshot || undefined,
+    icon: pictures.icon === undefined ? current?.icon : pictures.icon || undefined,
+    readme: current?.readme,
+    editorsPick: current?.editorsPick,
+    advice: current?.advice,
+    adviceNote: current?.adviceNote,
+    insteadOf: current?.insteadOf,
+  };
+}
+
 /** A tag as stored: lowercase letters, digits and dashes ("Lyric Video" is `lyric-video`); null when nothing is left of it. */
 export function parseTag(value: unknown): string | null {
   if (typeof value !== 'string') return null;
