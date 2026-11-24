@@ -12,6 +12,18 @@ export function itemPagePath(id: string): string {
   return '/';
 }
 
+const EXPLORE_KIND: Record<string, 'skill' | 'mcp' | 'app'> = { skill: 'skill', skills: 'skill', mcp: 'mcp', mcps: 'mcp', app: 'app', apps: 'app' };
+
+/**
+ * The store's list, in the app (/app/explore): one kind of it (skill, mcp or app, or the plurals the
+ * homepage's old tabs used) with a search. Any other kind (tutorials) opens the whole list.
+ */
+export function exploreHref(kind?: string | null, q?: string | null): string {
+  const known = kind ? EXPLORE_KIND[kind] : undefined;
+  const query = new URLSearchParams({ ...(known && { kind: known }), ...(q?.trim() && { q: q.trim() }) }).toString();
+  return `/app/explore${query ? `?${query}` : ''}`;
+}
+
 const OLD_ITEM = /^(skill|mcp|app|tutorial|course)\/[a-z0-9][a-z0-9-]*$/;
 
 /**

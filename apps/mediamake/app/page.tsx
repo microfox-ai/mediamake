@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
-import { HomePage } from '@/components/home/home-page';
+import { redirect } from 'next/navigation';
 import { Landing } from '@/components/home/landing/landing';
 import { homeShelf } from '@/components/home/landing/shelf';
-import { homeTabs, type HomeTab } from '@/components/home/tabs';
 import { getViewer } from '@/lib/access';
+import { configuredProviders } from '@/lib/auth/providers';
 import { listCatalog } from '@/lib/catalog';
-import { skillFacets, skillFiltersFrom } from '@/components/home/skill-filters';
-import { registry } from '@/lib/skills/registry';
+import { exploreHref } from '@/lib/catalog/paths';
 
-// Cards depend on who is viewing (private items unlock per viewer).
+// The shelf depends on who is viewing (private items unlock per viewer), and so does the sign-in.
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
@@ -18,8 +17,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * `/` is the homepage, a scroll story (Landing). `/?tab=mcps|skills|apps|tutorials` is the store,
- * one tab a kind (HomePage).
+ * `/` is the homepage, a scroll story (Landing). The store is Explore, in the app (/app/explore): the
+ * homepage's links go there, asking a signed-out visitor to sign in first. An old link to the store's
+ * tabs (`/?tab=skills|mcps|apps|tutorials`) lands on Explore too.
  */
 export default async function Homepage({
   searchParams,
@@ -28,23 +28,12 @@ export default async function Homepage({
 }) {
   const params = await searchParams;
   const tab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-  const initialTab = (homeTabs.find((t) => t.value === tab)?.value ?? 'home') as HomeTab;
+  if (tab && tab !== 'home') {
+    const q = Array.isArray(params.q) ? params.q[0] : params.q;
+    redirect(exploreHref(tab, q));
+  }
 
   const viewer = await getViewer();
   const cards = await listCatalog(viewer);
-
-  if (initialTab === 'home') return <Landing {...homeShelf(cards)} />;
-
-  return (
-    <HomePage
-      cards={cards}
-      initialTab={initialTab}
-      signedIn={!!viewer.clientId}
-      skills={{
-        facets: skillFacets(registry?.skills ?? []),
-        categories: (registry?.categories ?? []).map(({ id, about, internal }) => ({ id, about, ...(internal && { internal }) })),
-        initial: skillFiltersFrom(params),
-      }}
-    />
-  );
+  return <Landing {...homeShelf(cards)} signedIn={!!viewer.clientId} providers={configuredProviders()} />;
 }

@@ -58,8 +58,8 @@ export default async function CoursePage({ params }: CoursePageProps) {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 md:py-14">
-        <Link href="/?tab=tutorials" className="text-sm text-muted-foreground hover:text-foreground">
-          ← MediaMake tutorials
+        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
+          ← MediaMake
         </Link>
 
         {!course ? (
