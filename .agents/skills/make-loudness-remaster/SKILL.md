@@ -1,9 +1,9 @@
 ---
 name: make-loudness-remaster
-description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else) with either of two engines, REAPER's ReaLimit or SoundCraft's Maximizer (which needs nothing open and runs in a cloud session), or both side by side to compare, measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
+description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else) with SoundCraft's Maximizer (the default: it needs nothing open and runs in a cloud session) or REAPER's ReaLimit, or both side by side to compare, measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
-  version: 0.2.1
+  version: 0.3.0
 ---
 
 # make-loudness-remaster
@@ -16,7 +16,7 @@ So this skill makes the song louder in clean steps and lets the user choose how 
 
 | Output | Where | What it is |
 | --- | --- | --- |
-| Ladder | `<song folder>/remaster/v<N>/` | `<title> - original -12 LUFS (level-matched).wav` (gain only) and `-11`, `-10`, `-9`, `-8 LUFS.wav` (limiter only; SoundCraft's steps end in `(SoundCraft).wav`, and REAPER's in `(REAPER).wav` when both engines built the ladder), the engine's session (`<title> - original louder.rpp`, or SoundCraft's as a step list, `… (SoundCraft).steps.txt`) and `ladder.json` (which engine and settings made each file) |
+| Ladder | `<song folder>/remaster/v<N>/` | `<title> - original -12 LUFS (level-matched).wav` (gain only) and `-11`, `-10`, `-9`, `-8 LUFS (SoundCraft).wav` (limiter only, SoundCraft's; REAPER's steps have no tag, or `(REAPER).wav` when both engines built the ladder), the engine's session (SoundCraft's as a step list, `… (SoundCraft).steps.txt`, or REAPER's `<title> - original louder.rpp`) and `ladder.json` (which engine and settings made each file) |
 | Review | `<ladder>/remaster.json`, `<ladder>/v<N>.revisions/` | the sidecar `review.py` writes for the Stem Player, and the user's pick and notes the screen writes back |
 | Final | next to the song's mix | `<title> - final master (-N LUFS).wav`, a byte-identical copy of the step the user picked |
 
@@ -29,16 +29,16 @@ The method never changes: the song's own mix, gain, one limiter. What makes the 
 
 | Engine | Limiter | Needs | Good to know |
 | --- | --- | --- | --- |
-| `reaper` (the default) | ReaLimit | REAPER open on this computer, set up once (below) | Made every master the user has picked so far. Leaves a `.rpp` session |
-| `soundcraft` | Maximizer | `soundcraft-cli` (the Soundcraft MCP's command line; the use-soundcraft skill says how to install it) | Nothing to open, no window, runs in a cloud session. Its path is bit-exact when the limiter is idle. Leaves its session as a step list |
+| `soundcraft` (the default) | Maximizer | `soundcraft-cli` (the Soundcraft MCP's command line; the use-soundcraft skill says how to install it) | Nothing to open, no window, runs in a cloud session. Its path is bit-exact when the limiter is idle. Leaves its session as a step list |
+| `reaper` | ReaLimit | REAPER open on this computer, set up once (below) | Made every master the user picked before 2026-11-24. Leaves a `.rpp` session |
 | `both` | each | both of the above | Every step twice in one folder, for an A/B on the review screen |
 
-Which to use: the user's notes (`mm notes make-loudness-remaster`) say when they have settled on one.
-Until they have, build the first ladder with `--engine=both` so they can hear the two limiters at
-the same loudness, and write down what they pick. Where REAPER isn't there (a cloud session, a
-computer without it), use `soundcraft`. A limiter is the only thing that differs between them, so
-the two sound the same at the quiet steps and part ways as the limiting gets heavier: tell the user
-to compare the loudest steps.
+Which to use: SoundCraft, the default since 2026-11-24 on the user's word after the first
+side-by-side ladder (`ladder.py` with no `--engine`). Build with `--engine=reaper` when the user asks
+for REAPER, or where `soundcraft-cli` can't run and REAPER can, and with `--engine=both` when they
+want to compare the two again. A limiter is the only thing that differs between them, so the two
+sound the same at the quiet steps and part ways as the limiting gets heavier: to compare, listen to
+the loudest steps.
 
 ## Setup (once per machine)
 
@@ -61,8 +61,8 @@ tool's Python, which has reapy:
 
 ```bash
 SK=.claude/skills/make-loudness-remaster/scripts
-uv run $SK/measure.py …                                   # measuring, the review file, the SoundCraft engine
-RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, and --engine=both: $RPY $SK/ladder.py …
+uv run $SK/ladder.py …                                    # the ladder with SoundCraft (the default), measuring, the review file
+RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # only for --engine=reaper and --engine=both: $RPY $SK/ladder.py …
 ```
 
 ## Steps
@@ -80,8 +80,8 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
 3. **Build the ladder** in the next free `remaster/v<N>/` folder (never overwrite a version):
 
    ```bash
-   $RPY $SK/ladder.py "<mix>.wav" "<song folder>/remaster/v1" "<Title>"                         # REAPER
-   uv run $SK/ladder.py "<mix>.wav" "<song folder>/remaster/v1" "<Title>" --engine=soundcraft   # SoundCraft
+   uv run $SK/ladder.py "<mix>.wav" "<song folder>/remaster/v1" "<Title>"                       # SoundCraft (the default)
+   $RPY $SK/ladder.py "<mix>.wav" "<song folder>/remaster/v1" "<Title>" --engine=reaper         # REAPER
    $RPY $SK/ladder.py "<mix>.wav" "<song folder>/remaster/v1" "<Title>" --engine=both           # each step from both
    ```
 
@@ -90,8 +90,8 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
    until it measures within 0.15 LU of its target with its true peak at -1.0 dBTP or lower (a few
    minutes a song for each engine). When a limiter stalls short of a target it retries with a
    faster release; a file is always named after what it measures. `--targets=-7` adds steps to an
-   existing ladder later, and `--engine=soundcraft` on a REAPER ladder adds the other engine's steps
-   beside it.
+   existing ladder later, and `--engine=reaper` on a SoundCraft ladder (or the reverse) adds the other
+   engine's steps beside it.
 4. **Measure the ladder** (`uv run $SK/measure.py` on the original and every step) and give the user a
    short table of what each step costs: build-up (LRA), deep bass (sub), punch (PLR). The usual
    picture: -12 and -11 are the original, louder; -10 is nearly identical; -9 gives up a little sub
@@ -124,7 +124,7 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
    name stays the same):
 
    ```bash
-   cp -n "<ladder>/<Title> - original -9 LUFS.wav" "<song folder>/<Title> - final master (-9 LUFS).wav" && cmp "<ladder>/<Title> - original -9 LUFS.wav" "<song folder>/<Title> - final master (-9 LUFS).wav"
+   cp -n "<ladder>/<Title> - original -9 LUFS (SoundCraft).wav" "<song folder>/<Title> - final master (-9 LUFS).wav" && cmp "<ladder>/<Title> - original -9 LUFS (SoundCraft).wav" "<song folder>/<Title> - final master (-9 LUFS).wav"
    ```
 
    From then on that file is the song's audio (lyric video, uploads, DistroKid). Note it in the
@@ -184,13 +184,14 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
 |---|---|---|---|---|
 | 1. Find the song's own mix | `media:library` | no | yes | the mix from the session's own files, or the Cloud Library (`mm library use`) |
 | 2. Measure the original | nothing | no | yes | - |
-| 3a. Build the ladder with REAPER | `app:reaper` | no | yes | the SoundCraft engine (3b) |
-| 3b. Build the ladder with SoundCraft | `mcp:soundcraft` | no | yes | a to-do for a place with REAPER or Soundcraft |
+| 3a. Build the ladder with SoundCraft | `mcp:soundcraft` | no | yes | the REAPER engine (3b) |
+| 3b. Build the ladder with REAPER | `app:reaper` | no | yes | a to-do for a place with SoundCraft or REAPER |
 | 4. Measure the ladder | nothing | no | yes | - |
 | 5. The user picks on the review screen | nothing | yes | yes | - |
 | 6. Into the library | `media:library` | yes | yes | a to-do: file the master on the user's computer |
 
-`mcp:soundcraft` is `soundcraft-cli`, with or without its MCP added. Every step needs ffmpeg and uv.
+3a is the default; 3b is for when the user asks for REAPER (or both, to compare). `mcp:soundcraft` is
+`soundcraft-cli`, with or without its MCP added. Every step needs ffmpeg and uv.
 The review screen plays files on the user's computer: from a cloud session, deliver the ladder first
 (`mm cloud deliver`). A ladder is never built over: a new one is the next `v<N>`.
 
@@ -236,3 +237,8 @@ When the user wants them shared, `mm notes promote make-loudness-remaster` offer
   REAPER stays it until they say. Found while making the comparison fair: the true peak came from
   ffmpeg's `ebur128` summary, which reads the left channel only → every true peak now takes the
   louder channel.
+- 2026-11-24: "in make loudness remaster, change default to soundcraft" → SoundCraft's Maximizer is
+  the default engine (0.3.0): `ladder.py` with no `--engine` builds with it, and REAPER stays a choice
+  (`--engine=reaper`, or `both` to compare again). File names don't change: SoundCraft's steps keep
+  their `(SoundCraft)` tag, so a ladder's files still say which engine made them and the two engines
+  never write over each other in one folder.
