@@ -1,6 +1,7 @@
 ---
 description: Claude mixes, edits and masters audio in SoundCraft, the free, open-source DAW. Stems become a routed session, a song lands on its loudness target, a teaser is cut and faded, and every change is checked by measuring it. Then you open the session in SoundCraft and move any fader yourself.
 tags: audio, soundcraft, daw, mixing, mastering, stems, loudness, lufs, audio editing, midi, bounce, flac
+headshot: headshot.jpg
 nature: shared-use
 type: mcp-use
 ---
@@ -34,6 +35,13 @@ since it can't hear, and gives you the file. Then you open the session and chang
 
 A `.scraft` session you can open and change, and its bounces: the mix or its stems as WAV, AIFF or
 FLAC, with the loudness, peaks and balance measured. Also MIDI files, MusicXML and a printable score
-from MIDI parts. A session built this way opens in SoundCraft's Mix window like this:
+from MIDI parts.
 
-![A session in SoundCraft's Mix window](previews/mix-window.jpg)
+A session built this way opens in SoundCraft like any other. The Edit window, with every clip where
+Claude put it:
+
+![A session in SoundCraft's Edit window: drums, bass, pad and keys as clips on a timeline](previews/edit-window.jpg)
+
+And the Mix window, with its inserts, sends, pans and faders ready to move:
+
+![The same session in SoundCraft's Mix window: a channel strip per track with inserts, sends and faders](previews/mix-window.jpg)
