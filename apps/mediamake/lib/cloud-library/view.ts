@@ -128,6 +128,24 @@ export const spaceFor = (space: SpaceView, collection: Pick<CollectionView, 'sha
   collection?.shared ? { ...space, role: collection.shared.role === 'editor' && canChange(space) ? 'editor' : 'viewer' } : space;
 
 /** The page's address for a space, a collection and an entry: what the breadcrumb links to. */
+/**
+ * The Library's All view: every collection of every space the account can open, each with its
+ * space, the personal space's first. A collection another space shares shows once, under the
+ * space it belongs to, when the account can open that space too. `q` keeps the ones whose name,
+ * description or space name holds every word.
+ */
+export function allCollections(spaces: SpaceOverview[], q = ''): { space: SpaceView; collection: CollectionView }[] {
+  const mine = new Set(spaces.map(s => s.space.id));
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  return [...spaces]
+    .sort((a, b) => Number(b.space.personal) - Number(a.space.personal))
+    .flatMap(({ space, collections }) => collections.filter(c => !c.shared || !mine.has(c.shared.from)).map(collection => ({ space, collection })))
+    .filter(({ space, collection }) => {
+      const text = `${collection.name} ${collection.about} ${space.name}`.toLowerCase();
+      return words.every(word => text.includes(word));
+    });
+}
+
 export function libraryHref(at: { space?: string | null; collection?: string | null; entry?: string | null }): string {
   const params = new URLSearchParams();
   if (at.space) params.set('space', at.space);
