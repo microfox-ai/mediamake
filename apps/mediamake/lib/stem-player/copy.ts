@@ -19,8 +19,19 @@ export interface CopyTrack {
   length?: number;
 }
 
+/** A note left on some tracks, at a moment when it has one. */
+export interface CopyNote {
+  /** The labels of the tracks it is about. */
+  tracks: string[];
+  /** Seconds into the audio. */
+  t?: number;
+  text: string;
+}
+
 export interface CopyInput {
   tracks: CopyTrack[];
+  /** The open notes of the folder the selection is in. */
+  notes?: CopyNote[];
   /** Where the playhead is, and the length of what is heard (0 while nothing is loaded). */
   position: number;
   duration: number;
@@ -33,7 +44,7 @@ export function stamp(seconds: number): string {
   return `${Math.floor(tenths / 600)}:${String(Math.floor((tenths % 600) / 10)).padStart(2, '0')}.${tenths % 10}`;
 }
 
-export function selectionText({ tracks, position, duration, loop }: CopyInput): string {
+export function selectionText({ tracks, position, duration, loop, notes }: CopyInput): string {
   const n = tracks.length;
   const lines = [`Stem Player: ${n} track${n === 1 ? '' : 's'}${n > 1 ? ' playing together' : ''}`];
   const at = [`Playhead ${stamp(position)}${duration > 0 ? ` of ${stamp(duration)}` : ''}`];
@@ -47,6 +58,14 @@ export function selectionText({ tracks, position, duration, loop }: CopyInput): 
       // a lone file's label is its own name: say it once
       const named = t.label && !t.file.startsWith(t.label) ? `${t.label}: ` : '';
       lines.push(`- ${named}${t.file}${typeof t.length === 'number' ? ` (${stamp(t.length)})` : ''}`);
+    }
+  }
+  if (notes?.length) {
+    lines.push('', `Notes (${notes.length}):`);
+    // by time, the ones about a whole track last
+    for (const note of [...notes].sort((a, b) => (a.t ?? Infinity) - (b.t ?? Infinity))) {
+      const where = [typeof note.t === 'number' ? stamp(note.t) : null, note.tracks.join(' + ') || null].filter(Boolean).join(' · ');
+      lines.push(`- ${where ? `${where}: ` : ''}${note.text.trim().replace(/\s*\n\s*/g, ' / ')}`);
     }
   }
   if (tracks.some(t => !t.fullPath)) lines.push('', '(Folders are named as they were opened in the browser, which does not give their full path.)');

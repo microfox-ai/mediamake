@@ -6,11 +6,11 @@ import { toast } from 'sonner';
 import { isAbortError } from '@/lib/local-media/file-access';
 import { getFolderSupport, getSubdir, listFileNames, pickFolder, queryReadWrite, readFileIn, readJsonIn, requestReadWrite, writeFileIn } from '@/lib/revisions/fs';
 import type { RevisionStatus } from '@/lib/revisions/types';
-import { createHistory, type RecentJob } from '@/lib/file-revisions/history';
+import { createHistory } from '@/lib/file-revisions/history';
 import { createRevision, nextCommentId, nextRevisionId, normalizeRevision, revisionIdFromFile, revisionsDirName, revisionToMarkdown } from '@/lib/file-revisions/revision-file';
 import type { ImageComment, ImageRevision, ImageSetIndex } from '@/lib/file-revisions/types';
 import { openDevFolder } from '@/lib/stem-player/dev-folder';
-import { findFolder, readFolder, reviewIndex } from '@/lib/stem-player/folders';
+import { findNearest, readFolder, reviewIndex } from '@/lib/stem-player/folders';
 import { dbToGain, measureLoudness, waveformPeaks } from '@/lib/stem-player/loudness';
 import { selectionText } from '@/lib/stem-player/copy';
 import { StemEngine } from '@/lib/stem-player/player';
@@ -32,14 +32,31 @@ export type VersionAction = 'final' | 'drop';
 /** The database's name predates this screen (it was Remaster Revisions'): kept, so the folders given to it are still here. */
 const remembered = createHistory('mediamake-remaster-revisions');
 
+/** A folder open in the sidebar: the one the user picked, or the one a link names. Never a folder above it. */
 export interface Root {
   id: string;
   name: string;
   handle: FileSystemDirectoryHandle;
-  /** After a reload the browser may want one click before it reads the folder again. */
-  status: 'ready' | 'needs-permission';
   /** Its absolute path, when opened by path through the local app. */
   absPath?: string;
+  /** How a link names it: its own name when it was picked, the link's own path when a link opened it. */
+  job: string;
+  /** The folder opened before that it is (see Known), when it is one. */
+  known?: string;
+}
+
+/**
+ * A folder the user gave this page before, kept by the browser. A link is looked up under these (so a folder
+ * above many songs, opened once, serves every later link), and one can be opened again with a click. They are
+ * not in the sidebar's tree until opened.
+ */
+export interface Known {
+  id: string;
+  name: string;
+  handle: FileSystemDirectoryHandle;
+  /** The browser still lets the page read it; otherwise it asks again on a click. */
+  granted: boolean;
+  kind: 'source' | 'recent';
 }
 
 export interface Folder {
@@ -85,9 +102,11 @@ interface StemState {
   rows: Row[];
   order: string[];
   sel: Selection;
-  recent: RecentJob[];
-  /** A ?job= link no open folder holds yet: one click to open its folder. */
+  known: Known[];
+  /** A ?job= link no open or known folder holds yet: one click to open its folder. */
   pendingJob: string | null;
+  /** The folders are being read again. */
+  refreshing: boolean;
   // playback, mirrored from the engine for rendering
   playing: boolean;
   /** Playing, but the selected track is still loading. */
@@ -104,8 +123,8 @@ interface StemState {
   // the review of the current project (a folder of versions)
   /** The Notes panel, in a folder of versions (open unless the user closes it). */
   notesOpen: boolean;
-  /** A folder that isn't one, whose Notes panel the user opened: it offers Compare versions. */
-  offerFor: string | null;
+  /** The Notes panel in any other folder (shut until the user opens it or writes a note). */
+  notesPlain: boolean;
   review: string | null;
   revisions: Record<string, ImageRevision>;
   revisionIds: string[];
@@ -117,14 +136,20 @@ interface StemState {
 
   init: () => Promise<void>;
   pickRoot: () => Promise<void>;
+  /** Opens a folder the user picked: the folder itself, or (when a link is waiting and it holds the link's folder) that one. */
+  openPicked: (handle: FileSystemDirectoryHandle) => Promise<void>;
   openPath: (absPath: string, track?: string | null) => Promise<void>;
-  openRecent: (entry: RecentJob) => Promise<void>;
-  forgetRecent: (id: string) => Promise<void>;
+  openKnown: (id: string) => Promise<void>;
+  forgetKnown: (id: string) => Promise<void>;
   closeRoot: (id: string) => Promise<void>;
+  /** Reads every unfolded folder again: new, removed and replaced files. */
+  refreshTree: () => Promise<void>;
   toggleFolder: (key: string) => Promise<void>;
   setCompare: (key: string, on: boolean) => void;
 
   clickTrack: (uid: string, mods?: { toggle?: boolean; range?: boolean }) => void;
+  /** Selects these tracks of a folder (the tracks a note is about). */
+  selectIds: (folder: string, ids: string[]) => void;
   moveFocus: (delta: 1 | -1, extend?: boolean) => void;
   selectProject: () => void;
   /** The track of the current project with this key (1–9, or a version's letter). */
@@ -224,7 +249,7 @@ export function absPathOf(s: Pick<StemState, 'roots'>, f: Folder): string | null
 /** How a folder is named in a link and in the message to Claude: its path from its root. */
 export function jobNameOf(s: Pick<StemState, 'roots'>, f: Folder): string {
   const root = s.roots.find(r => r.id === f.root);
-  return [root?.name, f.path].filter(Boolean).join('/') || f.name;
+  return [root?.job ?? root?.name, f.path].filter(Boolean).join('/') || f.name;
 }
 
 function layout({ roots, folders }: Tree): { rows: Row[]; order: string[] } {
@@ -262,10 +287,10 @@ const closedFolder = (root: string, path: string, name: string, parent: string |
   index: null,
 });
 
-/** Whether the Notes panel shows: in a folder of versions unless closed, elsewhere only when asked for. */
+/** Whether the Notes panel shows: in a folder of versions unless closed, in any other once the user opened it. */
 export const notesVisible = (s: StemState): boolean => {
   const folder = selectCurrent(s);
-  return isReviewable(folder) ? s.notesOpen : !!folder && s.offerFor === folder.key;
+  return !!folder && (isReviewable(folder) ? s.notesOpen : s.notesPlain);
 };
 
 export const selectActiveRevision = (s: StemState) => (s.activeRevisionId ? (s.revisions[s.activeRevisionId] ?? null) : null);
@@ -280,7 +305,7 @@ export function reviewJobOf(s: StemState): { folder: Folder; name: string; index
   return {
     folder,
     name: folder.name,
-    index: reviewIndex(folder.name, { tracks, remaster: folder.remaster, index: folder.index }, { ladder: folder.versions, path: absPathOf(s, folder) ?? undefined }),
+    index: reviewIndex(folder.name, { tracks, remaster: folder.remaster, index: folder.index }, { ladder: folder.versions, versions: isReviewable(folder), path: absPathOf(s, folder) ?? undefined }),
     files,
     ids: tracks.map(t => t.id),
   };
@@ -458,10 +483,10 @@ export const useStemStore = create<StemState>((set, get) => {
     set({ revisions, revisionIds: ids, activeRevisionId: active });
   };
 
-  /** The review follows the current project: a folder of versions has revisions, any other has none. */
+  /** The review follows the current project: its notes (and, in a folder of versions, its final and drops) are read from beside its files. */
   const switchReview = async () => {
     const folder = selectCurrent(get());
-    const next = folder && isReviewable(folder) ? folder.key : null;
+    const next = folder ? folder.key : null;
     if (next === get().review) return;
     await get().flushSaves();
     const token = ++reviewToken;
@@ -496,18 +521,21 @@ export const useStemStore = create<StemState>((set, get) => {
 
   // ── the tree ────────────────────────────────────────────────────────────────
 
+  /**
+   * The name of the folder a folder is in (a ladder is known as `remaster/v<N>`). A root has no folder above
+   * it in the tree, so the link that opened it says: the folder before it in the link's path.
+   */
+  const parentNameOf = (f: Folder): string | undefined => {
+    if (f.parent) return get().folders[f.parent]?.name;
+    const job = get().roots.find(r => r.id === f.root)?.job ?? '';
+    return job.split('/').filter(Boolean).slice(-2, -1)[0];
+  };
+
   /** Reads a folder (once) and unfolds it. False when it could not be read. */
   const expand = async (key: string): Promise<boolean> => {
     const f = get().folders[key];
     const root = f && get().roots.find(r => r.id === f.root);
     if (!f || !root) return false;
-    if (root.status === 'needs-permission') {
-      if ((await requestReadWrite(root.handle)) !== 'granted') {
-        toast.error(`Access to ${root.name} was not granted`);
-        return false;
-      }
-      set(s => ({ roots: s.roots.map(r => (r.id === root.id ? { ...r, status: 'ready' } : r)) }));
-    }
     if (f.state === 'open') {
       patchFolder(key, { expanded: true });
       relayout();
@@ -515,7 +543,7 @@ export const useStemStore = create<StemState>((set, get) => {
     }
     patchFolder(key, { state: 'loading' });
     try {
-      const listing = await readFolder(f.handle, f.parent ? get().folders[f.parent]?.name : undefined);
+      const listing = await readFolder(f.handle, parentNameOf(f));
       set(s => {
         if (!s.folders[key]) return {};
         const folders = { ...s.folders };
@@ -540,19 +568,6 @@ export const useStemStore = create<StemState>((set, get) => {
       toast.error(`Could not read ${f.name}: ${errorMessage(err)}`);
       return false;
     }
-  };
-
-  /** Unfolds the folders from a root down to `parts`, and gives the last one's key. */
-  const expandPath = async (rootId: string, parts: string[]): Promise<string | null> => {
-    let key = folderKeyOf(rootId, '');
-    if (!(await expand(key))) return null;
-    let path = '';
-    for (const part of parts) {
-      path = path ? `${path}/${part}` : part;
-      key = folderKeyOf(rootId, path);
-      if (!get().folders[key] || !(await expand(key))) return null;
-    }
-    return key;
   };
 
   const applySelection = (next: Selection) => {
@@ -586,29 +601,121 @@ export const useStemStore = create<StemState>((set, get) => {
     if (uid) applySelection(click(EMPTY, get().order, uid));
   };
 
-  const addRoot = async (handle: FileSystemDirectoryHandle, opts: { absPath?: string; persist: boolean }): Promise<string | null> => {
+  /** The folders opened before, with whether the browser still lets the page read each. */
+  const loadKnown = async (): Promise<Known[]> => {
+    const [sources, recent] = await Promise.all([remembered.loadSources().catch(() => []), remembered.loadRecent().catch(() => [])]);
+    const out: Known[] = [];
+    for (const [kind, list] of [['source', sources], ['recent', recent]] as const) {
+      for (const e of list) out.push({ id: e.id, name: e.name, handle: e.handle, granted: (await queryReadWrite(e.handle)) === 'granted', kind });
+    }
+    return out;
+  };
+
+  /** Puts a folder in the sidebar as a root (or unfolds it when it is one already) and gives its id. */
+  const openRoot = async (handle: FileSystemDirectoryHandle, opts: { absPath?: string; job?: string; known?: string } = {}): Promise<string | null> => {
     for (const r of get().roots) {
       const same = opts.absPath ? r.absPath === opts.absPath : !r.absPath && (await r.handle.isSameEntry(handle).catch(() => false));
       if (same) return (await expand(folderKeyOf(r.id, ''))) ? r.id : null;
     }
-    // folders opened by path aren't real browser handles: they can't be kept
-    const id = opts.persist ? (await remembered.addSource(handle)).id : `path-${crypto.randomUUID()}`;
-    const root: Root = { id, name: handle.name, handle, status: 'ready', absPath: opts.absPath };
+    const id = `root-${crypto.randomUUID()}`;
+    const root: Root = { id, name: handle.name, handle, absPath: opts.absPath, job: opts.job ?? handle.name, known: opts.known };
     set(s => ({ roots: [...s.roots, root], folders: { ...s.folders, [folderKeyOf(id, '')]: closedFolder(id, '', handle.name, null, handle) } }));
     return (await expand(folderKeyOf(id, ''))) ? id : null;
   };
 
-  /** The folder a link names, under the roots that can be read; true when it was found and selected. */
-  const resolveJob = async (job: string, trackId?: string | null): Promise<boolean> => {
-    for (const root of get().roots.filter(r => r.status === 'ready')) {
-      const parts = await findFolder(root.handle, job).catch(() => null);
-      const key = parts && (await expandPath(root.id, parts));
-      if (!key) continue;
-      set({ pendingJob: null });
-      selectIn(key, trackId);
-      return true;
+  /**
+   * The folder a link names, opened as its own root and selected. It is looked for under `among` (a folder
+   * just picked), else under what is open and what was opened before; the nearest one wins, so a folder
+   * that is the link's own is used before one above it, and the one above is never unfolded for it.
+   */
+  const resolveJob = async (job: string, trackId?: string | null, among?: { handle: FileSystemDirectoryHandle; known?: string }[]): Promise<boolean> => {
+    const open = get().roots.find(r => r.job === job);
+    const places = among ?? [...get().roots.filter(r => !r.absPath).map(r => ({ handle: r.handle, known: r.known })), ...get().known.filter(k => k.granted).map(k => ({ handle: k.handle, known: k.id }))];
+    const found = open ? null : await findNearest(places.map(p => p.handle), job);
+    let id: string | null = open?.id ?? null;
+    if (open) await expand(folderKeyOf(open.id, ''));
+    else if (found) {
+      let dir = found.handle;
+      for (const part of found.parts) dir = await dir.getDirectoryHandle(part);
+      id = await openRoot(dir, { job, known: found.parts.length ? undefined : places[found.index].known });
     }
-    return false;
+    if (!id) return false;
+    set({ pendingJob: null });
+    selectIn(folderKeyOf(id, ''), trackId);
+    return true;
+  };
+
+  /** What `key` holds, as text: to tell whether reading it again changed anything. */
+  const shapeOf = (tracks: TrackFile[], folders: string[], remaster: unknown) => JSON.stringify([tracks.map(t => [t.id, t.file, t.label, t.key, t.info ?? null]), folders, remaster]);
+
+  /**
+   * Reads an unfolded folder again and takes what changed: files and folders that are new or gone, what its
+   * remaster.json says, and audio written again under the same name (it is loaded again when next heard).
+   */
+  const reread = async (key: string): Promise<boolean> => {
+    const f = get().folders[key];
+    if (!f || f.state !== 'open') return false;
+    const root = get().roots.find(r => r.id === f.root);
+    const listing = await readFolder(f.handle, parentNameOf(f)).catch(() => null);
+    if (!listing || !get().folders[key]) return false;
+    const childKey = (name: string) => folderKeyOf(f.root, f.path ? `${f.path}/${name}` : name);
+    const stale = new Set<string>();
+    // a folder opened by path would download each file to ask its date, so its audio is taken as it is
+    if (!root?.absPath) {
+      for (const t of listing.tracks) {
+        const have = get().tracks[uidOf(key, t.id)];
+        if (!have?.lastModified) continue;
+        const file = await readFileIn(f.handle, t.file).catch(() => null);
+        if (file && (file.lastModified !== have.lastModified || t.file !== have.file)) stale.add(have.uid);
+      }
+    }
+    const now = f.tracks.map(uid => get().tracks[uid]).filter(Boolean);
+    const same = shapeOf(listing.tracks, listing.folders.map(c => childKey(c.name)), listing.remaster) === shapeOf(now, f.folders, f.remaster);
+    if (same && !stale.size) return false;
+    const keptTracks = listing.tracks.map(t => uidOf(key, t.id));
+    const keptFolders = listing.folders.map(c => childKey(c.name));
+    // everything under a folder that is gone goes with it
+    const under = (k: string): string[] => [k, ...(get().folders[k]?.folders ?? []).flatMap(under)];
+    const goneFolders = new Set(f.folders.filter(k => !keptFolders.includes(k)).flatMap(under));
+    const goneTracks = new Set([...f.tracks.filter(u => !keptTracks.includes(u)), ...Object.values(get().tracks).filter(t => goneFolders.has(t.folder)).map(t => t.uid)]);
+    for (const uid of [...goneTracks, ...stale]) {
+      engine?.removeBuffer(uid);
+      sizes.delete(uid);
+    }
+    queue = queue.filter(q => !goneTracks.has(q.uid));
+    set(s => {
+      const tracks = { ...s.tracks };
+      const peaks = { ...s.peaks };
+      const folders = { ...s.folders };
+      for (const uid of goneTracks) {
+        delete tracks[uid];
+        delete peaks[uid];
+      }
+      for (const k of goneFolders) delete folders[k];
+      for (const t of listing.tracks) {
+        const uid = uidOf(key, t.id);
+        // what remaster.json said before goes: the new listing says what it says now
+        const before: Partial<Track> = { ...(tracks[uid] ?? { status: 'idle' as const }) };
+        delete before.info;
+        if (stale.has(uid)) {
+          delete peaks[uid];
+          Object.assign(before, { status: 'idle', length: undefined, lastModified: undefined, levels: undefined });
+        }
+        tracks[uid] = { ...(before as Pick<Track, 'status'>), ...t, uid, folder: key };
+      }
+      for (const c of listing.folders) folders[childKey(c.name)] ??= closedFolder(f.root, f.path ? `${f.path}/${c.name}` : c.name, c.name, key, c.handle);
+      folders[key] = { ...folders[key], tracks: keptTracks, folders: keptFolders, versions: listing.versions, remaster: listing.remaster, index: listing.index };
+      return { tracks, peaks, folders, ...layout({ roots: s.roots, folders, tracks }) };
+    });
+    return true;
+  };
+
+  /** After folders were read again: the selection keeps what is still there, and what is selected is loaded. */
+  const settle = () => {
+    applySelection(prune(get().sel, uid => !!get().tracks[uid]));
+    for (const uid of get().sel.selected) want(uid, true);
+    syncHeard();
+    void switchReview();
   };
 
   return {
@@ -620,8 +727,9 @@ export const useStemStore = create<StemState>((set, get) => {
     rows: [],
     order: [],
     sel: EMPTY,
-    recent: [],
+    known: [],
     pendingJob: null,
+    refreshing: false,
     playing: false,
     waiting: false,
     heard: [],
@@ -632,7 +740,7 @@ export const useStemStore = create<StemState>((set, get) => {
     volume: 1,
     matched: {},
     notesOpen: true,
-    offerFor: null,
+    notesPlain: false,
     review: null,
     revisions: {},
     revisionIds: [],
@@ -653,16 +761,7 @@ export const useStemStore = create<StemState>((set, get) => {
         if (byPath) await get().openPath(byPath, track);
         return;
       }
-      set({ support: 'ok' });
-      const [recent, stored] = await Promise.all([remembered.loadRecent().catch(() => []), remembered.loadSources().catch(() => [])]);
-      const roots: Root[] = [];
-      const folders: Record<string, Folder> = {};
-      for (const e of stored) {
-        const granted = (await queryReadWrite(e.handle)) === 'granted';
-        roots.push({ id: e.id, name: e.name, handle: e.handle, status: granted ? 'ready' : 'needs-permission' });
-        folders[folderKeyOf(e.id, '')] = closedFolder(e.id, '', e.name, null, e.handle);
-      }
-      set(s => ({ recent, roots, folders, ...layout({ roots, folders, tracks: s.tracks }) }));
+      set({ support: 'ok', known: await loadKnown() });
       if (byPath) return get().openPath(byPath, track);
       const job = params.get('job');
       if (job && !(await resolveJob(job, track))) set({ pendingJob: job });
@@ -670,15 +769,22 @@ export const useStemStore = create<StemState>((set, get) => {
 
     pickRoot: async () => {
       try {
-        const handle = await pickFolder();
-        const id = await addRoot(handle, { persist: true });
-        if (!id) return;
-        const pending = get().pendingJob;
-        if (pending && (await resolveJob(pending))) return;
-        if (!get().sel.focus) selectIn(folderKeyOf(id, ''));
+        await get().openPicked(await pickFolder());
       } catch (err) {
         if (!isAbortError(err)) toast.error(errorMessage(err));
       }
+    },
+
+    openPicked: async handle => {
+      // kept by the browser, so a later link under it opens without a pick
+      const entry = await remembered.addSource(handle).catch(() => null);
+      if (entry) set({ known: await loadKnown() });
+      const pending = get().pendingJob;
+      // a link is waiting: the picked folder is its folder, or holds it
+      if (pending && (await resolveJob(pending, null, [{ handle, known: entry?.id }]))) return;
+      if (pending) toast.message(`${handle.name} does not hold ${pending}: it is opened as it is`, { duration: 7000 });
+      const id = await openRoot(handle, { known: entry?.id });
+      if (id) selectIn(folderKeyOf(id, ''));
     },
 
     openPath: async (absPath, track) => {
@@ -688,22 +794,29 @@ export const useStemStore = create<StemState>((set, get) => {
         else toast.error(`No folder at ${absPath}`);
         return;
       }
-      const id = await addRoot(res.handle, { absPath: res.path, persist: false });
+      const id = await openRoot(res.handle, { absPath: res.path });
       if (id) selectIn(folderKeyOf(id, ''), track);
     },
 
-    openRecent: async entry => {
+    openKnown: async id => {
+      const entry = get().known.find(k => k.id === id);
+      if (!entry) return;
       if ((await requestReadWrite(entry.handle)) !== 'granted') {
-        toast.error('Access to the folder was not granted');
+        toast.error(`Access to ${entry.name} was not granted`);
         return;
       }
-      const id = await addRoot(entry.handle, { persist: true });
-      if (id && !get().sel.focus) selectIn(folderKeyOf(id, ''));
+      if (!entry.granted) set({ known: await loadKnown() });
+      const pending = get().pendingJob;
+      if (pending && (await resolveJob(pending, null, [{ handle: entry.handle, known: entry.id }]))) return;
+      const root = await openRoot(entry.handle, { known: entry.id });
+      if (root) selectIn(folderKeyOf(root, ''));
     },
 
-    forgetRecent: async id => {
-      await remembered.forgetRecent(id);
-      set({ recent: await remembered.loadRecent() });
+    forgetKnown: async id => {
+      const entry = get().known.find(k => k.id === id);
+      if (!entry) return;
+      await (entry.kind === 'source' ? remembered.removeSource(id) : remembered.forgetRecent(id)).catch(() => undefined);
+      set({ known: await loadKnown() });
     },
 
     closeRoot: async id => {
@@ -724,7 +837,6 @@ export const useStemStore = create<StemState>((set, get) => {
         const peaks = Object.fromEntries(Object.entries(s.peaks).filter(([uid]) => !gone.has(uid)));
         return { roots, folders, tracks, peaks, ...layout({ roots, folders, tracks }) };
       });
-      if (!root.absPath) await remembered.removeSource(id).catch(() => undefined);
       applySelection(prune(get().sel, uid => !!get().tracks[uid]));
       if (!get().sel.focus) {
         updateUrl();
@@ -740,10 +852,22 @@ export const useStemStore = create<StemState>((set, get) => {
         relayout();
         return;
       }
-      if (!(await expand(key))) return;
-      // a link that waited for this root's access can be followed now
-      const pending = get().pendingJob;
-      if (pending && !f.parent) await resolveJob(pending);
+      await expand(key);
+    },
+
+    refreshTree: async () => {
+      if (get().refreshing) return;
+      set({ refreshing: true });
+      try {
+        // a folder before the ones inside it: one that is gone takes what is under it
+        const depth = (f: Folder) => (f.path ? f.path.split('/').length : 0);
+        const open = Object.values(get().folders).filter(f => f.state === 'open').sort((a, b) => depth(a) - depth(b));
+        for (const f of open) await reread(f.key);
+        settle();
+        if (get().review) await loadRevisions(reviewToken, true);
+      } finally {
+        set({ refreshing: false });
+      }
     },
 
     setCompare: (key, on) => {
@@ -757,6 +881,11 @@ export const useStemStore = create<StemState>((set, get) => {
     },
 
     clickTrack: (uid, mods) => applySelection(click(get().sel, get().order, uid, mods)),
+    selectIds: (folder, ids) => {
+      const s = get();
+      const uids = s.order.filter(uid => s.tracks[uid]?.folder === folder && ids.includes(s.tracks[uid].id));
+      if (uids.length) applySelection({ selected: uids, focus: uids[0], anchor: uids[0] });
+    },
     moveFocus: (delta, extend) => applySelection(move(get().sel, get().order, delta, extend)),
     selectProject: () => {
       const folder = selectCurrent(get());
@@ -803,44 +932,18 @@ export const useStemStore = create<StemState>((set, get) => {
 
     setNotesOpen: open => {
       const folder = selectCurrent(get());
-      if (isReviewable(folder)) set({ notesOpen: open });
-      else set({ offerFor: open && folder ? folder.key : null });
+      set(isReviewable(folder) ? { notesOpen: open } : { notesPlain: open });
     },
 
-    /** Re-reads the current project: Claude replies to revisions, re-renders versions and writes remaster.json while the page is open. */
+    /** Re-reads the folder under review: Claude replies to revisions, re-renders versions and writes remaster.json while the page is open. */
     refresh: async () => {
       const job = reviewJobOf(get());
-      if (!job) return;
+      if (!job || get().refreshing) return;
+      // only a folder being reviewed is watched: versions, or one that has notes
+      if (!isReviewable(job.folder) && !get().revisionIds.length) return;
       const token = reviewToken;
-      const key = job.folder.key;
-      const listing = await readFolder(job.folder.handle, job.folder.parent ? get().folders[job.folder.parent]?.name : undefined).catch(() => null);
-      if (token !== reviewToken || !get().folders[key]) return;
-      const shape = (t: TrackFile) => ({ id: t.id, file: t.file, label: t.label, key: t.key, info: t.info ?? null });
-      const now = job.folder.tracks.map(uid => get().tracks[uid]).filter(Boolean);
-      const fresh = listing && JSON.stringify([listing.tracks.map(shape), listing.remaster]) !== JSON.stringify([now.map(shape), job.folder.remaster]);
-      if (listing && fresh) {
-        const kept = new Set(listing.tracks.map(t => uidOf(key, t.id)));
-        for (const uid of job.folder.tracks.filter(u => !kept.has(u))) {
-          engine?.removeBuffer(uid);
-          sizes.delete(uid);
-        }
-        set(s => {
-          const tracks = { ...s.tracks };
-          for (const uid of s.folders[key].tracks) if (!kept.has(uid)) delete tracks[uid];
-          for (const t of listing.tracks) {
-            const uid = uidOf(key, t.id);
-            // what remaster.json said before goes: the new listing says what it says now
-            const before: Partial<Track> = { ...(tracks[uid] ?? { status: 'idle' as const }) };
-            delete before.info;
-            tracks[uid] = { ...(before as Pick<Track, 'status'>), ...t, uid, folder: key };
-          }
-          const folders = { ...s.folders, [key]: { ...s.folders[key], tracks: [...kept], remaster: listing.remaster, index: listing.index, versions: listing.versions } };
-          return { tracks, folders, ...layout({ roots: s.roots, folders, tracks }) };
-        });
-        applySelection(prune(get().sel, uid => !!get().tracks[uid]));
-        syncHeard();
-      }
-      await loadRevisions(token, true);
+      if (await reread(job.folder.key)) settle();
+      if (token === reviewToken) await loadRevisions(token, true);
     },
 
     newRevision: async () => {
@@ -882,21 +985,29 @@ export const useStemStore = create<StemState>((set, get) => {
     },
 
     addComment: async (rawText, opts = {}) => {
-      const text = rawText.trim();
       const job = reviewJobOf(get());
-      if (!text || !job) return false;
-      const focus = get().sel.focus ? get().tracks[get().sel.focus!] : undefined;
-      const ids = opts.ids ?? (focus && focus.folder === job.folder.key ? [focus.id] : []);
+      if (!rawText.trim() || !job) return false;
+      const s = get();
+      // the note is about the selected tracks of this folder (the focused one when none is given); tracks of another
+      // folder that play with them are named in its words, since a folder's notes list only its own tracks
+      const picked = s.sel.selected.map(uid => s.tracks[uid]).filter(Boolean);
+      const mine = picked.filter(t => t.folder === job.folder.key).map(t => t.id);
+      const others = opts.ids ? [] : picked.filter(t => t.folder !== job.folder.key).map(t => `${s.folders[t.folder]?.name ?? ''}/${t.label}`);
+      const focus = s.sel.focus ? s.tracks[s.sel.focus] : undefined;
+      const ids = opts.ids ?? (mine.length ? mine : focus && focus.folder === job.folder.key ? [focus.id] : []);
+      const text = rawText.trim() + (others.length ? `\n(heard together with ${others.join(', ')})` : '');
       const revisionId = await editable();
       if (!revisionId) return false;
       const images = job.ids.filter(id => ids.includes(id));
+      // the moment is pinned to the focused track when it is one of them
+      const pinned = focus && images.includes(focus.id) ? focus.id : images[0];
       const comment: ImageComment = {
         id: nextCommentId(get().revisions[revisionId].comments),
         images,
         text,
         createdAt: new Date().toISOString(),
         status: 'open',
-        ...(typeof opts.t === 'number' && images.length === 1 ? { pin: { image: images[0], x: 0, y: 0, t: Math.round(opts.t * 100) / 100 } } : {}),
+        ...(typeof opts.t === 'number' && pinned ? { pin: { image: pinned, x: 0, y: 0, t: Math.round(opts.t * 100) / 100 } } : {}),
       };
       update(revisionId, r => ({ ...r, comments: [...r.comments, comment] }));
       return true;
@@ -943,7 +1054,7 @@ export const useStemStore = create<StemState>((set, get) => {
       await Promise.all([...[...saveTimers.keys()].map(id => get().saveRevision(id)), ...saveChains.values()]);
     },
 
-    requestComposerFocus: () => set(s => ({ composerFocus: s.composerFocus + 1, notesOpen: true })),
+    requestComposerFocus: () => set(s => ({ composerFocus: s.composerFocus + 1, ...(isReviewable(selectCurrent(s)) ? { notesOpen: true } : { notesPlain: true }) })),
     setShortcutsOpen: open => set({ shortcutsOpen: open }),
 
     copySelection: async () => {
@@ -962,6 +1073,10 @@ export const useStemStore = create<StemState>((set, get) => {
         position: engine?.position() ?? 0,
         duration: engine?.duration ?? 0,
         loop: s.loop,
+        // the open notes of the folder the selection is in go with it
+        notes: (selectActiveRevision(s)?.comments ?? [])
+          .filter(c => c.status !== 'done')
+          .map(c => ({ t: c.pin?.t, text: c.text, tracks: c.images.map(id => (s.review ? s.tracks[uidOf(s.review, id)]?.label : undefined) ?? id) })),
       });
       try {
         await navigator.clipboard.writeText(text);

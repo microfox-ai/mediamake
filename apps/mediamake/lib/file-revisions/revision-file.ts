@@ -99,6 +99,9 @@ const howTo = (index: ImageSetIndex | null, job: string) => {
   const thumbs = ['create-thumbnail', 'create-music-poster', 'make-thumbnail', 'make-music-poster'];
   if (workflow === 'make-loudness-remaster' || formatOf(index).remaster)
     return 'The final is the version the user picked by ear in the Stem Player, /stem-player (IDs are the file names without their extension): copy it next to the song\'s mix as `<Title> - final master (…).wav` (`cp -n`, then `cmp`) and use it as the song\'s audio from then on. A note on a version says what they heard in it (a time means that moment); a dropped version is out.';
+  // notes written while listening in the Stem Player, on tracks that are not versions to choose between
+  if (index?.kind === 'audio')
+    return 'These are notes on audio tracks, written while listening in the Stem Player, /stem-player (IDs are the file names without their extension, in the folder named above). Each comment is about the tracks it names, and a time is the moment in the audio it means: do what it asks with those tracks.';
   if ((workflow && thumbs.includes(workflow)) || (!workflow && formatOf(index).thumbnail))
     return `Finals → \`mm thumbs pick ${job} <IDs>\`${index?.kind === 'poster' ? ' (add `--to=<release folder>` to copy the cover there as cover.jpg)' : ''}; keep → \`thumbs keep\`. Fix each comment as a change to that variant or as a new variant (IDs never change once seen) and re-render those IDs.`;
   return 'Act on finals, keeps and drops, and fix each comment, the way the workflow that made these files works (re-generate or edit those files, keeping their IDs).';

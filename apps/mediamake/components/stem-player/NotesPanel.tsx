@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { CheckIcon, ClockIcon, CopyIcon, GitCompareArrowsIcon, PlusIcon, SendIcon, Trash2Icon, TriangleAlertIcon, Undo2Icon } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CheckIcon, ClockIcon, CopyIcon, GitCompareArrowsIcon, PlusIcon, SendIcon, Trash2Icon, TriangleAlertIcon, Undo2Icon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Hint } from '@/components/revisions/keyboard';
@@ -12,34 +11,31 @@ import { STATUS_LABEL, clock, staleImages } from '@/lib/file-revisions/revision-
 import { getEngine, isReviewable, jobNameOf, selectActiveRevision, selectCurrent, uidOf, useReviewJob, useStemStore } from './store';
 
 /*
- * The review of a folder of versions: which one is the final, which are dropped, every note, and
- * the Submit to Claude button. The files are the ones /file-revision writes (rev-NNN.json + .md in
- * <folder>/<folder>.revisions/), so the skill that made the versions reads the pick back the same
- * way. Any other folder gets this panel when the user turns Compare versions on for it.
+ * Notes on what is heard: a note is about the selected tracks of the folder, at the moment the
+ * playhead is at (or about the whole track), and is saved beside the files for Claude. The files are
+ * the ones /file-revision writes (rev-NNN.json + .md in <folder>/<folder>.revisions/), so a skill
+ * reads them the same way. A folder of versions also has its final pick and drops here.
  */
 
-function TrackChip({ id }: { id: string }) {
-  const track = useStemStore(s => (s.review ? s.tracks[uidOf(s.review, id)] : undefined));
-  const clickTrack = useStemStore(s => s.clickTrack);
-  const label = track?.label ?? id;
+/** The tracks of the folder under review a note is about, as chips: a click selects them. */
+function TrackChips({ ids, empty }: { ids: string[]; empty: string }) {
+  const review = useStemStore(s => s.review);
+  const tracks = useStemStore(s => s.tracks);
+  const selectIds = useStemStore(s => s.selectIds);
+  if (!ids.length || !review) return <span className="text-xs text-muted-foreground">{empty}</span>;
   return (
-    <Hint label={`Listen to ${label}`}>
-      <button type="button" onClick={() => track && clickTrack(track.uid)} className="rounded bg-amber-400 px-1.5 text-[11px] font-extrabold text-black hover:bg-amber-300">
-        {label}
-      </button>
-    </Hint>
-  );
-}
-
-function Chips({ ids, empty }: { ids: string[]; empty: string }) {
-  return ids.length ? (
     <span className="flex flex-wrap gap-1">
-      {ids.map(id => (
-        <TrackChip key={id} id={id} />
-      ))}
+      {ids.map(id => {
+        const label = tracks[uidOf(review, id)]?.label ?? id;
+        return (
+          <Hint key={id} label={`Listen to ${label}`}>
+            <button type="button" onClick={() => selectIds(review, [id])} className="rounded bg-amber-400 px-1.5 text-[11px] font-extrabold text-black hover:bg-amber-300">
+              {label}
+            </button>
+          </Hint>
+        );
+      })}
     </span>
-  ) : (
-    <span className="text-xs text-muted-foreground">{empty}</span>
   );
 }
 
@@ -89,11 +85,11 @@ function SubmitBox() {
       </div>
       {stale.length > 0 && (
         <p className="flex items-start gap-1 text-xs text-amber-400">
-          <TriangleAlertIcon className="mt-px size-3.5 shrink-0" /> Re-rendered since: {stale.length} version{stale.length === 1 ? '' : 's'}. Listen again.
+          <TriangleAlertIcon className="mt-px size-3.5 shrink-0" /> Written again since: {stale.length} track{stale.length === 1 ? '' : 's'}. Listen again.
         </p>
       )}
       {revision.status === 'draft' && (
-        <Hint label="Marks the revision ready, so Claude acts on it">
+        <Hint label="Marks the notes ready and copies the line to send, so Claude reads them from beside the files">
           <Button
             size="sm"
             className="w-full"
@@ -123,16 +119,19 @@ function SubmitBox() {
           </div>
         </div>
       )}
-      {revision.status === 'resolved' && <p className="text-xs text-muted-foreground">Claude resolved this revision. New actions start a new one.</p>}
+      {revision.status === 'resolved' && <p className="text-xs text-muted-foreground">Claude resolved this revision. New notes start a new one.</p>}
     </div>
   );
 }
 
-const QUICK = ['too bright', 'vocal buried', 'bass muddy', 'this one', 'harsh at the chorus'];
+const QUICK = ['louder', 'softer', 'bring in here', 'take out here', 'too bright', 'this one'];
 
-/** A note on the focused track, with the moment it is about when wanted. */
+/** A note on the selected tracks of this folder, at the moment the playhead is at (N), or on the whole track. */
 function NoteComposer() {
-  const track = useStemStore(s => (s.sel.focus && s.tracks[s.sel.focus]?.folder === s.review ? s.tracks[s.sel.focus] : undefined));
+  const review = useStemStore(s => s.review);
+  const selected = useStemStore(s => s.sel.selected);
+  const focus = useStemStore(s => s.sel.focus);
+  const tracks = useStemStore(s => s.tracks);
   const addComment = useStemStore(s => s.addComment);
   const pause = useStemStore(s => s.pause);
   const seek = useStemStore(s => s.seek);
@@ -140,50 +139,73 @@ function NoteComposer() {
   const [text, setText] = useState('');
   const [at, setAt] = useState<number | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  // what the note will be about: the selected tracks of this folder, else the focused one
+  const mine = useMemo(() => {
+    const here = selected.map(uid => tracks[uid]).filter(t => t && t.folder === review);
+    const f = focus ? tracks[focus] : undefined;
+    return here.length ? here : f && f.folder === review ? [f] : [];
+  }, [selected, focus, tracks, review]);
+  const elsewhere = useMemo(() => selected.filter(uid => tracks[uid] && tracks[uid].folder !== review).length, [selected, tracks, review]);
+  const stampNow = () => {
+    pause();
+    setAt(getEngine()?.position() ?? 0);
+  };
+  // N: this moment, and the cursor in the box
   useEffect(() => {
-    if (composerFocus) ref.current?.focus();
-  }, [composerFocus]);
-  if (!track) return null;
+    if (!composerFocus) return;
+    pause();
+    setAt(getEngine()?.position() ?? 0);
+    ref.current?.focus();
+  }, [composerFocus, pause]);
+  if (!mine.length) return null;
+  const names = mine.length > 3 ? `${mine.length} tracks` : mine.map(t => t.label).join(' + ');
   const submit = async () => {
-    if (await addComment(text, { ids: [track.id], ...(at !== null ? { t: at } : {}) })) {
+    if (await addComment(text, at !== null ? { t: at } : {})) {
       setText('');
       setAt(null);
     }
   };
   return (
     <div className="space-y-2 border-b p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-semibold">Note on {track.label}</span>
-        <Hint label={at === null ? 'Attach the moment the playhead is at (pauses)' : 'Forget the moment'}>
-          <button
-            type="button"
-            onClick={() => {
-              if (at !== null) return setAt(null);
-              pause();
-              setAt(getEngine()?.position() ?? 0);
-            }}
-            className={cn('flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px]', at !== null ? 'border-blue-400 text-blue-400' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
-          >
-            <ClockIcon className="size-3" /> {at === null ? 'at this moment' : `at ${clock(at)}`}
-          </button>
-        </Hint>
-        {at !== null && (
-          <button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:underline" onClick={() => seek(at)}>
-            go there
-          </button>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <span className="font-semibold">Note on {names}</span>
+        {at === null ? (
+          <Hint label="Make the note about the moment the playhead is at (pauses)">
+            <button type="button" onClick={stampNow} className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground">
+              <ClockIcon className="size-3" /> add this moment
+            </button>
+          </Hint>
+        ) : (
+          <span className="flex items-center gap-0.5 rounded-full border border-blue-400 py-0.5 pl-2 pr-1 text-[11px] text-blue-400">
+            <Hint label="Go to that moment">
+              <button type="button" onClick={() => seek(at)} className="flex items-center gap-1">
+                <ClockIcon className="size-3" /> at {clock(at)}
+              </button>
+            </Hint>
+            <Hint label="No moment: the note is about the whole track">
+              <button type="button" aria-label="Remove the moment" onClick={() => setAt(null)} className="rounded-full p-0.5 hover:bg-muted">
+                <XIcon className="size-3" />
+              </button>
+            </Hint>
+          </span>
         )}
       </div>
+      {elsewhere > 0 && <p className="text-[11px] text-muted-foreground">The {elsewhere === 1 ? 'track' : `${elsewhere} tracks`} selected in another folder {elsewhere === 1 ? 'is' : 'are'} named in the note&apos;s words.</p>}
       <Textarea
         ref={ref}
         value={text}
         onChange={e => setText(e.target.value)}
+        onFocus={() => {
+          // a note started by clicking in the box is about this moment too
+          if (at === null && !text) stampNow();
+        }}
         onKeyDown={e => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
             void submit();
           }
         }}
-        placeholder={`What you hear in ${track.label}…`}
+        placeholder={`What you want, or hear, in ${names}…`}
         className="min-h-16 text-sm"
       />
       <div className="flex flex-wrap items-center gap-1">
@@ -202,6 +224,7 @@ function NoteComposer() {
   );
 }
 
+/** In a folder of versions: a note about all of them. */
 function GeneralNote() {
   const addComment = useStemStore(s => s.addComment);
   const job = useReviewJob();
@@ -231,42 +254,45 @@ function GeneralNote() {
   );
 }
 
-function Comments() {
+function Comments({ versions }: { versions: boolean }) {
   const revision = useStemStore(selectActiveRevision);
   const job = useReviewJob();
   const updateComment = useStemStore(s => s.updateComment);
   const deleteComment = useStemStore(s => s.deleteComment);
   const seek = useStemStore(s => s.seek);
-  const clickTrack = useStemStore(s => s.clickTrack);
+  const selectIds = useStemStore(s => s.selectIds);
   if (!job) return null;
   const count = job.ids.length;
+  // by moment, the notes on a whole track after them
+  const notes = [...(revision?.comments ?? [])].sort((a, b) => (a.pin?.t ?? Infinity) - (b.pin?.t ?? Infinity));
   return (
     <div className="space-y-3 p-3">
-      <div className="space-y-1.5 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-12 shrink-0 font-semibold">Final</span>
-          <Chips ids={revision?.final ?? []} empty="— press Enter on the one you'd keep" />
+      {versions && (
+        <div className="space-y-1.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 font-semibold">Final</span>
+            <TrackChips ids={revision?.final ?? []} empty="— press Enter on the one you'd keep" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 font-semibold">Drop</span>
+            <TrackChips ids={revision?.drop ?? []} empty="—" />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-12 shrink-0 font-semibold">Drop</span>
-          <Chips ids={revision?.drop ?? []} empty="—" />
-        </div>
-      </div>
-      <div className="text-xs font-semibold">Notes ({revision?.comments.length ?? 0})</div>
-      {!revision?.comments.length && <p className="text-xs text-muted-foreground">No notes yet. Press N to write one on the track you are on.</p>}
-      {revision?.comments.map(c => {
-        const whole = count > 1 && c.images.length === count;
+      )}
+      <div className="text-xs font-semibold">Notes ({notes.length})</div>
+      {!notes.length && <p className="text-xs text-muted-foreground">No notes yet. Press N at the moment you mean: the note is about the tracks you have selected. Copy in the sidebar takes the notes along.</p>}
+      {notes.map(c => {
+        // "all of them" is a versions folder's note about the whole set; elsewhere a note names its tracks
+        const whole = versions && count > 1 && c.images.length === count;
         return (
           <div key={c.id} className={cn('space-y-1.5 rounded-md border p-2', c.status === 'done' && 'opacity-60')}>
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-muted-foreground">{c.id}</span>
-              {whole ? <span className="text-[11px] text-muted-foreground">all of them</span> : <Chips ids={c.images} empty="" />}
               {c.pin?.t !== undefined && (
-                <Hint label="Go to that moment in that track">
+                <Hint label="Go to that moment, with those tracks">
                   <button
                     type="button"
                     onClick={() => {
-                      clickTrack(uidOf(job.folder.key, c.pin!.image));
+                      selectIds(job.folder.key, c.images);
                       seek(c.pin!.t!);
                     }}
                     className="flex items-center gap-0.5 rounded-full border border-blue-400/60 px-1.5 text-[10px] text-blue-400"
@@ -275,7 +301,9 @@ function Comments() {
                   </button>
                 </Hint>
               )}
-              <span className="ml-auto flex gap-0.5">
+              {whole ? <span className="text-[11px] text-muted-foreground">all of them</span> : <TrackChips ids={c.images} empty="" />}
+              <span className="ml-auto flex items-center gap-0.5">
+                <span className="mr-1 text-[10px] text-muted-foreground">{c.id}</span>
                 <Hint label={c.status === 'done' ? 'Reopen' : 'Mark done'}>
                   <button type="button" onClick={() => updateComment(c.id, { status: c.status === 'done' ? 'open' : 'done' })} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground">
                     <CheckIcon className="size-3.5" />
@@ -304,36 +332,32 @@ function Comments() {
 export function NotesPanel() {
   const folder = useStemStore(selectCurrent);
   const setCompare = useStemStore(s => s.setCompare);
-  if (!folder)
-    return <div className="p-4 text-xs text-muted-foreground">Notes and the final pick appear here for a folder that holds the versions of one song.</div>;
-  if (!isReviewable(folder))
-    return (
-      <div className="space-y-3 p-4 text-xs text-muted-foreground">
-        <p>
-          <b className="text-foreground">{folder.name}</b> plays as it is: select tracks to hear them, alone or together.
-        </p>
-        <p>If its files are versions of one song to choose between, turn on Compare versions: you get Match levels, a final pick, drops, and notes saved beside the files for Claude.</p>
-        <Button size="sm" variant="outline" className="h-7 w-full gap-1.5 text-xs" onClick={() => setCompare(folder.key, true)}>
-          <GitCompareArrowsIcon className="size-3.5" /> Compare versions in this folder
-        </Button>
-      </div>
-    );
+  if (!folder) return <div className="p-4 text-xs text-muted-foreground">Select a track to leave a note on it.</div>;
+  const versions = isReviewable(folder);
   return (
     <div className="flex h-full flex-col">
       <RevisionTabs />
-      <ScrollArea className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <SubmitBox />
         <NoteComposer />
-        <GeneralNote />
-        <Comments />
-        {folder.compare && !folder.versions && (
-          <div className="p-3 pt-0">
-            <button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:underline" onClick={() => setCompare(folder.key, false)}>
-              Stop comparing versions in this folder (notes stay on disk)
+        {versions && <GeneralNote />}
+        <Comments versions={versions} />
+        <div className="space-y-2 border-t p-3 text-[11px] text-muted-foreground">
+          {!versions && (
+            <>
+              <p>Are these files versions of one song to choose between? Comparing them adds Match levels, a final pick and drops.</p>
+              <Button size="sm" variant="outline" className="h-7 w-full min-w-0 gap-1.5 text-xs" onClick={() => setCompare(folder.key, true)}>
+                <GitCompareArrowsIcon className="size-3.5 shrink-0" /> <span className="truncate">Compare versions here</span>
+              </Button>
+            </>
+          )}
+          {folder.compare && !folder.versions && (
+            <button type="button" className="underline-offset-2 hover:underline" onClick={() => setCompare(folder.key, false)}>
+              Stop comparing versions in this folder (the notes stay)
             </button>
-          </div>
-        )}
-      </ScrollArea>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

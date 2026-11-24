@@ -66,7 +66,7 @@ export function Lanes() {
           failed: t.status === 'error',
           length: t.length ?? 0,
           peaks: peaks[t.uid],
-          pins: review === t.folder ? (revision?.comments ?? []).filter(c => c.pin?.t !== undefined && c.pin.image === t.id).map(c => c.pin!.t!) : [],
+          pins: review === t.folder ? (revision?.comments ?? []).filter(c => c.pin?.t !== undefined && c.images.includes(t.id)).map(c => c.pin!.t!) : [],
         })),
     [selected, tracks, peaks, review, revision],
   );

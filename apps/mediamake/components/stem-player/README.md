@@ -31,8 +31,20 @@ by path on the local app. The page is public (`app/(public)/`): no sign-in, no A
   together. Once something is selected the selection is never empty.
 - **Copy** (the sidebar's button, or ⌘/Ctrl C with no text selected) puts the tracks loaded in
   the player on the clipboard as text for Claude: each one's label and file, the folder it is in
-  (its full path when the screen knows it), the playhead and the loop. Paste it and say what you
-  want done (`lib/stem-player/copy.ts`).
+  (its full path when the screen knows it), the playhead, the loop and the folder's open notes.
+  Paste it and say what you want done (`lib/stem-player/copy.ts`).
+- **Notes work in any folder.** N writes a note at the moment the playhead is at, about the
+  selected tracks of the current folder (its chip takes the moment off, for a note on the whole
+  track). Notes show as pins on the lanes and in the Notes panel, are saved beside the files like a
+  versions folder's (below), and go along with Copy. Tracks selected in another folder are named in
+  the note's words, since a folder's notes list only its own tracks.
+- **Refresh** (the sidebar's button, R, and whenever the tab comes back) reads every unfolded
+  folder again: files and folders that are new or gone, and audio written again under the same
+  name, which loads again when next heard.
+- **Only the folder that was asked for is in the tree.** A picked folder is its own root; a link
+  opens the folder it names as its own root, never a folder above it. Folders given before are
+  kept by the browser and listed under "Opened before": a click opens one, and links are looked
+  up under them without opening them.
 - **The playhead survives every change.** One playhead for everything open; a new selection never
   moves it, playing or paused. A track shorter than where the playhead is loads, playback pauses,
   and the playhead sits at that track's end. At the end of the song playback pauses and stays
@@ -73,7 +85,7 @@ the store are on `window.__stemPlayer` for measuring.
 
 A folder is a **versions folder** when it has a `remaster.json` or an `index.json`, or is a
 remaster ladder's `v<N>` folder; any other folder becomes one when the user turns on Compare
-versions (in Notes). Only there:
+versions (in Notes). Notes are everywhere; only a versions folder also has:
 
 - **Match levels**: each track's loudness is measured as it loads (`loudness.ts`: ITU-R BS.1770-4,
   the same method as pyloudnorm in the remaster skill's `measure.py`, within ~0.1 LU) or taken
@@ -81,8 +93,8 @@ versions (in Notes). Only there:
   under -50 LUFS are left out), so the ear judges the sound, not the volume. It applies while one
   track is heard; with several heard the trims are left out, so their balance is never changed.
   Versions more than 1 LU apart show a hint.
-- **Notes**: the final pick (Enter), drops (Delete), a note on a track, with the moment the
-  playhead is at when wanted, a note on all of them, and Submit to Claude.
+- **A final pick and drops**: Enter marks the version you'd keep, Delete drops one, and a note can
+  be about all of them. Submit to Claude marks the revision ready.
 
 Stems folders have neither: their quietest stem is often near silence, and matching to it would
 bury the rest.
@@ -120,21 +132,26 @@ folder has one: its order, `title`, `path` and `workflow` win.
 **Files the page writes** are exactly what `/file-revision` writes
 (`lib/file-revisions/revision-file.ts`), so the skills read the pick back the same way:
 `<folder>/<folder>.revisions/rev-NNN.json` (`mediamake.image-revision/v1`) and `rev-NNN.md`.
+A plain folder's notes are written the same way, as kind `audio` (no final, and the Markdown says
+they are notes on tracks).
 
 - `final`: the version the user picked (one). `drop`: versions that are out.
-- `comments`: a note on a track is a comment with `images: [<id>]`; one written at a moment
-  carries `pin: { image, x: 0, y: 0, t }` (seconds); a note on all of them lists every ID.
+- `comments`: a note is a comment with `images: [<the IDs it is about>]`; one written at a moment
+  carries `pin: { image, x: 0, y: 0, t }` (seconds; `image` is the focused track); a note on all of
+  them lists every ID.
 - `status`: `draft` → `ready` (Submit to Claude) → `resolved` (Claude sets it, with a `reply` and
   `status: "done"` on each comment; the page re-reads the folder under review on focus and every 5 s).
 
 ## Links
 
-- `/stem-player?job=<path under an opened folder>` (what the skills print, e.g.
-  `?job=AMZ/fma-edwardeleric/remaster/v1`): walked under each folder the user opened (the whole
-  path, the rest after the folder's own name, or its tail), unfolded down to it and selected.
-  Browsers never expose absolute paths, so the first open is the user's pick; the folders they
-  opened are remembered (IndexedDB, the database Remaster Revisions used, so its folders are still
-  there) and ask for access again once a visit. Always on `https://mediamake.microfox.app`.
+- `/stem-player?job=<path>` (what the skills print, e.g. `?job=AMZ/fma-edwardeleric/remaster/v1`):
+  looked for under what is open and under the folders opened before (the whole path, the rest
+  after a folder's own name, or its tail). The nearest one wins, so the song's own folder is used
+  before a folder above it, and the folder the link names opens as its own root. Browsers never
+  expose absolute paths, so the first open is the user's pick; the folders they picked are kept
+  (IndexedDB, the database Remaster Revisions used, so its folders are still there). When none
+  holds the link's folder, the page asks for one click: open that folder, or one above it to
+  cover later links. Always on `https://mediamake.microfox.app`.
 - `/stem-player?path=<absolute folder>` on the local app (`/api/dev-ladder`, development only).
 - `&track=<id>` selects that track instead of the folder's first.
 - `/remaster-revision` redirects here with its query.

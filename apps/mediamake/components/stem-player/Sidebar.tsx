@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, CopyIcon, FolderOpenIcon, HistoryIcon, LinkIcon, LoaderIcon, LockIcon, StarIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon, FolderOpenIcon, HistoryIcon, LinkIcon, LoaderIcon, RefreshCwIcon, StarIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
@@ -25,21 +25,19 @@ function FolderRow({ row }: { row: Extract<Row, { kind: 'folder' }> }) {
   const closeRoot = useStemStore(s => s.closeRoot);
   if (!folder) return null;
   const open = folder.expanded && folder.state === 'open';
-  const locked = root?.status === 'needs-permission';
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
   return (
     <div
       role="treeitem"
       aria-expanded={open}
       aria-selected={false}
-      title={locked ? `Click to reconnect ${folder.name}` : (root?.absPath ?? folder.name)}
+      title={root?.absPath ?? folder.name}
       onClick={() => void toggleFolder(row.key)}
       style={{ paddingLeft: 6 + row.depth * INDENT }}
       className={cn('group flex h-7 cursor-pointer select-none items-center gap-1 rounded pr-1 text-xs hover:bg-muted/60', !folder.parent && 'font-semibold', current && 'text-foreground', !current && folder.parent && 'text-muted-foreground')}
     >
-      {folder.state === 'loading' ? <LoaderIcon className="size-3.5 shrink-0 animate-spin" /> : locked ? <LockIcon className="size-3.5 shrink-0 text-amber-400" /> : <Chevron className="size-3.5 shrink-0" />}
+      {folder.state === 'loading' ? <LoaderIcon className="size-3.5 shrink-0 animate-spin" /> : <Chevron className="size-3.5 shrink-0" />}
       <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-      {locked && <span className="shrink-0 text-[10px] font-normal text-amber-400">reconnect</span>}
       {folder.state === 'error' && <TriangleAlertIcon className="size-3.5 shrink-0 text-destructive" />}
       {isReviewable(folder) && <span className="shrink-0 rounded bg-muted px-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">versions</span>}
       {folder.state === 'open' && folder.tracks.length > 0 && <span className="shrink-0 font-mono text-[10px] font-normal tabular-nums text-muted-foreground">{folder.tracks.length}</span>}
@@ -133,38 +131,54 @@ function TrackRow({ row }: { row: Extract<Row, { kind: 'track' }> }) {
 
 function PendingLink() {
   const pendingJob = useStemStore(s => s.pendingJob);
+  const known = useStemStore(s => s.known);
   const pickRoot = useStemStore(s => s.pickRoot);
+  const openKnown = useStemStore(s => s.openKnown);
   if (!pendingJob) return null;
+  // folders opened before that the browser wants a click for again: the link's folder may be under one
+  const asleep = known.filter(k => !k.granted);
   return (
     <div className="space-y-1.5 border-b bg-amber-400/10 p-2 text-xs">
       <p className="flex items-start gap-1.5">
         <LinkIcon className="mt-0.5 size-3.5 shrink-0 text-amber-400" />
         <span className="min-w-0 break-words">
-          This link is for <b>{pendingJob}</b>. Open that folder, or one above it, once.
+          This link is for <b>{pendingJob}</b>. Open that folder once (or a folder above it, to cover later links too).
         </span>
       </p>
       <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={() => void pickRoot()}>
         Open its folder
       </Button>
+      {asleep.length > 0 && (
+        <p className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+          or allow one opened before:
+          {asleep.slice(0, 6).map(k => (
+            <button key={k.id} type="button" tabIndex={-1} onClick={() => void openKnown(k.id)} className="rounded border px-1.5 py-px hover:bg-muted hover:text-foreground">
+              {k.name}
+            </button>
+          ))}
+        </p>
+      )}
     </div>
   );
 }
 
-function Recent() {
-  const recent = useStemStore(s => s.recent);
+/** Folders given to this page before: a click opens one again. A link is looked up under them without opening them. */
+function OpenedBefore() {
+  const known = useStemStore(s => s.known);
   const roots = useStemStore(s => s.roots);
-  const openRecent = useStemStore(s => s.openRecent);
-  const forgetRecent = useStemStore(s => s.forgetRecent);
-  if (roots.length || !recent.length) return null;
+  const openKnown = useStemStore(s => s.openKnown);
+  const forgetKnown = useStemStore(s => s.forgetKnown);
+  const shut = known.filter(k => !roots.some(r => r.known === k.id));
+  if (!shut.length) return null;
   return (
     <div className="p-1">
       <div className="flex items-center gap-1 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         <HistoryIcon className="size-3" /> Opened before
       </div>
-      {recent.slice(0, 12).map(r => (
-        <div key={r.id} onClick={() => void openRecent(r)} title={r.name} className="group flex h-7 cursor-pointer items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
-          <span className="min-w-0 flex-1 truncate">{r.name}</span>
-          <button type="button" tabIndex={-1} title="Forget" onClick={e => (e.stopPropagation(), void forgetRecent(r.id))} className="hidden rounded p-0.5 hover:bg-muted group-hover:block">
+      {shut.slice(0, 20).map(k => (
+        <div key={k.id} onClick={() => void openKnown(k.id)} title={`Open ${k.name}`} className="group flex h-7 cursor-pointer items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground">
+          <span className="min-w-0 flex-1 truncate">{k.name}</span>
+          <button type="button" tabIndex={-1} title="Forget this folder (nothing is deleted)" onClick={e => (e.stopPropagation(), void forgetKnown(k.id))} className="hidden rounded p-0.5 hover:bg-muted group-hover:block">
             <XIcon className="size-3.5" />
           </button>
         </div>
@@ -179,6 +193,9 @@ export function Sidebar() {
   const count = useStemStore(s => s.sel.selected.length);
   const pickRoot = useStemStore(s => s.pickRoot);
   const copySelection = useStemStore(s => s.copySelection);
+  const refreshTree = useStemStore(s => s.refreshTree);
+  const refreshing = useStemStore(s => s.refreshing);
+  const any = useStemStore(s => s.roots.length > 0);
   const listRef = useRef<HTMLDivElement>(null);
 
   // the arrow keys can walk off the visible part of the list: keep the focused track in view
@@ -193,6 +210,13 @@ export function Sidebar() {
         <Button size="sm" variant="outline" className="h-7 min-w-0 flex-1 justify-start gap-1.5 text-xs" onClick={() => void pickRoot()}>
           <FolderOpenIcon className="size-3.5 shrink-0" /> <span className="truncate">Open folder</span>
         </Button>
+        {any && (
+          <Hint label="Read the folders again: new, removed and replaced files" keys="R" side="bottom">
+            <Button size="sm" variant="ghost" className="h-7 shrink-0 px-1.5" disabled={refreshing} onClick={() => void refreshTree()}>
+              <RefreshCwIcon className={cn('size-3.5', refreshing && 'animate-spin')} />
+            </Button>
+          </Hint>
+        )}
         {count > 1 && (
           <span className="shrink-0 whitespace-nowrap rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400" title={`${count} tracks are selected: they play together`}>
             {count} together
@@ -211,7 +235,7 @@ export function Sidebar() {
         <div ref={listRef} role="listbox" aria-multiselectable aria-label="Folders and tracks" className="space-y-px p-1">
           {rows.map(row => (row.kind === 'folder' ? <FolderRow key={`f:${row.key}`} row={row} /> : <TrackRow key={`t:${row.uid}`} row={row} />))}
         </div>
-        <Recent />
+        <OpenedBefore />
       </div>
     </div>
   );

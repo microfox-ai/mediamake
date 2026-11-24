@@ -75,23 +75,40 @@ export async function findFolder(root: FileSystemDirectoryHandle, linkPath: stri
 }
 
 /**
+ * Where a link's folder is nearest: among several folders the user gave, the one that reaches it in the
+ * fewest steps (none when it is the folder itself). So a song's own folder is used before a folder of
+ * every song that also holds it. `index` is the place in `places`; null when none of them holds it.
+ */
+export async function findNearest(places: FileSystemDirectoryHandle[], linkPath: string): Promise<{ handle: FileSystemDirectoryHandle; parts: string[]; index: number } | null> {
+  let best: { handle: FileSystemDirectoryHandle; parts: string[]; index: number } | null = null;
+  for (const [index, handle] of places.entries()) {
+    const parts = await findFolder(handle, linkPath).catch(() => null);
+    if (parts && (!best || parts.length < best.parts.length)) best = { handle, parts, index };
+    if (best && !best.parts.length) break;
+  }
+  return best;
+}
+
+/**
  * A folder's tracks as the revision files describe a set (lib/file-revisions): what the Markdown
  * for Claude is written from. `path` is the folder's absolute path when the screen knows it.
  */
-export function reviewIndex(name: string, listing: Pick<FolderListing, 'tracks' | 'remaster' | 'index'>, opts: { ladder: boolean; path?: string }): ImageSetIndex {
+export function reviewIndex(name: string, listing: Pick<FolderListing, 'tracks' | 'remaster' | 'index'>, opts: { ladder: boolean; versions?: boolean; path?: string }): ImageSetIndex {
+  // versions of one song to choose between (a final, drops), or just tracks someone left notes on
+  const versions = opts.versions ?? opts.ladder;
   const { tracks, remaster, index } = listing;
   const fromNames = commonPrefix(tracks.map(t => t.id)).replace(/[\s\-_]+$/, '');
   const title = remaster?.title ?? (index?.title && index.title !== name ? index.title : undefined) ?? (fromNames || name);
   const path = index?.path ?? remaster?.path ?? opts.path;
   return {
     ...(index ?? { job: name }),
-    kind: 'remaster',
+    kind: versions ? 'remaster' : 'audio',
     title,
     workflow: index?.workflow ?? remaster?.workflow ?? (opts.ladder ? 'make-loudness-remaster' : undefined),
     path,
     // the folder may be just "v1": the Markdown names the full path so Claude finds the right song
     location: index?.location ?? path,
-    pick: index?.pick ?? { max: 1, label: 'Final' },
-    styles: [{ id: 'ladder', name: 'Versions', variants: tracks.map(t => ({ id: t.id, file: t.file, note: t.info?.note ?? t.info?.label })) }],
+    ...(versions ? { pick: index?.pick ?? { max: 1, label: 'Final' } } : {}),
+    styles: [{ id: versions ? 'ladder' : 'tracks', name: versions ? 'Versions' : 'Tracks', variants: tracks.map(t => ({ id: t.id, file: t.file, note: t.info?.note ?? t.info?.label })) }],
   };
 }
