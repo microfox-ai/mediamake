@@ -82,18 +82,38 @@ export const isPictureLink = (value: string) => /^https:\/\/\S{1,1000}$/.test(va
 
 /**
  * The part of a listing the people who look after an item set themselves (its authors, see
- * ./authors): its description and its pictures, the headshot and, for an MCP or an app, the icon.
- * The rest of a listing is an admin's.
+ * ./authors): its description, its pictures (the headshot and, for an MCP or an app, the icon), its
+ * tags, its README and its screenshots. What is an admin's stays theirs: the editors' pick and the
+ * advice (and, outside the listing, its level, tier, health and archive).
  */
-export type AuthorListing = Pick<ItemListing, 'description' | 'headshot' | 'icon'>;
+export type AuthorListing = Partial<Pick<ItemListing, 'description' | 'headshot' | 'icon' | 'readme' | 'tags' | 'media'>>;
 export const LISTING_PICTURES = ['headshot', 'icon'] as const;
+
+/** One screenshot or video as it is sent, checked: a picture or a video by https link, with a caption. */
+function parseMedia(value: unknown): { media: ListingMedia[] } | { error: string } {
+  if (!Array.isArray(value)) return { error: 'media must be a list of { kind, url, title? }' };
+  if (value.length > MAX_LISTING_MEDIA) return { error: `at most ${MAX_LISTING_MEDIA} pictures and videos` };
+  const media: ListingMedia[] = [];
+  for (const [i, entry] of value.entries()) {
+    const one = (entry && typeof entry === 'object' ? entry : {}) as Record<string, unknown>;
+    if (one.kind !== 'image' && one.kind !== 'video') return { error: `media.${i}.kind is image or video` };
+    const url = typeof one.url === 'string' ? one.url.trim() : '';
+    if (!isPictureLink(url)) return { error: `media.${i}.url must be an https link` };
+    if (one.title !== undefined && typeof one.title !== 'string') return { error: `media.${i}.title must be text` };
+    const title = typeof one.title === 'string' ? one.title.trim() : '';
+    if (title.length > 120) return { error: `media.${i}.title: keep it under 120 characters` };
+    media.push({ kind: one.kind, url, ...(title && { title }) });
+  }
+  return { media };
+}
 
 /**
  * A change to that part as it is sent: `description` (text, in a line or two), `headshot` and `icon`
- * (each an https link). One given replaces what was there, an empty one clears it, one left out
- * stays. A skill has no icon. Nothing else of a listing is read.
+ * (each an https link), `readme` (Markdown), `tags` (a list of words; the item's own, `ownTags`, are
+ * not kept again) and `media` (its screenshots, in order). One given replaces what was there, an empty
+ * one clears it, one left out stays. A skill has no icon. Nothing else of a listing is read.
  */
-export function parseAuthorListing(body: unknown, kind: string): { change: AuthorListing } | { error: string } {
+export function parseAuthorListing(body: unknown, kind: string, ownTags: string[] = []): { change: AuthorListing } | { error: string } {
   const sent = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const change: AuthorListing = {};
   if (sent.description !== undefined) {
@@ -110,21 +130,38 @@ export function parseAuthorListing(body: unknown, kind: string): { change: Autho
     if (link && !isPictureLink(link)) return { error: `${key} must be an https link to a picture` };
     change[key] = link;
   }
-  if (change.description === undefined && change.headshot === undefined && change.icon === undefined) return { error: 'Give description, headshot or icon' };
+  if (sent.readme !== undefined) {
+    if (typeof sent.readme !== 'string') return { error: 'readme must be Markdown text, or empty to clear it' };
+    if (sent.readme.length > MAX_LISTING_README) return { error: `Keep the README under ${Math.round(MAX_LISTING_README / 1024)} KB` };
+    change.readme = sent.readme.trim();
+  }
+  if (sent.tags !== undefined) {
+    if (!Array.isArray(sent.tags)) return { error: 'tags must be a list of words' };
+    // the item's own tags (a skill's category) are not stored again
+    const tags = parseTags(sent.tags).filter(tag => !ownTags.includes(tag));
+    if (tags.length > MAX_LISTING_TAGS) return { error: `at most ${MAX_LISTING_TAGS} tags` };
+    change.tags = tags;
+  }
+  if (sent.media !== undefined) {
+    const parsed = parseMedia(sent.media);
+    if ('error' in parsed) return parsed;
+    change.media = parsed.media;
+  }
+  if (Object.values(change).every(value => value === undefined)) return { error: 'Give description, headshot, icon, readme, tags or media' };
   if (change.icon && kind === 'skill') return { error: 'Only an MCP or an app has an icon' };
   return { change };
 }
 
 /** A listing with that part changed: everything else on it stays as it is. */
 export function withAuthorListing(current: ListingFields | null | undefined, change: AuthorListing): ListingFields {
-  const next = (key: keyof AuthorListing) => (change[key] === undefined ? current?.[key] : change[key] || undefined);
+  const next = (key: 'description' | 'headshot' | 'icon' | 'readme') => (change[key] === undefined ? current?.[key] : change[key] || undefined);
   return {
-    tags: current?.tags ?? [],
-    media: current?.media ?? [],
+    tags: change.tags ?? current?.tags ?? [],
+    media: change.media ?? current?.media ?? [],
     description: next('description'),
     headshot: next('headshot'),
     icon: next('icon'),
-    readme: current?.readme,
+    readme: next('readme'),
     editorsPick: current?.editorsPick,
     advice: current?.advice,
     adviceNote: current?.adviceNote,

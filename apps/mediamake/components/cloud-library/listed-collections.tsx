@@ -25,11 +25,15 @@ const SAYS: Partial<Record<ListedCard['state'], string>> = {
   declined: 'Its owner declined',
 };
 
-/** The listed collections, read once. `null` while reading or when the Library is not open to this account. */
-export function useListedCollections(): { cards: ListedCard[] | null; reload: () => void } {
+/**
+ * The listed collections, read once. `null` while reading or when the Library is not open to this account.
+ * `open: false` (the Library is the cohort's: lib/app-shell/nav) reads nothing.
+ */
+export function useListedCollections(open = true): { cards: ListedCard[] | null; reload: () => void } {
   const [cards, setCards] = React.useState<ListedCard[] | null>(null);
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
+    if (!open) return;
     let live = true;
     libraryApi
       .listed()
@@ -38,8 +42,8 @@ export function useListedCollections(): { cards: ListedCard[] | null; reload: ()
     return () => {
       live = false;
     };
-  }, [tick]);
-  return { cards, reload: () => setTick(n => n + 1) };
+  }, [tick, open]);
+  return { cards: open ? cards : null, reload: () => setTick(n => n + 1) };
 }
 
 export function ListedCollections({ cards, onChanged }: { cards: ListedCard[]; onChanged: () => void }) {

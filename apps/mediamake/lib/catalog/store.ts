@@ -612,6 +612,17 @@ export const skillProfilesDB = {
     return found.map(profile => profile.key.slice('catalog:skill/'.length));
   },
 
+  /** The store skills whose type was set on their page, by name: `{ 'mm-new-item' => 'internal' }`. */
+  async catalogTypes(): Promise<Map<string, string>> {
+    const db = await getDatabase();
+    const found = await db
+      .collection<SkillProfile>(COL.profiles)
+      .find({ key: { $regex: '^catalog:skill/' }, type: { $exists: true, $ne: '' as never } }, { projection: { _id: 0, key: 1, type: 1 } })
+      .limit(2000)
+      .toArray();
+    return new Map(found.filter(profile => profile.type).map(profile => [profile.key.slice('catalog:skill/'.length), profile.type!]));
+  },
+
   /** Sets what the change gives and keeps the rest; `type: null` clears the type. */
   async set(change: ProfileChange, actor?: string): Promise<SkillProfile> {
     const db = await getDatabase();

@@ -8,13 +8,30 @@ test('Spaces and Library are in the sidebar for the cohort and admins only', () 
   for (const tier of ['public', 'plus', 'pro'] as const) {
     assert.equal(titles(tier).includes('Spaces'), false, tier);
     assert.equal(titles(tier).includes('Library'), false, tier);
-    assert.deepEqual(titles(tier).slice(0, 3), ['Home', 'Explore', 'Mine']);
+    assert.deepEqual(titles(tier).slice(0, 3), ['Home', 'Explore', 'My Items']);
+    // the section is left out with its pages, not shown empty
+    assert.equal(navFor(tier).some(section => section.label === 'Spaces'), false, tier);
   }
   for (const tier of ['cohort', 'admin'] as const) {
     assert.equal(titles(tier).includes('Spaces'), true, tier);
     assert.equal(titles(tier).includes('Library'), true, tier);
   }
   assert.equal(titles('cohort').includes('Releases'), false);
+});
+
+test('Explore and My Items sit beside Home, in the first group', () => {
+  for (const tier of ['public', 'cohort', 'admin'] as const) {
+    const [first] = navFor(tier);
+    assert.equal(first.label, undefined);
+    assert.deepEqual(
+      first.items.map(item => [item.title, item.href]),
+      [
+        ['Home', '/app'],
+        ['Explore', '/app/explore'],
+        ['My Items', '/app/mine'],
+      ],
+    );
+  }
 });
 
 test('a hidden page is closed with its sub-pages; the rest stay open', () => {

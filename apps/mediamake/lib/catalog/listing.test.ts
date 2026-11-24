@@ -131,10 +131,25 @@ describe('parseAuthorListing', () => {
     assert.deepEqual(parseAuthorListing({ description: '' }, 'skill'), { change: { description: '' } });
   });
 
-  it("reads only the description and the pictures: the rest of a listing is not an author's", () => {
-    assert.deepEqual(parseAuthorListing({ icon: 'https://cdn.test/i.png', readme: '# Mine', editorsPick: true, advice: 'deprecated', tags: ['x'], media: [] }, 'app'), {
-      change: { icon: 'https://cdn.test/i.png' },
+  it("reads the description, the pictures, the README, the tags and the screenshots: the editors' pick and the advice are an admin's", () => {
+    assert.deepEqual(parseAuthorListing({ icon: 'https://cdn.test/i.png', readme: ' # Mine ', editorsPick: true, advice: 'deprecated', tags: ['Lyric Video', 'x'], media: [] }, 'app'), {
+      change: { icon: 'https://cdn.test/i.png', readme: '# Mine', tags: ['lyric-video', 'x'], media: [] },
     });
+    assert.deepEqual(parseAuthorListing({ editorsPick: true, advice: 'deprecated' }, 'app'), { error: 'Give description, headshot, icon, readme, tags or media' });
+  });
+
+  it("keeps the item's own tags out, and takes screenshots in order with their captions", () => {
+    assert.deepEqual(parseAuthorListing({ tags: ['make', 'anime', 'anime'] }, 'skill', ['make']), { change: { tags: ['anime'] } });
+    assert.deepEqual(
+      parseAuthorListing({ media: [{ kind: 'video', url: ' https://youtu.be/abc ', title: ' Demo ' }, { kind: 'image', url: 'https://cdn.test/s.png' }] }, 'mcp'),
+      { change: { media: [{ kind: 'video', url: 'https://youtu.be/abc', title: 'Demo' }, { kind: 'image', url: 'https://cdn.test/s.png' }] } },
+    );
+    assert.ok('error' in parseAuthorListing({ tags: 'anime' }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ tags: Array.from({ length: 13 }, (_, i) => `t${i}`) }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ media: [{ kind: 'gif', url: 'https://cdn.test/s.gif' }] }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ media: [{ kind: 'image', url: 'javascript:alert(1)' }] }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ media: Array.from({ length: 13 }, () => ({ kind: 'image', url: 'https://cdn.test/s.png' })) }, 'mcp'));
+    assert.ok('error' in parseAuthorListing({ readme: 'x'.repeat(33 * 1024) }, 'mcp'));
   });
 
   it("stops on what is not an https link, on nothing given, on a long description and on a skill's icon", () => {
@@ -147,7 +162,6 @@ describe('parseAuthorListing', () => {
     assert.ok(!('error' in parseAuthorListing({ description: 'x'.repeat(300) }, 'mcp')));
     assert.ok('error' in parseAuthorListing({}, 'mcp'));
     assert.ok('error' in parseAuthorListing(null, 'mcp'));
-    assert.ok('error' in parseAuthorListing({ readme: 'words' }, 'mcp'));
     assert.ok('error' in parseAuthorListing({ icon: 'https://cdn.test/i.png' }, 'skill'));
     // clearing an icon a skill never had changes nothing, so it is let through
     assert.deepEqual(parseAuthorListing({ icon: '' }, 'skill'), { change: { icon: '' } });
@@ -170,6 +184,8 @@ describe('withAuthorListing', () => {
 
   it('changes what is given and keeps the rest of the listing', () => {
     assert.deepEqual(withAuthorListing(current, { headshot: 'https://cdn.test/new.jpg' }), { ...current, headshot: 'https://cdn.test/new.jpg' });
+    assert.deepEqual(withAuthorListing(current, { tags: [], media: [], readme: '' }), { ...current, tags: [], media: [], readme: undefined });
+    assert.deepEqual(withAuthorListing(current, { readme: '# New' }), { ...current, readme: '# New' });
     assert.deepEqual(withAuthorListing(current, { description: 'New words' }), { ...current, description: 'New words' });
     assert.deepEqual(withAuthorListing(current, { headshot: '', description: '', icon: 'https://cdn.test/new.png' }), { ...current, headshot: undefined, description: undefined, icon: 'https://cdn.test/new.png' });
   });

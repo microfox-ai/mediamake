@@ -1,23 +1,27 @@
 import Link from 'next/link';
 import { AppPage } from '@/components/app-shell/app-page';
+import { RememberTabs } from '@/components/app-shell/item-details';
 import { StoreItemCard, type StoreItemRow } from '@/components/my-items/store-item-card';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getEntitlements } from '@/lib/access';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 import { listCatalog, type CatalogEntry } from '@/lib/catalog';
-import type { AuthorShown } from '@/lib/catalog/authors';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { catalogListingDB } from '@/lib/catalog/store';
 import { levelInfo } from '@/lib/catalog/types';
 import { tierLabel } from '@/lib/memberships/tiers';
-import { itemsAuthoredBy, shownAuthors } from '@/lib/submissions/authors';
+import { authorsOf, itemsAuthoredBy, shownAuthors } from '@/lib/submissions/authors';
 import { submissionsDB } from '@/lib/submissions/store';
-import { standing, updatesDirectly, type Submission } from '@/lib/submissions/submission';
+import { standing, type Submission } from '@/lib/submissions/submission';
 
 export const metadata = { title: 'My store items · MediaMake' };
 
 const KIND: Record<string, string> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+const TABS = ['author', 'co-authored'] as const;
+type Tab = (typeof TABS)[number];
 
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -28,16 +32,27 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+function Grid({ items }: { items: StoreItemRow[] }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map(item => (
+        <StoreItemCard key={item.id} item={item} />
+      ))}
+    </div>
+  );
+}
+
 /**
- * /app/my-items: the store items the person is an author of (lib/catalog/authors), each with what an
- * author does with it: edit its card (description, headshot, icon), change its authors, and send a
- * new version. Below, what they sent that is not in the store yet. An item becomes theirs when a
- * submission of it is accepted, or when one of its authors adds them.
+ * /app/my-items: the store items the person is an author of (lib/catalog/authors), as cards in two
+ * tabs: Author, the ones they are the first author of (the sender of its first accepted submission),
+ * and Co-authored, the ones an author added them to. A card opens the item's page for its authors
+ * (./[kind]/[slug]), where they edit its listing, its authors and send a new version. Below, what
+ * they sent that is not in the store yet.
  */
-export default async function MyItemsPage() {
-  const viewer = await getAppViewer();
+export default async function MyItemsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const [viewer, { tab }] = await Promise.all([getAppViewer(), searchParams]);
   if (!viewer.clientId) return null; // the app's layout sends signed-out visitors to sign in
-  const { clientId, tier, isAdmin } = viewer;
+  const { clientId, isAdmin } = viewer;
 
   // null: the list could not be read, which is not the same as having none
   const ids = await itemsAuthoredBy(clientId).catch((error): null => {
@@ -50,13 +65,13 @@ export default async function MyItemsPage() {
       .catch((): CatalogEntry[] => []),
     submissionsDB.listFor(clientId, 100).catch((): Submission[] => []),
   ]);
-  const direct = updatesDirectly(tier);
   const items = (
     await Promise.all(
-      (ids ?? []).map(async (id): Promise<StoreItemRow | null> => {
+      (ids ?? []).map(async (id): Promise<(StoreItemRow & { first: boolean }) | null> => {
         const record = await getCatalogRecord(id).catch(() => null);
         if (!record) return null;
-        const [listing, authors] = await Promise.all([catalogListingDB.get(id).catch(() => null), shownAuthors(id).catch((): AuthorShown[] => [])]);
+        const [listing, authors] = await Promise.all([catalogListingDB.get(id).catch(() => null), authorsOf(id).catch(() => [])]);
+        const shown = await shownAuthors(id, authors).catch(() => []);
         // as the catalog shows it to them (its listing applied); the catalog may leave it out (archived)
         const entry = catalog.find(found => found.id === id);
         const sent = submissions.find(submission => submission.itemId === id);
@@ -70,18 +85,22 @@ export default async function MyItemsPage() {
           icon: listing?.icon ?? entry?.icon,
           facts: [
             KIND[record.kind] ?? record.kind,
-            itemTier === 'public' ? 'Public' : `${tierLabel(itemTier)} and above`,
+            itemTier === 'public' ? 'Public' : `${tierLabel(itemTier)}+`,
             levelInfo(entry?.readiness ?? record.readiness).label,
             ...(version ? [`v${version.replace(/^v/, '')}`] : []),
           ],
-          authors,
+          authors: shown,
           ...(sent && { sent: `version ${sent.version} · ${standing(sent)} · ${day(sent.updatedAt)}` }),
-          card: { description: listing?.description, summary: record.summary, headshot: listing?.headshot, icon: listing?.icon },
-          direct,
+          href: `/app/my-items/${id}`,
+          // the first author is the one whose submission brought it into the store
+          first: !authors.length || authors[0].clientId === clientId,
         };
       }),
     )
-  ).filter((item): item is StoreItemRow => !!item);
+  ).filter((item): item is StoreItemRow & { first: boolean } => !!item);
+  const own = items.filter(item => item.first);
+  const coAuthored = items.filter(item => !item.first);
+  const first: Tab = TABS.find(name => name === tab) ?? (own.length || !coAuthored.length ? 'author' : 'co-authored');
   // sent, and not an item of theirs yet: waiting for an admin, or changes asked for
   const waiting = submissions.filter(
     (submission, i) => (submission.status === 'pending' || submission.status === 'changes') && !ids?.includes(submission.itemId) && submissions.findIndex(other => other.itemId === submission.itemId) === i,
@@ -89,9 +108,10 @@ export default async function MyItemsPage() {
 
   return (
     <AppPage title="My store items">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8 lg:px-6">
-        <p className="text-sm text-muted-foreground">
-          The skills, MCPs and apps in the store that you are an author of. Edit how each one shows, change its authors, and send new versions.
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-6">
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          The skills, MCPs and apps in the store that you are an author of. Open one to edit its listing (headshot, icon, description, tags, README and screenshots), change its authors and
+          send a new version.
           {isAdmin && (
             <>
               {' '}
@@ -104,26 +124,48 @@ export default async function MyItemsPage() {
           )}
         </p>
 
-        {ids === null && (
+        {ids === null ? (
           <Card label="Your items">
             <p className="text-sm">Your items could not be read just now. Try again in a moment.</p>
           </Card>
-        )}
+        ) : (
+          <RememberTabs defaultValue={first} className="gap-4">
+            <TabsList>
+              <TabsTrigger value="author" className="flex-none px-3">
+                Author <span className="text-xs font-normal tabular-nums text-muted-foreground">{own.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="co-authored" className="flex-none px-3">
+                Co-authored <span className="text-xs font-normal tabular-nums text-muted-foreground">{coAuthored.length}</span>
+              </TabsTrigger>
+            </TabsList>
 
-        {ids !== null && items.length === 0 && (
-          <Card label="Your items">
-            <p className="text-sm font-medium">Nothing of yours is in the store yet.</p>
-            <p className="text-sm text-muted-foreground">
-              Built a skill, MCP or app and used it for real work? Ask Claude to &ldquo;make this public&rdquo;, or run <code>mm submit &lt;name&gt;</code> in a terminal. It is sent privately
-              with the finished production made with it, an admin reviews it, and once it is accepted it shows here with you as its author.
-            </p>
-            <p className="text-sm text-muted-foreground">An author of an item can also add you to it, by the email of your MediaMake account.</p>
-          </Card>
-        )}
+            <TabsContent value="author">
+              {own.length ? (
+                <Grid items={own} />
+              ) : (
+                <Card label="Your items">
+                  <p className="text-sm font-medium">Nothing of yours is in the store yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Built a skill, MCP or app and used it for real work? Ask Claude to &ldquo;make this public&rdquo;, or run <code>mm submit &lt;name&gt;</code> in a terminal. It is sent
+                    privately with the finished production made with it, an admin reviews it, and once it is accepted it shows here with you as its author.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
 
-        {items.map(item => (
-          <StoreItemCard key={item.id} item={item} />
-        ))}
+            <TabsContent value="co-authored">
+              {coAuthored.length ? (
+                <Grid items={coAuthored} />
+              ) : (
+                <Card label="Co-authored">
+                  <p className="text-sm text-muted-foreground">
+                    None yet. An author of an item adds you to it by the email of your MediaMake account, and it shows here: you change it as they do.
+                  </p>
+                </Card>
+              )}
+            </TabsContent>
+          </RememberTabs>
+        )}
 
         {waiting.length > 0 && (
           <Card label="Sent, not in the store yet">

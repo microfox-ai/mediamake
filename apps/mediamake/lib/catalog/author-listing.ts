@@ -1,14 +1,15 @@
 import { LISTING_PICTURES, LISTING_PICTURE_TYPE, parseAuthorListing, withAuthorListing, type AuthorListing, type ListingFields } from './listing';
+import { parseYouTubeId } from './video';
 
 /**
  * The part of an item's store listing that the people who look after it change themselves: its
- * description and its pictures (the headshot and, for an MCP or an app, the icon). They are its
- * authors (./authors) and admins. Here is who may and what each request does. The reads and writes
- * are passed in, so the rules are tested without a database (./author-listing.test.ts);
- * app/api/catalog/listing gives them the real ones.
+ * description, its pictures (the headshot and, for an MCP or an app, the icon), its tags, its
+ * README and its screenshots. They are its authors (./authors) and admins. Here is who may and what
+ * each request does. The reads and writes are passed in, so the rules are tested without a database
+ * (./author-listing.test.ts); app/api/catalog/listing gives them the real ones. An author edits
+ * them on My store items › the item (app/app/(account)/my-items/[kind]/[slug]).
  *
- * The rest of a listing (tags, screenshots, README, editors' pick, advice) is an admin's, and
- * nothing here reads or changes it.
+ * The editors' pick and the advice stay an admin's, and nothing here reads or changes them.
  */
 
 /** An item with a store listing of its own. */
@@ -18,7 +19,7 @@ export type AuthorRole = 'admin' | 'author';
 
 export interface AuthorListingStore {
   /** The item's record, or null when the store has none. */
-  record(itemId: string): Promise<{ id: string; kind: string; summary?: string; madeBy?: { name: string } } | null>;
+  record(itemId: string): Promise<{ id: string; kind: string; summary?: string; tags?: string[]; madeBy?: { name: string } } | null>;
   isAdmin(clientId: string): Promise<boolean>;
   isAuthor(itemId: string, clientId: string): Promise<boolean>;
   listing(itemId: string): Promise<ListingFields | null>;
@@ -75,9 +76,10 @@ export async function readAuthorListing(store: AuthorListingStore, itemId: strin
 
 /**
  * `{ type: 'create_upload', itemId, filename, contentType }`: a signed link to upload one picture.
- * `{ type: 'set', itemId, description?, headshot?, icon? }`: puts them on the listing; the rest of
- * it stays. Both only for the item's authors and admins. An author sets a picture uploaded for the
- * item (`isUploadedFor`); an admin any https link, as on the release page.
+ * `{ type: 'set', itemId, description?, headshot?, icon?, readme?, tags?, media? }`: puts them on the
+ * listing; the rest of it stays. Both only for the item's authors and admins. An author sets a picture
+ * uploaded for the item (`isUploadedFor`), as the headshot, the icon or a screenshot, and a video by
+ * its YouTube link; an admin any https link, as on the release page.
  */
 export async function changeAuthorListing(store: AuthorListingStore, clientId: string | null, sent: unknown): Promise<AuthorListingAnswer> {
   if (!clientId) return fail(401, 'Sign in first');
@@ -105,8 +107,9 @@ export async function changeAuthorListing(store: AuthorListingStore, clientId: s
     return { status: 200, body: { uploadUrl, publicUrl } };
   }
 
-  const parsed = parseAuthorListing(body, item.kind);
+  const parsed = parseAuthorListing(body, item.kind, item.tags);
   if ('error' in parsed) return fail(400, parsed.error);
+  const current = await store.listing(itemId);
   if (role === 'author') {
     for (const key of LISTING_PICTURES) {
       const link = parsed.change[key];
@@ -114,7 +117,20 @@ export async function changeAuthorListing(store: AuthorListingStore, clientId: s
         return fail(400, `${key} must be a picture uploaded for ${itemId}: ask for an upload link (create_upload), send the picture to it, and give its publicUrl`);
       }
     }
+    // the screenshots it has keep their place: an author reorders or removes one an admin added
+    const kept = new Set((current?.media ?? []).map(entry => entry.url));
+    for (const [i, entry] of (parsed.change.media ?? []).entries()) {
+      const ok = kept.has(entry.url) || (entry.kind === 'video' ? !!parseYouTubeId(entry.url) : isUploadedFor(itemId, entry.url, store.uploadsBase));
+      if (!ok) {
+        return fail(
+          400,
+          entry.kind === 'video'
+            ? `media.${i}: a video is a YouTube link`
+            : `media.${i} must be a picture uploaded for ${itemId}: ask for an upload link (create_upload), send the picture to it, and give its publicUrl`,
+        );
+      }
+    }
   }
-  const kept = await store.save(itemId, withAuthorListing(await store.listing(itemId), parsed.change), clientId);
+  const kept = await store.save(itemId, withAuthorListing(current, parsed.change), clientId);
   return { status: 200, body: { item: itemId, description: kept?.description, headshot: kept?.headshot, icon: kept?.icon }, changed: itemId };
 }

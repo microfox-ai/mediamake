@@ -11,9 +11,10 @@ import { isAuthor } from '@/lib/submissions/authors';
 
 /**
  * The part of an item's store listing that the people who look after it set themselves: its
- * description, its headshot and, for an MCP or an app, its icon (lib/catalog/author-listing has the
- * rules). Under /api/catalog, so the route resolves the viewer itself. What the item's page and My
- * store items (Edit card) and mm-use's upload_item_picture and set_item_listing call.
+ * description, its headshot and, for an MCP or an app, its icon, its tags, its README and its
+ * screenshots (lib/catalog/author-listing has the rules). Under /api/catalog, so the route resolves
+ * the viewer itself. What the item's page (Edit card), My store items' page for the item and
+ * mm-use's upload_item_picture and set_item_listing call.
  *
  * GET  ?item=mcp/x                 { item, canEdit, role?, description?, summary?, headshot?, icon? }:
  *                                  whether the caller may change them, and the ones its listing has
@@ -21,15 +22,19 @@ import { isAuthor } from '@/lib/submissions/authors';
  * POST { type: 'create_upload', itemId, filename, contentType } → { uploadUrl, publicUrl }
  *                                  a signed PUT for one picture (PNG, JPEG, WebP, GIF or AVIF), public
  *                                  once uploaded; send the same Content-Type and x-amz-acl: public-read.
- * POST { type: 'set', itemId, description?, headshot?, icon? } → { item, description?, headshot?, icon? }
+ * POST { type: 'set', itemId, description?, headshot?, icon?, readme?, tags?, media? }
+ *                                  → { item, description?, headshot?, icon? }
  *                                  given, it replaces what was there; empty, it clears it; left out,
- *                                  it stays. The description is text, in a line or two. A picture is
- *                                  an https link: an author gives the publicUrl of one uploaded for
- *                                  the item, an admin any link. A skill has no icon.
+ *                                  it stays. The description is text, in a line or two; the README
+ *                                  Markdown; tags a list of words; media its screenshots in order,
+ *                                  [{ kind: 'image' | 'video', url, title? }]. A picture is an https
+ *                                  link: an author gives the publicUrl of one uploaded for the item,
+ *                                  and a video by its YouTube link; an admin any link. A skill has
+ *                                  no icon.
  *
  * Who may: the item's authors (lib/catalog/authors) and admins. An item made outside MediaMake has
- * no authors here, so these are an admin's. The rest of a listing (tags, screenshots, README,
- * editors' pick, advice) stays an admin's: POST /api/admin/catalog `set_listing`.
+ * no authors here, so these are an admin's. The editors' pick and the advice stay an admin's, with
+ * its level, tier, health and archive: POST /api/admin/catalog.
  */
 
 const noStore = { headers: { 'Cache-Control': 'private, no-store' } };

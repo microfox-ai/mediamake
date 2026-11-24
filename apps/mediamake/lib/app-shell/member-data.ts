@@ -1,7 +1,7 @@
 import { cache } from 'react';
 import { getEntitlements } from '@/lib/access';
 import { listCatalog } from '@/lib/catalog';
-import { catalogItemsDB } from '@/lib/catalog/store';
+import { catalogItemsDB, skillProfilesDB } from '@/lib/catalog/store';
 import { registry } from '@/lib/skills/registry';
 import { allSpaces } from '@/lib/space/links-store';
 import type { MySpaces } from '@/lib/space/store';
@@ -32,7 +32,12 @@ export const getAppItems = cache(async (clientId: string): Promise<AppItem[]> =>
   const entitlements = await getEntitlements(viewer);
   const entries = await listCatalog(viewer, undefined, { entitlements, locked: 'show' });
   const internal = (registry?.categories ?? []).filter(category => category.internal).map(category => category.id);
-  return appItems(entries, registry?.skills ?? [], internal);
+  // the types set on skills' pages: without them, the README's and the registry's decide
+  const setTypes = await skillProfilesDB.catalogTypes().catch(error => {
+    console.error('[app] Could not read the skill types:', error);
+    return new Map<string, string>();
+  });
+  return appItems(entries, registry?.skills ?? [], internal, setTypes);
 });
 
 /** What the member ran, opened and installed, and what their computers reported. */
