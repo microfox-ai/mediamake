@@ -21,8 +21,8 @@ describe("an item's page", () => {
     assert.equal(backPath(undefined), undefined);
   });
 
-  it('says where it was opened: Home, Explore, Mine, a space, a store page', () => {
-    assert.deepEqual(itemCrumbs('/app/mine?tab=yours', item), [{ label: 'Mine', href: '/app/mine?tab=yours' }, { label: 'pack-distrokid' }]);
+  it('says where it was opened: Home, Explore, My Items, a space, a store page', () => {
+    assert.deepEqual(itemCrumbs('/app/mine?tab=yours', item), [{ label: 'My Items', href: '/app/mine?tab=yours' }, { label: 'pack-distrokid' }]);
     assert.deepEqual(itemCrumbs('/app', item), [{ label: 'Home', href: '/app' }, { label: 'pack-distrokid' }]);
     assert.deepEqual(itemCrumbs('/app/explore', item), [{ label: 'Explore', href: '/app/explore' }, { label: 'pack-distrokid' }]);
     assert.deepEqual(itemCrumbs('/app/spaces/abc123?tab=skills', item), [
@@ -38,8 +38,8 @@ describe("an item's page", () => {
     assert.deepEqual(itemCrumbs('/app/subscription', item), [{ label: 'Back', href: '/app/subscription' }, { label: 'pack-distrokid' }]);
   });
 
-  it('opened from a shared link, it starts at its space, else Mine', () => {
+  it('opened from a shared link, it starts at its space, else My Items', () => {
     assert.deepEqual(itemCrumbs(undefined, item), [{ label: 'Spaces', href: '/app/spaces' }, { label: 'Your personal space', href: '/app/spaces/abc123' }, { label: 'pack-distrokid' }]);
-    assert.deepEqual(itemCrumbs('https://evil.example', { title: 'x', belongs: [{ label: 'You' }] }), [{ label: 'Mine', href: '/app/mine' }, { label: 'x' }]);
+    assert.deepEqual(itemCrumbs('https://evil.example', { title: 'x', belongs: [{ label: 'You' }] }), [{ label: 'My Items', href: '/app/mine' }, { label: 'x' }]);
   });
 });

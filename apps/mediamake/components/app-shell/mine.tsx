@@ -8,15 +8,17 @@ import type { MySpaces } from '@/lib/space/store';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemCards } from './item-cards';
 import { AdviceBadge, FailedNote, ItemActions, LevelBadge, TierBadge } from './item-bits';
-import { DetailsButton, rememberTab } from './item-details';
+import { DetailsButton, RememberTabs } from './item-details';
 
 /**
- * Mine (lib/app-shell/member › mine), one tab each: what the member
+ * My Items (lib/app-shell/member › mine; it was Mine), one tab each: what the member
  * installed (the last used first: skills in a wide column, MCPs and apps
  * beside it), what is theirs (their personal space and the items they
  * shared from it), what their projects have (a tab per project), what
  * members shared with them by name, and the other skills on their
  * computers. Clicking an item anywhere opens its page (./item-details ItemView).
+ * Spaces are the cohort's for now: below it, the tabs that come from spaces
+ * (Yours, Projects, Shared with you) are left out.
  */
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -155,7 +157,8 @@ export function MineView({
   const variants = mine.variants.filter(row => !inSpace.has(row.name));
   const local = mine.local.filter(row => !inSpace.has(row.name));
   const failed = mine.installed.filter(entry => entry.item.failed);
-  const first = tab === 'shared' && !direct.length ? 'yours' : (tab ?? 'installed');
+  const spaceTabs: MineTab[] = ['yours', 'projects', 'shared'];
+  const first = !tab || (!spacesOpen && spaceTabs.includes(tab)) ? 'installed' : tab === 'shared' && !direct.length ? 'yours' : tab;
   const installed = (kind: MemberKind) => mine.installed.filter(entry => entry.item.kind === kind);
   const inProject = (project: (typeof projects)[number]) => (project.space?.items.length ?? 0) + linkedTo(project.projectId).length;
   return (
@@ -173,13 +176,13 @@ export function MineView({
           </div>
         )}
 
-        <Tabs defaultValue={first} onValueChange={value => rememberTab(value)} className="gap-4">
+        <RememberTabs defaultValue={first} className="gap-4">
           <div className="-mx-4 overflow-x-auto px-4">
             <TabsList>
               <Tab value="installed" label="Installed" count={mine.installed.length} />
-              <Tab value="yours" label="Yours" count={(spaces?.mine?.items.length ?? 0) + own.length} />
-              <Tab value="projects" label="Projects" count={inProjects} />
-              {direct.length > 0 && <Tab value="shared" label="Shared with you" count={direct.length} />}
+              {spacesOpen && <Tab value="yours" label="Yours" count={(spaces?.mine?.items.length ?? 0) + own.length} />}
+              {spacesOpen && <Tab value="projects" label="Projects" count={inProjects} />}
+              {spacesOpen && direct.length > 0 && <Tab value="shared" label="Shared with you" count={direct.length} />}
               <Tab value="computers" label="On your computers" count={variants.length + local.length} />
             </TabsList>
           </div>
@@ -204,59 +207,63 @@ export function MineView({
             )}
           </TabsContent>
 
-          <TabsContent value="yours">
-            <ItemCards
-              space={spaces?.mine ?? null}
-              audience="Only you"
-              linked={own}
-              projects={targets}
-              empty={
-                <>
-                  Nothing of your own yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
-                </>
-              }
-            />
-            {targets.length > 0 && <Hint>To share one and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its card changes who has it.</Hint>}
-          </TabsContent>
+          {spacesOpen && (
+            <TabsContent value="yours">
+              <ItemCards
+                space={spaces?.mine ?? null}
+                audience="Only you"
+                linked={own}
+                projects={targets}
+                empty={
+                  <>
+                    Nothing of your own yet. Ask Claude to make a skill for you, or run <span className={code}>mm space new skill &lt;name&gt;</span>.
+                  </>
+                }
+              />
+              {targets.length > 0 && <Hint>To share one and keep it yours, ask Claude to &quot;link &lt;skill&gt; to the &lt;project&gt; project&quot;. After that, Share on its card changes who has it.</Hint>}
+            </TabsContent>
+          )}
 
-          <TabsContent value="projects">
-            {projects.length ? (
-              <Tabs defaultValue={projects[0].projectId} className="gap-4">
-                <div className="-mx-4 overflow-x-auto px-4 pb-1">
-                  <TabsList className="h-auto w-max justify-start gap-1.5 bg-transparent p-0">
-                    {projects.map(project => (
-                      <TabsTrigger key={project.projectId} value={project.projectId} className="h-9 flex-none gap-2 rounded-full border-border py-1 pl-1.5 pr-3 data-[state=active]:border-foreground/40 data-[state=active]:bg-muted data-[state=active]:shadow-none">
-                        <ProjectMark name={project.name} brand={project.brand} />
-                        {project.name}
-                        <span className="text-xs font-normal tabular-nums text-muted-foreground">{inProject(project)}</span>
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </div>
-                {projects.map(project => (
-                  <TabsContent key={project.projectId} value={project.projectId}>
-                    {project.brand?.banner && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={project.brand.banner} alt="" className="mb-3 h-24 w-full rounded-xl border object-cover" />
-                    )}
-                    <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <span>{project.people > 1 ? `${project.people} people have these` : 'Only you so far'}</span>
-                      {spacesOpen && (
-                        <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
-                          Open space <ArrowRightIcon className="size-3" aria-hidden />
-                        </Link>
+          {spacesOpen && (
+            <TabsContent value="projects">
+              {projects.length ? (
+                <Tabs defaultValue={projects[0].projectId} className="gap-4">
+                  <div className="-mx-4 overflow-x-auto px-4 pb-1">
+                    <TabsList className="h-auto w-max justify-start gap-1.5 bg-transparent p-0">
+                      {projects.map(project => (
+                        <TabsTrigger key={project.projectId} value={project.projectId} className="h-9 flex-none gap-2 rounded-full border-border py-1 pl-1.5 pr-3 data-[state=active]:border-foreground/40 data-[state=active]:bg-muted data-[state=active]:shadow-none">
+                          <ProjectMark name={project.name} brand={project.brand} />
+                          {project.name}
+                          <span className="text-xs font-normal tabular-nums text-muted-foreground">{inProject(project)}</span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
+                  {projects.map(project => (
+                    <TabsContent key={project.projectId} value={project.projectId}>
+                      {project.brand?.banner && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={project.brand.banner} alt="" className="mb-3 h-24 w-full rounded-xl border object-cover" />
                       )}
-                    </div>
-                    <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} columns={3} empty="Nothing made for this project yet." />
-                  </TabsContent>
-                ))}
-              </Tabs>
-            ) : (
-              <Empty>You are on no project yet. A project&apos;s skills, MCPs and apps show here once you are on one.</Empty>
-            )}
-          </TabsContent>
+                      <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span>{project.people > 1 ? `${project.people} people have these` : 'Only you so far'}</span>
+                        {spacesOpen && (
+                          <Link href={`/app/spaces/${project.projectId}`} className="ml-auto inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline">
+                            Open space <ArrowRightIcon className="size-3" aria-hidden />
+                          </Link>
+                        )}
+                      </div>
+                      <ItemCards space={project.space} audience={`Everyone on ${project.name}`} linked={linkedTo(project.projectId)} projects={targets} columns={3} empty="Nothing made for this project yet." />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              ) : (
+                <Empty>You are on no project yet. A project&apos;s skills, MCPs and apps show here once you are on one.</Empty>
+              )}
+            </TabsContent>
+          )}
 
-          {direct.length > 0 && (
+          {spacesOpen && direct.length > 0 && (
             <TabsContent value="shared">
               <ItemCards linked={direct} projects={targets} />
             </TabsContent>
@@ -283,7 +290,7 @@ export function MineView({
               </Empty>
             )}
           </TabsContent>
-        </Tabs>
+        </RememberTabs>
       </div>
     </>
   );

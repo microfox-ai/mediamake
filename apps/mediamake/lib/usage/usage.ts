@@ -120,7 +120,7 @@ export interface AppUsage {
 const APP_ID = /^app\/[a-z0-9][a-z0-9-]{0,63}$/;
 
 /**
- * An app opened from the app (Home, Explore or Mine): `{ app }`. Only the
+ * An app opened from the app (Home, Explore or My Items): `{ app }`. Only the
  * app's id is read; the time is the server's. Home's Apps column counts them.
  */
 export function parseAppOpen(body: unknown, now = Date.now()): AppOpen | { error: string } {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ArrowLeft, ArrowRight, Check, ChevronsUpDown, ExternalLink, ImagePlus, ImageUp, Loader2, Play, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,29 @@ import { ProofDialog } from './proof-dialog';
  * at the foot of the page: the card's text and pictures, the README, the advice and the health
  * with their reasons. Saving is the admin API (`set_listing`, `set_health`, `set_readiness`,
  * `set_item_tier`, `set_archived`) and POST /api/catalog/profile for a skill's type.
+ *
+ * The card, the README and the screenshots also make an author's page for their item (My store
+ * items, components/my-items/author-item): there `ListingCallsContext` saves them through the
+ * authors' API (POST /api/catalog/listing) instead of the admin's.
  */
+
+/* ---------- where the listing is saved ---------- */
+
+/** How the card, the README and the screenshots save, and how a picture for them is uploaded. */
+export interface ListingCalls {
+  /** Sets these parts of the item's listing; the rest stays. Throws with the reason when it can't. */
+  setListing(itemId: string, fields: Record<string, unknown>): Promise<unknown>;
+  /** A signed PUT for one picture of the item, and the link it has once uploaded. */
+  createUpload(itemId: string, file: { filename: string; contentType: string }): Promise<{ uploadUrl: string; publicUrl: string }>;
+}
+
+/** The release page's: the admin API. */
+const ADMIN_CALLS: ListingCalls = {
+  setListing: (itemId, fields) => adminCall({ type: 'set_listing', itemId, ...fields }),
+  createUpload: (itemId, file) => adminCall<{ uploadUrl: string; publicUrl: string }>({ type: 'create_thumbnail_upload', itemId, ...file }),
+};
+
+export const ListingCallsContext = createContext<ListingCalls>(ADMIN_CALLS);
 
 /* ---------- the draft: what waits for Save ---------- */
 
@@ -135,6 +157,7 @@ export function useListingDraft(detail: ItemDetail, onSaved: () => void) {
   const [base, setBase] = useState(initial);
   const [draft, setDraft] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const calls = useContext(ListingCallsContext);
 
   useEffect(() => {
     setDraft(current => {
@@ -168,7 +191,7 @@ export function useListingDraft(detail: ItemDetail, onSaved: () => void) {
     const health = changed.includes('health') || changed.includes('healthNote');
     setSaving(true);
     try {
-      if (Object.keys(listing).length) await adminCall({ type: 'set_listing', itemId: item.id, ...listing });
+      if (Object.keys(listing).length) await calls.setListing(item.id, listing);
       if (health)
         await adminCall({
           type: 'set_health',
@@ -488,9 +511,9 @@ function ArchivedSwitch({ detail, onChanged }: { detail: ItemDetail; onChanged: 
 /* ---------- card ---------- */
 
 /** Uploads a picture for the listing (public once uploaded) and gives back its link. */
-async function uploadPicture(itemId: string, file: File): Promise<string> {
+async function uploadPicture(itemId: string, file: File, calls: ListingCalls): Promise<string> {
   if (!/^image\/(png|jpeg|webp|gif|avif)$/.test(file.type)) throw new Error('A PNG, JPEG, WebP, GIF or AVIF picture');
-  const { uploadUrl, publicUrl } = await adminCall<{ uploadUrl: string; publicUrl: string }>({ type: 'create_thumbnail_upload', itemId, filename: file.name, contentType: file.type });
+  const { uploadUrl, publicUrl } = await calls.createUpload(itemId, { filename: file.name, contentType: file.type });
   // the signed link expects exactly these headers
   const res = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type, 'x-amz-acl': 'public-read' } });
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
@@ -517,11 +540,12 @@ function PictureField({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const calls = useContext(ListingCallsContext);
   const link = value.trim();
   const upload = async (file: File) => {
     setBusy(true);
     try {
-      onChange(await uploadPicture(itemId, file));
+      onChange(await uploadPicture(itemId, file, calls));
       toast.success(`${label} uploaded: save to keep it`);
     } catch (e) {
       toast.error((e as Error).message);
@@ -854,7 +878,7 @@ export function ReadmeEditor({ detail, state }: { detail: ItemDetail; state: Dra
             </button>
           ))}
         </div>
-        <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+        <p className="min-w-0 flex-1 basis-56 text-xs text-muted-foreground">
           {fromFile
             ? 'Its README.md lives in the repo, beside its SKILL.md: edit it there.'
             : draft.readme.trim()
@@ -981,10 +1005,11 @@ export function ScreenshotsSection({ detail, onChanged }: { detail: ItemDetail; 
   const media = detail.listing?.media ?? [];
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  const calls = useContext(ListingCallsContext);
   const save = async (next: ListingMedia[], done: string) => {
     setBusy(true);
     try {
-      await adminCall({ type: 'set_listing', itemId: item.id, media: next });
+      await calls.setListing(item.id, { media: next });
       toast.success(done);
       onChanged();
       return true;
@@ -1094,6 +1119,7 @@ function MediaDialog({ itemId, busy, onClose, onAdd }: { itemId: string; busy: b
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [uploading, setUploading] = useState(false);
+  const calls = useContext(ListingCallsContext);
   const input = useRef<HTMLInputElement>(null);
   const link = url.trim();
   const kind = mediaKindOf(link);
@@ -1102,7 +1128,7 @@ function MediaDialog({ itemId, busy, onClose, onAdd }: { itemId: string; busy: b
   const upload = async (file: File) => {
     setUploading(true);
     try {
-      setUrl(await uploadPicture(itemId, file));
+      setUrl(await uploadPicture(itemId, file, calls));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

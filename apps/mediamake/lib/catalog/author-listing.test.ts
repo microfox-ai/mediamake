@@ -104,15 +104,49 @@ describe('changeAuthorListing', () => {
       type: 'set',
       itemId: 'mcp/mine',
       headshot: uploaded('mcp/mine', '2-new.jpg'),
-      // none of these is an author's: they are not read
-      readme: '# Hijacked',
-      tags: ['spam'],
-      media: [],
+      // an admin's: they are not read
       editorsPick: false,
       advice: 'recommended',
     });
     assert.deepEqual(answer, { status: 200, body: { item: 'mcp/mine', description: LISTING.description, headshot: uploaded('mcp/mine', '2-new.jpg'), icon: LISTING.icon }, changed: 'mcp/mine' });
     assert.deepEqual(saves, [{ itemId: 'mcp/mine', listing: { ...LISTING, headshot: uploaded('mcp/mine', '2-new.jpg') }, clientId: AUTHOR }]);
+  });
+
+  it("lets an author write the README, pick the tags and order the screenshots; the editors' pick and the advice stay", async () => {
+    const { store, saves } = fakeStore();
+    const shot = uploaded('mcp/mine', '5-shot.png');
+    const answer = await changeAuthorListing(store, AUTHOR, {
+      type: 'set',
+      itemId: 'mcp/mine',
+      readme: '# Mine\n\nWhat it does.',
+      tags: ['Mixing', 'audio'],
+      // the one an admin added keeps its place; a new upload and a YouTube video join it
+      media: [{ kind: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }, { kind: 'image', url: shot, title: 'The desk' }, LISTING.media[0]],
+    });
+    assert.equal(answer.status, 200);
+    assert.deepEqual(saves[0].listing, {
+      ...LISTING,
+      readme: '# Mine\n\nWhat it does.',
+      tags: ['mixing', 'audio'],
+      media: [{ kind: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }, { kind: 'image', url: shot, title: 'The desk' }, LISTING.media[0]],
+    });
+    assert.equal(saves[0].listing.editorsPick, true);
+    assert.equal(saves[0].listing.advice, 'not-recommended');
+  });
+
+  it("takes from an author only screenshots uploaded for the item and videos on YouTube; an admin's can be any link", async () => {
+    const { store, saves } = fakeStore();
+    for (const entry of [
+      { kind: 'image', url: 'https://elsewhere.test/track.gif' },
+      { kind: 'image', url: uploaded('mcp/other', '1-s.png') },
+      { kind: 'video', url: 'https://elsewhere.test/clip.mp4' },
+      { kind: 'video', url: uploaded('mcp/mine', '1-clip.mp4') },
+    ]) {
+      const refused = await changeAuthorListing(store, AUTHOR, { type: 'set', itemId: 'mcp/mine', media: [entry] });
+      assert.equal(refused.status, 400, entry.url);
+    }
+    assert.equal(saves.length, 0);
+    assert.equal((await changeAuthorListing(store, ADMIN, { type: 'set', itemId: 'mcp/mine', media: [{ kind: 'video', url: 'https://elsewhere.test/clip.mp4' }] })).status, 200);
   });
 
   it('clears a picture with an empty link, and starts a listing for an item with none', async () => {

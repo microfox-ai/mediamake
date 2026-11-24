@@ -72,7 +72,7 @@ export function TierBadge({ item, always = false }: { item: Pick<AppItem, 'tier'
   );
 }
 
-/** Failed, and why: on a card in Explore's failed filter and on an installed item in Mine. */
+/** Failed, and why: on a card in Explore's failed filter and on an installed item in My Items. */
 export function FailedNote({ item, installed = false, className }: { item: Pick<AppItem, 'healthNote'>; installed?: boolean; className?: string }) {
   return (
     <p className={cn('flex items-start gap-1.5 rounded-md bg-red-500/10 px-2 py-1.5 text-xs text-red-700 dark:text-red-300', className)}>

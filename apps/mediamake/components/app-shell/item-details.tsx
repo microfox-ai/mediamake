@@ -11,6 +11,7 @@ import { DependsOn, SkillFilesCard, SkillOwnerTools, UsesThis } from '@/componen
 import { ItemRating } from '@/components/ratings/item-rating';
 import { Poster } from '@/components/catalog/proof-gallery';
 import { Button } from '@/components/ui/button';
+import { Tabs } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { DetailsDevice, ItemDetails } from '@/lib/app-shell/details';
 import { itemPageHref, type Crumb } from '@/lib/app-shell/item-page';
@@ -21,7 +22,7 @@ import { youtubeEmbedUrl } from '@/lib/catalog/video';
 
 /**
  * An item's page: click a skill, MCP or app wherever it is listed (Home,
- * Explore, Mine, a space's Skills tab, a store page) and its page opens
+ * Explore, My Items, a space's Skills tab, a store page) and its page opens
  * (/app/item, lib/app-shell/item-page), the same for every item, private or
  * public, laid out as a space's Code tab is. A breadcrumb at the top says
  * where it was opened and goes back there. On the left the command that puts
@@ -450,6 +451,14 @@ export function rememberTab(value: string, param = 'tab') {
   window.dispatchEvent(new Event(HERE_CHANGED));
 }
 
+/**
+ * Tabs that keep the open one in the address (`rememberTab`). A page that renders on the server uses
+ * these: a server component cannot hand Tabs a function of its own.
+ */
+export function RememberTabs({ param = 'tab', ...props }: Omit<React.ComponentProps<typeof Tabs>, 'onValueChange'> & { param?: string }) {
+  return <Tabs {...props} onValueChange={value => rememberTab(value, param)} />;
+}
+
 /** The page this one is, path and query, so an item's breadcrumb leads back to the same tab. */
 function useHere(): string {
   const pathname = usePathname() ?? '';
@@ -487,7 +496,7 @@ export function DetailsButton({
   cover?: boolean;
   className?: string;
   children: React.ReactNode;
-} & Pick<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'tabIndex' | 'aria-hidden' | 'aria-label'>) {
+} & Pick<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'tabIndex' | 'aria-hidden' | 'aria-label' | 'title'>) {
   const { inApp } = React.useContext(Context);
   const here = useHere();
   const to = inApp && detailsKey ? itemPageHref(detailsKey, here) : href;

@@ -27,7 +27,7 @@ function writeFilters(f: ExploreFilters) {
   if (f.q.trim()) url.searchParams.set('q', f.q.trim());
   if (f.kind) url.searchParams.set('kind', f.kind);
   if (f.category) url.searchParams.set('category', f.category);
-  const show = [f.failed && 'failed', f.internal && 'internal', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.notRecommended && 'not-recommended', f.admin && 'admin'].filter(Boolean).join(',');
+  const show = [f.failed && 'failed', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.notRecommended && 'not-recommended', f.admin && 'admin'].filter(Boolean).join(',');
   if (show) url.searchParams.set('show', show);
   if (!f.locked) url.searchParams.set('locked', '0');
   // the list with nothing asked of it: say so, or the address would open the store front
@@ -47,8 +47,10 @@ const COLLECTIONS = 'collections';
  * every skill, MCP and app the member's membership opens, and the ones a
  * higher membership would open, locked and saying which (the cohort's never
  * reach this page: lib/app-shell/member › appItems), by tag (one row of tags,
- * More opens the rest), with failed, internal, archived, Alpha, deprecated,
- * not recommended and admin-only items behind Filters.
+ * More opens the rest), with failed, archived, Alpha, deprecated, not
+ * recommended and admin-only items behind Filters. Internal skills are never
+ * listed (lib/app-shell/member › explore). Collections (the Cloud Library's
+ * listed ones) show only to those the Library opens for (`libraryOpen`).
  * A search always shows the list.
  * A card's picture or name opens the item's page (./item-details).
  */
@@ -58,6 +60,7 @@ export function Explore({
   initial,
   rule,
   membership,
+  libraryOpen = false,
 }: {
   items: AppItem[];
   /** The skill registry's categories, in their order, with what each is. */
@@ -66,6 +69,8 @@ export function Explore({
   rule: string;
   /** The member's own membership, e.g. `Public`. */
   membership: string;
+  /** Whether the Cloud Library is open to them (lib/app-shell/nav): no, and there is no Collections tab. */
+  libraryOpen?: boolean;
 }) {
   const [filters, setFilters] = useState(initial);
   const update = (change: Partial<ExploreFilters>) =>
@@ -102,10 +107,10 @@ export function Explore({
   const adminCount = useMemo(() => items.filter(item => item.adminOnly).length, [items]);
   const filtered = !!(filters.q.trim() || filters.category);
   const hiddenTotal = Object.values(result.hidden).reduce((sum, n) => sum + n, 0);
-  const filtersOn = [!filters.locked, filters.failed, filters.internal, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.admin].filter(Boolean).length;
+  const filtersOn = [!filters.locked, filters.failed, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.admin].filter(Boolean).length;
 
   // collections members list from their Library: a tab of its own, shown only when there are some
-  const listed = useListedCollections();
+  const listed = useListedCollections(libraryOpen);
   const [onCollections, setOnCollections] = useState(false);
   const showCollections = onCollections && !!listed.cards?.length;
   const tab = showCollections ? COLLECTIONS : filters.view === 'store' ? FEATURED : (filters.kind ?? ALL);
@@ -191,9 +196,6 @@ export function Explore({
                     <DropdownMenuCheckboxItem checked={filters.failed} onCheckedChange={on => update({ failed: !!on })} onSelect={e => e.preventDefault()} title="Broken right now, each with the reason. Don't install one until it is fixed.">
                       Failed {failedCount > 0 && <Count n={failedCount} />}
                     </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={filters.internal} onCheckedChange={on => update({ internal: !!on })} onSelect={e => e.preventDefault()} title="Sub-skills other skills run, housekeeping, managing skills, and the Remotion reference">
-                      Internal &amp; sub-skills
-                    </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem checked={filters.archived} onCheckedChange={on => update({ archived: !!on })} onSelect={e => e.preventDefault()} title="Not in use any more: still installable">
                       Archived
                     </DropdownMenuCheckboxItem>
@@ -223,7 +225,6 @@ export function Explore({
                       {' · '}
                       {[
                         result.hidden.failed > 0 && <HiddenLink key="f" n={result.hidden.failed} label="failed" onClick={() => update({ failed: true })} />,
-                        result.hidden.internal > 0 && <HiddenLink key="i" n={result.hidden.internal} label="internal" onClick={() => update({ internal: true })} />,
                         result.hidden.archived > 0 && <HiddenLink key="a" n={result.hidden.archived} label="archived" onClick={() => update({ archived: true })} />,
                         result.hidden.alpha > 0 && <HiddenLink key="al" n={result.hidden.alpha} label="alpha" onClick={() => update({ alpha: true })} />,
                         result.hidden.deprecated > 0 && <HiddenLink key="d" n={result.hidden.deprecated} label="deprecated" onClick={() => update({ deprecated: true })} />,
@@ -300,7 +301,7 @@ function dayLabel(iso: string): string {
 }
 
 /** What an item is, in small words under its name: its kind, its level (Beta, Alpha), a warning, the membership that opens it, its rating. */
-function StoreMeta({ item, note }: { item: AppItem; note?: string }) {
+export function StoreMeta({ item, note }: { item: AppItem; note?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       <span>{KIND_LABEL[item.kind].one}</span>
@@ -334,10 +335,13 @@ function Hero({ item }: { item: AppItem }) {
   );
 }
 
-/** One item in a row: its picture, its name and a line on what it is. All of it opens the item's page. */
-function StoreCard({ item, note }: { item: AppItem; note?: string }) {
+/**
+ * One item in a row: its picture, its name and a line on what it is. All of it opens the item's page.
+ * A row's cards have a fixed width; `className` changes it (Home's grid: `w-auto sm:w-auto`).
+ */
+export function StoreCard({ item, note, className }: { item: AppItem; note?: string; className?: string }) {
   return (
-    <article className="group relative flex w-60 shrink-0 snap-start flex-col gap-2.5 sm:w-64">
+    <article className={cn('group relative flex w-60 shrink-0 snap-start flex-col gap-2.5 sm:w-64', className)}>
       <VideoThumb id={item.id} title={item.video?.title || item.title} src={headshotOf(item)} className={cn('rounded-xl border transition-shadow group-hover:shadow-md', item.locked && 'opacity-60')} />
       <div className="flex items-start gap-2.5">
         {item.kind !== 'skill' && <ItemIcon id={item.id} title={item.title} src={item.icon} className="size-9 rounded-lg text-sm" />}

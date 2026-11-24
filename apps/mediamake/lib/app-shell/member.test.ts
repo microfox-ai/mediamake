@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatalogEntry } from '../catalog/types';
 import type { RegistrySkill } from '../library/types';
-import { appItems, explore, exploreFiltersFrom, homeColumns, mcpUsage, mine, storefront, tagTitle, variantBase, type ExploreFilters } from './member';
+import { appItems, explore, exploreFiltersFrom, homeColumns, homeShelf, mcpUsage, mine, storefront, tagTitle, variantBase, type ExploreFilters } from './member';
 
 const entry = (id: string, more: Partial<CatalogEntry> = {}): CatalogEntry => ({
   id,
@@ -49,7 +49,7 @@ const ENTRIES = [
 ];
 
 const items = appItems(ENTRIES, SKILLS, ['cleanup']);
-const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, internal: false, archived: false, alpha: false, deprecated: false, notRecommended: false, admin: false, locked: true, view: 'list' };
+const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, archived: false, alpha: false, deprecated: false, notRecommended: false, admin: false, locked: true, view: 'list' };
 const ids = (list: { id: string }[]) => list.map(item => item.id).sort();
 
 describe('the items the app lists', () => {
@@ -86,12 +86,32 @@ describe('the items the app lists', () => {
 });
 
 describe('Explore', () => {
-  it('keeps failed and internal items behind their filters, and counts them', () => {
+  it('keeps failed items behind their filter and counts them, and never lists an internal skill', () => {
     const result = explore(items, ALL);
     assert.deepEqual(ids(result.shown), ['app/skill-library', 'mcp/browse-hack', 'mcp/elevenlabs', 'skill/make-lyrics-video', 'skill/pack-brand-kit']);
-    assert.deepEqual(result.hidden, { failed: 1, internal: 1, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 });
+    assert.deepEqual(result.hidden, { failed: 1, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 });
     assert.deepEqual(ids(explore(items, { ...ALL, failed: true }).shown).includes('mcp/broken'), true);
-    assert.deepEqual(ids(explore(items, { ...ALL, internal: true }).shown).includes('skill/cleanup-out'), true);
+    // not even when it is searched for by name
+    assert.equal(ids(explore(items, { ...ALL, q: 'cleanup-out', failed: true, archived: true, alpha: true }).shown).includes('skill/cleanup-out'), false);
+  });
+
+  it('takes a skill as internal by the type set on its page, else its README, else its category', () => {
+    const typed = [
+      skill('mm-new-item', { listing: { type: 'internal' } }),
+      skill('make-remix', { listing: { type: 'superset' } }),
+      skill('cleanup-out'),
+      skill('make-shots'),
+    ];
+    const entries = typed.map(one => entry(`skill/${one.name}`));
+    const internal = (list: ReturnType<typeof appItems>) => ids(list.filter(item => item.internal));
+    assert.deepEqual(internal(appItems(entries, typed, ['cleanup'])), ['skill/cleanup-out', 'skill/mm-new-item']);
+    // set on the page, it wins over the README and the category
+    const set = new Map([
+      ['make-shots', 'internal'],
+      ['cleanup-out', 'mcp-use'],
+      ['mm-new-item', 'subset'],
+    ]);
+    assert.deepEqual(internal(appItems(entries, typed, ['cleanup'], set)), ['skill/make-shots']);
   });
 
   it('keeps Alpha, deprecated, not recommended and admin-only items behind their filters, and counts them', () => {
@@ -116,7 +136,7 @@ describe('Explore', () => {
     assert.equal(byId.get('mcp/meh')!.notRecommended, true);
     // not recommended stays out until its filter is on, like the rest
     assert.deepEqual(ids(result.shown), ['skill/make-lyrics-video']);
-    assert.deepEqual(result.hidden, { failed: 0, internal: 0, archived: 0, alpha: 1, deprecated: 1, notRecommended: 1, admin: 1 });
+    assert.deepEqual(result.hidden, { failed: 0, archived: 0, alpha: 1, deprecated: 1, notRecommended: 1, admin: 1 });
     assert.deepEqual(ids(explore(more, { ...ALL, notRecommended: true }).shown), ['mcp/meh', 'skill/make-lyrics-video']);
     assert.deepEqual(ids(explore(more, { ...ALL, alpha: true, deprecated: true, notRecommended: true, admin: true }).shown), ['mcp/meh', 'mcp/old-way', 'mcp/vault', 'skill/make-lyrics-video', 'skill/make-trial']);
     // and the store front never shows them
@@ -150,7 +170,6 @@ describe('Explore', () => {
       kind: 'skill',
       category: null,
       failed: true,
-      internal: false,
       archived: true,
       alpha: true,
       deprecated: true,
@@ -300,5 +319,38 @@ describe('Mine', () => {
     assert.equal(variantBase('make-amv-v3', known), 'make-amv');
     assert.equal(variantBase('other-like-goku', known), null);
     assert.equal(variantBase('make-amv', known), null);
+  });
+});
+
+describe("Home's shelves", () => {
+  it('takes the most used first, then what was installed lately, each once, of the kinds asked', () => {
+    const columns = homeColumns(
+      items,
+      {
+        usage: [
+          { skill: 'pack-brand-kit', runs: 4, lastAt: '2026-11-20T00:00:00Z' },
+          { skill: 'my-own-skill', runs: 9, lastAt: '2026-11-21T00:00:00Z' },
+        ],
+        opens: [{ app: 'app/skill-library', opens: 2, lastAt: '2026-11-19T00:00:00Z' }],
+        installs: [
+          { itemId: 'skill/make-lyrics-video', at: '2026-11-18T00:00:00Z' },
+          { itemId: 'skill/pack-brand-kit', at: '2026-11-17T00:00:00Z' },
+          { itemId: 'mcp/elevenlabs', at: '2026-11-16T00:00:00Z' },
+        ],
+        devices: [],
+      },
+      SKILLS,
+    );
+    // a skill of their own has no item, so no picture: it stays out
+    assert.deepEqual(
+      homeShelf(columns, ['skill']).map(item => item.id),
+      ['skill/pack-brand-kit', 'skill/make-lyrics-video'],
+    );
+    assert.deepEqual(
+      homeShelf(columns, ['mcp', 'app']).map(item => item.id),
+      // the MCPs pack-brand-kit's runs count for, then the app opened from the app
+      ['mcp/browse-hack', 'mcp/elevenlabs', 'app/skill-library'],
+    );
+    assert.equal(homeShelf(columns, ['skill'], 1).length, 1);
   });
 });

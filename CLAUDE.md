@@ -252,7 +252,7 @@ Spaces, `/app/spaces` (`mm space help`, `apps/mediamake/docs/private-spaces.md`)
   one history, cloned to `linked/<name>` in the workspace. Everyone on a linked project and every named
   member gets it with `mm space sync` or `mm space join`; only its owner and the named editors can
   change it. `mm space unlink <item> --project=<project>` (or `--from=<email>`) takes it from that
-  project's people, or that person, only. In the app, Share on the item's card in Mine does the same.
+  project's people, or that person, only. In the app, Share on the item's card in My Items does the same.
 - Adding someone to a project in the app invites them to the project's repo on GitHub when the owner
   connected GitHub there (once, in the access panel; MediaMake's GitHub App, set up as
   `apps/mediamake/docs/private-spaces.md` says). Otherwise `mm space invite <project id>` on the
@@ -428,11 +428,13 @@ the format.
   picture: a file in the folder or an https link) in the frontmatter. An MCP's or an app's is on its
   release page (`catalog_set_listing`: `readme`, `description`, `headshot`, `tags`, and `icon`), its pictures uploaded (`catalog_upload_picture`), never committed.
 - An item's authors, and admins, set its description, headshot and icon without the admins'
-  connector: Edit card on its page or on My store items (`/app/my-items`), or mm-use's
-  `set_item_listing` (for a picture, `upload_item_picture` first: run the `curl` line it gives, then
-  pass its `publicUrl`). It is live at once, with no review, so only on the user's word, after they
-  have read the description or seen the picture. An item made outside MediaMake has no authors: an
-  admin sets these. The rest of a listing (README, tags, screenshots) stays an admin's.
+  connector: Edit card on its page, its page on My store items (`/app/my-items/<kind>/<slug>`), or
+  mm-use's `set_item_listing` (for a picture, `upload_item_picture` first: run the `curl` line it
+  gives, then pass its `publicUrl`). On My store items they also write an MCP's or an app's README
+  and set its tags and screenshots (a repo skill's README stays its README.md). It is live at once,
+  with no review, so only on the user's word, after they have read the words or seen the picture.
+  An item made outside MediaMake has no authors: an admin sets these. Its level, tier, health,
+  advice, editors' pick and archive stay an admin's.
 - Wherever an item lives, its own README.md is what shows: a public skill's from this repo, a private
   one's (a member's own space, a project's, a linked item) in its dialog, to the people who can see that
   space, sent with its pictures by every `mm space sync`. Write it in the item's folder and sync; never

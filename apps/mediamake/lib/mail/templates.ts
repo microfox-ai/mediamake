@@ -173,10 +173,10 @@ export function itemSharedMail(to: string, input: { item: string; kind: 'skill' 
     lines: [
       `${input.by} shared the ${what} ${input.item} with you. ${input.editor ? 'You can use it and change it.' : 'You can use it; only they, and the editors they name, change it.'}`,
       input.hasAccount
-        ? 'It is in Mine now. On a computer with MediaMake, ask Claude to "sync my MediaMake spaces" (mm space sync) and it is there, kept up to date as they improve it. It comes through GitHub, so link your GitHub account under Account first.'
-        : `Make a MediaMake account with this address (${to}), link your GitHub account under Account, and it is in Mine.`,
+        ? 'It is in My Items now. On a computer with MediaMake, ask Claude to "sync my MediaMake spaces" (mm space sync) and it is there, kept up to date as they improve it. It comes through GitHub, so link your GitHub account under Account first.'
+        : `Make a MediaMake account with this address (${to}), link your GitHub account under Account, and it is in My Items.`,
     ],
-    button: { label: input.hasAccount ? 'Open Mine' : 'Join MediaMake', url: input.url },
+    button: { label: input.hasAccount ? 'Open My Items' : 'Join MediaMake', url: input.url },
     footer: `Sent because ${input.by} shared something of theirs with this address on MediaMake. If that is a mistake, ignore this mail.`,
   });
 }

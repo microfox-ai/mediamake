@@ -64,11 +64,24 @@ function isMemberKind(kind: string): kind is MemberKind {
 }
 
 /**
+ * Whether a skill is internal (other skills run it, or it looks after the
+ * computer): by the type set on its page (`setTypes`, by name), else the type
+ * its README states, else its registry flag or its category's default. The
+ * same order its page reads its type in (lib/catalog/skill-profile).
+ */
+export function isInternalSkill(skill: Pick<RegistrySkill, 'name' | 'category' | 'internal' | 'listing'>, internalCategories: Set<string>, setTypes?: Map<string, string>): boolean {
+  const type = setTypes?.get(skill.name) || skill.listing?.type;
+  if (type) return type === 'internal';
+  return skill.internal ?? internalCategories.has(skill.category);
+}
+
+/**
  * The skills, MCPs and apps the app lists for one member, from their catalog
  * entries (locked ones included). The cohort's and the vault's stay out for
- * everyone below them (lib/catalog/shown).
+ * everyone below them (lib/catalog/shown). `setTypes` are the skill types set
+ * on their pages, by name (an internal one is never in Explore).
  */
-export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], internalCategories: string[] = []): AppItem[] {
+export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], internalCategories: string[] = [], setTypes?: Map<string, string>): AppItem[] {
   const registry = new Map(skills.map(skill => [`skill/${skill.name}`, skill]));
   const internal = new Set(internalCategories);
   const items: AppItem[] = [];
@@ -83,7 +96,7 @@ export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], 
     const categories = skill ? [...new Set([skill.category, ...tags])] : tags;
     const page = itemPagePath(entry.id);
     const locked = !!shown.locked;
-    const isInternal = skill ? (skill.internal ?? internal.has(skill.category)) : false;
+    const isInternal = skill ? isInternalSkill(skill, internal, setTypes) : false;
     items.push({
       ...entry,
       kind: entry.kind,
@@ -121,7 +134,6 @@ export interface ExploreFilters {
   category: string | null;
   /** Failed items stay out until this is on. */
   failed: boolean;
-  internal: boolean;
   archived: boolean;
   /** Alpha items stay out until this is on. */
   alpha: boolean;
@@ -151,7 +163,6 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     kind: kind && isMemberKind(kind) ? kind : null,
     category: one('category'),
     failed: show.has('failed'),
-    internal: show.has('internal'),
     archived: show.has('archived'),
     alpha: show.has('alpha'),
     deprecated: show.has('deprecated'),
@@ -164,7 +175,6 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     filters.kind ||
     filters.category ||
     filters.failed ||
-    filters.internal ||
     filters.archived ||
     filters.alpha ||
     filters.deprecated ||
@@ -182,7 +192,7 @@ export interface ExploreResult {
   /** How many match per kind, whatever kind is picked. */
   kinds: Record<MemberKind, number>;
   /** Matches a toggle keeps out, so a search never comes up empty without saying why. */
-  hidden: { failed: number; internal: number; archived: number; alpha: number; deprecated: number; notRecommended: number; admin: number };
+  hidden: { failed: number; archived: number; alpha: number; deprecated: number; notRecommended: number; admin: number };
 }
 
 /** Production first, then Beta, then Alpha. */
@@ -190,9 +200,11 @@ const LEVEL_RANK: Record<Readiness, number> = { ready: 0, beta: 1, alpha: 2 };
 const levelRank = (item: Pick<AppItem, 'level'>) => LEVEL_RANK[item.level] ?? 1;
 
 /**
- * Explore's list: what matches the search, the kind and the category. Failed
- * items are only shown behind their filter; internal skills, archived, Alpha,
- * deprecated, not recommended and admin-only items behind theirs. Best match first, then
+ * Explore's list: what matches the search, the kind and the category. Internal
+ * skills are never in it: other skills run them, and the member gets them with
+ * those (they still show in My Items and on Home once installed). Failed items
+ * are only shown behind their filter; archived, Alpha, deprecated, not
+ * recommended and admin-only items behind theirs. Best match first, then
  * Production before Beta before Alpha, then newest.
  */
 export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder: string[] = []): ExploreResult {
@@ -216,16 +228,17 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
           ? 'admin'
           : item.alpha && !filters.alpha
             ? 'alpha'
-            : item.internal && !filters.internal
-              ? 'internal'
-              : item.archivedAt && !filters.archived
-                ? 'archived'
-                : null;
+            : item.archivedAt && !filters.archived
+              ? 'archived'
+              : null;
 
-  const matching = items.map(item => ({ item, score: score(item) })).filter(match => match.score > 0 && (filters.locked || !match.item.locked));
+  const matching = items
+    .filter(item => !item.internal)
+    .map(item => ({ item, score: score(item) }))
+    .filter(match => match.score > 0 && (filters.locked || !match.item.locked));
   const kinds: Record<MemberKind, number> = { skill: 0, mcp: 0, app: 0 };
   const counts = new Map<string, number>();
-  const hidden = { failed: 0, internal: 0, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 };
+  const hidden = { failed: 0, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 };
   const shown: { item: AppItem; score: number }[] = [];
   for (const match of matching) {
     const { item } = match;
@@ -462,6 +475,25 @@ export function homeColumns(items: AppItem[], activity: MemberActivity, skills: 
       .map(install => row(install.itemId, slugOf(install.itemId), { type: 'installed', at: install.at }));
     return { kind, mostUsed, recent };
   });
+}
+
+/**
+ * Home's shelves of the member's own (its right column): the items of these kinds
+ * from Home's columns, most used first, then installed lately, each once. A
+ * skill of their own that is not in the catalog has no picture to show, and
+ * stays out.
+ */
+export function homeShelf(columns: HomeColumn[], kinds: MemberKind[], limit = 8): AppItem[] {
+  const seen = new Set<string>();
+  const shelf: AppItem[] = [];
+  for (const group of ['mostUsed', 'recent'] as const)
+    for (const column of columns.filter(column => kinds.includes(column.kind)))
+      for (const row of column[group]) {
+        if (!row.item || seen.has(row.item.id)) continue;
+        seen.add(row.item.id);
+        shelf.push(row.item);
+      }
+  return shelf.slice(0, limit);
 }
 
 /* ---------- Mine ---------- */

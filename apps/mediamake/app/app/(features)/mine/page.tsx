@@ -6,10 +6,10 @@ import { registry } from '@/lib/skills/registry';
 import { SPACES_HREF, pageOpens } from '@/lib/app-shell/nav';
 import { getAppViewer } from '@/lib/app-shell/viewer';
 
-export const metadata = { title: 'Mine · MediaMake' };
+export const metadata = { title: 'My Items · MediaMake' };
 
 /**
- * /app/mine, one tab each (`?tab=` opens one): what the member installed
+ * /app/mine, My Items (it was Mine), one tab each (`?tab=` opens one): what the member installed
  * (the last used first), what is theirs, what their projects have, what
  * members shared with them and the other skills their computers reported,
  * with a warning on anything installed that is failed right now. Clicking
@@ -26,7 +26,7 @@ export default async function MinePage({ searchParams }: { searchParams: Promise
   const mineOf = mine(items, activity, skills);
 
   return (
-    <AppPage title="Mine">
+    <AppPage title="My Items">
       <MineView mine={mineOf} spaces={spaces} spacesOpen={pageOpens(tier, SPACES_HREF)} tab={MINE_TABS.find(name => name === tab) as MineTab | undefined} now={now} />
     </AppPage>
   );

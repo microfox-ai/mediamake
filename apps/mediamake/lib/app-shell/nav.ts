@@ -2,8 +2,9 @@ import { FEATURE_TIERS, tierOpens, type MemberTier } from '@/lib/memberships/tie
 
 /**
  * The signed-in app at /app: its sidebar, as data. Four sections (Home,
- * Features, Admin, Account); a page is one row here plus its folder under
- * app/app. Pure, so the sidebar (browser) and the layouts (server) share it.
+ * Explore and My Items at the top; Spaces and Library for the cohort; Admin;
+ * Account); a page is one row here plus its folder under app/app. Pure, so the
+ * sidebar (browser) and the layouts (server) share it.
  *
  * `needs` is the lowest membership that opens the page. A section with
  * `hiddenBelow` is left out of the sidebar for everyone under that tier, and
@@ -18,6 +19,9 @@ export const APP_HOME = '/app';
 
 export const SPACES_HREF = '/app/spaces';
 export const LIBRARY_HREF = '/app/library';
+/** My Items: what the member installed, made and was given (it was Mine; the address stays). */
+export const MINE_HREF = '/app/mine';
+/** My store items: the store items the member is an author of. */
 export const MY_ITEMS_HREF = '/app/my-items';
 
 export type AppNavIcon =
@@ -55,12 +59,17 @@ export interface AppNavSection {
 }
 
 export const APP_NAV: AppNavSection[] = [
-  { items: [{ title: 'Home', href: APP_HOME, icon: 'home' }] },
   {
-    label: 'Features',
     items: [
+      { title: 'Home', href: APP_HOME, icon: 'home' },
       { title: 'Explore', href: '/app/explore', icon: 'explore' },
-      { title: 'Mine', href: '/app/mine', icon: 'mine' },
+      { title: 'My Items', href: MINE_HREF, icon: 'mine' },
+    ],
+  },
+  {
+    // the cohort's and the admins' for now: hidden from Public, Plus and Pro
+    label: 'Spaces',
+    items: [
       { title: 'Spaces', href: SPACES_HREF, icon: 'projects', hiddenBelow: 'cohort' },
       { title: 'Library', href: LIBRARY_HREF, icon: 'library', hiddenBelow: FEATURE_TIERS.cloudLibrary },
     ],

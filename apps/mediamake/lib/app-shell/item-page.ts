@@ -27,13 +27,14 @@ export function backPath(from: string | undefined | null): string | undefined {
 const PLACES: [RegExp, string][] = [
   [/^\/app\/?$/, 'Home'],
   [/^\/app\/explore\/?$/, 'Explore'],
-  [/^\/app\/mine\/?$/, 'Mine'],
+  [/^\/app\/mine\/?$/, 'My Items'],
+  [/^\/app\/my-items\/?$/, 'My store items'],
   [/^\/app\/spaces\/?$/, 'Spaces'],
 ];
 
 /**
- * The breadcrumb over an item's page: where it was opened (Home, Explore, Mine, a space, a store page),
- * then the item. Opened from nowhere known (a shared link), it starts at the space the item belongs to, or Mine.
+ * The breadcrumb over an item's page: where it was opened (Home, Explore, My Items, a space, a store page),
+ * then the item. Opened from nowhere known (a shared link), it starts at the space the item belongs to, or My Items.
  */
 export function itemCrumbs(from: string | undefined | null, item: Pick<ItemDetails, 'title' | 'belongs'>): Crumb[] {
   const back = backPath(from);
@@ -50,7 +51,7 @@ export function itemCrumbs(from: string | undefined | null, item: Pick<ItemDetai
     trail = [{ label: 'Back', href: back }];
   } else {
     const home = item.belongs.find(entry => entry.href?.startsWith('/app/spaces/'));
-    trail = home ? [{ label: 'Spaces', href: '/app/spaces' }, { label: home.label, href: home.href }] : [{ label: 'Mine', href: '/app/mine' }];
+    trail = home ? [{ label: 'Spaces', href: '/app/spaces' }, { label: home.label, href: home.href }] : [{ label: 'My Items', href: '/app/mine' }];
   }
   return [...trail, { label: item.title }];
 }

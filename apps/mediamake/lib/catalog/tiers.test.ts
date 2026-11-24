@@ -141,7 +141,7 @@ describe('where an item shows', () => {
     assert.equal(shownOn('explore', item({ tier: 'cohort', access: 'granted' })).show, true);
   });
 
-  it('keeps what you installed in Mine, failed ones with a warning, and shows admins everything', () => {
+  it('keeps what you installed in My Items, failed ones with a warning, and shows admins everything', () => {
     assert.deepEqual(shownOn('mine', item({ health: 'failed', readiness: 'beta' })), { show: true, badge: 'beta', warning: 'failed' });
     assert.equal(shownOn('admin', item({ tier: 'admin', access: 'granted', health: 'failed' })).show, true);
   });

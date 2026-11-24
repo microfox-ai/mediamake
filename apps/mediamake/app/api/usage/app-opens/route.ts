@@ -7,7 +7,7 @@ import { daysParam, parseAppOpen, sinceDays } from '@/lib/usage/usage';
  * (an app is a page of this site, so no hook or MCP can report it). Behind
  * the middleware, so x-client-id is the signed-in account.
  *
- * POST  { app }      one app opened from Home, Explore or Mine: its catalog id. The time is
+ * POST  { app }      one app opened from Home, Explore or My Items: its catalog id. The time is
  *                    the server's; nothing else is read or stored.
  * GET   ?days=90     the account's apps by how often it opened them, most opened first.
  *
