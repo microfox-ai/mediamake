@@ -1,5 +1,11 @@
 # @microfox/mediamake-mcp
 
+## 0.13.0
+
+### Minor Changes
+
+- 5525406: mm-use: an item's authors set its description too. `set_item_pictures` is now `set_item_listing`, which takes `description` beside `headshot` and `icon`; `upload_item_picture` is unchanged. The rest of a listing stays in mm-release's `catalog_set_listing`.
+
 ## 0.12.0
 
 ### Minor Changes
