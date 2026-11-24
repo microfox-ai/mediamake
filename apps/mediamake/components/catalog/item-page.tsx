@@ -26,7 +26,7 @@ import { madeDB } from '@/lib/catalog/made-store';
 import { itemUsers, useDependencies } from '@/lib/catalog/skill-profile';
 import { accessLevel, getEntitlements, getViewer, viewerTier } from '@/lib/access';
 import { directoryUrlOf, installPromptFor, isInstallable, listCatalog, toCard, toEntry, type ItemUse } from '@/lib/catalog';
-import { itemPagePath } from '@/lib/catalog/paths';
+import { exploreHref, itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { releasesOf } from '@/lib/catalog/releases';
 import { itemPath } from '@/lib/catalog/summary';
@@ -36,10 +36,11 @@ import { registry } from '@/lib/skills/registry';
 import { shownAuthors } from '@/lib/submissions/authors';
 
 const KIND_LABEL: Partial<Record<CatalogKind, string>> = { skill: 'Skill', mcp: 'MCP', app: 'App' };
+// the store's list is Explore, in the app (signed out, it asks to sign in first)
 const LIST_TAB: Partial<Record<CatalogKind, { href: string; label: string }>> = {
-  skill: { href: '/?tab=skills', label: 'All skills' },
-  mcp: { href: '/?tab=mcps', label: 'All MCPs' },
-  app: { href: '/?tab=apps', label: 'All apps' },
+  skill: { href: exploreHref('skill'), label: 'All skills' },
+  mcp: { href: exploreHref('mcp'), label: 'All MCPs' },
+  app: { href: exploreHref('app'), label: 'All apps' },
 };
 
 /** The item as the viewer may see it, or null: for the page and its share preview. */

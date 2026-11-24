@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { itemPagePath, oldAccessPath } from './paths';
+import { exploreHref, itemPagePath, oldAccessPath } from './paths';
 
 describe('itemPagePath', () => {
   it('gives every kind its own page, never /access', () => {
@@ -24,5 +24,19 @@ describe('oldAccessPath', () => {
   });
   it('sends an id that names no item to the homepage', () => {
     for (const bad of ['skill/', 'skill', 'thing/x', 'skill/../admin', 'skill//evil.com', 'mcp/a/b']) assert.equal(oldAccessPath(bad), '/', bad);
+  });
+});
+
+describe('exploreHref', () => {
+  it('opens one kind of the store in the app, from its name or an old tab of the homepage', () => {
+    assert.equal(exploreHref('skill'), '/app/explore?kind=skill');
+    assert.equal(exploreHref('skills'), '/app/explore?kind=skill');
+    assert.equal(exploreHref('mcps', 'voice'), '/app/explore?kind=mcp&q=voice');
+    assert.equal(exploreHref('apps'), '/app/explore?kind=app');
+  });
+  it('opens the whole list for anything else', () => {
+    assert.equal(exploreHref('tutorials'), '/app/explore');
+    assert.equal(exploreHref(null, '  '), '/app/explore');
+    assert.equal(exploreHref('javascript:alert(1)'), '/app/explore');
   });
 });

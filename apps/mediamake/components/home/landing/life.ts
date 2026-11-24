@@ -1,10 +1,12 @@
 /**
  * What moves on the homepage (landing.tsx): the headline's retyped word, the prompt box typing through
  * requests, the chapter titles lighting up word by word with the scroll, the wheel of what MediaMake makes
- * and the screen beside it, the 3D piece, the films, the closing line. The page is complete without any of
- * it; with reduced motion nothing animates and every word is lit.
+ * and the screen beside it, the 3D piece, the films, the closing line's word. The page is complete without
+ * any of it; with reduced motion nothing animates and every word is lit.
  *
- * Returns the function that stops everything, for the effect's cleanup.
+ * `onCopied` hears each copy of the setup prompt (true: on the clipboard; false: selected on the page to
+ * copy by hand), for the note that says what to do next. Returns the function that stops everything, for
+ * the effect's cleanup.
  */
 
 const AGENTS: [name: string, icon: string][] = [
@@ -15,6 +17,9 @@ const AGENTS: [name: string, icon: string][] = [
 
 /** The headline's word: backspaced, then retyped as the next. */
 const WHO = ['solo', 'duo', 'trio', 'infi'];
+
+/** The closing line's word, the same way: keep making stuff up, videos up, graphics up… */
+const MAKES = ['stuff', 'videos', 'graphics', 'art', 'films', 'music', 'games'];
 
 /** What the prompt box types, and the agent it is typed into. */
 const PROMPTS: [text: string, agent: number][] = [
@@ -40,13 +45,10 @@ const KINDS: [agent: number, verb: string, skill: string, note: string][] = [
 /** The 3D piece's place in KINDS: its sphere is only drawn while it shows. */
 const ORB = 5;
 
-const AUDIT_PROMPT =
-  'Audit this skill before I run it: read every file it would run, list what it installs, reads, writes and sends, and tell me anything risky.';
-
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export function bringToLife(root: HTMLElement): () => void {
+export function bringToLife(root: HTMLElement, { onCopied }: { onCopied?: (copied: boolean) => void } = {}): () => void {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const one = <T extends Element = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const all = <T extends Element = HTMLElement>(selector: string) => [...root.querySelectorAll<T>(selector)];
@@ -57,60 +59,75 @@ export function bringToLife(root: HTMLElement): () => void {
   let orbOn = false;
   if (!reduce) root.classList.add('is-live');
 
-  /* copy buttons: the clipboard, else select the text so it can be copied by hand */
-  const text = { setup: one('#setup-text').textContent!.trim(), audit: AUDIT_PROMPT };
+  /* copy buttons (the setup prompt): the clipboard, else select the text so it can be copied by hand */
+  const setup = one('#setup-text');
   for (const button of all<HTMLButtonElement>('[data-copy]')) {
-    const label = button.querySelector<HTMLElement>('[data-label]')!;
-    const was = label.textContent;
+    // a button with words says what happened; the header's icon turns into a tick
+    const label = button.querySelector<HTMLElement>('[data-label]');
+    const was = label?.textContent;
     button.addEventListener(
       'click',
       async () => {
-        const kind = button.dataset.copy === 'audit' ? 'audit' : 'setup';
+        let copied = true;
         try {
-          await navigator.clipboard.writeText(text[kind]);
-          label.textContent = 'Copied';
+          await navigator.clipboard.writeText(setup.textContent!.trim());
+          if (label) label.textContent = 'Copied';
         } catch {
-          const source = one(kind === 'audit' ? '#audit-text' : '#setup-text');
+          copied = false;
           const range = document.createRange();
-          range.selectNodeContents(source);
+          range.selectNodeContents(setup);
           const selection = getSelection();
           selection?.removeAllRanges();
           selection?.addRange(range);
-          source.scrollIntoView({ block: 'center' });
-          label.textContent = 'Selected: press copy';
+          setup.scrollIntoView({ block: 'center' });
+          if (label) label.textContent = 'Selected: press copy';
         }
+        // the header's icon: a tick when it is on the clipboard; its tip says which happened
+        button.classList.add(copied ? 'is-done' : 'is-picked');
+        onCopied?.(copied);
         setTimeout(() => {
-          if (alive) label.textContent = was;
+          if (!alive) return;
+          if (label) label.textContent = was ?? '';
+          button.classList.remove('is-done', 'is-picked');
         }, 1800);
       },
       { signal },
     );
   }
 
-  /* the headline: solo is backspaced and retyped as duo, trio, infi, the line making room as it goes */
-  const who = one('#who');
-  const swap = one('#swap');
-  const fitSwap = () => {
-    swap.style.width = `${who.offsetWidth + one('#swap .caret').offsetWidth + 3}px`;
-  };
-  const retype = async () => {
-    for (let i = 0; alive; ) {
-      await wait(2100);
-      while (alive && who.textContent) {
-        who.textContent = who.textContent.slice(0, -1);
-        fitSwap();
-        await wait(85);
+  /**
+   * A word that is backspaced and retyped as the next of `words`, over and over, its line making room as
+   * it goes: the headline's solo, duo, trio, infi, and the closing line's stuff, videos, graphics…
+   */
+  const retyper = (swap: HTMLElement, words: string[], { hold = 2100, out = 85, into = 120 } = {}) => {
+    const word = swap.querySelector<HTMLElement>('em')!;
+    const caret = swap.querySelector<HTMLElement>('.caret')!;
+    const fit = () => {
+      swap.style.width = `${word.offsetWidth + caret.offsetWidth + 3}px`;
+    };
+    const run = async () => {
+      for (let i = 0; alive; ) {
+        await wait(hold);
+        while (alive && word.textContent) {
+          word.textContent = word.textContent.slice(0, -1);
+          fit();
+          await wait(out);
+        }
+        i = (i + 1) % words.length;
+        await wait(220);
+        for (const letter of words[i]) {
+          if (!alive) return;
+          word.textContent += letter;
+          fit();
+          await wait(into);
+        }
       }
-      i = (i + 1) % WHO.length;
-      await wait(220);
-      for (const letter of WHO[i]) {
-        if (!alive) return;
-        who.textContent += letter;
-        fitSwap();
-        await wait(120);
-      }
-    }
+    };
+    return { fit, run };
   };
+
+  /* the headline: solo is backspaced and retyped as duo, trio, infi */
+  const headline = retyper(one('#swap'), WHO);
 
   /* the prompt box: types through what you can ask for, moving between the three agents */
   const typed = one('#typed');
@@ -138,9 +155,15 @@ export function bringToLife(root: HTMLElement): () => void {
       }
     }
   };
+  /* the closing line: once it is in view, stuff becomes videos, graphics, art, films, music, games… */
+  const closing = retyper(one('#endswap'), MAKES, { hold: 1500, out: 60, into: 95 });
   if (!reduce) {
-    void document.fonts.ready.then(() => alive && fitSwap());
-    void retype();
+    void document.fonts.ready.then(() => {
+      if (!alive) return;
+      headline.fit();
+      closing.fit();
+    });
+    void headline.run();
     void typePrompts();
   }
 
@@ -256,12 +279,15 @@ export function bringToLife(root: HTMLElement): () => void {
     'resize',
     () => {
       fitArts();
+      // the retyped words keep their room at the new size
+      headline.fit();
+      closing.fit();
       ask();
     },
     { signal },
   );
 
-  /* films play only while on screen; the closing line types itself once */
+  /* films play only while on screen; the closing line's word starts changing once it is seen */
   const films = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -273,24 +299,15 @@ export function bringToLife(root: HTMLElement): () => void {
     { threshold: 0.05 },
   );
   all('video').forEach((film) => films.observe(film));
-  const closing = new IntersectionObserver(
-    async ([entry]) => {
+  const seen = new IntersectionObserver(
+    ([entry]) => {
       if (!entry.isIntersecting) return;
-      closing.disconnect();
-      const line = entry.target as HTMLElement;
-      const full = line.textContent ?? '';
-      line.textContent = '';
-      await wait(300);
-      for (const letter of full) {
-        if (!alive) break;
-        line.textContent += letter;
-        await wait(55 + Math.random() * 50);
-      }
-      if (!alive) line.textContent = full;
+      seen.disconnect();
+      void closing.run();
     },
     { threshold: 0.6 },
   );
-  if (!reduce) closing.observe(one('#endline'));
+  if (!reduce) seen.observe(one('#endswap'));
 
   fitArts();
   step();
@@ -300,7 +317,7 @@ export function bringToLife(root: HTMLElement): () => void {
     alive = false;
     listeners.abort();
     films.disconnect();
-    closing.disconnect();
+    seen.disconnect();
     cancelAnimationFrame(frame);
     root.classList.remove('is-live');
   };

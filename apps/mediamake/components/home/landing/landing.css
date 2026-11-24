@@ -65,11 +65,10 @@
 .mmh .words__meta{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:space-between;gap:16px;font:400 .8rem/1 var(--mono);color:var(--text-3)}
 .mmh .words__meta b{font-weight:500;color:var(--hot)}
 /* the story lines: sentences that light up as they reach you */
-.mmh .lines{display:flex;flex-direction:column;gap:.34em;font-weight:700;font-size:clamp(1.65rem,3.3vw,3rem);line-height:1.08;letter-spacing:-.022em;text-wrap:balance}
+.mmh .lines{display:flex;flex-direction:column;gap:.3em;max-width:36em;font-weight:500;font-size:clamp(1.08rem,1.3vw,1.25rem);line-height:1.5;letter-spacing:-.004em;color:var(--text-2);text-wrap:pretty}
 .mmh .lines p{transition:opacity .5s,color .5s}
 .mmh.is-live .lines p:not(.on){opacity:.17}
-.mmh .lines .k{color:var(--hot)}
-.mmh .lines--s{font-size:clamp(1.35rem,2.3vw,2.1rem);font-weight:600;line-height:1.14}
+.mmh .lines .k{color:var(--hot);font-weight:600}
 /* ---------- buttons ---------- */
 .mmh .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap;min-height:50px;padding:0 22px;border-radius:14px;border:1px solid transparent;font:600 1.05rem/1 var(--font);text-decoration:none;cursor:pointer;transition:box-shadow .2s,background .2s,transform .15s}
 .mmh .btn:active{transform:translateY(1px)}
@@ -93,6 +92,14 @@
 .mmh .nav__gh{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;color:#c9bfd2}
 .mmh .nav__gh:hover{color:#f6f3fa;background:rgba(228,217,229,.07)}
 .mmh .nav__gh svg{width:20px;height:20px;fill:currentColor}
+.mmh .nav__copy{position:relative;padding:0;border:0;background:none;font:inherit;cursor:pointer}
+.mmh .nav__copy svg.ic{fill:none;width:19px;height:19px}
+.mmh .nav__copy .ic--done,.mmh .nav__copy.is-done .ic{display:none}
+.mmh .nav__copy.is-done .ic--done{display:block;color:var(--hot)}
+.mmh [data-tip]::after{content:attr(data-tip);position:absolute;top:calc(100% + 10px);left:50%;z-index:2;padding:8px 12px;border:1px solid rgba(255,79,139,.42);border-radius:10px;background:rgba(12,9,20,.94);box-shadow:0 0 0 1px rgba(255,79,139,.1),0 0 22px rgba(233,30,99,.32),0 10px 30px rgba(0,0,0,.5);color:#f6f3fa;font:500 .86rem/1 var(--font);white-space:nowrap;pointer-events:none;opacity:0;transform:translate(-50%,-4px);transition:opacity .15s,transform .15s}
+.mmh [data-tip]:hover::after,.mmh [data-tip]:focus-visible::after{opacity:1;transform:translate(-50%,0)}
+.mmh [data-tip].is-done::after{content:"Copied"}
+.mmh [data-tip].is-picked::after{content:"Selected: press ⌘C"}
 /* ---------- hero ---------- */
 .mmh .hero{position:relative;padding-block:clamp(26px,3.6vw,46px) clamp(70px,9vw,120px);text-align:center}
 .mmh .hero__bloom{position:absolute;left:50%;bottom:-90px;width:min(1320px,140vw);height:760px;transform:translateX(-50%);pointer-events:none;background:radial-gradient(closest-side,rgba(233,30,99,.5),rgba(150,44,170,.36) 38%,rgba(70,36,120,.24) 60%,transparent 80%);filter:blur(26px)}
@@ -325,16 +332,6 @@
 .mmh .pipe__ic--ag{display:flex;align-items:center;justify-content:center;gap:4px;width:auto;min-width:72px;padding:0 9px;font-size:.84rem}
 .mmh .pipe b{font-weight:700;font-size:1.15rem;line-height:1.15}
 .mmh .pipe li>span:last-child{color:var(--text-3);font-size:.95rem;line-height:1.3}
-/* ---------- 06. safety ---------- */
-.mmh .safe__stack{display:flex;flex-direction:column;align-items:center;gap:.4em}
-.mmh .safe__q{font-weight:700;font-size:clamp(1.9rem,5.4vw,4.6rem);letter-spacing:-.03em;line-height:1;color:var(--text-2)}
-.mmh .answer{font-weight:800;font-size:clamp(3.4rem,12.4vw,12rem);line-height:.9;letter-spacing:-.046em;text-align:center}
-.mmh .audit{display:flex;flex-direction:column;gap:14px}
-.mmh .audit .composer__box{min-height:190px}
-.mmh .audit .atab{flex:none;padding-inline:18px}
-.mmh .audit .sq{margin-left:auto}
-.mmh .shield{display:flex;align-items:center;gap:14px;font-weight:600;font-size:1.1rem;color:var(--text-2)}
-.mmh .shield .ic{width:34px;height:34px;color:var(--hot);stroke-width:1.5}
 /* ---------- 07. creativity amplified ---------- */
 .mmh .mani{position:relative;height:300vh}
 .mmh .mani__stage{position:sticky;top:0;height:100svh;display:flex;align-items:center;overflow:hidden}
@@ -343,8 +340,8 @@
 .mmh .mani__in{position:relative;display:flex;flex-direction:column;gap:clamp(18px,3vh,34px)}
 .mmh .mani .big{text-align:left;margin:0;font-size:clamp(3.2rem,10.6vw,10rem)}
 .mmh .mani .big .w{display:block;width:fit-content}
-.mmh .mani .lines{max-width:17em;font-size:clamp(1.3rem,2.5vw,2.25rem);font-weight:600}
-.mmh .mani .lines .k{color:#fff;font-weight:800}
+.mmh .mani .lines{max-width:30em;color:#e4d9e5}
+.mmh .mani .lines .k{color:#fff;font-weight:700}
 .mmh .end{padding-block:clamp(90px,12vw,170px) clamp(70px,9vw,120px);text-align:center}
 .mmh .end__in{display:flex;flex-direction:column;align-items:center;gap:34px}
 .mmh .end__type{font-weight:600;font-size:clamp(1.9rem,4.4vw,3.6rem);letter-spacing:-.02em;line-height:1.1;min-height:1.1em}
@@ -389,10 +386,8 @@
   .mmh .steps{grid-template-columns:minmax(0,1fr)}
   .mmh .big{font-size:17.5vw;max-width:6.4em}
   .mmh .big--m{font-size:15.5vw;max-width:6em}
-  .mmh .answer{font-size:15.5vw}
   .mmh .mani .big{font-size:15.5vw}
   .mmh .model{font-size:1.05rem;gap:8px}
-  .mmh .audit .model>.ic{display:none}
   .mmh .tools{gap:8px}
   .mmh .composer__box{min-height:186px;padding:20px 18px 16px}
   .mmh .atab{height:48px;padding:0 10px;font-size:1rem}
@@ -418,3 +413,48 @@
 .mmh .kind:hover{transform:translateY(-3px);border-color:rgba(233,30,99,.45);box-shadow:0 22px 54px rgba(92,47,125,.18)}
 .mmh .heads a{display:block;text-decoration:none;color:inherit}
 .mmh .heads a:hover img{border-color:rgba(233,30,99,.6)}
+
+/* ---------- the copied note: what to do with the setup prompt next ---------- */
+.mmh .toast{position:fixed;left:50%;bottom:max(22px,env(safe-area-inset-bottom,0px));z-index:80;width:min(470px,calc(100vw - 32px));transform:translateX(-50%)}
+.mmh .toast__box{display:flex;align-items:flex-start;gap:14px;padding:18px 14px 18px 18px;border-radius:20px;background:linear-gradient(180deg,rgba(74,26,84,.92),rgba(26,12,44,.94));animation:mmh-rise .35s cubic-bezier(.2,.8,.2,1)}
+.mmh .toast__ic{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:rgba(255,79,139,.2);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,79,139,.45)}
+.mmh .toast__body{flex:1;min-width:0}
+.mmh .toast__body b{display:block;font-weight:700;font-size:1.06rem;line-height:1.3;color:#fff}
+.mmh .toast__body ol{display:flex;flex-direction:column;gap:7px;margin-top:9px;counter-reset:step}
+.mmh .toast__body li{position:relative;padding-left:27px;font-size:.93rem;line-height:1.42;color:#e4d9e5;counter-increment:step}
+.mmh .toast__body li::before{content:counter(step);position:absolute;left:0;top:.12em;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font:600 .7rem/1 var(--mono)}
+.mmh .toast__body .ags{font-size:.86rem;vertical-align:-.1em}
+.mmh .toast__x,.mmh .signin__x{display:grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:0;border-radius:10px;background:none;color:#c9bfd2;cursor:pointer}
+.mmh .toast__x{margin:-7px -3px 0 0}
+.mmh .toast__x:hover,.mmh .signin__x:hover{background:rgba(255,255,255,.08);color:#fff}
+.mmh .toast__x .ic,.mmh .signin__x .ic{width:17px;height:17px}
+@keyframes mmh-rise{from{opacity:0;transform:translateY(14px) scale(.98)}}
+
+/* ---------- sign in, on the way into the app ---------- */
+/* the app's reset takes a dialog's margin away: put back what centres it */
+.mmh .signin{position:fixed;inset:0;margin:auto;height:fit-content;width:420px;max-width:calc(100vw - 32px);max-height:calc(100svh - 32px);padding:0;border:0;background:none;color:var(--text);overflow:visible}
+.mmh .signin::backdrop{background:rgba(5,3,8,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.mmh .signin[open]{animation:mmh-rise .3s cubic-bezier(.2,.8,.2,1)}
+.mmh .signin__box{display:flex;flex-direction:column;gap:14px;max-height:calc(100svh - 32px);padding:30px 26px 22px;overflow-y:auto;border-radius:24px;background:linear-gradient(180deg,rgba(88,30,96,.94),rgba(40,16,70,.96) 52%,rgba(18,9,32,.97));text-align:center}
+.mmh .signin__x{position:absolute;top:12px;right:12px;z-index:1}
+.mmh .signin__mark{width:46px;margin:0 auto 2px;filter:drop-shadow(0 0 18px rgba(233,30,99,.6))}
+.mmh .signin h2{font-weight:700;font-size:1.62rem;line-height:1.12;letter-spacing:-.02em}
+.mmh .signin__lead{color:var(--text-2);font-size:.95rem;line-height:1.45}
+.mmh .signin__oauth{display:grid;gap:10px;margin-top:4px}
+.mmh .signin__oauth .btn{width:100%;min-height:46px;font-size:1rem}
+.mmh .gicon{width:19px;height:19px;flex:none}
+.mmh .signin__or{display:flex;align-items:center;gap:12px;color:var(--text-3);font-size:.85rem}
+.mmh .signin__or::before,.mmh .signin__or::after{content:"";flex:1;border-top:1px solid var(--line-2)}
+.mmh .signin__form{display:grid;gap:12px;text-align:left}
+.mmh .signin__form label{display:grid;gap:6px;color:var(--text-2);font-size:.9rem}
+.mmh .signin__form label>span{display:flex;align-items:baseline;justify-content:space-between}
+.mmh .signin__form label a{color:var(--text-3);font-size:.85rem;text-decoration:none}
+.mmh .signin__form label a:hover{color:var(--text);text-decoration:underline}
+.mmh .signin__form input{height:46px;padding:0 14px;border:1px solid var(--line-2);border-radius:12px;background:rgba(5,3,8,.5);color:var(--text);font:400 1rem var(--font)}
+.mmh .signin__form input::placeholder{color:var(--text-3)}
+.mmh .signin__form input:focus{outline:none;border-color:rgba(255,79,139,.75);box-shadow:0 0 0 3px rgba(255,79,139,.2)}
+.mmh .signin__form .btn{width:100%;min-height:46px;margin-top:4px}
+.mmh .signin__form .btn:disabled{opacity:.6;cursor:default}
+.mmh .signin__error{color:#ff9cbd;font-size:.88rem;line-height:1.4}
+.mmh .signin__foot{color:var(--text-3);font-size:.9rem}
+.mmh .signin__foot a{color:var(--text);font-weight:600;text-underline-offset:3px}

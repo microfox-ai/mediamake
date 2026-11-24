@@ -24,7 +24,7 @@ import { itemReadme, skillReadmeText } from '@/lib/catalog/readme-data';
 import { madeShown } from '@/lib/catalog/made';
 import { madeDB } from '@/lib/catalog/made-store';
 import { itemUsers, natureInfo, natureOf, readmeChecks, readmeProfile, registryDependencies, registrySkillFiles, skillDetailsView, suggestedType, typeInfo, typeOf } from '@/lib/catalog/skill-profile';
-import { itemPagePath } from '@/lib/catalog/paths';
+import { exploreHref, itemPagePath } from '@/lib/catalog/paths';
 import { itemPath } from '@/lib/catalog/summary';
 import { catalogArchiveDB, catalogListingDB, catalogReadinessDB, catalogVideosDB, skillProfilesDB } from '@/lib/catalog/store';
 import { proofOf, slugOf, type Readiness } from '@/lib/catalog/types';
@@ -42,7 +42,7 @@ import { shownAuthors } from '@/lib/submissions/authors';
  * SKILL.md), what was made with it and feedback. On the right a narrow column: what it is, its tags,
  * its rating, its size, what it depends on and what uses it (each a link to that item's page). Every skill in skills.json is public, so the page is the same
  * for everyone, inside the app's sidebar (ItemShell: signed out, the sidebar holds a Sign in button;
- * admins get a Release page button). The list of skills is the homepage's Skills tab (/?tab=skills).
+ * admins get a Release page button). The list of skills is Explore, in the app (/app/explore?kind=skill).
  */
 
 type Props = { params: Promise<{ slug: string }> };
@@ -140,7 +140,7 @@ export default async function SkillPage({ params }: Props) {
   const made = proof.length + members.length + (listing?.media.length ?? 0);
 
   return (
-    <ItemShell back={{ href: '/?tab=skills', label: 'All skills' }} releasePath={itemPath(id)}>
+    <ItemShell back={{ href: exploreHref('skill'), label: 'All skills' }} releasePath={itemPath(id)}>
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-muted-foreground">
           <span title={category?.about}>{skill.category}</span>

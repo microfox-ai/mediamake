@@ -3,24 +3,58 @@
 // The pictures here are small SVG marks and the store's own headshots, served as they are.
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
+import type { Providers } from '@/components/auth/provider-buttons';
 import { bringToLife } from './life';
+import { SetupToast, SignInPopup, type SignInTarget } from './popups';
 import type { HomeShelf } from './shelf';
 import './landing.css';
 
 /** Inline styles here carry CSS custom properties (--o, --n, --h…), which React's style type doesn't list. */
 const css = (style: Record<string, string>) => style as CSSProperties;
 
+/** GitHub's mark, in the header and on Continue with GitHub. */
+const GITHUB =
+  'M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z';
+
+/** The store is Explore, in the app: each kind of item opens its own list there. */
+const EXPLORE = {
+  all: { href: '/app/explore', what: 'the store' },
+  skill: { href: '/app/explore?kind=skill', what: 'Skills' },
+  mcp: { href: '/app/explore?kind=mcp', what: 'MCPs' },
+  app: { href: '/app/explore?kind=app', what: 'Apps' },
+  home: { href: '/app', what: 'the app' },
+} satisfies Record<string, SignInTarget>;
+
 /**
- * The homepage: a scroll story in seven chapters. Each chapter opens on a full-screen stage where its
+ * The homepage: a scroll story in six chapters. Each chapter opens on a full-screen stage where its
  * title lights up word by word, then hands over to one piece of UI. The markup is all here and complete
  * without script; what moves (the typing, the wheel, the words lighting up) is life.ts, and every style is
  * landing.css, scoped under .mmh. The store's numbers and pictures come from the live catalog (shelf.ts).
+ * Every way into the app (the store's kinds, Enter app) asks a signed-out visitor to sign in right here
+ * (popups.tsx), and copying the setup prompt says what to do with it next.
  */
-export function Landing({ counts, shelf, ledger }: HomeShelf) {
+export function Landing({ counts, shelf, ledger, signedIn, providers }: HomeShelf & { signedIn: boolean; providers: Providers }) {
   const root = useRef<HTMLDivElement>(null);
-  useEffect(() => (root.current ? bringToLife(root.current) : undefined), []);
+  // the copied note: its count (0, none) restarts it on every copy
+  const [toast, setToast] = useState({ shown: 0, copied: true });
+  const [signIn, setSignIn] = useState<SignInTarget | null>(null);
+  const closeToast = useCallback(() => setToast(current => ({ ...current, shown: 0 })), []);
+  useEffect(() => {
+    if (!root.current) return;
+    return bringToLife(root.current, { onCopied: copied => setToast(current => ({ shown: current.shown + 1, copied })) });
+  }, []);
+
+  /** A link into the app: signed out, it opens the sign-in here instead. */
+  const into = (target: SignInTarget) => ({
+    href: target.href,
+    onClick: (e: React.MouseEvent) => {
+      if (signedIn || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      setSignIn(target);
+    },
+  });
 
   return (
     <div className="mmh" ref={root}>
@@ -56,7 +90,8 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <symbol id="i-sign" viewBox="0 0 24 24"><path d="M12 3v18M12 5.5h6.5l2 2.5-2 2.5H12M12 12.5H5.5l-2 2.5 2 2.5H12"/></symbol>
         <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
         <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v12a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/><path d="M14 3v4h4"/></symbol>
-        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 8.3-7 10-4-1.700-7-5.400-7-10V6z"/><path d="M9.500 12l2 2 3.500-4"/></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+        <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d={GITHUB}/></symbol>
       </svg>
 
       <div className="page" id="top">
@@ -68,11 +103,11 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
             <a href="#make">What it makes</a>
             <a href="#store">Store</a>
             <a href="#how">How it works</a>
-            <a href="#safe">Is it safe?</a>
           </nav>
           <div className="nav__cta">
-            <a className="nav__gh" href="https://github.com/microfox-ai/mediamake" aria-label="MediaMake on GitHub" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg></a>
-            <Link className="btn btn--light btn--sm" href="/app">Enter app</Link>
+            <a className="nav__gh" href="https://github.com/microfox-ai/mediamake" aria-label="MediaMake on GitHub" target="_blank" rel="noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={GITHUB}/></svg></a>
+            <button className="nav__gh nav__copy" type="button" id="copy-setup-nav" data-copy="setup" aria-label="Copy Setup Instruction" data-tip="Copy Setup Instruction"><svg className="ic" aria-hidden="true"><use href="#i-copy"/></svg><svg className="ic ic--done" aria-hidden="true"><use href="#i-check"/></svg></button>
+            <Link className="btn btn--light btn--sm" {...into(EXPLORE.home)}>Enter app</Link>
           </div>
         </div></div>
       </header>
@@ -120,7 +155,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <div className="words" data-story="">
           <div className="words__stage">
             <h2 className="big"><span className="w">Say</span> <span className="w">what</span> <span className="w">you</span> <span className="w">want</span> <span className="w w--spec">made.</span></h2>
-            <div className="wrap words__meta"><span><b>01</b> / 07</span><span>what it makes</span></div>
+            <div className="wrap words__meta"><span><b>01</b> / 06</span><span>what it makes</span></div>
           </div>
         </div>
 
@@ -201,7 +236,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <div className="words" data-story="">
           <div className="words__stage">
             <h2 className="big big--stack"><span className="w">Tested.</span><span className="w">Iterated.</span><span className="w">Improved.</span><span className="w w--spec">Every day.</span></h2>
-            <div className="wrap words__meta"><span><b>02</b> / 07</span><span>the store</span></div>
+            <div className="wrap words__meta"><span><b>02</b> / 06</span><span>the store</span></div>
           </div>
         </div>
         <div className="wrap after">
@@ -211,12 +246,12 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
           </div>
 
           <div className="legend">
-            <Link className="kind" href="/?tab=skills">
+            <Link className="kind" {...into(EXPLORE.skill)}>
               <div className="kind__art" aria-hidden="true"><div className="rcp"><i style={css({ '--n': '0', '--w': '70%' })}></i><i style={css({ '--n': '1', '--w': '52%' })}></i><i style={css({ '--n': '2', '--w': '82%' })}></i><i style={css({ '--n': '3', '--w': '44%' })}></i></div></div>
               <div className="kind__top"><b>Skills</b><span>{counts.skill}</span></div>
               <p>A recipe your agent follows, step by step. It knows the craft, so you don&apos;t have to explain it.</p>
             </Link>
-            <Link className="kind" href="/?tab=mcps">
+            <Link className="kind" {...into(EXPLORE.mcp)}>
               <div className="kind__art" aria-hidden="true">
                 <svg className="hub" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet">
                   <line x1="150" y1="75" x2="52" y2="32"/><line x1="150" y1="75" x2="248" y2="32"/><line x1="150" y1="75" x2="52" y2="118"/><line x1="150" y1="75" x2="248" y2="118"/>
@@ -230,7 +265,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
               <div className="kind__top"><b>MCPs</b><span>{counts.mcp}</span></div>
               <p>Tools your agent can pick up and use: a 3D app, a design editor, a voice, an image model.</p>
             </Link>
-            <Link className="kind" href="/?tab=apps">
+            <Link className="kind" {...into(EXPLORE.app)}>
               <div className="kind__art" aria-hidden="true"><div className="win"><div className="win__pic"></div><i className="win__pin"></i><div className="win__bar"></div></div></div>
               <div className="kind__top"><b>Apps</b><span>{counts.app}</span></div>
               <p>Screens where you look at what was made, pin a note on the exact spot, and approve.</p>
@@ -264,7 +299,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
                   </li>
                 ))}
               </ul>
-              <div className="shelf__more"><Link className="btn btn--light" href="/?tab=skills">Browse the store <svg className="ic"><use href="#i-arrow"/></svg></Link></div>
+              <div className="shelf__more"><Link className="btn btn--light" {...into(EXPLORE.all)}>Browse the store <svg className="ic"><use href="#i-arrow"/></svg></Link></div>
             </div>
           </div>
         </div>
@@ -275,7 +310,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <div className="words" data-story="">
           <div className="words__stage">
             <h2 className="big"><span className="w w--spec">Quality</span> <span className="w">over</span> <span className="w">quantity.</span></h2>
-            <div className="wrap words__meta"><span><b>03</b> / 07</span><span>why this store</span></div>
+            <div className="wrap words__meta"><span><b>03</b> / 06</span><span>why this store</span></div>
           </div>
         </div>
         <div className="wrap split after">
@@ -315,7 +350,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <div className="words" data-story="">
           <div className="words__stage">
             <h2 className="big big--m"><span className="w">Completely</span> <span className="w w--spec">free</span> <span className="w">&amp;</span> <span className="w">open</span> <span className="w">source.</span></h2>
-            <div className="wrap words__meta"><span><b>04</b> / 07</span><span>open source</span></div>
+            <div className="wrap words__meta"><span><b>04</b> / 06</span><span>open source</span></div>
           </div>
         </div>
         <div className="wrap split after">
@@ -358,7 +393,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         <div className="words" data-story="">
           <div className="words__stage">
             <h2 className="big"><span className="w">How</span> <span className="w">it</span> <span className="w w--spec">works?</span></h2>
-            <div className="wrap words__meta"><span><b>05</b> / 07</span><span>setup</span></div>
+            <div className="wrap words__meta"><span><b>05</b> / 06</span><span>setup</span></div>
           </div>
         </div>
         <div className="wrap after" style={css({ position: 'relative' })}>
@@ -418,44 +453,7 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
         </div>
       </section>
 
-      {/* 06: a light sheet */}
-      <section className="chapter sheet" id="safe">
-        <div className="words" data-story="">
-          <div className="words__stage">
-            <div className="safe__stack">
-              <h2 className="safe__q"><span className="w">Is</span> <span className="w">it</span> <span className="w">safe?</span></h2>
-              <p className="answer"><span className="w w--spec">Marginally.</span></p>
-            </div>
-            <div className="wrap words__meta"><span><b>06</b> / 07</span><span>safety</span></div>
-          </div>
-        </div>
-        <div className="wrap split after">
-          <div className="split__copy">
-            <div className="lines lines--s">
-              <p>Any code is only as safe as its maintainers and reviewers make it.</p>
-              <p className="k">We do not guarantee any safety.</p>
-              <p>But we use these MCPs and skills ourselves, so that can give you some confidence,</p>
-              <p>and much of the code is open source.</p>
-            </div>
-            <p className="shield"><svg className="ic"><use href="#i-shield"/></svg>If you ever feel doubtful, ask Claude to audit it.</p>
-          </div>
-          <div className="audit">
-            <div className="composer__bar" aria-hidden="true">
-              <span className="atab on"><span className="ag"><img src="/home/agents/claude.svg" alt="" /></span><b>Claude Code</b></span>
-              <span className="sq"><svg className="ic"><use href="#i-plus"/></svg></span>
-            </div>
-            <div className="glow composer__box">
-              <p className="composer__text" id="audit-text">Audit this skill before I run it. Tell me what it installs, reads, writes and sends.</p>
-              <div className="composer__foot">
-                <span className="model" aria-hidden="true"><span className="ag"><img src="/home/agents/claude.svg" alt="" /></span>Claude Code <svg className="ic"><use href="#i-chev"/></svg></span>
-                <button className="btn btn--light btn--sm" type="button" id="copy-audit" data-copy="audit"><svg className="ic"><use href="#i-copy"/></svg><span data-label="">Copy this prompt</span></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 07: the film behind, the words in front */}
+      {/* 06: the film behind, the words in front */}
       <section className="mani" id="amplified" data-story="">
         <div className="mani__stage">
           <video className="mani__bg" src="/home/dancer.mp4" poster="/home/dancer.jpg" autoPlay muted loop playsInline aria-hidden="true"></video>
@@ -469,17 +467,17 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
               <p className="w k">Not giving it your all is a crime your future self won&apos;t pardon.</p>
             </div>
           </div>
-          <div className="wrap words__meta"><span><b>07</b> / 07</span><span>why</span></div>
+          <div className="wrap words__meta"><span><b>06</b> / 06</span><span>why</span></div>
         </div>
       </section>
 
       <section className="end">
         <div className="wrap end__in">
-          <p className="end__type"><span id="endline">So, keep making stuff up!</span><span className="caret" aria-hidden="true"></span></p>
+          <p className="end__type" aria-label="So, keep making stuff up!"><span aria-hidden="true">So, keep making <span className="swap" id="endswap"><em className="spec" id="endword">stuff</em><i className="caret"></i></span> up!</span></p>
           <img className="end__mark" src="/brand/mediamake-mark.svg" alt="MediaMake" />
           <div className="cta" style={css({ marginTop: '0' })}>
             <button className="btn btn--light" type="button" id="copy-setup-end" data-copy="setup"><svg className="ic"><use href="#i-copy"/></svg><span data-label="">Copy the setup prompt</span></button>
-            <Link className="btn btn--line" href="/app">Enter app <svg className="ic"><use href="#i-arrow"/></svg></Link>
+            <Link className="btn btn--line" {...into(EXPLORE.home)}>Enter app <svg className="ic"><use href="#i-arrow"/></svg></Link>
           </div>
           <p className="works">Works in <b><span className="ag"><img src="/home/agents/claude.svg" alt="" /></span>Claude Code</b><b><span className="ag"><img src="/home/agents/codex.svg" alt="" /></span>Codex</b><b><span className="ag"><img src="/home/agents/antigravity.svg" alt="" /></span>Antigravity</b></p>
         </div>
@@ -493,12 +491,14 @@ export function Landing({ counts, shelf, ledger }: HomeShelf) {
           <nav aria-label="Footer">
             <a href="https://github.com/microfox-ai/mediamake" target="_blank" rel="noreferrer">MediaMake on GitHub</a>
             <a href="https://github.com/microfox-ai/extensions" target="_blank" rel="noreferrer">Extensions on GitHub</a>
-            <Link href="/?tab=tutorials">Tutorials</Link>
           </nav>
         </div>
       </footer>
 
       </div>
+
+      <SetupToast copied={toast.copied} shown={toast.shown} onClose={closeToast} />
+      <SignInPopup target={signIn} providers={providers} onClose={() => setSignIn(null)} />
     </div>
   );
 }
