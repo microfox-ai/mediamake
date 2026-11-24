@@ -27,9 +27,13 @@
  *   mm run wait <slug> [<n>] [--title="…"] [--notes="…"]
  *                                       this place can't do step n: it becomes a to-do for a place that
  *                                       can, and this place lets go of the run. Then end: a session
- *                                       never waits. Finishing the to-do saves the step.
+ *                                       never waits. Finishing the to-do saves the step. A release kit
+ *                                       here (out/youtube/<slug>) that the run never saved goes to the
+ *                                       project's Releases first, so the place that picks it up gets it.
  *   mm run resume <slug> [--take-saved] continues it here: takes the run, brings the project's space up
- *                                       to date, fetches what the run saved, and says what is next.
+ *                                       to date, fetches what the run saved, and says what is next. A
+ *                                       run that saved no release kit gets the project's release of the
+ *                                       same slug, when it was made for this production.
  *                                       A file here that differs from the saved one is never replaced
  *                                       unless you say --take-saved (yours is kept in .before-resume/).
  *   mm run stop <slug>                  lets go of the run, so another place can continue it
@@ -289,6 +293,17 @@ async function step(env, slug, raw, wanted, flags, flag) {
   return 0;
 }
 
+/** Sends a release kit (a folder of the workspace) to the project's Releases, tied to the run's production. */
+async function saveRelease(at, run, abs, rel, note, platform) {
+  const files = fs.existsSync(abs) ? releaseFiles(abs) : [];
+  if (!files.length) throw new Error(`Nothing to save as a release: no files in ${rel} of ${workRoot()}.`);
+  const base = path.basename(abs);
+  const slug = SLUG.test(base) ? base : run.slug;
+  const production = await readBundle(at, 'production', { projectId: run.project, slug: run.slug });
+  const result = await saveBundle(at, 'release', { projectId: run.project, slug, title: run.title, files, note, platform, ...(production?.id && { productionId: production.id }) });
+  return { slug, files, result };
+}
+
 async function save(env, slug, raw, wanted, flags, flag) {
   const run = await findRun(env, slug, wanted);
   const n = stepOf(raw, run);
@@ -314,13 +329,8 @@ async function save(env, slug, raw, wanted, flags, flag) {
     const abs = path.resolve(work, folder);
     const rel = path.relative(work, abs).split(path.sep).join('/');
     if (rel.startsWith('..') || path.isAbsolute(rel)) throw new Error(`The release kit's folder is one of the workspace's (${work}), like out/youtube/${slug}.`);
-    const files = fs.existsSync(abs) ? releaseFiles(abs) : [];
-    if (!files.length) throw new Error(`Nothing to save as a release: no files in ${rel} of ${work}.`);
-    const base = path.basename(abs);
-    const releaseSlug = SLUG.test(base) ? base : slug;
-    const production = await readBundle(at, 'production', { projectId: run.project, slug });
     const platform = flag('platform') ?? (rel.startsWith('out/youtube/') ? 'youtube' : 'other');
-    const result = await saveBundle(at, 'release', { projectId: run.project, slug: releaseSlug, title: run.title, files, note: `Step ${n}: ${run.steps[n - 1].step}`, platform, ...(production?.id && { productionId: production.id }) });
+    const { slug: releaseSlug, files, result } = await saveRelease(at, run, abs, rel, `Step ${n}: ${run.steps[n - 1].step}`, platform);
     saved.release = { slug: releaseSlug, version: result.version, folder: rel };
     made.push(`release ${releaseSlug} v${result.version}`);
     console.log(result.unchanged ? `  Release ${releaseSlug} v${result.version} already holds these files: nothing was sent.` : `  Release ${releaseSlug} v${result.version}: ${count(files.length, 'file')}, ${result.uploaded} sent.`);
@@ -342,11 +352,16 @@ async function wait(env, slug, raw, wanted, flag) {
   const run = await findRun(env, slug, wanted);
   if (!run.next) throw new Error(`${slug} has no step left.`);
   const n = raw ? stepOf(raw, run) : run.next.n;
+  // a release kit here that the run never saved (its step was saved without --release) goes to the
+  // project first: the place that picks the to-do up fetches the project's release of this slug
+  const kitAbs = path.join(workRoot(), 'out', 'youtube', slug);
+  const kit = !run.saved?.release && fs.existsSync(kitAbs) && releaseFiles(kitAbs).length ? await saveRelease(needSignIn(env), run, kitAbs, `out/youtube/${slug}`, `Step ${n}: ${run.steps[n - 1].step} (the kit, handed over with the to-do)`, 'youtube') : null;
   const { run: now, todo } = await api(env, 'POST', '', { action: 'wait', project: run.project, slug, step: n, ...(flag('title') && { title: flag('title') }), ...(flag('notes') && { notes: flag('notes') }) });
   console.log(`◌ Step ${n} (${now.steps[n - 1].step}) of ${slug} waits as to-do ${todo.id}.`);
   console.log(todo.places.length ? `  ${todo.places.join(', ')} can do it.` : "  No open place has what it needs yet: it waits until one does (the project's page, Where it runs).");
   console.log(`  The line for whoever picks it up: ${todo.line}`);
-  if (!run.saved?.production && !run.saved?.release) console.log(`⚠ The run has saved no production or release yet: whoever picks the to-do up has nothing to fetch. Save the last step's work first next time (mm run save … --production).`);
+  if (kit) console.log(`  The release kit out/youtube/${slug} wasn't saved with the run: it is now release ${kit.slug} v${kit.result.version} in the project, and the pick-up fetches it. Next time save the kit's step with --release.`);
+  if (!run.saved?.production && !run.saved?.release && !kit) console.log(`⚠ The run has saved no production or release yet: whoever picks the to-do up has nothing to fetch. Save the last step's work first next time (mm run save … --production).`);
   console.log(`  This place let go of the run. ${now.steps[n] ? `When the to-do is done the run is ready to continue at step ${n + 1} (${now.steps[n].step}), from any place: ${now.line}` : 'When the to-do is done the run is over.'}`);
   console.log('  End here: a session never waits for a to-do.');
   return 0;
@@ -363,6 +378,15 @@ export async function fetchSaved(env, run, takeSaved, again = `mm run resume ${r
   if (run.saved?.release) {
     const folder = run.saved.release.folder ?? `out/releases/${run.saved.release.slug}`;
     jobs.push({ kind: 'release', slug: run.saved.release.slug, version: run.saved.release.version, roots: [path.join(work, ...folder.split('/'))], place: releasePlace(work, folder), into: folder });
+  } else {
+    // the run saved no release kit (a step saved without --release, the kit sent another way): the
+    // project's release of the same slug comes instead, when it was made for this production
+    const kit = await readBundle(at, 'release', { projectId: run.project, slug: run.slug });
+    const production = kit?.release?.productionId && run.saved?.production ? await readBundle(at, 'production', { projectId: run.project, slug: run.slug }) : null;
+    if (kit?.latestVersion && (!production?.id || kit.release.productionId === production.id)) {
+      const folder = !kit.release?.platform || kit.release.platform === 'youtube' ? `out/youtube/${run.slug}` : `out/releases/${run.slug}`;
+      jobs.push({ kind: 'release', slug: run.slug, version: kit.latestVersion, roots: [path.join(work, ...folder.split('/'))], place: releasePlace(work, folder), into: folder, loose: true });
+    }
   }
   // look first: when a file here differs, nothing at all is changed
   for (const job of jobs) {
@@ -381,7 +405,7 @@ export async function fetchSaved(env, run, takeSaved, again = `mm run resume ${r
       return path.join(root, '.before-resume', stamp, path.relative(root, abs));
     };
     const result = await fetchBundle(job.record, job.place, { takeSaved, backup });
-    lines.push(`${job.kind} ${job.slug} v${job.version} → ${job.into} (${count(result.saved, 'file')} fetched, ${result.unchanged} already here${result.differ.length ? `, ${result.differ.length} of yours kept in .before-resume/` : ''})`);
+    lines.push(`${job.kind} ${job.slug} v${job.version}${job.loose ? " (the project's: the run saved none)" : ''} → ${job.into} (${count(result.saved, 'file')} fetched, ${result.unchanged} already here${result.differ.length ? `, ${result.differ.length} of yours kept in .before-resume/` : ''})`);
   }
   return lines;
 }
