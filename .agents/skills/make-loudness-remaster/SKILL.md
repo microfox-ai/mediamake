@@ -3,7 +3,7 @@ name: make-loudness-remaster
 description: Remaster a finished song (a Suno track or any stereo mix) for YouTube and streaming the way the user likes it — keep the song's own mix exactly as it is and only make it louder. It measures the original, builds a loudness ladder (a gain-only copy with peaks at -1 dBTP, then -11, -10, -9 and -8 LUFS through one limiter and nothing else) with either of two engines, REAPER's ReaLimit or SoundCraft's Maximizer (which needs nothing open and runs in a cloud session), or both side by side to compare, measures what each step costs (deep bass, build-up, punch), lets the user pick by ear, and copies the pick next to the mix as "<title> - final master (-N LUFS).wav". No EQ, compression, clipping, stem remixing or noise cleanup unless the user asks for that one thing. Explains each step in plain words for someone new to mastering. Use when the user says "remaster <song>", "master this track", "make it louder", "louder for YouTube / Spotify / the gym", "loudness options", "/make-loudness-remaster", or gives a song folder (a Suno mix with or without its stems) to master. New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
-  version: 0.2.0
+  version: 0.2.1
 ---
 
 # make-loudness-remaster
@@ -17,7 +17,7 @@ So this skill makes the song louder in clean steps and lets the user choose how 
 | Output | Where | What it is |
 | --- | --- | --- |
 | Ladder | `<song folder>/remaster/v<N>/` | `<title> - original -12 LUFS (level-matched).wav` (gain only) and `-11`, `-10`, `-9`, `-8 LUFS.wav` (limiter only; SoundCraft's steps end in `(SoundCraft).wav`, and REAPER's in `(REAPER).wav` when both engines built the ladder), the engine's session (`<title> - original louder.rpp`, or SoundCraft's as a step list, `… (SoundCraft).steps.txt`) and `ladder.json` (which engine and settings made each file) |
-| Review | `<ladder>/remaster.json`, `<ladder>/v<N>.revisions/` | the sidecar `review.py` writes for the Remaster Revisions screen, and the user's pick and notes the screen writes back |
+| Review | `<ladder>/remaster.json`, `<ladder>/v<N>.revisions/` | the sidecar `review.py` writes for the Stem Player, and the user's pick and notes the screen writes back |
 | Final | next to the song's mix | `<title> - final master (-N LUFS).wav`, a byte-identical copy of the step the user picked |
 
 Everything is 24-bit WAV at the mix's own sample rate, true peak -1.0 dBTP or lower, measured the
@@ -100,7 +100,7 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
    loudest part at -9 and -8. With both engines in the ladder, give the two side by side for each
    step: they measure alike at the quiet steps and part ways at the loud ones, which is where the
    user should compare them, at matched level.
-5. **The user picks by ear, on the Remaster Revisions screen** (a file picker can't A/B: they
+5. **The user picks by ear, in the Stem Player** (a file picker can't A/B: they
    couldn't compare a ladder in Finder, 2026-11-04). Make the ladder reviewable and give the link:
 
    ```bash
@@ -109,11 +109,12 @@ RPY="$(uv tool dir)/reaper-mcp-server/bin/python"         # the REAPER engine, a
 
    It writes `remaster.json` beside the versions (title, path, LUFS, true peak, LRA per file, and
    as each version's note the engine and limiter settings that made it) and
-   prints the review link, `https://mediamake.microfox.app/remaster-revision?job=<path under
+   prints the review link, `https://mediamake.microfox.app/stem-player?job=<path under
    Downloads>` (always this base URL, never localhost, never an `open -R` line for the ladder).
-   There every version plays from one shared playhead: a key switches between them at the same
-   moment, a range loops, levels can be matched, and the user marks the **final**, drops the rest
-   and leaves notes (the screen is documented in `apps/mediamake/components/remaster-revisions/README.md`).
+   There every version plays from one shared playhead: the arrow keys (or a version's key) switch
+   between them at the same moment, a range loops, levels can be matched, and the user marks the
+   **final**, drops the rest and leaves notes (the screen is documented in
+   `apps/mediamake/components/stem-player/README.md`).
    The first time, they open the song's folder (or Downloads) once in the screen; after that the
    link opens the ladder directly. Their pick lands in `<ladder>/v<N>.revisions/rev-NNN.md` (and
    `.json`, the `mediamake.image-revision/v1` format of revise-image: `final` = the file name without

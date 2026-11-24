@@ -119,7 +119,7 @@ export const MAX_FINAL = 3;
 export function formatOf(index: ImageSetIndex | null | undefined) {
   const kind = index?.kind;
   const poster = kind === 'poster';
-  // a remaster ladder: the versions of one song, reviewed by ear on /remaster-revision
+  // a remaster ladder: the versions of one song, reviewed by ear in the Stem Player (/stem-player)
   const remaster = kind === 'remaster';
   const thumbnail = kind === 'thumbnail' || (!kind && !!index?.size && index.size[0] === 1280 && index.size[1] === 720);
   const size = index?.size ?? (thumbnail ? [1280, 720] : undefined);

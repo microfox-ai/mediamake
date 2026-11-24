@@ -6,7 +6,7 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /*
- * A folder opened by its path on the public /remaster-revision and /transcript-cleaner pages
+ * A folder opened by its path on the public /stem-player and /transcript-cleaner pages
  * (development only, like dev-lyrics and dev-library): the dev server runs on the user's own computer, so a review
  * link can name the folder instead of asking for the folder picker. It lists a folder, serves its
  * files, and writes only what the screens write: rev-NNN.json / .md, and the Transcript Cleaner's

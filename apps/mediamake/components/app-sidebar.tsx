@@ -82,8 +82,8 @@ const data = {
       icon: <ImagesIcon />,
     },
     {
-      title: "Remaster Revisions",
-      url: "/remaster-revision",
+      title: "Stem Player",
+      url: "/stem-player",
       icon: <AudioLinesIcon />,
     },
     {
