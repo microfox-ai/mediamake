@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ImageUpIcon, Loader2Icon, PencilLineIcon, XIcon } from 'lucide-react';
+import { ImageUpIcon, Loader2Icon, PencilLineIcon, Trash2Icon } from 'lucide-react';
+import { ItemIcon } from '@/components/catalog/item-listing';
+import { VideoThumb } from '@/components/catalog/video';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -14,10 +16,11 @@ import { LISTING_PICTURE_TYPE, MAX_LISTING_DESCRIPTION } from '@/lib/catalog/lis
 /**
  * Edit card, for the people who look after a store item (its authors, and admins, who also have the
  * whole listing on its release page): its description, its headshot and, for an MCP or an app, its
- * icon, which is what its cards and the top of its page show. On an item's page, which is the same
- * for everyone, the button asks the server who is looking (GET /api/catalog/listing) and shows only
- * for them; My store items already knows and passes `initial`. A picture is uploaded to MediaMake's
- * storage (public once uploaded), and what is saved is live on the listing at once.
+ * icon, which is what its cards and the top of its page show. The dialog draws the card as the store
+ * will, with the store's own parts, and it changes as they type or upload. On an item's page, which
+ * is the same for everyone, the button asks the server who is looking (GET /api/catalog/listing) and
+ * shows only for them; My store items already knows and passes `initial`. A picture is uploaded to
+ * MediaMake's storage (public once uploaded), and what is saved is live on the listing at once.
  */
 
 /** What the card has now; `summary` is the item's own, shown while it has no description. */
@@ -40,8 +43,11 @@ async function upload(itemId: string, file: File): Promise<string> {
   return publicUrl;
 }
 
-/** `bare` leaves the button without a row of its own, for a caller that lays out several. */
-export function ItemCardTools({ itemId, kind, title, initial, bare }: { itemId: string; kind: string; title: string; initial?: CardValues; bare?: boolean }) {
+/**
+ * `bare` leaves the button without a row of its own, for a caller that lays out several; `primary`
+ * makes it the main action of its row.
+ */
+export function ItemCardTools({ itemId, kind, title, initial, bare, primary }: { itemId: string; kind: string; title: string; initial?: CardValues; bare?: boolean; primary?: boolean }) {
   const [current, setCurrent] = React.useState<CardValues | null>(initial ?? null);
   const [open, setOpen] = React.useState(false);
   const known = initial !== undefined;
@@ -63,7 +69,7 @@ export function ItemCardTools({ itemId, kind, title, initial, bare }: { itemId: 
   if (!current) return null;
   const tools = (
     <>
-      <Button variant="outline" size="sm" className="h-8" onClick={() => setOpen(true)}>
+      <Button variant={primary ? 'default' : 'outline'} size="sm" className={primary ? 'h-9' : 'h-8'} onClick={() => setOpen(true)}>
         <PencilLineIcon /> Edit card
       </Button>
       {open && <CardDialog itemId={itemId} kind={kind} title={title} current={current} onSaved={saved => setCurrent({ ...current, ...saved })} onClose={() => setOpen(false)} />}
@@ -77,14 +83,10 @@ function CardDialog({ itemId, kind, title, current, onSaved, onClose }: { itemId
   const [description, setDescription] = React.useState(current.description ?? '');
   const [headshot, setHeadshot] = React.useState(current.headshot ?? '');
   const [icon, setIcon] = React.useState(current.icon ?? '');
-  const [uploading, setUploading] = React.useState(0);
+  const [uploading, setUploading] = React.useState<'headshot' | 'icon' | null>(null);
   const [saving, setSaving] = React.useState(false);
   // said in the dialog itself: a toast can sit behind it
   const [error, setError] = React.useState('');
-  const onBusy = (on: boolean) => {
-    if (on) setError('');
-    setUploading(count => count + (on ? 1 : -1));
-  };
   const hasIcon = kind !== 'skill';
   const words = description.trim();
   const tooLong = words.length > MAX_LISTING_DESCRIPTION;
@@ -94,7 +96,21 @@ function CardDialog({ itemId, kind, title, current, onSaved, onClose }: { itemId
     ...(hasIcon && icon !== (current.icon ?? '') && { icon }),
   };
   const changed = Object.keys(change).length > 0;
-  const busy = saving || uploading > 0;
+  const busy = saving || uploading !== null;
+
+  async function pick(which: 'headshot' | 'icon', file: File) {
+    setUploading(which);
+    setError('');
+    try {
+      const link = await upload(itemId, file);
+      if (which === 'headshot') setHeadshot(link);
+      else setIcon(link);
+    } catch (failure) {
+      setError(`${which === 'headshot' ? 'Headshot' : 'Icon'}: ${(failure as Error).message}`);
+    } finally {
+      setUploading(null);
+    }
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -116,121 +132,121 @@ function CardDialog({ itemId, kind, title, current, onSaved, onClose }: { itemId
 
   return (
     <Dialog open onOpenChange={next => !next && !busy && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit card</DialogTitle>
-          <DialogDescription>What {title}&apos;s cards and the top of its page show. What you save is live at once, and a picture is public once it is uploaded.</DialogDescription>
-        </DialogHeader>
-        <form className="flex flex-col gap-5" onSubmit={save}>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="card-description">Description</Label>
-            <Textarea
-              id="card-description"
-              value={description}
-              onChange={event => setDescription(event.target.value)}
-              rows={3}
-              placeholder={current.summary ?? 'What it is, for people, in a line or two'}
-              aria-invalid={tooLong}
-              aria-describedby="card-description-note"
-            />
-            <p id="card-description-note" className={cn('flex justify-between gap-3 text-xs', tooLong ? 'text-destructive' : 'text-muted-foreground')}>
-              <span>What it is, for people, in a line or two.{current.summary ? ' Left empty, its own summary shows.' : ''}</span>
-              <span className="shrink-0 tabular-nums">
-                {words.length}/{MAX_LISTING_DESCRIPTION}
-              </span>
-            </p>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <form className="grid md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]" onSubmit={save}>
+          {/* the card, as the store draws it: it changes with every keystroke and upload */}
+          <div className="flex flex-col gap-3 border-b bg-muted/40 p-5 md:border-b-0 md:border-r md:p-6">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">In the store</p>
+            <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+              <div className="relative border-b">
+                <VideoThumb id={itemId} title={title} src={headshot || undefined} />
+                {uploading === 'headshot' && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-white">
+                    <Loader2Icon className="size-5 animate-spin" aria-hidden />
+                  </span>
+                )}
+              </div>
+              <div className="flex items-start gap-2.5 p-4">
+                {hasIcon && (
+                  <span className="relative shrink-0">
+                    <ItemIcon id={itemId} title={title} src={icon || undefined} className="size-9 rounded-lg text-sm" />
+                    {uploading === 'icon' && (
+                      <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/50 text-white">
+                        <Loader2Icon className="size-4 animate-spin" aria-hidden />
+                      </span>
+                    )}
+                  </span>
+                )}
+                <div className="flex min-w-0 flex-col gap-1">
+                  <p className="truncate font-semibold leading-snug">{title}</p>
+                  <p className="line-clamp-3 text-sm text-muted-foreground">{words || current.summary || 'What it is, in a line or two.'}</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap items-start gap-5">
-            <Picture itemId={itemId} label="Headshot" about="16:9, shown on its cards and above its README" shape="wide" value={headshot} onChange={setHeadshot} onBusy={onBusy} onError={setError} />
-            {hasIcon && <Picture itemId={itemId} label="Icon" about="Square" shape="square" value={icon} onChange={setIcon} onBusy={onBusy} onError={setError} />}
+
+          <div className="flex min-w-0 flex-col gap-5 p-5 md:p-6">
+            <DialogHeader>
+              <DialogTitle>Edit card</DialogTitle>
+              <DialogDescription>What {title}&apos;s cards and the top of its page show. Saving puts it live at once.</DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <Label htmlFor="card-description">Description</Label>
+                <span className={cn('text-xs tabular-nums', tooLong ? 'font-medium text-destructive' : 'text-muted-foreground')}>
+                  {words.length}/{MAX_LISTING_DESCRIPTION}
+                </span>
+              </div>
+              <Textarea
+                id="card-description"
+                value={description}
+                onChange={event => setDescription(event.target.value)}
+                rows={4}
+                placeholder={current.summary ?? 'What it is, for people, in a line or two'}
+                aria-invalid={tooLong}
+                aria-describedby="card-description-note"
+                className="resize-none"
+              />
+              <p id="card-description-note" className="text-xs text-muted-foreground">
+                What it is, for people, in a line or two.{current.summary ? ' Left empty, its own summary shows.' : ''}
+              </p>
+            </div>
+
+            <PictureRow label="Headshot" about="16:9. Its cards and the top of its page." has={!!headshot} busy={uploading === 'headshot'} disabled={busy} onPick={file => pick('headshot', file)} onRemove={() => setHeadshot('')} />
+            {hasIcon && <PictureRow label="Icon" about="Square. Beside its name." has={!!icon} busy={uploading === 'icon'} disabled={busy} onPick={file => pick('icon', file)} onRemove={() => setIcon('')} />}
+
+            {error && (
+              <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
+
+            <DialogFooter className="mt-auto pt-1">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy || !changed || tooLong}>
+                {saving && <Loader2Icon className="animate-spin" />}
+                Save card
+              </Button>
+            </DialogFooter>
           </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={busy || !changed || tooLong}>
-              {saving && <Loader2Icon className="animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
 
-/** One picture: its preview, which opens the file picker, and a way to take it off. */
-function Picture({
-  itemId,
-  label,
-  about,
-  shape,
-  value,
-  onChange,
-  onBusy,
-  onError,
-}: {
-  itemId: string;
-  label: string;
-  about: string;
-  shape: 'wide' | 'square';
-  value: string;
-  onChange: (url: string) => void;
-  onBusy: (on: boolean) => void;
-  onError: (message: string) => void;
-}) {
+/** One picture of the card: what it is, a button that opens the file picker, and a way to take it off. */
+function PictureRow({ label, about, has, busy, disabled, onPick, onRemove }: { label: string; about: string; has: boolean; busy: boolean; disabled: boolean; onPick: (file: File) => void; onRemove: () => void }) {
   const input = React.useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = React.useState(false);
-  const pick = async (file: File) => {
-    setBusy(true);
-    onBusy(true);
-    try {
-      onChange(await upload(itemId, file));
-    } catch (failure) {
-      onError(`${label}: ${(failure as Error).message}`);
-    } finally {
-      setBusy(false);
-      onBusy(false);
-      if (input.current) input.current.value = '';
-    }
-  };
   return (
-    <div className={cn('flex min-w-0 flex-col gap-1.5', shape === 'wide' ? 'w-full sm:w-72' : 'w-28')}>
-      <span className="text-sm font-medium">{label}</span>
-      <button
-        type="button"
-        onClick={() => input.current?.click()}
-        disabled={busy}
-        className={cn(
-          'group relative overflow-hidden rounded-xl border bg-muted text-left transition-colors hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          shape === 'wide' ? 'aspect-video w-full' : 'aspect-square w-24',
-        )}
-        aria-label={value ? `Replace the ${label.toLowerCase()}` : `Upload the ${label.toLowerCase()}`}
-      >
-        {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt="" className="absolute inset-0 size-full object-cover" />
-        ) : (
-          <span className="absolute inset-0 flex items-center justify-center p-3 text-center text-xs text-muted-foreground">None yet. Click to upload one.</span>
-        )}
-        <span className={cn('absolute inset-0 flex items-center justify-center bg-black/50 text-white transition-opacity', busy ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100')}>
-          {busy ? <Loader2Icon className="size-4 animate-spin" /> : <ImageUpIcon className="size-4" />}
-        </span>
-      </button>
-      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" className="hidden" onChange={event => event.target.files?.[0] && pick(event.target.files[0])} />
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{about}</span>
-        {value && !busy && (
-          <button type="button" className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => onChange('')}>
-            <XIcon className="size-3" aria-hidden /> Remove
-          </button>
-        )}
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{about}</p>
       </div>
+      {has && (
+        <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground" disabled={disabled} onClick={onRemove} aria-label={`Remove the ${label.toLowerCase()}`}>
+          <Trash2Icon />
+        </Button>
+      )}
+      <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" disabled={disabled} onClick={() => input.current?.click()}>
+        {busy ? <Loader2Icon className="animate-spin" /> : <ImageUpIcon />} {has ? 'Replace' : 'Upload'}
+      </Button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+        className="hidden"
+        aria-label={`${label} picture`}
+        onChange={event => {
+          const file = event.target.files?.[0];
+          if (file) onPick(file);
+          event.target.value = '';
+        }}
+      />
     </div>
   );
 }
