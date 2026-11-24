@@ -1,0 +1,9 @@
+# Every change asks for a review from a code owner before it merges into main
+# (turn on "Require review from Code Owners" in the main branch ruleset to make it required).
+# Add a trusted reviewer next to the owner on a line to let them approve too,
+# e.g. `/apps/studio/ @karcreativeworks @some-lead`.
+*                               @karcreativeworks
+
+# Workflows, this file and deploy settings decide what runs with secrets.
+/.github/                       @karcreativeworks
+/apps/mediamake/middleware.ts   @karcreativeworks
