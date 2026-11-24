@@ -23,6 +23,7 @@ const SHORTCUTS: [string, string][] = [
   ['Mod click', 'Add a track to what plays, or take it out'],
   ['⇧ click', 'Select a range of tracks'],
   ['Mod A', 'Every track of this folder'],
+  ['Mod C', 'Copy the tracks loaded in the player, to paste into Claude'],
   ['1–9', 'That track of this folder (or a version by its letter)'],
   ['← →', '5 s back / ahead (⇧: 1 s)'],
   ['Home', 'Back to the start'],
@@ -65,6 +66,12 @@ function useShortcuts() {
       if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         store.selectProject();
+        return;
+      }
+      // text selected on the page (a note, a path) is copied as usual
+      if (mod && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
+        e.preventDefault();
+        void store.copySelection();
         return;
       }
       if (mod || e.altKey) return;

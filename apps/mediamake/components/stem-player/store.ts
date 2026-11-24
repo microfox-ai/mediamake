@@ -12,6 +12,7 @@ import type { ImageComment, ImageRevision, ImageSetIndex } from '@/lib/file-revi
 import { openDevFolder } from '@/lib/stem-player/dev-folder';
 import { findFolder, readFolder, reviewIndex } from '@/lib/stem-player/folders';
 import { dbToGain, measureLoudness, waveformPeaks } from '@/lib/stem-player/loudness';
+import { selectionText } from '@/lib/stem-player/copy';
 import { StemEngine } from '@/lib/stem-player/player';
 import { EMPTY, click, move, prune, selectAll, type Selection } from '@/lib/stem-player/selection';
 import type { TrackFile } from '@/lib/stem-player/tracks';
@@ -153,6 +154,8 @@ interface StemState {
   flushSaves: () => Promise<void>;
   requestComposerFocus: () => void;
   setShortcutsOpen: (open: boolean) => void;
+  /** Puts the tracks loaded in the player on the clipboard as text for Claude; gives the text (null when nothing is selected). */
+  copySelection: () => Promise<string | null>;
 }
 
 const AUTOSAVE_MS = 600;
@@ -942,6 +945,32 @@ export const useStemStore = create<StemState>((set, get) => {
 
     requestComposerFocus: () => set(s => ({ composerFocus: s.composerFocus + 1, notesOpen: true })),
     setShortcutsOpen: open => set({ shortcutsOpen: open }),
+
+    copySelection: async () => {
+      const s = get();
+      const picked = s.sel.selected.map(uid => s.tracks[uid]).filter(Boolean);
+      if (!picked.length) {
+        toast.message('Select a track in the sidebar first');
+        return null;
+      }
+      const text = selectionText({
+        tracks: picked.map(t => {
+          const folder = s.folders[t.folder];
+          const abs = folder ? absPathOf(s, folder) : null;
+          return { label: t.label, file: t.file, length: t.length, folder: abs ?? (folder ? jobNameOf(s, folder) : ''), fullPath: !!abs };
+        }),
+        position: engine?.position() ?? 0,
+        duration: engine?.duration ?? 0,
+        loop: s.loop,
+      });
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(`Copied ${picked.length} track${picked.length === 1 ? '' : 's'}: paste into Claude and say what you want done`);
+      } catch {
+        toast.message('Could not reach the clipboard: copy it from here', { description: text, duration: 15000 });
+      }
+      return text;
+    },
   };
 });
 

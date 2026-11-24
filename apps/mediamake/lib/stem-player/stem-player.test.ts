@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { afterSwitch, fitLoop, frameAfter, playFrom, positionAt, snap, wrap } from './clock';
+import { selectionText, stamp } from './copy';
 import { findFolder, readFolder, reviewIndex } from './folders';
 import { EMPTY, click, move, prune, selectAll, type Selection } from './selection';
 import { isVersionsFolder, labelsOf, linkTries, skipFolder, tracksOf } from './tracks';
@@ -253,4 +254,46 @@ test('the set a review writes about: the ladder\'s title, path and versions by I
   assert.deepEqual(index.styles[0].variants.map(v => v.id), ['song - 00 original', 'song - A lift']);
   // a folder the user only chose to compare was not made by the remaster skill
   assert.equal(reviewIndex('takes', { tracks: v1.tracks, remaster: null, index: null }, { ladder: false }).workflow, undefined);
+});
+
+// ── copying the selection for Claude ──────────────────────────────────────────
+
+test('times read as minutes, seconds and tenths, and never as 60 seconds', () => {
+  assert.equal(stamp(0), '0:00.0');
+  assert.equal(stamp(83.44), '1:23.4');
+  assert.equal(stamp(59.96), '1:00.0');
+  assert.equal(stamp(200.8), '3:20.8');
+});
+
+test('the copied text names every loaded track, its file and folder, the playhead and the loop', () => {
+  const folder = '/Users/me/Downloads/song/stems';
+  const text = selectionText({
+    tracks: [
+      { label: 'Vocals', file: 'song (Vocals).wav', folder, fullPath: true, length: 200.8 },
+      { label: 'Bass', file: 'song (Bass).wav', folder, fullPath: true, length: 200.8 },
+      { label: 'Keyboard', file: 'other (Keyboard).wav', folder: '/Users/me/Downloads/other/stems/', fullPath: true },
+    ],
+    position: 83.44,
+    duration: 200.8,
+    loop: { start: 62, end: 91 },
+  });
+  assert.equal(
+    text,
+    [
+      'Stem Player: 3 tracks playing together',
+      'Playhead 1:23.4 of 3:20.8 · loop 1:02.0–1:31.0',
+      '',
+      '/Users/me/Downloads/song/stems/',
+      '- Vocals: song (Vocals).wav (3:20.8)',
+      '- Bass: song (Bass).wav (3:20.8)',
+      '',
+      '/Users/me/Downloads/other/stems/',
+      '- Keyboard: other (Keyboard).wav',
+    ].join('\n'),
+  );
+});
+
+test('one track, a folder the browser gave no path for, nothing loaded yet', () => {
+  const text = selectionText({ tracks: [{ label: 'take 3', file: 'take 3.wav', folder: 'Downloads/takes', fullPath: false }], position: 0, duration: 0 });
+  assert.equal(text, ['Stem Player: 1 track', 'Playhead 0:00.0', '', 'Downloads/takes/', '- take 3.wav', '', '(Folders are named as they were opened in the browser, which does not give their full path.)'].join('\n'));
 });

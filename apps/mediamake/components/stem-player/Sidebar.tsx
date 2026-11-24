@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ChevronDownIcon, ChevronRightIcon, FolderOpenIcon, HistoryIcon, LinkIcon, LoaderIcon, LockIcon, StarIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon, FolderOpenIcon, HistoryIcon, LinkIcon, LoaderIcon, LockIcon, StarIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
@@ -178,6 +178,7 @@ export function Sidebar() {
   const focus = useStemStore(s => s.sel.focus);
   const count = useStemStore(s => s.sel.selected.length);
   const pickRoot = useStemStore(s => s.pickRoot);
+  const copySelection = useStemStore(s => s.copySelection);
   const listRef = useRef<HTMLDivElement>(null);
 
   // the arrow keys can walk off the visible part of the list: keep the focused track in view
@@ -196,6 +197,13 @@ export function Sidebar() {
           <span className="shrink-0 whitespace-nowrap rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400" title={`${count} tracks are selected: they play together`}>
             {count} together
           </span>
+        )}
+        {count > 0 && (
+          <Hint label={count > 1 ? `Copy these ${count} tracks, to paste into Claude and say what you want done` : 'Copy this track, to paste into Claude and say what you want done'} keys="Mod C" side="bottom">
+            <Button size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-1.5 text-xs" onClick={() => void copySelection()}>
+              <CopyIcon className="size-3.5" /> Copy
+            </Button>
+          </Hint>
         )}
       </div>
       <PendingLink />

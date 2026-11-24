@@ -29,6 +29,10 @@ by path on the local app. The page is public (`app/(public)/`): no sign-in, no A
   unfolded folder); Shift+↑ ↓ grow or shrink the range. ⌘/Ctrl A is every track of the folder,
   1–9 its nth track. Selected tracks play together. Tracks of different folders can be selected
   together. Once something is selected the selection is never empty.
+- **Copy** (the sidebar's button, or ⌘/Ctrl C with no text selected) puts the tracks loaded in
+  the player on the clipboard as text for Claude: each one's label and file, the folder it is in
+  (its full path when the screen knows it), the playhead and the loop. Paste it and say what you
+  want done (`lib/stem-player/copy.ts`).
 - **The playhead survives every change.** One playhead for everything open; a new selection never
   moves it, playing or paused. A track shorter than where the playhead is loads, playback pauses,
   and the playhead sits at that track's end. At the end of the song playback pauses and stays
@@ -139,7 +143,7 @@ folder has one: its order, `title`, `path` and `workflow` win.
 
 - `lib/stem-player/`: `types.ts` (the sidecar, the formats, the budget), `tracks.ts` (file names
   to tracks: one a stem, labels, keys), `folders.ts` (reading one folder, walking a link, the set a
-  review's files describe), `selection.ts` (the selection rules), `clock.ts` and `player.ts` (the
+  review's files describe), `selection.ts` (the selection rules), `copy.ts` (the selection as text for Claude), `clock.ts` and `player.ts` (the
   playhead and the engine), `loudness.ts`, `dev-folder.ts` (a folder by its path, on the local app).
 - `components/stem-player/store.ts`: zustand store (the tree, the decoding queue and its memory,
   the selection, the playback mirror, levels, revisions with autosave).
