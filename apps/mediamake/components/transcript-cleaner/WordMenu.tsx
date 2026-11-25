@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownToLineIcon, ArrowUpToLineIcon, FlagIcon, PencilIcon, PlayIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
+import { ArrowDownToLineIcon, ArrowUpToLineIcon, CornerDownLeftIcon, FlagIcon, MergeIcon, PencilIcon, PlayIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,12 +17,13 @@ import {
 import { cn } from '@/lib/utils';
 import { clock, LONG_WORD, TRIM_TO } from '@/lib/transcript-cleaner/transcript';
 import { MARK_LABELS, type MarkKind, type TWord } from '@/lib/transcript-cleaner/types';
-import { useTranscriptStore } from './store';
+import { useTranscriptStore, type EditWhere } from './store';
 
 /*
- * A word's right-click menu, the same on the stage and on the timeline: play it, rewrite or delete it, mark it, push it
- * (and the words after or before it on its line) to the next or the previous line, set its edges at the playhead, trim
- * a long word, or undo what was done to it. Everything lands in the open revision; the transcript itself never changes.
+ * A word's right-click menu, the same on the stage, the timeline and the song's lines: play it, rewrite or delete it,
+ * mark it, start a new line from it or join its line to the one above, push it (and the words after or before it on its
+ * line) to the next or the previous line, set its edges at the playhead, trim a long word, or undo what was done to it.
+ * Everything lands in the open revision; the transcript itself never changes.
  */
 
 export const MARK_KEYS: [MarkKind, string][] = [
@@ -33,7 +34,7 @@ export const MARK_KEYS: [MarkKind, string][] = [
   ['note', 'N'],
 ];
 
-/** Word indexes the open revision changes, by how. */
+/** Word indexes the open revision changes, by how (relined: pushed to another line on their own). */
 export function useRevisionWords() {
   const revision = useTranscriptStore(s => s.revision);
   return useMemo(() => {
@@ -42,14 +43,23 @@ export function useRevisionWords() {
     for (const m of revision?.marks ?? []) if (m.word) marked.add(m.word.i);
     for (const t of revision?.timings ?? []) moved.add(t.i);
     const rewritten = new Set((revision?.rewrites ?? []).map(r => r.i));
-    const relined = new Set((revision?.lineMoves ?? []).map(m => m.i));
-    return { marked, moved, rewritten, relined };
+    const moves = revision?.lineMoves ?? [];
+    const relined = new Set(moves.filter(m => !m.by).map(m => m.i));
+    const split = new Set(moves.filter(m => m.by === 'split').map(m => m.i));
+    const joined = new Set(moves.filter(m => m.by === 'join').map(m => m.i));
+    return { marked, moved, rewritten, relined, split, joined };
   }, [revision]);
 }
 
 export const isLong = (w: TWord) => !w.deleted && w.end - w.start >= LONG_WORD;
 
-function WordMenuItems({ w, where }: { w: TWord; where: 'stage' | 'timeline' }) {
+/** The attribute that names the song's lines (LinesEditor). */
+export const LINES_EDITOR = 'data-lines-editor';
+
+/** Put the focus back in the song's lines, after a word's menu or text box closes there. */
+export const focusLines = () => document.querySelector<HTMLElement>(`[${LINES_EDITOR}]`)?.focus({ preventScroll: true });
+
+function WordMenuItems({ w, where }: { w: TWord; where: EditWhere }) {
   const s = useTranscriptStore.getState();
   const lines = useTranscriptStore(st => st.lines);
   const { moved, rewritten, relined } = useRevisionWords();
@@ -95,6 +105,12 @@ function WordMenuItems({ w, where }: { w: TWord; where: 'stage' | 'timeline' }) 
         </ContextMenuSubContent>
       </ContextMenuSub>
       <ContextMenuSeparator />
+      <ContextMenuItem disabled={!numbered || !before} onSelect={() => s.splitLineAt(w.i)}>
+        <CornerDownLeftIcon /> New line from here{after ? ` (+${after} after it)` : ''} {where === 'lines' && <ContextMenuShortcut>↵</ContextMenuShortcut>}
+      </ContextMenuItem>
+      <ContextMenuItem disabled={!numbered || k < 1} onSelect={() => s.joinLineUp(k)}>
+        <MergeIcon /> Join its line to the line above {where === 'lines' && <ContextMenuShortcut>⌫</ContextMenuShortcut>}
+      </ContextMenuItem>
       <ContextMenuItem disabled={!numbered || !lines[k + 1]} onSelect={() => s.pushLine(w.i, 1)}>
         <ArrowDownToLineIcon /> Push to next line{after ? ` (+${after} after it)` : ''}
       </ContextMenuItem>
@@ -136,7 +152,7 @@ function WordMenuItems({ w, where }: { w: TWord; where: 'stage' | 'timeline' }) 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /** Right-click on `children` (one element) opens the word's menu. */
-export function WordMenu({ w, where, children }: { w: TWord; where: 'stage' | 'timeline'; children: React.ReactElement }) {
+export function WordMenu({ w, where, children }: { w: TWord; where: EditWhere; children: React.ReactElement }) {
   return (
     <ContextMenu
       onOpenChange={open => {
@@ -150,7 +166,11 @@ export function WordMenu({ w, where, children }: { w: TWord; where: 'stage' | 't
       */}
       <ContextMenuContent
         className="w-72"
-        onCloseAutoFocus={e => e.preventDefault()}
+        onCloseAutoFocus={e => {
+          e.preventDefault();
+          // in the song's lines the caret carries on after the menu (the rewrite box takes the focus itself)
+          if (where === 'lines' && !useTranscriptStore.getState().editing) focusLines();
+        }}
         onPointerDown={stop}
         onPointerUp={stop}
         onClick={stop}

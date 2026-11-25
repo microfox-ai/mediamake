@@ -1,5 +1,6 @@
 import { getSubdir, readFileIn, REVISIONS_DIR_SUFFIX } from '@/lib/revisions/fs';
-import { AUDIO_EXTENSIONS, CLEAN_FILE, MARK_LABELS, TRANSCRIPT_SUFFIX, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from './types';
+import { moveRuns } from './lines';
+import { AUDIO_EXTENSIONS, CLEAN_FILE, MARK_LABELS, TRANSCRIPT_SUFFIX, type LineEdit, type LineMove, type Place, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from './types';
 
 /** A word this long (seconds) is flagged: the aligner sometimes stretches a word's start or end across a gap or an instrumental. */
 export const LONG_WORD = 2.5;
@@ -37,6 +38,30 @@ export function wordsOf(doc: TranscriptFile): TWord[] {
   return out;
 }
 
+/**
+ * The words as a revision has them: the times as moved (`times`, by index), and its rewrites, line moves and deletions.
+ * A word moved to another line keeps the place the transcript has it on as `home`.
+ */
+export function revisedWords(base: TWord[], times: TWord[], rev: TranscriptRevision | null): TWord[] {
+  const rewrites = new Map((rev?.rewrites ?? []).map(r => [r.i, r.to]));
+  const moves = new Map((rev?.lineMoves ?? []).map(m => [m.i, m.to]));
+  const deleted = new Set((rev?.deleted ?? []).map(d => d.i));
+  return base.map(b => {
+    const t = times[b.i] ?? b;
+    const to = moves.get(b.i);
+    return {
+      ...b,
+      start: t.start,
+      end: t.end,
+      text: rewrites.get(b.i) ?? b.text,
+      ...(to ? { stanza: to.stanza, line: to.line, home: { stanza: b.stanza, line: b.line } } : {}),
+      ...(deleted.has(b.i) ? { deleted: true } : {}),
+    };
+  });
+}
+
+const placeKey = (p: Place) => `${p.stanza}.${p.line}`;
+
 /** Words grouped into the transcript's lines (stanza + line), with what the transcript says to check on each. */
 export function linesOf(words: TWord[], doc: TranscriptFile): TLine[] {
   const lines: TLine[] = [];
@@ -54,7 +79,16 @@ export function linesOf(words: TWord[], doc: TranscriptFile): TLine[] {
   }
   for (const l of lines) {
     l.text = l.words.map(w => w.text).join(' ');
-    const c = (doc.check ?? []).find(x => x.stanza === l.stanza && x.line === l.line && (x.at === undefined || Math.abs(x.at - l.start) < 5));
+    // a check is about the line the transcript has: it stays with those words when a revision re-lines them
+    const homes = new Map<string, number>();
+    for (const w of l.words) {
+      const h = placeKey(w.home ?? w);
+      homes.set(h, Math.min(homes.get(h) ?? Infinity, w.start));
+    }
+    const c = (doc.check ?? []).find(x => {
+      const start = homes.get(placeKey(x));
+      return start !== undefined && (x.at === undefined || Math.abs(x.at - start) < 5);
+    });
     if (c?.why?.length) l.check = c.why;
   }
   return lines;
@@ -152,10 +186,15 @@ export function longWords(words: TWord[]): TWord[] {
   return words.filter(w => !w.deleted && w.end - w.start >= LONG_WORD).sort((a, b) => a.start - b.start);
 }
 
-/** How many changes a revision holds (marks, moved, deleted, rewritten and re-lined words). */
+/** Words pushed to the next or previous line on their own (not by a split or a join). */
+export const pushedWords = (rev: TranscriptRevision | null) => (rev?.lineMoves ?? []).filter(m => !m.by);
+
+/** How many changes a revision holds: marks, moved, deleted, rewritten and pushed words, and lines split or joined. */
 export function changeCount(rev: TranscriptRevision | null): number {
   if (!rev) return 0;
-  return rev.marks.length + rev.timings.length + (rev.deleted?.length ?? 0) + (rev.rewrites?.length ?? 0) + (rev.lineMoves?.length ?? 0);
+  const relined = (rev.lineMoves ?? []).some(m => m.by);
+  const lineEdits = rev.lineEdits?.length || (relined ? 1 : 0);
+  return rev.marks.length + rev.timings.length + (rev.deleted?.length ?? 0) + (rev.rewrites?.length ?? 0) + pushedWords(rev).length + lineEdits;
 }
 
 const stemOf = (name: string) => name.slice(0, -TRANSCRIPT_SUFFIX.length);
@@ -230,7 +269,22 @@ export const revisionFileName = (id: string) => `${id}.json`;
 export const revisionIdOf = (n: number) => `rev-${String(n).padStart(3, '0')}`;
 export const revisionNumber = (name: string) => Number(REV.exec(name)?.[1] ?? 0);
 
-const placeOf = (p: { stanza?: number; line?: number }) => `stanza ${p.stanza ?? '–'} line ${p.line ?? '–'}`;
+const placeOf = (p: Place) => `stanza ${p.stanza ?? '–'} line ${p.line ?? '–'}`;
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** How line numbers change when a line is split or joined, for Claude (the rule on LineEdit). */
+export const LINE_NUMBERING =
+  'Line numbers: a split numbers the new line one after the line it leaves and moves every later line of that stanza down one; a join gives the joined line the place of the line above and moves every later line of its stanza up one. Stanza numbers never change. Every word this touches is listed under "Words that belong to another line" with its new place: write those as they are, and move the transcript\'s check entries (by stanza and line) the same way so each stays with its words.';
+
+/** A split or a join in words. */
+export function lineEditText(e: LineEdit): string {
+  const stanza = e.at.stanza !== undefined ? ` of stanza ${e.at.stanza}` : '';
+  const later = (dir: string) => (e.renumbered ? `; the ${plural(e.renumbered, 'later line')}${stanza} moved ${dir} one` : '');
+  if (e.kind === 'split') return `Split ${placeOf(e.at)} "${e.line}" before word #${e.i} "${e.text}": "${e.toLine}" became ${placeOf(e.to)}${later('down')}.`;
+  return `Joined ${placeOf(e.at)} "${e.line}" (from word #${e.i} "${e.text}") onto the end of ${placeOf(e.to)} "${e.toLine}"${later('up')}.`;
+}
+
+const WHY: Record<NonNullable<LineMove['by']> | 'push', string> = { push: 'pushed', split: 'split off', join: 'joined to the line above', renumber: 'renumbered' };
 
 /** What to paste in chat for Claude: every mark, moved, deleted, rewritten and re-lined word, with the exact times. */
 export function instructionsOf(rev: TranscriptRevision): string {
@@ -266,10 +320,21 @@ export function instructionsOf(rev: TranscriptRevision): string {
     for (const r of rewrites) lines.push(`- word #${r.i} "${r.from}" → "${r.to}"`);
     lines.push('');
   }
-  const moves = [...(rev.lineMoves ?? [])].sort((a, b) => a.i - b.i);
+  const edits = rev.lineEdits ?? [];
+  if (edits.length) {
+    lines.push(`Lines split and joined (${edits.length}), in the order done:`);
+    edits.forEach((e, n) => lines.push(`${n + 1}. ${lineEditText(e)}`));
+    lines.push(LINE_NUMBERING);
+    lines.push('');
+  }
+  const moves = rev.lineMoves ?? [];
   if (moves.length) {
-    lines.push(`Words that belong to another line (${moves.length}): set their stanza and line (their order and times stay):`);
-    for (const m of moves) lines.push(`- word #${m.i} "${m.text}": ${placeOf(m.from)} → ${placeOf(m.to)} (the line "${m.toLine}")`);
+    lines.push(`Words that belong to another line (${moves.length}): set their stanza and line exactly as listed (their order and times stay):`);
+    for (const run of moveRuns(moves)) {
+      const [m, last] = [run[0], run[run.length - 1]];
+      const who = run.length === 1 ? `word #${m.i} "${m.text}"` : `words #${m.i}–#${last.i} "${run.map(x => x.text).join(' ')}"`;
+      lines.push(`- ${who}: ${placeOf(m.from)} → ${placeOf(m.to)} (${WHY[m.by ?? 'push']}; the line "${m.toLine}")`);
+    }
     lines.push('');
   }
   const deleted = [...(rev.deleted ?? [])].sort((a, b) => a.i - b.i);

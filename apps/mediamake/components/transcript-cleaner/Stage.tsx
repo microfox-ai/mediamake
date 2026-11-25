@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useMemo } from 'react';
 import { MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, Undo2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Hint } from '@/components/revisions/keyboard';
@@ -14,7 +14,7 @@ import { isLong, MARK_KEYS, RewriteInput, useRevisionWords, WordMenu } from './W
  * The lyrics as they play: the line on screen large, every word lit while it sounds (shown `lead` seconds early, as the
  * videos show them; several at once when voices overlap), the lines before and after it small. In a gap or an
  * instrumental nothing is lit and the line dims, until the next line comes up. Right-click a word for its menu. Under
- * it the transport and the marking buttons, and at the bottom every line of the song to jump to.
+ * it the transport and the marking buttons; every line of the song is under the timeline (LinesEditor).
  */
 
 type WordState = 'now' | 'sung' | 'todo';
@@ -216,65 +216,6 @@ function Transport() {
           </Hint>
         ))}
       </div>
-    </div>
-  );
-}
-
-export function LinesList() {
-  const lines = useTranscriptStore(s => s.lines);
-  const playing = useTranscriptStore(s => s.playing);
-  const current = useTranscriptStore(s => s.lines[momentAt(s.words, s.lines, s.time + s.lead).line]?.key ?? null);
-  const seek = useTranscriptStore(s => s.seek);
-  const selectWord = useTranscriptStore(s => s.selectWord);
-  const { marked, moved, rewritten, relined } = useRevisionWords();
-  const boxRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!playing || !current) return;
-    const el = boxRef.current?.querySelector(`[data-line="${CSS.escape(current)}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [current, playing]);
-  return (
-    <div ref={boxRef} className="divide-y divide-border/40 rounded-md border">
-      {lines.map(l => {
-        const nMarked = l.words.filter(w => marked.has(w.i)).length;
-        const nMoved = l.words.filter(w => moved.has(w.i)).length;
-        const nEdited = l.words.filter(w => w.deleted || rewritten.has(w.i) || relined.has(w.i)).length;
-        const nLong = l.words.filter(isLong).length;
-        const unconfirmed = l.words.filter(w => w.verified && w.verified !== 'heard').length;
-        return (
-          <button
-            key={l.key}
-            data-line={l.key}
-            onClick={() => {
-              selectWord(null);
-              seek(Math.max(0, l.start - 0.3));
-            }}
-            className={cn('flex w-full items-baseline gap-3 px-3 py-1 text-left text-sm hover:bg-muted/40', l.key === current && 'bg-amber-400/10')}
-          >
-            <span className="w-12 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">{clock(l.start, 1)}</span>
-            <span className={cn('min-w-0 flex-1', l.key === current ? 'text-foreground' : 'text-foreground/80')}>
-              {l.words.map((w, n) => (
-                <span key={w.i} className={cn(w.deleted && 'text-red-400/70 line-through')}>
-                  {n ? ' ' : ''}
-                  {w.text}
-                </span>
-              ))}
-            </span>
-            <span className="flex shrink-0 gap-1 text-[10px]">
-              {l.check && <span className="rounded bg-amber-500/15 px-1 text-amber-300" title={l.check.join(' · ')}>check</span>}
-              {unconfirmed > 0 && <span className="rounded bg-orange-500/15 px-1 text-orange-300" title="Words no transcription heard (placed by the aligner or unconfirmed)">{unconfirmed} unheard</span>}
-              {nLong > 0 && (
-                <span className="rounded bg-amber-500/15 px-1 text-amber-300" title="Words 2.5 s or longer: the aligner may have stretched them across a gap">
-                  {nLong} long
-                </span>
-              )}
-              {nMoved > 0 && <span className="rounded bg-sky-500/15 px-1 text-sky-300">{nMoved} moved</span>}
-              {nEdited > 0 && <span className="rounded bg-emerald-500/15 px-1 text-emerald-300">{nEdited} edited</span>}
-              {nMarked > 0 && <span className="rounded bg-red-500/15 px-1 text-red-300">{nMarked} marked</span>}
-            </span>
-          </button>
-        );
-      })}
     </div>
   );
 }

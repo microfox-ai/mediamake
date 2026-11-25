@@ -21,6 +21,14 @@ export interface TWord {
   confidence?: number;
   /** Marked for deletion in the open revision (still shown, struck through). */
   deleted?: boolean;
+  /** The stanza and line the transcript has it on, when the open revision moves it to another line. */
+  home?: Place;
+}
+
+/** A line's place in the transcript: its stanza, and its line in that stanza (both from 1). */
+export interface Place {
+  stanza?: number;
+  line?: number;
 }
 
 export interface TLine {
@@ -111,14 +119,48 @@ export interface WordRewrite {
   to: string;
 }
 
-/** A word that belongs to another line (stanza + line), next to it: pushed to the next or the previous line. */
+/**
+ * A word that belongs to another line (stanza + line): pushed to the next or the previous line, or moved by a split or
+ * a join. `from` is the place the transcript has it on, `to` the place to write.
+ */
 export interface LineMove {
   i: number;
   text: string;
-  from: { stanza?: number; line?: number };
-  to: { stanza?: number; line?: number };
-  /** The line it joins, as it read before the move. */
+  from: Place;
+  to: Place;
+  /** The line it ends up on, as it reads with the revision's changes. */
   toLine: string;
+  /**
+   * Why it moves: split (it starts or is on a line split off the line before), join (its line was joined to the one
+   * above), renumber (its whole line keeps its words and only its number changes, after a split or a join above it).
+   * None: pushed to the next or previous line on its own.
+   */
+  by?: 'split' | 'join' | 'renumber';
+}
+
+/**
+ * A line split in two or joined to the line above, in the order the user did them. What to write is in `lineMoves`
+ * (every word whose stanza or line changes, the renumbered lines too); these say what happened, in words.
+ *
+ * Line numbers: a split makes the words from `i` on a new line, numbered one after the line they leave, and every later
+ * line of that stanza moves down one. A join gives the line's words the place of the line above, and every later line
+ * of the joined line's stanza moves up one. Stanza numbers never change.
+ */
+export interface LineEdit {
+  kind: 'split' | 'join';
+  /** split: the first word of the new line. join: the first word of the line joined to the one above. */
+  i: number;
+  text: string;
+  /** The line split or joined, as it read before. */
+  line: string;
+  /** Its place before. */
+  at: Place;
+  /** split: the new line's place. join: the place of the line above, which it joins. */
+  to: Place;
+  /** split: the new line's words. join: the line above, as it read before. */
+  toLine: string;
+  /** How many later lines of the stanza were renumbered. */
+  renumbered: number;
 }
 
 export interface TranscriptRevision {
@@ -142,4 +184,6 @@ export interface TranscriptRevision {
   deleted?: WordDeletion[];
   rewrites?: WordRewrite[];
   lineMoves?: LineMove[];
+  /** Lines split and joined, in order (their words are in lineMoves). */
+  lineEdits?: LineEdit[];
 }
