@@ -20,11 +20,13 @@
  *   import the engine by path: `mm engine codemod` (or mm migrate) gives them its names.
  * - The engine's names (@mediamake/engine/…, engine.ts) always mean this studio's folders, and
  *   @mediamake/skills/<skill>/… the workspace's skills/ (a skill's own code, from a space) (engineWebpack).
+ * - `?raw` imports are a file's text (rawText), for code that inlines scripts in a page (src/painted).
  */
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { SKILLS, engineAliases, readEngine, skillsDir } from './engine.ts';
+import { paintedLibAliases } from './painted-libs.ts';
 import { WORKSPACE_FOLDERS, workspaceDirs, workspaceSetting, type WorkspaceFolder } from './workspace.ts';
 
 /** The require.context folders, as the studio names them, and the workspace folder each one reads. */
@@ -135,7 +137,22 @@ export const overlayAliases = (studio: string, root: string): Record<string, str
 };
 
 /** Any webpack config (the CLI's and @remotion/bundler's own webpack copy have different types). */
-type AnyConfig = { plugins?: unknown[]; resolve?: object; cache?: unknown };
+type AnyConfig = { plugins?: unknown[]; resolve?: object; cache?: unknown; module?: { rules?: unknown[] } };
+
+/** `import text from './file.js?raw'`: the file's text, as a string (src/painted/raw.d.ts types it). */
+export const RAW = /(^|[?&])raw($|&)/;
+/**
+ * A rule for `?raw` imports, first, and every other rule told to leave them alone: without that, the
+ * JavaScript rules would compile the file (and Studio's fast refresh add to it) before it became text.
+ * The painted-cartoon kit (src/painted) inlines p5, p5.brush and its own scripts in a page this way.
+ */
+export const rawText = <C extends AnyConfig>(config: C): C => {
+  const mod = config.module ?? {};
+  const rules = mod.rules ?? [];
+  if (rules.some(r => (r as { resourceQuery?: unknown })?.resourceQuery === RAW)) return config;
+  const others = rules.map(r => (r && typeof r === 'object' && !('resourceQuery' in r) ? { ...r, resourceQuery: { not: [RAW] } } : r));
+  return { ...config, module: { ...mod, rules: [{ resourceQuery: RAW, type: 'asset/source' }, ...others] } } as C;
+};
 type Resolve = { modules?: unknown[]; alias?: unknown };
 
 /**
@@ -148,7 +165,8 @@ export const engineWebpack = <C extends AnyConfig>(config: C, studio: string, ta
   // its packages (react, remotion…) in the studio's and the repo's node_modules
   const engine = engineAliases(studio, table);
   if (!Object.keys(engine).length) return config;
-  const names = { ...engine, [SKILLS]: skillsDir(studio) };
+  // the painted-cartoon kit's two libraries, by file (src/painted, painted-libs.ts)
+  const names = { ...engine, [SKILLS]: skillsDir(studio), ...paintedLibAliases(studio) };
   const resolve = (config.resolve ?? {}) as Resolve;
   const modules = resolve.modules ?? ['node_modules'];
   const more = [path.join(studio, 'node_modules'), path.join(studio, '..', '..', 'node_modules')].filter(m => !modules.includes(m));
@@ -156,11 +174,11 @@ export const engineWebpack = <C extends AnyConfig>(config: C, studio: string, ta
   // webpack's filesystem cache keeps what imports resolved to: new names start a new cache
   const cache = config.cache as { type?: string; version?: string } | undefined;
   const tag = `engine-${crypto.createHash('sha1').update(JSON.stringify(names)).digest('hex').slice(0, 8)}`;
-  return {
+  return rawText({
     ...config,
     ...(cache && typeof cache === 'object' && cache.type === 'filesystem' ? { cache: { ...cache, version: [cache.version, tag].filter(Boolean).join('-') } } : {}),
     resolve: { ...resolve, modules: [...modules, ...more], alias: { ...(resolve.alias as Record<string, unknown> | undefined), ...names } },
-  } as C;
+  } as C);
 };
 
 /** The config with the engine's names, and the contexts, packages and engine pointed at a workspace outside the studio. */

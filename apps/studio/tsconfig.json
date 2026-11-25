@@ -32,7 +32,9 @@
       "@mediamake/engine/logos": ["./logoGraphics"],
       "@mediamake/engine/logos/*": ["./logoGraphics/*"],
       "@mediamake/engine/thumbnails": ["./thumbnails"],
-      "@mediamake/engine/thumbnails/*": ["./thumbnails/*"]
+      "@mediamake/engine/thumbnails/*": ["./thumbnails/*"],
+      "@mediamake/engine/painted": ["./src/painted"],
+      "@mediamake/engine/painted/*": ["./src/painted/*"]
     }
   },
   "include": ["src", "projects", "scripts", "logoGraphics", "brands/*/graphics", "thumbnails", "catalog"],

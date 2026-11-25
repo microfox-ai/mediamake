@@ -54,6 +54,7 @@ const ABOUT = {
   'editor-check': "will mediamake's hosted editor open a project (only packages it hosts)",
   glyphs: "a project's fonts as outline data (video/glyphs.ts) for GlyphLyrics and ChannelTitle",
   'clip-loop': "an overlay clip's seam and jumps; --pingpong writes a loop that has none",
+  painted: 'painted cartoons (make-painted-cartoon): mm painted new <slug>, then contact sheets, strips, crops and loops of its frames',
   media: 'the shared media library (mm media help)',
   py: "a Python script with its own packages (# /// script) through uv, on a Python they have builds for, in UTF-8",
   golden: 'fixed frames of the fixtures compared with another commit',
