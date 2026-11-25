@@ -98,6 +98,10 @@ its turns and every message) and continues them. For admins and Cohort members o
   *needs you* asked something: show the user its question, and continue it with their answer.
 - A sub-agent does not start sub-agents. Two run at a time; the rest wait their turn.
 - What a run made is its report, not proof: check the files before telling the user it is done.
+- Every run shows on the user's Sub-agents page, `https://mediamake.microfox.app/app/sub-agents`
+  (its runner reports it as it works; `?id=ag-…` opens one): give them that link when one starts.
+  `mm agents watch` lets the page answer, stop and start runs on that computer, within each cap and
+  the credit: it is the owner's to start, and `mm agents report off` theirs to choose.
 
 ## Run sheets: what each step needs
 
@@ -512,6 +516,8 @@ the register: a random label, the name its owner gave, the run sheets' words, th
 cloud environment's space repos (`mm access --dry` shows it, `mm access forget` removes it). A computer
 whose owner turned it on also reports a card for each file of its media library: name, title, kind, subject,
 tags, size, length and SHA-256, never the file or its folder (`mm library report` shows it,
-`mm library report forget` removes it). When
+`mm library report forget` removes it). A sub-agent on the API key reports its own run to the account's
+Sub-agents page, for that account only: its title, model, cost and turns, and its conversation cut to size,
+never a key (`mm agents report` says so, `mm agents report off` stops it). When
 a user asks what MediaMake knows about them, show `mm usage` and `apps/mediamake/docs/usage.md`; never
 send more than this from a skill or a script.

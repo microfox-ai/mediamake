@@ -66,6 +66,37 @@ States: *waiting*, *running*, *done*, *needs you*, *blocked*, *at its cap*, *fai
 *lost* (its process ended without saying). A run is continued by its Claude session id
 (`claude -p --resume`), so the conversation goes on from where it was.
 
+## The Sub-agents page
+
+`/app/sub-agents` (the cohort and admins) shows every run of the account, whichever computer or cloud
+session it ran in: what is running, waiting or needs you, the credit left, what each run cost turn by
+turn, and its conversation (your messages, its replies, each tool call with the start of its result).
+
+```bash
+mm agents watch          # this place takes what the page sends, until Ctrl+C
+mm agents report off     # runs stay on this computer; on sends them again
+mm agents sync           # sends what the page hasn't got (a run made while offline)
+```
+
+- **Reporting.** A run's own runner sends it to MediaMake every few seconds while it works, with the
+  sign-in the computer already has (`mm login`, or the environment's `MEDIAMAKE_API_KEY`). It sends the
+  run's title, model, folder, place, state, cost and turns, and the conversation as the page shows it:
+  messages and replies cut at 6,000 characters, a tool's input at 600 and its result at 1,500. Never
+  the brief's file, never a key: this computer's keys and anything shaped like one are taken out before
+  a line is written or sent, and again on arrival. Only the account that ran it reads it.
+  `mm agents report off` stops it; "Remove from this page" on a run deletes what was sent.
+- **Answering from the page.** A message sent to a run that is working is read by its runner when the
+  turn ends, and becomes the next turn. Stop ends the turn it is on.
+- **Listening.** For a run that has ended, or a new one, a place has to be listening:
+  `mm agents watch`, started by its owner. While it listens, the page can continue and start runs
+  there, within each run's cap and the credit, in a folder a run has already worked in. It never
+  passes `--paid` or a permission mode. What the signed-in owner sends from the page is their yes.
+- A message the place can't take (the cap is spent, the credit is over) comes back on the page with
+  the reason.
+
+The records are `agent_runs`, `agent_events`, `agent_commands` and `agent_places` in MongoDB
+(`lib/sub-agents`), behind `/api/sub-agents`, which checks the membership on every call.
+
 ## What a sub-agent has
 
 Everything installed on the computer for every project: skills, hooks, `mm`, local MCPs. Connectors

@@ -68,7 +68,7 @@ const server = http.createServer((req, res) => {
     asked += 1;
     return json(200, { name: 'Tester', tier, isAdmin: tier === 'admin' });
   }
-  if (req.url === '/api/agents' && req.method === 'POST') {
+  if (req.url === '/api/sub-agents' && req.method === 'POST') {
     let text = '';
     req.on('data', d => (text += d));
     req.on('end', () => {
@@ -480,7 +480,7 @@ test('mm agents watch does what the page sent: a new run, an answer to a finishe
   );
   const heard = await p.mm(['watch'], { MM_AGENTS_WATCH_ONCE: '1' });
   assert.equal(heard.code, 0, heard.out);
-  assert.match(heard.out, /Listening for .*\/app\/agents/);
+  assert.match(heard.out, /Listening for .*\/app\/sub-agents/);
   assert.match(heard.out, /✔ started ag-[a-z0-9]{5} · "A run from the page" · sonnet medium · cap \$3\.00/);
   assert.match(heard.out, /✔ sent your message to/);
   assert.match(heard.out, /✖ start: No folder/);

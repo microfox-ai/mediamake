@@ -32,7 +32,7 @@
  *   - A sub-agent does not start sub-agents of its own.
  *   - Two run at a time (`max`), the rest wait their turn. A run stops at its cap (`--cap`, $15), and no
  *     run starts after the credit's end or within its last dollars unless --paid says the key may bill.
- *   - Each run is reported to the account's Sub-agents page (/app/agents) as it works: its record and
+ *   - Each run is reported to the account's Sub-agents page (/app/sub-agents) as it works: its record and
  *     its conversation, cut to size, with the keys taken out. For that account only. `report off` stops it.
  *   - The page's Send, Stop and New are done by the run's own runner, or by `mm agents watch` when its
  *     owner has it listening. What the signed-in owner sends from the page is their yes.
@@ -416,7 +416,7 @@ export async function report(env, dir, id, { all = false } = {}) {
     const fresh = sync.full ? { events: [], offset: sync.offset, turn: sync.turn, more: false } : readNew(path.join(folder, 'events.jsonl'), sync);
     const { task: _task, runner: _runner, pid: _pid, ...rest } = run;
     const body = { action: 'report', place: run.place, run: { ...rest, state: stateOf(run) }, from: sync.seq, events: fresh.events, settings: placeSettings(env) };
-    const answer = await call('POST', `${at.url}/api/agents`, at.key, JSON.parse(scrub(JSON.stringify(body), secrets)), { timeoutMs: 15000 });
+    const answer = await call('POST', `${at.url}/api/sub-agents`, at.key, JSON.parse(scrub(JSON.stringify(body), secrets)), { timeoutMs: 15000 });
     commands = answer?.commands ?? [];
     const have = Number(answer?.have) || 0;
     if (have === sync.seq + fresh.events.length) sync = { offset: fresh.offset, seq: have, turn: fresh.turn };
@@ -445,7 +445,7 @@ function seek(file, have) {
 async function settle(env, command, done, more = {}) {
   const at = mediamake(env);
   if (!at) return;
-  await call('POST', `${at.url}/api/agents`, at.key, { action: 'settle', command, done, ...more }).catch(() => null);
+  await call('POST', `${at.url}/api/sub-agents`, at.key, { action: 'settle', command, done, ...more }).catch(() => null);
 }
 
 /* ---------- the runner: one turn of one run, in its own process ---------- */
@@ -827,7 +827,7 @@ Nothing was sent: add --yes after they agree.`);
 
 /* ---------- the page's side: reports, and what the page asks this place to do ---------- */
 
-const PAGE = env => `${site(env)}/app/agents`;
+const PAGE = env => `${site(env)}/app/sub-agents`;
 
 /** Sends every run the page hasn't all of. */
 async function sync(env, { quiet = false } = {}) {
@@ -910,7 +910,7 @@ async function watch(env) {
   for (;;) {
     try {
       await sync(env, { quiet: true });
-      const answer = await call('POST', `${at.url}/api/agents`, at.key, { action: 'poll', place: place(env), listening: true, folder, settings: placeSettings(env) }, { timeoutMs: 15000 });
+      const answer = await call('POST', `${at.url}/api/sub-agents`, at.key, { action: 'poll', place: place(env), listening: true, folder, settings: placeSettings(env) }, { timeoutMs: 15000 });
       for (const command of answer?.commands ?? []) {
         let result;
         try {

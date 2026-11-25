@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BadgeCheckIcon,
+  BotIcon,
   CompassIcon,
   CreditCardIcon,
   FolderIcon,
@@ -45,6 +46,7 @@ const ICONS: Record<AppNavIcon, LucideIcon> = {
   mine: LibraryIcon,
   projects: FolderIcon,
   library: LibraryBigIcon,
+  agents: BotIcon,
   libraryUsage: GaugeIcon,
   releases: RocketIcon,
   mcp: PlugIcon,

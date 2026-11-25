@@ -1,7 +1,7 @@
 /**
  * Sub-agents on the API key, as the app sees them (docs/sub-agents.md). A sub-agent is a headless
  * Claude Code run that `mm agents` starts on a computer or in a cloud session; that place reports
- * the run here as it goes, so one page (/app/agents) shows every run of the account, whichever place
+ * the run here as it goes, so one page (/app/sub-agents) shows every run of the account, whichever place
  * it ran in, with what it cost and what was said. The page can answer a run, stop it or start one:
  * that is a command, kept here until the run's place (its runner, or `mm agents watch`) takes it.
  *

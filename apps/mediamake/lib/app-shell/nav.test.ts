@@ -40,6 +40,8 @@ test('a hidden page is closed with its sub-pages; the rest stay open', () => {
   assert.equal(pageOpens('plus', '/app/library'), false);
   assert.equal(pageOpens('cohort', '/app/spaces/abc'), true);
   assert.equal(pageOpens('cohort', '/app/library'), true);
+  assert.equal(pageOpens('cohort', '/app/sub-agents'), true);
+  assert.equal(pageOpens('pro', '/app/sub-agents'), false);
   assert.equal(pageOpens('cohort', '/app/releases'), false);
   assert.equal(pageOpens('admin', '/app/releases'), true);
   assert.equal(pageOpens('public', '/app/mine'), true);
