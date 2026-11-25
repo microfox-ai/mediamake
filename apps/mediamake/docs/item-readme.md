@@ -142,7 +142,32 @@ Use them under "What it uses", so the list reads as links. Nothing inside a code
 
 Like on GitHub: `![what it shows](shots/a.png)` for a picture (a file in the item's folder, or an
 https link), and a YouTube, MP4 or WebM link alone on a line for a video that plays in place. Raw HTML
-is dropped. Keep large media out of the folder: link it (the media library carries it).
+is dropped. Keep large media out of the folder: link it (below).
+
+### Where a video's file lives
+
+A video in a README is always a link: `https://…` ending in `.mp4` or `.webm`, or a YouTube link. A
+file in the item's own folder doesn't play (a relative path is not a video link, and GitHub serves a
+raw MP4 in a way browsers won't play). Which link, in this order:
+
+1. **The video is on YouTube** (a published video or Short): its YouTube link.
+2. **Footage that isn't** (a grid of outputs, a clip, a before and after), or anything too large for
+   the folder: upload it to a project's media and use the link it gets. Project media is MediaMake's
+   storage: the link is public, ends in the file's name and plays in place. From Claude it is the
+   MediaMake Spaces MCP's `upload_media`. The project is the one whose space holds the item, or the
+   one the person names; they agree to the upload first (which project, and that the link is public).
+   It needs cloud projects, a Plus membership or above, so every Cohort member and admin has it, and
+   it counts towards the project owner's storage. A web-size encode (H.264, about 1280 px wide) loads
+   faster for the reader than a master.
+3. **No cloud projects, or no project to put it in**, for an item in this repo: a small web encode
+   (silent when the sound isn't the point, a few MB at most) committed to the site as
+   `apps/mediamake/public/catalog/<item>-<what>.mp4`, in the pull request that changes the README,
+   and linked as `https://mediamake.microfox.app/catalog/<item>-<what>.mp4`. The link works once the
+   pull request is merged and deployed. An item in a space has no such folder: show the footage as
+   pictures (a grid of frames, below).
+
+Only a video in the README's first two blocks becomes the page's header. One lower down, under "What
+the skill outputs", plays there and leaves the headshot as the header.
 
 **Pictures one after another show as a grid of example outputs**, each with its alt text as its
 caption: put two or more `![…](…)` lines together, on following lines or with blank lines between

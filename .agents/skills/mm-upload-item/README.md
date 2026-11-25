@@ -23,6 +23,9 @@ and pushes it once you have seen what would go up.
 - `mm space` and `mm submit`, from MediaMake: they do the push.
 - [[use-mediamake-spaces]]: the same commands, for everything else about spaces.
 - [[mm-submit-to-store]]: the store's rules, when the item goes there.
+- [[mcp/projectsync|MediaMake Spaces]] (optional): uploads a README's larger footage, such as a video
+  of the outputs, to a project's media and gives the link the README plays. Without it, a video is its
+  YouTube link or pictures.
 
 ## What the skill outputs
 
