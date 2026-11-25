@@ -51,6 +51,7 @@
     "access": "node ../../tools/access.mjs",
     "todo": "node ../../tools/todo.mjs",
     "run": "node ../../tools/run.mjs",
+    "agents": "node ../../tools/agents.mjs",
     "library": "node ../../tools/library.mjs",
     "items": "node ../../tools/items.mjs",
     "submit": "node ../../tools/submit.mjs",

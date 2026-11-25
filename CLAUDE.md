@@ -78,6 +78,27 @@ them to the user with `mm cloud deliver <slug>` (into the project's shared files
 project that needs Browse Hack, Midjourney or media only on the Mac is not for a cloud session yet.
 `apps/studio/README.md` › Cloud sessions has the details.
 
+## Sub-agents: runs on the API key
+
+A sub-agent is a headless Claude Code run (`claude -p`) that bills an Anthropic API key instead of the
+subscription, with the same folder, skills, hooks, `mm` and local MCPs as a session here. `mm agents`
+(`tools/agents.mjs`) starts them, keeps each one's record (`agents/<id>/` in the workspace: its cost,
+its turns and every message) and continues them. For admins and Cohort members only.
+`apps/mediamake/docs/sub-agents.md` has the rest.
+
+- Every start and every continue spends the key. `mm agents start "<task>"` and
+  `mm agents continue <id> "<message>"` without `--yes` start nothing and print the sentence to ask,
+  with the model and the cap: show it, and add `--yes` only after the user agrees, in this session.
+- `--paid` (a run after the credit ended, or within its last dollars) and `--mode=bypassPermissions`
+  are the user's own words for that one run. Never pass either to make a run work, and never raise a
+  cap, the credit or `max` for them.
+- The key is the person's: `ANTHROPIC_API_KEY` in the environment or the checkout's `.env`. Never
+  print it, export it into a session or write it anywhere.
+- A sub-agent cannot ask mid-run: put every choice the user already made in the task. One that ends
+  *needs you* asked something: show the user its question, and continue it with their answer.
+- A sub-agent does not start sub-agents. Two run at a time; the rest wait their turn.
+- What a run made is its report, not proof: check the files before telling the user it is done.
+
 ## Run sheets: what each step needs
 
 Every skill says, a row a step, what the step needs to run: a `## Where it runs` table in its SKILL.md
