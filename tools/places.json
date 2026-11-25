@@ -7,6 +7,12 @@
       "host": "api.elevenlabs.io",
       "from": "https://elevenlabs.io/app/settings/api-keys"
     },
+    "anthropic": {
+      "env": "ANTHROPIC_API_KEY",
+      "title": "Anthropic",
+      "host": "api.anthropic.com",
+      "from": "https://console.anthropic.com/settings/keys"
+    },
     "mediamake": {
       "env": "MEDIAMAKE_API_KEY",
       "title": "MediaMake",
