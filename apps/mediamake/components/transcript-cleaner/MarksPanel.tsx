@@ -1,18 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { CheckCheckIcon, ClipboardCopyIcon, CornerDownLeftIcon, MergeIcon, PlayIcon, Redo2Icon, RotateCcwIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
+import { CheckCheckIcon, ClipboardCopyIcon, CornerDownLeftIcon, MergeIcon, PlayIcon, Redo2Icon, RepeatIcon, RotateCcwIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
 import { moveRuns } from '@/lib/transcript-cleaner/lines';
 import { changeCount, clock, LONG_WORD, longWords, pushedWords, TRIM_TO } from '@/lib/transcript-cleaner/transcript';
-import { MARK_LABELS, type Mark, type MarkKind } from '@/lib/transcript-cleaner/types';
+import { MARK_LABELS, type Mark, type MarkKind, type MissingRange } from '@/lib/transcript-cleaner/types';
 import { useTranscriptStore } from './store';
 
 /*
- * The open revision: every mark with the user's note, every line split or joined (undone with ⌘Z, the latest first),
+ * The open revision: every mark with the user's note, every stretch where words are sung that the transcript lacks, every line split or joined (undone with ⌘Z, the latest first),
  * every word moved on the timeline, deleted, rewritten or pushed to another line (each one undoable), the long words to
  * check, and the button that copies it all for Claude. It saves itself beside the transcript
  * (<song>.transcript.revisions/rev-NNN.json and .md).
@@ -105,6 +106,100 @@ function MarkCard({ mark }: { mark: Mark }) {
         rows={1}
         className="min-h-7 w-full min-w-0 resize-none px-2 py-1 text-xs md:text-xs"
       />
+    </div>
+  );
+}
+
+/** A stretch selected on the timeline where words are sung but none show: what is sung there, for Claude to add. */
+function MissingRangeCard({ range }: { range: MissingRange }) {
+  const focusMark = useTranscriptStore(s => s.focusMark);
+  const setFocusMark = useTranscriptStore(s => s.setFocusMark);
+  const update = useTranscriptStore(s => s.updateMissingRange);
+  const remove = useTranscriptStore(s => s.removeMissingRange);
+  const playRange = useTranscriptStore(s => s.playRange);
+  const setRange = useTranscriptStore(s => s.setRange);
+  const looping = useTranscriptStore(s => s.looping);
+  const ref = useRef<HTMLInputElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusMark !== range.id) return;
+    ref.current?.focus();
+    boxRef.current?.scrollIntoView({ block: 'nearest' });
+    setFocusMark(null);
+  }, [focusMark, range.id, setFocusMark]);
+  const blurOnEnter = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      (e.target as HTMLElement).blur();
+    }
+  };
+  return (
+    <div ref={boxRef} className="space-y-1.5 rounded-md border border-violet-500/40 bg-card/40 p-2">
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="whitespace-nowrap text-[11px] font-medium text-violet-600 dark:text-violet-300">Words missing</span>
+        <Hint label="Play the stretch, from just before it">
+          <button
+            className="flex items-center gap-1 rounded px-1 font-mono text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => playRange(range.start - 0.5, range.end + 0.3)}
+          >
+            <PlayIcon className="size-3" /> {clock(range.start, 1)}–{clock(range.end, 1)}
+          </button>
+        </Hint>
+        <Hint label={looping ? 'Loop it (L stops)' : 'Select it on the timeline and loop it (L stops)'}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5 text-muted-foreground"
+            onClick={() => {
+              setRange({ start: range.start, end: range.end });
+              playRange(range.start, range.end, true);
+            }}
+          >
+            <RepeatIcon className="size-3.5" />
+          </Button>
+        </Hint>
+        <Hint label="Remove it">
+          <Button variant="ghost" size="sm" className="ml-auto h-6 px-1.5 text-muted-foreground" onClick={() => remove(range.id)}>
+            <Trash2Icon className="size-3.5" />
+          </Button>
+        </Hint>
+      </div>
+      <div className="text-[11px] leading-snug text-muted-foreground">
+        {range.after ? <>after “{range.after.text}”</> : 'before the first word'}
+        {' · '}
+        {range.before ? <>before “{range.before.text}”</> : 'after the last word'}
+        {range.inside?.length ? <> · has {range.inside.map(w => `“${w.text}”`).join(' ')}</> : null}
+      </div>
+      <Input
+        ref={ref}
+        value={range.words ?? ''}
+        onChange={e => update(range.id, { words: e.target.value })}
+        onKeyDown={blurOnEnter}
+        placeholder="The words sung here, if you can make them out"
+        className="h-7 px-2 text-xs md:text-xs"
+      />
+      <Textarea
+        value={range.note}
+        onChange={e => update(range.id, { note: e.target.value })}
+        onKeyDown={blurOnEnter}
+        placeholder="Anything else (who sings it, a choir under the lead…)"
+        rows={1}
+        className="min-h-7 w-full min-w-0 resize-none px-2 py-1 text-xs md:text-xs"
+      />
+    </div>
+  );
+}
+
+function MissingRanges() {
+  const revision = useTranscriptStore(s => s.revision);
+  const ranges = [...(revision?.missingRanges ?? [])].sort((a, b) => a.start - b.start);
+  if (!ranges.length) return null;
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-semibold">Words missing in stretches ({ranges.length})</div>
+      {ranges.map(r => (
+        <MissingRangeCard key={r.id} range={r} />
+      ))}
     </div>
   );
 }
@@ -350,6 +445,10 @@ function HowTo() {
           at the playhead.
         </li>
         <li>
+          Lyrics sung where no words show? <b>Drag on the waveform</b> (or ⇧-drag anywhere) to select that stretch, or press <b>I</b> and <b>O</b> at the playhead; <b>L</b> loops it. Then{' '}
+          <b>Words missing</b> (M) and type what is sung.
+        </li>
+        <li>
           Right-click a word to <b>rewrite</b> it (↵), <b>delete</b> it (⌫), mark it, or <b>push it to the next or previous line</b>.
         </li>
         <li>
@@ -376,6 +475,7 @@ export function MarksPanel() {
   const count = changeCount(revision);
   const edits = (revision?.deleted?.length ?? 0) + (revision?.rewrites?.length ?? 0) + pushedWords(revision).length;
   const lineEdits = revision?.lineEdits?.length ?? 0;
+  const missing = revision?.missingRanges?.length ?? 0;
   if (!song) return <div className="p-4 text-xs text-muted-foreground">Open a song to mark what's wrong in it.</div>;
   return (
     <div className="flex h-full flex-col">
@@ -384,7 +484,7 @@ export function MarksPanel() {
           <div className="text-xs font-semibold">{revision ? revision.id : 'No revision yet'}</div>
           <div className="text-[10px] text-muted-foreground">
             {revision
-              ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks · ${revision.timings.length} moved${edits ? ` · ${edits} edited` : ''}${lineEdits ? ` · ${lineEdits} line${lineEdits === 1 ? '' : 's'} split or joined` : ''}`
+              ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks${missing ? ` · ${missing} missing` : ''} · ${revision.timings.length} moved${edits ? ` · ${edits} edited` : ''}${lineEdits ? ` · ${lineEdits} line${lineEdits === 1 ? '' : 's'} split or joined` : ''}`
               : 'starts with your first change'}
           </div>
         </div>
@@ -415,6 +515,7 @@ export function MarksPanel() {
               ))}
             </div>
           )}
+          <MissingRanges />
           <LineEdits />
           <Edits />
           <Moves />

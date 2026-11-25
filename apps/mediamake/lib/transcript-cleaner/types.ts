@@ -163,6 +163,35 @@ export interface LineEdit {
   renumbered: number;
 }
 
+/** A word next to a stretch of the song, as the transcript has it then: where the missing words go. */
+export interface RangeWord {
+  i: number;
+  text: string;
+  start: number;
+  end: number;
+  line?: { stanza?: number; line?: number; text: string };
+}
+
+/**
+ * A stretch of the song where words are sung that the transcript lacks (it shows nothing there, or too little),
+ * selected on the timeline: what the user hears, and the words around it so Claude knows where the new words go.
+ */
+export interface MissingRange {
+  id: string;
+  /** Audio times, in seconds. */
+  start: number;
+  end: number;
+  /** The words sung there, when the user can make them out. */
+  words?: string;
+  /** Anything else: who sings it, how it goes, "a choir under the lead". */
+  note: string;
+  /** The last transcript word before the stretch, the first one after it, and any that overlap it. */
+  after?: RangeWord;
+  before?: RangeWord;
+  inside?: RangeWord[];
+  createdAt: string;
+}
+
 export interface TranscriptRevision {
   schema: 'mediamake.transcript-revision/v1';
   id: string;
@@ -186,4 +215,6 @@ export interface TranscriptRevision {
   lineMoves?: LineMove[];
   /** Lines split and joined, in order (their words are in lineMoves). */
   lineEdits?: LineEdit[];
+  /** Stretches where words are sung but the transcript has none (older revisions lack these). */
+  missingRanges?: MissingRange[];
 }

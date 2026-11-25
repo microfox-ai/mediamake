@@ -1,6 +1,6 @@
 import { getSubdir, readFileIn, REVISIONS_DIR_SUFFIX } from '@/lib/revisions/fs';
 import { moveRuns } from './lines';
-import { AUDIO_EXTENSIONS, CLEAN_FILE, MARK_LABELS, TRANSCRIPT_SUFFIX, type LineEdit, type LineMove, type Place, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from './types';
+import { AUDIO_EXTENSIONS, CLEAN_FILE, MARK_LABELS, TRANSCRIPT_SUFFIX, type LineEdit, type LineMove, type MissingRange, type Place, type RangeWord, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from './types';
 
 /** A word this long (seconds) is flagged: the aligner sometimes stretches a word's start or end across a gap or an instrumental. */
 export const LONG_WORD = 2.5;
@@ -189,12 +189,70 @@ export function longWords(words: TWord[]): TWord[] {
 /** Words pushed to the next or previous line on their own (not by a split or a join). */
 export const pushedWords = (rev: TranscriptRevision | null) => (rev?.lineMoves ?? []).filter(m => !m.by);
 
-/** How many changes a revision holds: marks, moved, deleted, rewritten and pushed words, and lines split or joined. */
+/** How many changes a revision holds: marks, missing stretches, moved, deleted, rewritten and pushed words, and lines split or joined. */
 export function changeCount(rev: TranscriptRevision | null): number {
   if (!rev) return 0;
   const relined = (rev.lineMoves ?? []).some(m => m.by);
   const lineEdits = rev.lineEdits?.length || (relined ? 1 : 0);
-  return rev.marks.length + rev.timings.length + (rev.deleted?.length ?? 0) + (rev.rewrites?.length ?? 0) + pushedWords(rev).length + lineEdits;
+  return (
+    rev.marks.length +
+    (rev.missingRanges?.length ?? 0) +
+    rev.timings.length +
+    (rev.deleted?.length ?? 0) +
+    (rev.rewrites?.length ?? 0) +
+    pushedWords(rev).length +
+    lineEdits
+  );
+}
+
+/** The shortest stretch the timeline selects (a click is a seek, not a selection). */
+export const MIN_RANGE = 0.1;
+
+/**
+ * The transcript words around a stretch of the song: the last one that starts before it, the first one that starts
+ * after it, and the ones that overlap it. Deleted words don't count.
+ */
+export function rangeContext(words: TWord[], lines: TLine[], start: number, end: number): Pick<MissingRange, 'after' | 'before' | 'inside'> {
+  const ref = (w: TWord): RangeWord => {
+    const l = lineOf(lines, w);
+    return { i: w.i, text: w.text, start: w.start, end: w.end, ...(l ? { line: { stanza: l.stanza, line: l.line, text: l.text } } : {}) };
+  };
+  const inside: TWord[] = [];
+  let after: TWord | null = null;
+  let before: TWord | null = null;
+  for (const w of words) {
+    if (w.deleted) continue;
+    if (w.start < end && w.end > start) inside.push(w);
+    else if (w.start < start) {
+      if (!after || w.start > after.start || (w.start === after.start && w.i > after.i)) after = w;
+    } else if (!before || w.start < before.start || (w.start === before.start && w.i < before.i)) before = w;
+  }
+  inside.sort((a, b) => a.start - b.start || a.i - b.i);
+  return { ...(after ? { after: ref(after) } : {}), ...(before ? { before: ref(before) } : {}), ...(inside.length ? { inside: inside.map(ref) } : {}) };
+}
+
+const span2 = (start: number, end: number) => `${clock(start)}–${clock(end)} (${start.toFixed(3)}–${end.toFixed(3)} s)`;
+const lineName = (l: RangeWord['line']) => (l ? `stanza ${l.stanza ?? '–'} line ${l.line ?? '–'} "${l.text}"` : 'no line');
+
+/** Where a stretch's words go, in words: between which transcript words, and on which line. */
+export function missingRangeText(r: MissingRange): string {
+  const parts = [span2(r.start, r.end)];
+  if (r.words?.trim()) parts.push(`sung: "${r.words.trim()}"`);
+  if (r.note.trim()) parts.push(r.note.trim());
+  const after = r.after ? `after word #${r.after.i} "${r.after.text}" (ends ${r.after.end.toFixed(2)} s, ${lineName(r.after.line)})` : null;
+  const before = r.before ? `before word #${r.before.i} "${r.before.text}" (starts ${r.before.start.toFixed(2)} s, ${lineName(r.before.line)})` : null;
+  if (!after && !before) parts.push('the transcript has no other words');
+  else if (!after) parts.push(`at the start of the song, ${before}`);
+  else if (!before) parts.push(`at the end of the song, ${after}`);
+  else parts.push(after, before);
+  if (r.inside?.length) parts.push(`the transcript has ${r.inside.map(w => `#${w.i} "${w.text}"`).join(', ')} in it`);
+  const a = r.after?.line;
+  const b = r.before?.line;
+  if (a && b && a.stanza === b.stanza && a.line === b.line) parts.push(`so on stanza ${a.stanza ?? '–'} line ${a.line ?? '–'}`);
+  else if (a && b) parts.push('between two lines: the end of the line before, the start of the next, or a line of its own, as it is sung');
+  else if (b) parts.push('the start of that line, or a line of its own before it, as it is sung');
+  else if (a) parts.push('the end of that line, or a line of its own after it, as it is sung');
+  return parts.join(' · ');
 }
 
 const stemOf = (name: string) => name.slice(0, -TRANSCRIPT_SUFFIX.length);
@@ -304,6 +362,14 @@ export function instructionsOf(rev: TranscriptRevision): string {
       const line = m.line ? ` · line "${m.line.text}"` : '';
       lines.push(`${n + 1}. ${clock(m.at)} · ${MARK_LABELS[m.kind]}${word}${line}${m.note.trim() ? ` · ${m.note.trim()}` : ''}`);
     });
+    lines.push('');
+  }
+  const ranges = [...(rev.missingRanges ?? [])].sort((a, b) => a.start - b.start);
+  if (ranges.length) {
+    lines.push(
+      `Words missing in these stretches (${ranges.length}): sung there, but the transcript shows nothing (or too little). Add each as words (type "word") inside the stretch, numbered between the words named, with their own stanza and line; if the words aren't given, transcribe that stretch of the vocal again. Add them last, after the deletions (new words change the numbers after them): find each place by the words named, numbered as the file is now:`,
+    );
+    ranges.forEach((r, n) => lines.push(`${n + 1}. ${missingRangeText(r)}`));
     lines.push('');
   }
   const timings = [...rev.timings].sort((a, b) => a.to.start - b.to.start);
