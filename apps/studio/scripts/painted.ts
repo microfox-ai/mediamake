@@ -266,7 +266,8 @@ const check = async (slug: string) => {
     } else ts = times(str('sheet')!);
     const crop = str('crop') ? times(str('crop')!) : null;
     const at = str('crop-at') ? fields(str('crop-at')!) : null;
-    const cols = num('cols', str('strip') ? 6 : 3), w = num('w', str('strip') ? 320 : 640);
+    // a sheet of fewer frames than a row has no empty cells
+    const cols = num('cols', Math.min(ts.length, str('strip') ? 6 : 3)), w = num('w', str('strip') ? 320 : 640);
     const out = outFile(slug, str('strip') ? 'strip' : 'sheet', 'jpg');
     fs.mkdirSync(path.dirname(out), { recursive: true });
     const { url, ms } = (await page.evaluate((ts, c, w, crop, at) => (window as any).renderSheet(ts, c, w, crop, at), ts, cols, w, crop, at)) as { url: string; ms: number[] };
