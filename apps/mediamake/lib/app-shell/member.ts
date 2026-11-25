@@ -453,11 +453,13 @@ const looksLikeVersion = (value: string) => /^v?\d+(\.\d+)+/.test(value);
  * Home's three columns: in each, what the member uses most (skills by their
  * runs, MCPs by the runs of the skills that work with them, apps by how
  * often they were opened from the app), then what they installed lately
- * that isn't listed already. Internal skills stay out: other skills run them.
+ * that isn't listed already. Internal skills (other skills run them) and not
+ * recommended items stay out.
  */
 export function homeColumns(items: AppItem[], activity: MemberActivity, skills: RegistrySkill[], limit = 5): HomeColumn[] {
   const byId = new Map(items.map(item => [item.id, item]));
-  const isInternal = (id: string) => !!byId.get(id)?.internal;
+  // internal skills (other skills run them) and not recommended items stay off Home
+  const offHome = (id: string) => !!byId.get(id)?.internal || !!byId.get(id)?.notRecommended;
   const installOf = new Map(activity.installs.map(install => [install.itemId, install]));
   const row = (id: string, name: string, why: HomeRow['why']): HomeRow => {
     const item = byId.get(id);
@@ -465,18 +467,18 @@ export function homeColumns(items: AppItem[], activity: MemberActivity, skills: 
   };
 
   const used: Record<MemberKind, HomeRow[]> = {
-    skill: activity.usage.filter(run => !isInternal(`skill/${run.skill}`)).map(run => row(`skill/${run.skill}`, run.skill, { type: 'runs', count: run.runs, at: run.lastAt })),
+    skill: activity.usage.filter(run => !offHome(`skill/${run.skill}`)).map(run => row(`skill/${run.skill}`, run.skill, { type: 'runs', count: run.runs, at: run.lastAt })),
     mcp: mcpUsage(activity.usage, skills)
-      .filter(use => byId.has(use.mcp))
+      .filter(use => byId.has(use.mcp) && !offHome(use.mcp))
       .map(use => row(use.mcp, slugOf(use.mcp), { type: 'runs', count: use.runs, at: use.lastAt, via: use.skills })),
-    app: activity.opens.filter(open => byId.has(open.app)).map(open => row(open.app, slugOf(open.app), { type: 'opens', count: open.opens, at: open.lastAt })),
+    app: activity.opens.filter(open => byId.has(open.app) && !offHome(open.app)).map(open => row(open.app, slugOf(open.app), { type: 'opens', count: open.opens, at: open.lastAt })),
   };
 
   return MEMBER_KINDS.map(kind => {
     const mostUsed = used[kind].slice(0, limit);
     const listed = new Set(mostUsed.map(entry => entry.item?.id));
     const recent = activity.installs
-      .filter(install => byId.get(install.itemId)?.kind === kind && !isInternal(install.itemId) && !listed.has(install.itemId))
+      .filter(install => byId.get(install.itemId)?.kind === kind && !offHome(install.itemId) && !listed.has(install.itemId))
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, limit)
       .map(install => row(install.itemId, slugOf(install.itemId), { type: 'installed', at: install.at }));

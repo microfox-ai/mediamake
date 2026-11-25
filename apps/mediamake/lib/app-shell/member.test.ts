@@ -362,4 +362,21 @@ describe("Home's shelves", () => {
     );
     assert.equal(homeShelf(columns, ['skill'], 1).length, 1);
   });
+
+  it('leaves out not recommended items, used or installed', () => {
+    const advised = appItems([...ENTRIES, entry('mcp/meh', { advice: 'not-recommended', adviceNote: 'Slow' }), entry('app/old', { advice: 'not-recommended' })], SKILLS, ['cleanup']);
+    const columns = homeColumns(
+      advised.map(item => (item.id === 'skill/pack-brand-kit' ? { ...item, notRecommended: true } : item)),
+      {
+        usage: [{ skill: 'pack-brand-kit', runs: 4, lastAt: '2026-11-20T00:00:00Z' }],
+        opens: [{ app: 'app/old', opens: 2, lastAt: '2026-11-19T00:00:00Z' }],
+        installs: [{ itemId: 'mcp/meh', at: '2026-11-18T00:00:00Z' }, { itemId: 'skill/make-lyrics-video', at: '2026-11-17T00:00:00Z' }],
+        devices: [],
+      },
+      SKILLS,
+    );
+    assert.deepEqual(homeShelf(columns, ['skill']).map(item => item.id), ['skill/make-lyrics-video']);
+    // pack-brand-kit's runs still count for the MCPs it works with
+    assert.deepEqual(homeShelf(columns, ['mcp', 'app']).map(item => item.id), ['mcp/browse-hack', 'mcp/elevenlabs']);
+  });
 });
