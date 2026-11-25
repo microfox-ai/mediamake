@@ -72,6 +72,7 @@ const ABOUT = {
   access: "what this computer can do, for your projects' register; mm access open <project> lets a project's runs use it (closed until you do)",
   todo: "your projects' to-do queue: steps a cloud session could not do, waiting for a computer that can; mm todo pick <id> picks one up",
   run: "a production's run record: every step saved to the project, so a run stops in one place and goes on in another; mm run resume <slug> continues one",
+  agents: 'sub-agents on the Anthropic API key (admins and Cohort): headless Claude runs with their cost and conversation kept; mm agents start "<task>" says the cap first',
   library: 'the Cloud Library: collections (Songs) of entries with fields and files, the same everywhere; search and read before fetching (mm library help)',
   doctor: 'checks this machine and checkout (Node, uv, yt-dlp, dependencies, builds, git, workspace, keys); --fix repairs',
 };
@@ -178,7 +179,7 @@ const main = () => {
   process.env.PYTHONUTF8 ??= '1';
   // built, not committed: a pull or an edit in apps/mediamake leaves them stale (a no-op when current)
   // (not for update, which builds them after it pulls, or doctor, which reports them)
-  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud', 'access', 'todo', 'run', 'library'].includes(script)) ensurePresets(APP, { soft: true });
+  if (!['sync-presets', 'update', 'doctor', 'items', 'submit', 'usage', 'login', 'cloud', 'access', 'todo', 'run', 'agents', 'library'].includes(script)) ensurePresets(APP, { soft: true });
   // --prefix finds the repo from any folder. npm sets INIT_CWD to the folder it starts in, and the
   // scripts resolve the paths you type against it: start npm where you are (INIT_CWD when mm itself
   // was run by npm: `npm run mm`, or an old `-w lyrics_videos` command)
