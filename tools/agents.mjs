@@ -26,8 +26,9 @@
  * Rules it keeps:
  *   - Admins and Cohort members only (the account `mm login` signed in).
  *   - Nothing is spent without --yes: the first run of `start` and `continue` only says what would run.
- *   - The key goes to that one process and nowhere else: ANTHROPIC_API_KEY in the environment (a cloud
- *     environment's variable), else the checkout's .env. It is never printed or written to a record.
+ *   - The key goes to that one process and nowhere else: MEDIAMAKE_AGENTS_KEY (the name for a cloud
+ *     environment's variable) or ANTHROPIC_API_KEY in the environment, else either line in the
+ *     checkout's .env. It is never printed or written to a record.
  *   - A run that Claude starts without the key is stopped at once: it would use the subscription.
  *   - A sub-agent does not start sub-agents of its own.
  *   - Two run at a time (`max`), the rest wait their turn. A run stops at its cap (`--cap`, $15), and no
@@ -149,10 +150,23 @@ const checkouts = (top = TOP) => {
   return main ? [top, main] : [top];
 };
 
+/**
+ * The variables that carry the Anthropic key, the first that is set winning. MEDIAMAKE_AGENTS_KEY is
+ * the name for a cloud environment: Claude Code's cloud sessions run on the account, and say so when
+ * a variable called ANTHROPIC_API_KEY is added there. Under this name only a sub-agent ever gets it.
+ */
+export const KEY_VARS = ['MEDIAMAKE_AGENTS_KEY', 'ANTHROPIC_API_KEY'];
+const KEY_WHERE = "MEDIAMAKE_AGENTS_KEY in a cloud environment's variables, or ANTHROPIC_API_KEY in this shell or the checkout's .env";
+
+/** In a Claude Code cloud session, or in a sub-agent one started (which is told so, since it runs as plain Claude Code). */
+const inCloud = env => env.CLAUDE_CODE_REMOTE === 'true' || env.MEDIAMAKE_CLOUD === 'true';
+
 /** The Anthropic key and where it came from, or null. Never printed. */
 export function anthropicKey(env = process.env, { top = TOP, keyFile = settings(env).keyFile } = {}) {
-  const fromEnv = env.ANTHROPIC_API_KEY?.trim();
-  if (fromEnv && !fromEnv.startsWith('${')) return { key: fromEnv, from: 'ANTHROPIC_API_KEY' };
+  for (const name of KEY_VARS) {
+    const fromEnv = env[name]?.trim();
+    if (fromEnv && !fromEnv.startsWith('${')) return { key: fromEnv, from: name };
+  }
   for (const file of [keyFile, ...checkouts(top).map(dir => path.join(dir, '.env'))].filter(Boolean)) {
     let text;
     try {
@@ -160,8 +174,10 @@ export function anthropicKey(env = process.env, { top = TOP, keyFile = settings(
     } catch {
       continue;
     }
-    const key = envLine(text, 'ANTHROPIC_API_KEY');
-    if (key) return { key, from: tilde(file) };
+    for (const name of KEY_VARS) {
+      const key = envLine(text, name);
+      if (key) return { key, from: tilde(file) };
+    }
   }
   return null;
 }
@@ -169,17 +185,18 @@ export function anthropicKey(env = process.env, { top = TOP, keyFile = settings(
 /**
  * The environment a sub-agent's Claude gets: this one's, without what a Claude session puts in its own
  * shell (a run started from inside a session must not take that session's sign-in or think it is its
- * child), and with the key.
+ * child), and with the key. In a cloud session that includes what marks the session as a cloud one:
+ * a cloud session runs on the account whatever key it is given, so the sub-agent starts as plain
+ * Claude Code on the key, and MEDIAMAKE_CLOUD tells MediaMake's own tools where they are.
  */
 export function childEnv(env, key, id) {
   const out = {};
   for (const [name, value] of Object.entries(env)) {
     if (/^(CLAUDECODE$|CLAUDE_CODE_|CLAUDE_AGENT_SDK_|CLAUDE_PID$|CLAUDE_EFFORT$|CLAUDE_PREVIEW_)/.test(name)) continue;
-    if (['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MM_AGENTS_DIR'].includes(name)) continue;
+    if (['ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MM_AGENTS_DIR', ...KEY_VARS].includes(name)) continue;
     out[name] = value;
   }
-  // a cloud session's machine reaches the network through its proxy
-  if (env.CLAUDE_CODE_REMOTE) out.CLAUDE_CODE_REMOTE = env.CLAUDE_CODE_REMOTE;
+  if (inCloud(env)) out.MEDIAMAKE_CLOUD = 'true';
   out.ANTHROPIC_API_KEY = key;
   // so a sub-agent's own shell knows what it is: it does not start sub-agents of its own
   if (id) out.MM_AGENT_RUN = id;
@@ -507,7 +524,7 @@ async function oneTurn(dir, id, env, tell) {
   }
 
   const key = anthropicKey(env);
-  if (!key) return end('failed', { error: 'No Anthropic API key: ANTHROPIC_API_KEY in the environment, or in the checkout\'s .env.' });
+  if (!key) return end('failed', { error: `No Anthropic API key: ${KEY_WHERE}.` });
   const first = run.turns.length === 1;
   const left = Math.max(0.01, run.cap - spentOn(run));
   const dirs = [workspaceSetting()?.root, ...(run.addDirs ?? [])].filter(d => d && fs.existsSync(d) && path.resolve(d) !== path.resolve(run.cwd));
@@ -636,7 +653,7 @@ const startRunner = (id, cwd, env) => {
 const MARK = { queued: '◌', running: '●', done: '✔', 'needs-you': '◆', blocked: '■', capped: '◆', failed: '✖', stopped: '□', lost: '✖' };
 const SAYS = { queued: 'waiting', running: 'running', done: 'done', 'needs-you': 'needs you', blocked: 'blocked', capped: 'at its cap', failed: 'failed', stopped: 'stopped', lost: 'lost' };
 
-const place = env => (env.CLAUDE_CODE_REMOTE === 'true' ? env.MEDIAMAKE_PLACE?.trim() || 'cloud' : deviceLabel(env));
+const place = env => (inCloud(env) ? env.MEDIAMAKE_PLACE?.trim() || 'cloud' : deviceLabel(env));
 
 function parse(argv) {
   const words = [];
@@ -771,7 +788,7 @@ async function start(env, { words, has, flag }) {
   folder   ${tilde(cwd)}
   cap      ${money(cap)} at most for this run${lowered ? ' (lowered to what the credit has left)' : ''}
   credit   ${creditLine(c)}
-  key      ${key ? `from ${key.from}` : 'NOT FOUND: ANTHROPIC_API_KEY in the environment, or in the checkout\'s .env'}
+  key      ${key ? `from ${key.from}` : `NOT FOUND: ${KEY_WHERE}`}
   now      ${running} of ${set.max} running${running >= set.max || waiting ? `, ${waiting} waiting: it would wait its turn` : ': it would start at once'}
   record   agents/ in the workspace${reporting(env) && mediamake(env) ? ', and your Sub-agents page' : ''}
 ${stop ? `\n! ${stop}\n` : ''}
@@ -782,7 +799,7 @@ Nothing was started: add --yes after they agree.`);
 
   notInside(env);
   await mustBeOpen(env);
-  if (!key) throw new Error('No Anthropic API key: set ANTHROPIC_API_KEY in the environment, or in the checkout\'s .env.');
+  if (!key) throw new Error(`No Anthropic API key: ${KEY_WHERE}.`);
   if (stop) throw new Error(stop);
   const bin = env.MM_AGENTS_CLAUDE || 'claude';
   if (spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 20000 }).status !== 0) throw new Error(`Claude Code isn't installed here (${bin} --version failed): npm i -g @anthropic-ai/claude-code.`);

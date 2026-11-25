@@ -74,7 +74,7 @@ const git = (cwd, args) => {
 };
 
 /** A Claude Code cloud session (or --force). */
-export const isCloud = (env = process.env) => env.CLAUDE_CODE_REMOTE === 'true';
+export const isCloud = (env = process.env) => env.CLAUDE_CODE_REMOTE === 'true' || env.MEDIAMAKE_CLOUD === 'true';
 
 /** The workspace: the one set (env, config), else ~/MediaMake. */
 export const workspaceOf = (env = process.env) => {

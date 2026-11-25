@@ -96,7 +96,8 @@ export function capabilities({ env = process.env, top = TOP, home = os.homedir()
   const inClaude = new Set([...mcps.values()].flat());
   const url = site(env);
   for (const name of Object.keys(KEYS)) {
-    const here = env[KEYS[name].env]?.trim() || inClaude.has(KEYS[name].env) || (name === 'mediamake' && apiKey(url, env));
+    // a key may go by a second name (`also`): the Anthropic key is ANTHROPIC_API_KEY on a computer
+    const here = [KEYS[name].env, ...(KEYS[name].also ?? [])].some(v => env[v]?.trim() || inClaude.has(v)) || (name === 'mediamake' && apiKey(url, env));
     if (here) can.push(`key:${name}`);
   }
   for (const id of Object.keys(installedHere(env))) if (id.startsWith('mcp/') && NEED.test(`mcp:${id.slice(4)}`)) can.push(`mcp:${id.slice(4)}`);
