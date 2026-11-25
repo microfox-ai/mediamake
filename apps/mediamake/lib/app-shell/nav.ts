@@ -1,3 +1,4 @@
+import { AGENTS_TIER } from '@/lib/sub-agents/agents';
 import { FEATURE_TIERS, tierOpens, type MemberTier } from '@/lib/memberships/tiers';
 
 /**
@@ -19,6 +20,8 @@ export const APP_HOME = '/app';
 
 export const SPACES_HREF = '/app/spaces';
 export const LIBRARY_HREF = '/app/library';
+/** Sub-agents: runs on the API key, from every computer and cloud session (lib/sub-agents). */
+export const AGENTS_HREF = '/app/sub-agents';
 /** My Items: what the member installed, made and was given (it was Mine; the address stays). */
 export const MINE_HREF = '/app/mine';
 /** My store items: the store items the member is an author of. */
@@ -30,6 +33,7 @@ export type AppNavIcon =
   | 'mine'
   | 'projects'
   | 'library'
+  | 'agents'
   | 'libraryUsage'
   | 'releases'
   | 'mcp'
@@ -72,6 +76,7 @@ export const APP_NAV: AppNavSection[] = [
     items: [
       { title: 'Spaces', href: SPACES_HREF, icon: 'projects', hiddenBelow: 'cohort' },
       { title: 'Library', href: LIBRARY_HREF, icon: 'library', hiddenBelow: FEATURE_TIERS.cloudLibrary },
+      { title: 'Sub-agents', href: AGENTS_HREF, icon: 'agents', hiddenBelow: AGENTS_TIER },
     ],
   },
   {

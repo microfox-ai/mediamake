@@ -155,6 +155,22 @@ computer can do; it sends nothing about the computer. `mm usage off` does not
 stop runs, and `mm usage forget` does not delete them: cancel one on the
 project's page or with `mm run cancel`.
 
+## Sub-agents
+
+A sub-agent (`mm agents`, `docs/sub-agents.md`) is the account's own work on its own API key, and it
+is the one thing here that sends what was said. While a run works, its runner reports it
+(`POST /api/sub-agents`, stored in `agent_runs` and `agent_events`): its title, model, effort,
+permission mode, cap, folder, place, state, each turn's message, reply, cost and token counts, which
+MCPs it loaded, and its conversation as the Sub-agents page shows it (messages and replies cut at 6,000
+characters, a tool's input at 600, its result at 1,500). Never a key: the computer's keys and anything
+shaped like one are taken out before a line is written, before it is sent and again when it arrives.
+Only the account that ran it reads it; no project and no admin page shows it. What the page asks a
+place to do (an answer, a stop, a new run) is kept in `agent_commands` until the place takes it, and
+`agent_places` holds each reporting place's name, the folders its runs worked in, its credit and
+defaults, and when it last listened. `mm agents report off` stops the reports (runs stay on the
+computer), "Remove from this page" deletes a run that was sent, and `mm usage off` does not change
+either.
+
 ## Feedback
 
 `POST /api/feedback` `{ text, itemId?, version? }` takes a member's feedback
