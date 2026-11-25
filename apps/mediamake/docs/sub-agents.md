@@ -103,6 +103,36 @@ mm agents sync           # sends what the page hasn't got (a run made while offl
 The records are `agent_runs`, `agent_events`, `agent_commands` and `agent_places` in MongoDB
 (`lib/sub-agents`), behind `/api/sub-agents`, which checks the membership on every call.
 
+## In a cloud session
+
+A sub-agent runs in a Claude Code cloud session too (checked 2026-11: a run and its continue, on the
+key, reported to the page). The session that starts it stays on the subscription; the sub-agent's
+work bills the key.
+
+What the cloud environment needs:
+
+| | |
+| --- | --- |
+| `MEDIAMAKE_AGENTS_KEY` | The Anthropic API key, under this name (a cloud environment says a variable called `ANTHROPIC_API_KEY` won't be used) |
+| `MEDIAMAKE_API_KEY` | The MediaMake sign-in: the membership check and the reports to the page |
+| Network | `mediamake.microfox.app` and `api.anthropic.com` allowed. An environment that allows no extra hosts blocks the membership check, and no run starts |
+
+```bash
+npm run mm -- cloud                                              # the session's setup, as for any cloud work
+mm agents start --file=<brief> --yes --wait --timeout=<minutes>  # stays until its turn ends
+```
+
+- **Start it with `--wait`**, as a background command of the session: a cloud machine is the session's,
+  and a run left behind when the session ends is not known to survive it.
+- **Nothing is on the machine afterwards.** It is thrown away: what the run made leaves the way any
+  cloud work does (`mm run save`, `mm cloud deliver`), and its record is the one on the Sub-agents page.
+- **No MCPs, no connectors.** A cloud machine has none installed and the key carries none: steps that
+  need one stay on a computer, as the skill's run sheet says.
+- **Continuing later** works in the same session. A run from an earlier cloud session has no machine
+  to continue on: start a new one with what it found.
+- `mm agents watch` is for a computer. A cloud session takes the page's message to a run that is
+  working, when its turn ends, and nothing else.
+
 ## What a sub-agent has
 
 Everything installed on the computer for every project: skills, hooks, `mm`, local MCPs. Connectors

@@ -104,6 +104,11 @@ its turns and every message) and continues them. For admins and Cohort members o
   (its runner reports it as it works; `?id=ag-…` opens one): give them that link when one starts.
   `mm agents watch` lets the page answer, stop and start runs on that computer, within each cap and
   the credit: it is the owner's to start, and `mm agents report off` theirs to choose.
+- In a cloud session a sub-agent runs the same way, on the environment's `MEDIAMAKE_AGENTS_KEY` and
+  `MEDIAMAKE_API_KEY`, when its network allows `mediamake.microfox.app`. Start it with `--wait` as a
+  background command, and save what it made as any cloud work is saved: the machine is thrown away.
+  When it says the membership could not be checked, tell the user what the environment lacks; never
+  change a network setting or work around the check.
 
 ## Run sheets: what each step needs
 
