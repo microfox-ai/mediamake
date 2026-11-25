@@ -1,9 +1,9 @@
 ---
 name: mm-upload-item
-description: Get one of the user's own items (a skill, an MCP or an app) ready and send it where it should go, in one pass. It collects the item's details from the user (for a skill who it is for, its type and its superset when it is a subset; for an MCP or an app its title, summary and what it needs; for all of them tags, description, picture, video), writes or fixes its README.md to the MediaMake README guide (a shared-use skill's ends with "What the skill outputs"), bumps its version, checks it, and runs the push (mm space sync to the user's space, mm space share or link for a project, mm submit for the store). Use when the user says "upload this skill / MCP / app", "upload <item>", "push my skill", "send <item> to my space / the project / the store", "write the README for <item> and push it", "release <item>", "/mm-upload-item <name>" or the old "/upload-skill <name>". Not for making a new item (mm-new-item) or an admin's direct release (mm-publish-item).
+description: Get one of the user's own items (a skill, an MCP or an app) ready and send it where it should go, in one pass. It collects the item's details from the user (for a skill who it is for, its type and its superset when it is a subset; for an MCP or an app its title, summary and what it needs; for all of them tags, description, picture, video), writes or fixes its README.md to the MediaMake README guide (a shared-use skill's ends with "What the skill outputs"; a README's larger footage goes up to a project's media and is linked from there), bumps its version, checks it, and runs the push (mm space sync to the user's space, mm space share or link for a project, mm submit for the store). Use when the user says "upload this skill / MCP / app", "upload <item>", "push my skill", "send <item> to my space / the project / the store", "write the README for <item> and push it", "release <item>", "/mm-upload-item <name>" or the old "/upload-skill <name>". Not for making a new item (mm-new-item) or an admin's direct release (mm-publish-item).
 metadata:
   category: mm
-  version: 0.2.1
+  version: 0.3.1
 ---
 
 # mm-upload-item
@@ -16,6 +16,16 @@ where it goes.
 The rules it follows are MediaMake's: `apps/mediamake/docs/item-readme.md` (the README guide, read it
 first when it is on this computer) and the framework's CLAUDE.md. Nothing is sent until the user has
 seen the dry run and said yes.
+
+## First: check the MCPs
+
+| MCP | Need | Used for | Without it |
+|---|---|---|---|
+| `mcp/projectsync` | optional | A README's larger footage (a grid of outputs, a clip): uploaded to a project's media for a public link that plays in the README (the MediaMake Spaces MCP's `list_projects`, `upload_media`) | The video's YouTube link when it is published; else a small web encode in the pull request for an item in MediaMake's repo, or pictures |
+
+Look for the tools by name (`mcp__<server>__upload_media`; load deferred ones with ToolSearch). Project
+media needs cloud projects: a Plus membership or above, so every Cohort member and admin has it. When
+`upload_media` answers that the account has none, go to the fallback in step 3; don't work around it.
 
 ## 1. Find the item and where it goes
 
@@ -90,7 +100,29 @@ For a **private-use** item the README can be loose: the title, what it is and ho
 enough, and it needs no production.
 
 Never a badge, a rating, a made-up video or a made-up picture. Pictures stay small (2 MB each at most)
-and in the item's folder; large media goes through the media library.
+and in the item's folder.
+
+### Videos and larger footage
+
+A video in a README is a link alone on its own line, never a file in the item's folder (a relative
+path doesn't play). Put a video of the outputs under the outputs section, so the headshot stays the
+page's header. Which link, in this order:
+
+1. **It is on YouTube** (a published video or Short): its YouTube link. Look it up on the channel
+   before making anything; never make one up.
+2. **Footage that isn't** (a grid of outputs stitched together, a clip, a before and after), or any
+   file too large for the folder: upload it to a project's media with `upload_media` and use the link
+   it gives back. That link is public, ends in the file's name and plays in place.
+   - Ask first: which project (the one whose space holds the item, or the one they name), and that the
+     link will be public. Never pick the project for them.
+   - Send a web-size encode (H.264, about 1280 px wide, silent when the sound isn't the point), not a
+     master. It counts towards the project owner's storage.
+3. **The account has no cloud projects, or there is no project to put it in**:
+   - An item in MediaMake's repo: a small web encode (a few MB at most) committed as
+     `apps/mediamake/public/catalog/<item>-<what>.mp4` in the pull request that changes the README,
+     linked as `https://mediamake.microfox.app/catalog/<item>-<what>.mp4`. Say that the link works
+     once the pull request is merged and deployed.
+   - An item in a space: no video. Show the footage as pictures, a grid of frames in the folder.
 
 Show the user the README and the details before going on, and change what they ask.
 
@@ -157,8 +189,25 @@ what a place that lacks the need does instead, or "a to-do …" when the step ha
 | 1. Find the item and where it goes | nothing | no | yes | - |
 | 2. Collect its details | nothing | no | yes | - |
 | 3. Write the README | nothing | no | yes | - |
+| 3b. Upload a README's larger footage | `mcp:projectsync` | yes | yes | its YouTube link when it is published, else a small web encode in the pull request or pictures |
 | 4. Bump the version and check | nothing | no | yes | - |
 | 5. Push | nothing | yes | yes | - |
 | 6. Say where it is | nothing | no | yes | - |
 
 The push needs the computer's own GitHub and MediaMake sign-ins, which the run sheet's words don't name.
+Step 3b runs only when a README shows footage that isn't on YouTube. A file the project already has is
+not uploaded again.
+
+## Feedback log
+
+This log is shared: everyone who pulls gets it, and it changes only in a pull request, never in a
+session. New lessons go in your notes, outside the repo. Read them with this log before planning:
+
+```bash
+mm notes add mm-upload-item "<what the user said> → <the rule>"   # a new lesson, dated for you
+mm notes mm-upload-item                                           # your notes for this skill
+```
+
+When the user wants them shared, `mm notes promote mm-upload-item` offers them to this log as a pull request.
+
+- 2026-11-26 · After a README's grid video was committed to the site because nothing else was to hand: "guide it to uplaod larger footage into s3 media, and use that media link ( since all cohort/admin users have acccess to it ) if they do not ahve that access, fallback to what you did here" → step 3, Videos and larger footage: project media first, the small web encode in the pull request only without it.
