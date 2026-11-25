@@ -1,5 +1,7 @@
+import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { getEntitlements, viewerTier } from '@/lib/access';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { publicOrigin } from '@/lib/mcp/oauth';
 import { directUpdateTier, publishDirectly, publishOwnSubmission, sendSubmission, withdrawSubmission } from '@/lib/submissions/actions';
 import { submissionsDB } from '@/lib/submissions/store';
@@ -21,7 +23,10 @@ import { ownView, parseSubmission } from '@/lib/submissions/submission';
  *        membership it has (`directUpdateTier`, `publishDirectly`). The leak checks run
  *        again here; the answer lists what they stop on (`problems`), which the
  *        sender fixes and sends again. The same item sent again before a
- *        decision replaces what was sent.
+ *        decision replaces what was sent. A skill published to the store this
+ *        way has its listing filled from its package's README.md
+ *        (lib/submissions/package-listing): `listing` says what it took, and
+ *        `notes` what was left because it was set by hand.
  * GET    the caller's own submissions, newest first, each with where it stands.
  * DELETE ?id=sub_…   takes one back before a decision.
  *
@@ -51,7 +56,12 @@ export async function POST(req: NextRequest) {
           ? await publishDirectly(clientId, tier, parsed, update, publicOrigin(req), tier === 'admin' ? 'An update published directly by an admin' : 'An update published directly by its author')
           : await sendSubmission(clientId, tier, parsed);
     if (!outcome.ok) return NextResponse.json({ error: outcome.why }, { status: outcome.status ?? 400 });
-    return NextResponse.json({ submission: ownView(outcome.submission), ...(outcome.notes?.length && { notes: outcome.notes }) });
+    // a package released just now: its card and its page are built ahead of time
+    if (outcome.submission.status === 'live' && outcome.submission.delivery?.kind === 'store') {
+      revalidatePath('/');
+      revalidatePath(itemPagePath(outcome.submission.itemId));
+    }
+    return NextResponse.json({ submission: ownView(outcome.submission), ...(outcome.notes?.length && { notes: outcome.notes }), ...(outcome.listing && { listing: outcome.listing }) });
   } catch (error) {
     return unavailable('save the submission', error);
   }

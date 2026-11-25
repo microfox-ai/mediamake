@@ -32,6 +32,7 @@ import {
 import type { ItemAuthor } from './authors';
 import { isEmptyListing, type ItemListing, type ListingFields } from './listing';
 import type { ProfileChange, SkillProfile } from './skill-profile';
+import type { PackageMark } from '../submissions/package-listing';
 
 const COL = {
   items: 'catalog_items',
@@ -40,6 +41,7 @@ const COL = {
   health: 'catalog_health',
   readiness: 'catalog_readiness',
   listing: 'catalog_listing',
+  listingMarks: 'catalog_listing_marks',
   authors: 'catalog_authors',
   profiles: 'skill_profiles',
   downloads: 'catalog_downloads',
@@ -82,6 +84,7 @@ export async function ensureCatalogIndexes() {
   await db.collection(COL.videos).createIndex({ lessons: 1 }, { sparse: true });
   await db.collection(COL.readiness).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.listing).createIndex({ id: 1 }, { unique: true });
+  await db.collection(COL.listingMarks).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.authors).createIndex({ id: 1 }, { unique: true });
   await db.collection(COL.authors).createIndex({ 'authors.clientId': 1 });
 }
@@ -553,6 +556,32 @@ export const catalogListingDB = {
   async remove(id: string) {
     const db = await getDatabase();
     await db.collection(COL.listing).deleteOne({ id });
+  },
+};
+
+/**
+ * What the last release put in each field of a skill's listing and details, as fingerprints
+ * (lib/submissions/package-listing): how the next release tells its own words from the ones a
+ * person set on the item's page. Kept apart from the listing, so nothing that saves a listing has
+ * to carry it.
+ */
+export const listingMarksDB = {
+  async get(id: string): Promise<PackageMark | null> {
+    const db = await getDatabase();
+    const doc = await db.collection<PackageMark>(COL.listingMarks).findOne({ id }, { projection: { _id: 0 } });
+    return doc ? { id: doc.id, version: doc.version, fields: doc.fields ?? {} } : null;
+  },
+
+  async set(mark: PackageMark, actor?: string) {
+    const db = await getDatabase();
+    await db
+      .collection(COL.listingMarks)
+      .replaceOne({ id: mark.id }, withoutUndefined({ id: mark.id, version: mark.version, fields: mark.fields, updatedAt: nowISO(), updatedBy: actor }), { upsert: true });
+  },
+
+  async remove(id: string) {
+    const db = await getDatabase();
+    await db.collection(COL.listingMarks).deleteOne({ id });
   },
 };
 

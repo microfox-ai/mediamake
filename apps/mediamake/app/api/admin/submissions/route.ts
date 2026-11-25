@@ -1,6 +1,8 @@
+import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-utils';
 import { listAccounts } from '@/lib/auth/accounts';
+import { itemPagePath } from '@/lib/catalog/paths';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { itemTier } from '@/lib/catalog/types';
 import { mailConfigured } from '@/lib/mail/send';
@@ -27,6 +29,9 @@ import { countByStatus, earnedTier, isMembershipChoice, isSubmissionTier, routeO
  *                { type: 'decline', submissionId, note, notify? }
  *                { type: 'release', submissionId }                  try the package again
  *                { type: 'released', submissionId }                 an admin released it by hand
+ *                Approving or releasing a skill's package fills its listing from the package's
+ *                README.md (lib/submissions/package-listing): the answer's `listing` says what it
+ *                took, and `notes` what was left because it was set by hand.
  */
 export const maxDuration = 60;
 
@@ -123,7 +128,12 @@ export async function POST(req: NextRequest) {
         return bad(`Unknown action ${body.type}`);
     }
     if (!outcome.ok) return bad(outcome.why, outcome.status ?? 400);
-    return NextResponse.json({ submission: outcome.submission, mailed: outcome.mailed, notes: outcome.notes ?? [] });
+    // a package released just now: its card and its page are built ahead of time
+    if (outcome.submission.status === 'live' && outcome.submission.delivery?.kind === 'store') {
+      revalidatePath('/');
+      revalidatePath(itemPagePath(outcome.submission.itemId));
+    }
+    return NextResponse.json({ submission: outcome.submission, mailed: outcome.mailed, notes: outcome.notes ?? [], ...(outcome.listing && { listing: outcome.listing }) });
   } catch (error) {
     console.error('[admin/submissions] Could not apply the action:', error);
     return bad('Could not save it', 503);

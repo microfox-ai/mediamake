@@ -188,12 +188,29 @@ outputs section):
 | --- | --- | --- | --- |
 | A skill in this repo | `README.md` in its folder, beside `SKILL.md` | The README's frontmatter | None |
 | A skill, MCP or app in a space (a member's own, a project's, a linked item) | `README.md` in its folder, sent with the space's report (below) | The README's frontmatter | None |
+| A skill in the store that Plus, Pro or Cohort opens (a package, not a folder in this repo) | `README.md` in its folder: each release puts it on the item's listing (below) | The README's frontmatter, put on its listing by each release | None |
 | An MCP or an app made here | Its release page's README tab, Write and Preview, saved with the save bar (`catalog_set_listing`'s `readme`) | Its release page, Listing › Card (`description`, `headshot`, `tags`) | Listing › Card (`icon`): a square picture |
 | Any item, by an admin | What is set on the release page wins over the file | The same | |
 
 A picture an admin sets (a headshot, an icon, a screenshot) is uploaded, never committed: the release page's Upload, or mm-release's `catalog_upload_picture` from Claude. It is live at once, with no pull request and no deploy, and a listing's headshot shows in place of a repo skill's own.
 
 An item's authors set its card themselves: its description, its headshot and its icon. Edit card on the item's page, its page on My store items (`/app/my-items/<kind>/<slug>`), or mm-use's `set_item_listing` from Claude, with `upload_item_picture` for a picture (`/api/catalog/listing`). On My store items they also write an MCP's or an app's README and set its tags and its screenshots (a repo skill's README is its README.md, changed in a pull request). It is live at once and with no review; an author sets only a picture uploaded for that item, never a link to somewhere else, and a video by its YouTube link. An item made outside MediaMake has no authors, so all of this stays an admin's; so do every item's level, tier, health, advice, editors' pick and archive.
+
+**A store release fills the listing.** A skill released to Plus, Pro or Cohort (`mm submit <name>
+--yes --tier=…`, an approved submission, or an update) is a package, so its page cannot read a file.
+The release reads the README.md in the package and puts it on the item's listing: the frontmatter's
+`description`, `tags` and `headshot`, and its text without the frontmatter. The headshot and every
+picture the README shows from its folder (`![…](shots/a.png)`, 16 at most; PNG, JPEG, GIF, WebP or
+AVIF, each under the 1 MB a submitted file may be) are uploaded where a listing's pictures are kept,
+and the README's links are rewritten to them. `type` and a subset's `superset` become the skill's
+details; `nature` is not kept, since a store skill is shared use. Nothing is set by hand, and the
+command says what the listing took.
+
+A field set by hand stays set: a release fills a field that is empty or still holds what the last
+release put there, and leaves one that someone changed on the item's page (Edit card, the release
+page, `catalog_set_listing`). To hand a field back to the README, clear it there; the next release
+fills it. An MCP's or an app's listing is still set on its release page.
+`docs/submissions.md` › The path has the whole rule.
 
 **In a space, the README goes with the item.** Every report a computer sends (`mm space sync`, `mm space
 report`) carries each item's README.md (at most 32 KB) and names the pictures it shows from its own

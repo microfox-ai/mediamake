@@ -23,6 +23,29 @@ export function getPublicUrl(key: string): string {
   return `${baseUrl}/${key}`;
 }
 
+/**
+ * Writes one public-read object from the server, where `createPresignedUpload` lets a browser put
+ * one: under the client's mediamake prefix, in `subPath`. The name is kept as given (no timestamp),
+ * so a name made from the file's content keeps its link. Answers with the public link.
+ */
+export async function putPublicUpload({
+  clientId,
+  subPath,
+  filename,
+  contentType,
+  body,
+}: {
+  clientId: string;
+  subPath: string;
+  filename: string;
+  contentType: string;
+  body: Buffer;
+}): Promise<string> {
+  const key = `mediamake/${clientId.replaceAll(' ', '')}/${subPath}/${filename.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  await s3Client.send(new PutObjectCommand({ Bucket: process.env.SPACES_BUCKET, Key: key, Body: body, ContentType: contentType, ACL: 'public-read' }));
+  return getPublicUrl(key);
+}
+
 export interface PresignedUpload {
   uploadUrl: string;
   publicUrl: string;

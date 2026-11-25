@@ -3,7 +3,7 @@ name: mm-upload-item
 description: Get one of the user's own items (a skill, an MCP or an app) ready and send it where it should go, in one pass. It collects the item's details from the user (for a skill who it is for, its type and its superset when it is a subset; for an MCP or an app its title, summary and what it needs; for all of them tags, description, picture, video), writes or fixes its README.md to the MediaMake README guide (a shared-use skill's ends with "What the skill outputs"; a README's larger footage goes up to a project's media and is linked from there), bumps its version, checks it, and runs the push (mm space sync to the user's space, mm space share or link for a project, mm submit for the store). Use when the user says "upload this skill / MCP / app", "upload <item>", "push my skill", "send <item> to my space / the project / the store", "write the README for <item> and push it", "release <item>", "/mm-upload-item <name>" or the old "/upload-skill <name>". Not for making a new item (mm-new-item) or an admin's direct release (mm-publish-item).
 metadata:
   category: mm
-  version: 0.3.0
+  version: 0.3.1
 ---
 
 # mm-upload-item
@@ -155,6 +155,17 @@ Every push is a dry run first. Show what it prints and run the `--yes` line only
 
 The store's rules, who names a production and what happens after are `mm-submit-to-store`'s. An admin
 who wants it released with no review uses `mm-publish-item`.
+
+**A skill's README.md is its store listing, with nothing more to do.** When a skill is released to the
+store (accepted by an admin, or published directly), the release reads the README.md that was sent: the
+frontmatter's `description`, `tags`, `headshot`, `type` and `superset`, its text, and the pictures it
+shows from the folder, which are uploaded for it. So everything the listing should show goes in the
+folder before the push: the headshot and the README's pictures as files there (each under 1 MB), or
+https links. `mm submit <name>` notes a skill with no README.md, or a headshot that would not be sent.
+After a release the command says what the listing took; a field someone set by hand on the item's page
+is left as it is and named, and clearing it there hands it back to the README. Never set a skill's
+listing by hand to repeat its README. An MCP's or an app's store listing is still set on its page (Edit
+card, or an admin's release page): its README.md is not read from the package.
 
 No GitHub sign-in: `gh auth login` is the user's step. Not signed in to MediaMake: run `mm login` and
 ask them to click Allow. When a push names people who could not be invited, tell the user who.

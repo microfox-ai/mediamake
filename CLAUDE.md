@@ -466,6 +466,12 @@ the format.
   one's (a member's own space, a project's, a linked item) in its dialog, to the people who can see that
   space, sent with its pictures by every `mm space sync`. Write it in the item's folder and sync; never
   paste it onto a listing by hand.
+- A skill that Plus, Pro or Cohort opens is a package, so each release of it (`mm submit`) puts the
+  README.md it was sent with on its listing: the frontmatter's description, tags, headshot, type and
+  superset, its text, and the pictures it shows from its folder. Nothing is set by hand after a
+  release; the command says what the listing took. A field someone set by hand on the item's page
+  stays through every release (the command names it), and clearing it there hands it back to the
+  README. An MCP's or an app's listing is still set on its page (`apps/mediamake/docs/submissions.md`).
 - Never write a badge, a rating or a made-up video into a README: the page draws the badges from what
   MediaMake knows, and a video or a picture is a real one of the item. With no video yet, leave it out.
 - Members rate any item from 1 to 5 stars (mm-use's `rate_item`, only on the user's word).

@@ -11,6 +11,7 @@ import {
   catalogHealthDB,
   catalogItemsDB,
   catalogListingDB,
+  listingMarksDB,
   catalogReadinessDB,
   catalogVideosDB,
   ensureCatalogIndexes,
@@ -689,6 +690,7 @@ export async function POST(req: NextRequest) {
       if (!staticRecord(body.itemId)) {
         await catalogVideosDB.remove(body.itemId);
         await catalogListingDB.remove(body.itemId);
+        await listingMarksDB.remove(body.itemId);
       }
       return NextResponse.json({ success: true });
     }

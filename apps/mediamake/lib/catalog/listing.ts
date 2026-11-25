@@ -13,7 +13,10 @@ import { parseYouTubeId, youtubeThumbnail, youtubeUrl } from './video';
  * skill from the repo can have one too. A repo skill's README.md says the
  * same things in its frontmatter (docs/item-readme.md); what an admin sets
  * here wins. Set on the item's release page (`set_listing`); shown on the
- * item's own page and in its dialog.
+ * item's own page and in its dialog. A skill released as a package (Plus,
+ * Pro, Cohort) has no file to read, so each release puts its README.md here
+ * (lib/submissions/package-listing): its description, tags, headshot and
+ * README. What a person set here is never overwritten by a release.
  */
 
 /** A picture or a video of the item, by its https link. A YouTube link plays in place; any other video is an MP4 or WebM. */

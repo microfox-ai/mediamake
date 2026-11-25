@@ -75,7 +75,26 @@ test('checks stop on keys, machine paths and a wrong name, and note emails', () 
     assert.deepEqual(problems.filter(p => p !== NO_RUN_SHEET), ['SKILL.md says name: other, the folder is make-thing', 'SKILL.md:9 has a path on this machine', 'run.mjs:1 looks like an API key or token']);
     w.write('make-thing/SKILL.md', `${SKILL_MD}${SHEET.replace('key:elevenlabs', 'a key')}`);
     assert.match(check(item, collect(item.dir).files).problems.join('\n'), /SKILL\.md:\d+: "a key" isn't a need/);
-    assert.deepEqual(notes, ['SKILL.md:10 has an email address']);
+    assert.deepEqual(notes.filter(n => !/^no README\.md/.test(n)), ['SKILL.md:10 has an email address']);
+  } finally {
+    w.done();
+  }
+});
+
+test('notes a skill whose listing would come out empty: no README.md, or a headshot that is not sent', () => {
+  const w = workspace();
+  try {
+    w.write('make-thing/SKILL.md', SKILL_MD + SHEET);
+    const item = { kind: 'skill', name: 'make-thing', dir: path.join(w.root, 'make-thing') };
+    const notesOf = () => check(item, collect(item.dir).files).notes;
+    assert.match(notesOf().join('\n'), /^no README\.md: its store page gets a default one and no headshot/);
+    w.write('make-thing/README.md', '---\ndescription: What it is, for people.\nheadshot: ./headshot.jpg\n---\n\n# Make Thing\n');
+    assert.match(notesOf().join('\n'), /README\.md names the headshot \.\/headshot\.jpg, which is not among the files to send/);
+    w.write('make-thing/headshot.jpg', 'jpg');
+    assert.deepEqual(notesOf(), []);
+    w.write('make-thing/README.md', '---\nheadshot: https://img.test/h.jpg\n---\n\n# Make Thing\n');
+    fs.rmSync(path.join(item.dir, 'headshot.jpg'));
+    assert.deepEqual(notesOf(), []);
   } finally {
     w.done();
   }
