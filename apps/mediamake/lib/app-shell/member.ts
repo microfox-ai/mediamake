@@ -79,7 +79,8 @@ export function isInternalSkill(skill: Pick<RegistrySkill, 'name' | 'category' |
  * The skills, MCPs and apps the app lists for one member, from their catalog
  * entries (locked ones included). The cohort's and the vault's stay out for
  * everyone below them (lib/catalog/shown). `setTypes` are the skill types set
- * on their pages, by name (an internal one is never in Explore).
+ * on their pages, by name (an internal one is in Explore only behind its filter,
+ * and never on Home or in My Items).
  */
 export function appItems(entries: CatalogEntry[], skills: RegistrySkill[] = [], internalCategories: string[] = [], setTypes?: Map<string, string>): AppItem[] {
   const registry = new Map(skills.map(skill => [`skill/${skill.name}`, skill]));
@@ -141,6 +142,8 @@ export interface ExploreFilters {
   deprecated: boolean;
   /** Not recommended items stay out until this is on. */
   notRecommended: boolean;
+  /** Internal skills (other skills run them) stay out until this is on. */
+  internal: boolean;
   /** The vault's items (admin only) stay out until this is on: only admins have any. */
   admin: boolean;
   /** Off hides what the member's membership doesn't open. */
@@ -167,6 +170,7 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     alpha: show.has('alpha'),
     deprecated: show.has('deprecated'),
     notRecommended: show.has('not-recommended'),
+    internal: show.has('internal'),
     admin: show.has('admin'),
     locked: one('locked') !== '0',
   };
@@ -179,6 +183,7 @@ export function exploreFiltersFrom(params: Record<string, string | string[] | un
     filters.alpha ||
     filters.deprecated ||
     filters.notRecommended ||
+    filters.internal ||
     filters.admin ||
     !filters.locked
   );
@@ -192,7 +197,7 @@ export interface ExploreResult {
   /** How many match per kind, whatever kind is picked. */
   kinds: Record<MemberKind, number>;
   /** Matches a toggle keeps out, so a search never comes up empty without saying why. */
-  hidden: { failed: number; archived: number; alpha: number; deprecated: number; notRecommended: number; admin: number };
+  hidden: { failed: number; archived: number; alpha: number; deprecated: number; notRecommended: number; internal: number; admin: number };
 }
 
 /** Production first, then Beta, then Alpha. */
@@ -200,11 +205,11 @@ const LEVEL_RANK: Record<Readiness, number> = { ready: 0, beta: 1, alpha: 2 };
 const levelRank = (item: Pick<AppItem, 'level'>) => LEVEL_RANK[item.level] ?? 1;
 
 /**
- * Explore's list: what matches the search, the kind and the category. Internal
- * skills are never in it: other skills run them, and the member gets them with
- * those (they still show in My Items and on Home once installed). Failed items
- * are only shown behind their filter; archived, Alpha, deprecated, not
- * recommended and admin-only items behind theirs. Best match first, then
+ * Explore's list: what matches the search, the kind and the category. Failed
+ * items are only shown behind their filter; internal skills (other skills run
+ * them, and the member gets them with those), archived, Alpha, deprecated, not
+ * recommended and admin-only items behind theirs. Explore's Internal filter is
+ * the only place an internal skill is listed: Home and My Items leave them out. Best match first, then
  * Production before Beta before Alpha, then newest.
  */
 export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder: string[] = []): ExploreResult {
@@ -224,6 +229,8 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
         ? 'deprecated'
         : item.notRecommended && !filters.notRecommended
           ? 'notRecommended'
+          : item.internal && !filters.internal
+          ? 'internal'
           : item.adminOnly && !filters.admin
           ? 'admin'
           : item.alpha && !filters.alpha
@@ -233,12 +240,11 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
               : null;
 
   const matching = items
-    .filter(item => !item.internal)
     .map(item => ({ item, score: score(item) }))
     .filter(match => match.score > 0 && (filters.locked || !match.item.locked));
   const kinds: Record<MemberKind, number> = { skill: 0, mcp: 0, app: 0 };
   const counts = new Map<string, number>();
-  const hidden = { failed: 0, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 };
+  const hidden = { failed: 0, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, internal: 0, admin: 0 };
   const shown: { item: AppItem; score: number }[] = [];
   for (const match of matching) {
     const { item } = match;
@@ -447,10 +453,11 @@ const looksLikeVersion = (value: string) => /^v?\d+(\.\d+)+/.test(value);
  * Home's three columns: in each, what the member uses most (skills by their
  * runs, MCPs by the runs of the skills that work with them, apps by how
  * often they were opened from the app), then what they installed lately
- * that isn't listed already.
+ * that isn't listed already. Internal skills stay out: other skills run them.
  */
 export function homeColumns(items: AppItem[], activity: MemberActivity, skills: RegistrySkill[], limit = 5): HomeColumn[] {
   const byId = new Map(items.map(item => [item.id, item]));
+  const isInternal = (id: string) => !!byId.get(id)?.internal;
   const installOf = new Map(activity.installs.map(install => [install.itemId, install]));
   const row = (id: string, name: string, why: HomeRow['why']): HomeRow => {
     const item = byId.get(id);
@@ -458,7 +465,7 @@ export function homeColumns(items: AppItem[], activity: MemberActivity, skills: 
   };
 
   const used: Record<MemberKind, HomeRow[]> = {
-    skill: activity.usage.map(run => row(`skill/${run.skill}`, run.skill, { type: 'runs', count: run.runs, at: run.lastAt })),
+    skill: activity.usage.filter(run => !isInternal(`skill/${run.skill}`)).map(run => row(`skill/${run.skill}`, run.skill, { type: 'runs', count: run.runs, at: run.lastAt })),
     mcp: mcpUsage(activity.usage, skills)
       .filter(use => byId.has(use.mcp))
       .map(use => row(use.mcp, slugOf(use.mcp), { type: 'runs', count: use.runs, at: use.lastAt, via: use.skills })),
@@ -469,7 +476,7 @@ export function homeColumns(items: AppItem[], activity: MemberActivity, skills: 
     const mostUsed = used[kind].slice(0, limit);
     const listed = new Set(mostUsed.map(entry => entry.item?.id));
     const recent = activity.installs
-      .filter(install => byId.get(install.itemId)?.kind === kind && !listed.has(install.itemId))
+      .filter(install => byId.get(install.itemId)?.kind === kind && !isInternal(install.itemId) && !listed.has(install.itemId))
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, limit)
       .map(install => row(install.itemId, slugOf(install.itemId), { type: 'installed', at: install.at }));
@@ -547,7 +554,17 @@ export interface Mine {
   devices: { device: string; skills: number; reportedAt: string }[];
 }
 
-export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs' | 'devices'> & Partial<Pick<MemberActivity, 'usage' | 'opens'>>, skills: RegistrySkill[] = []): Mine {
+/**
+ * My Items' Installed and On your computers. Internal skills (an item's `internal`, or a name in
+ * `internalSkills`, for one the catalog doesn't list) stay out: other skills run them, and Explore
+ * lists them behind its Internal filter.
+ */
+export function mine(
+  items: AppItem[],
+  activity: Pick<MemberActivity, 'installs' | 'devices'> & Partial<Pick<MemberActivity, 'usage' | 'opens'>>,
+  skills: RegistrySkill[] = [],
+  internalSkills: ReadonlySet<string> = new Set(),
+): Mine {
   const byId = new Map(items.map(item => [item.id, item]));
   const installOf = new Map(activity.installs.map(install => [install.itemId, install]));
   const localNames = [...new Set(activity.devices.flatMap(device => device.skills.map(skill => skill.name)))].sort();
@@ -557,7 +574,8 @@ export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs'
   const installed: MineItem[] = [];
   for (const id of ids) {
     const item = byId.get(id);
-    if (!item) continue;
+    // internal skills come with the skills that run them: Explore lists them, behind its filter
+    if (!item || item.internal || (item.kind === 'skill' && internalSkills.has(slugOf(id)))) continue;
     const install = installOf.get(id);
     const used = usedOf.get(id);
     const on = item.kind === 'skill' ? onComputers(slugOf(id), activity.devices) : [];
@@ -576,7 +594,7 @@ export function mine(items: AppItem[], activity: Pick<MemberActivity, 'installs'
   const variants: LocalOnly[] = [];
   const local: LocalOnly[] = [];
   for (const name of localNames) {
-    if (isCatalogSkill(name)) continue;
+    if (isCatalogSkill(name) || internalSkills.has(name)) continue;
     const base = variantBase(name, isCatalogSkill);
     const entry = { name, on: onComputers(name, activity.devices) };
     if (base) variants.push({ ...entry, variantOf: base });

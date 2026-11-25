@@ -7,7 +7,7 @@ import { allSpaces } from '@/lib/space/links-store';
 import type { MySpaces } from '@/lib/space/store';
 import { usageDB } from '@/lib/usage/store';
 import { sinceDays } from '@/lib/usage/usage';
-import { appItems, type AppItem, type MemberActivity } from './member';
+import { appItems, isInternalSkill, type AppItem, type MemberActivity } from './member';
 
 /** How far back "what you use most" looks. */
 export const MOST_USED_DAYS = 90;
@@ -31,13 +31,31 @@ export const getAppItems = cache(async (clientId: string): Promise<AppItem[]> =>
   const viewer = { clientId };
   const entitlements = await getEntitlements(viewer);
   const entries = await listCatalog(viewer, undefined, { entitlements, locked: 'show' });
-  const internal = (registry?.categories ?? []).filter(category => category.internal).map(category => category.id);
-  // the types set on skills' pages: without them, the README's and the registry's decide
-  const setTypes = await skillProfilesDB.catalogTypes().catch(error => {
+  return appItems(entries, registry?.skills ?? [], internalCategories(), await getSetTypes());
+});
+
+/** The registry's categories whose skills are internal by default. */
+const internalCategories = () => (registry?.categories ?? []).filter(category => category.internal).map(category => category.id);
+
+/** The types set on skills' pages, by name: without them, the README's and the registry's decide. */
+const getSetTypes = cache(async (): Promise<Map<string, string>> =>
+  skillProfilesDB.catalogTypes().catch(error => {
     console.error('[app] Could not read the skill types:', error);
     return new Map<string, string>();
-  });
-  return appItems(entries, registry?.skills ?? [], internal, setTypes);
+  }),
+);
+
+/**
+ * The names of every internal skill (other skills run them): the registry's, by the same rule as
+ * appItems, and any whose page sets it internal. Home, My Items and the homepage leave them out;
+ * Explore lists them behind its Internal filter.
+ */
+export const getInternalSkillNames = cache(async (): Promise<Set<string>> => {
+  const setTypes = await getSetTypes();
+  const categories = new Set(internalCategories());
+  const names = new Set((registry?.skills ?? []).filter(skill => isInternalSkill(skill, categories, setTypes)).map(skill => skill.name));
+  for (const [name, type] of setTypes) if (type === 'internal') names.add(name);
+  return names;
 });
 
 /** What the member ran, opened and installed, and what their computers reported. */

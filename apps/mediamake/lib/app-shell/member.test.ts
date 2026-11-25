@@ -49,7 +49,7 @@ const ENTRIES = [
 ];
 
 const items = appItems(ENTRIES, SKILLS, ['cleanup']);
-const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, archived: false, alpha: false, deprecated: false, notRecommended: false, admin: false, locked: true, view: 'list' };
+const ALL: ExploreFilters = { q: '', kind: null, category: null, failed: false, archived: false, alpha: false, deprecated: false, notRecommended: false, internal: false, admin: false, locked: true, view: 'list' };
 const ids = (list: { id: string }[]) => list.map(item => item.id).sort();
 
 describe('the items the app lists', () => {
@@ -86,13 +86,14 @@ describe('the items the app lists', () => {
 });
 
 describe('Explore', () => {
-  it('keeps failed items behind their filter and counts them, and never lists an internal skill', () => {
+  it('keeps failed items and internal skills behind their filters and counts them', () => {
     const result = explore(items, ALL);
     assert.deepEqual(ids(result.shown), ['app/skill-library', 'mcp/browse-hack', 'mcp/elevenlabs', 'skill/make-lyrics-video', 'skill/pack-brand-kit']);
-    assert.deepEqual(result.hidden, { failed: 1, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, admin: 0 });
+    assert.deepEqual(result.hidden, { failed: 1, archived: 0, alpha: 0, deprecated: 0, notRecommended: 0, internal: 1, admin: 0 });
     assert.deepEqual(ids(explore(items, { ...ALL, failed: true }).shown).includes('mcp/broken'), true);
-    // not even when it is searched for by name
+    // an internal skill only with its filter on, even when searched for by name
     assert.equal(ids(explore(items, { ...ALL, q: 'cleanup-out', failed: true, archived: true, alpha: true }).shown).includes('skill/cleanup-out'), false);
+    assert.deepEqual(ids(explore(items, { ...ALL, internal: true }).shown).includes('skill/cleanup-out'), true);
   });
 
   it('takes a skill as internal by the type set on its page, else its README, else its category', () => {
@@ -136,7 +137,7 @@ describe('Explore', () => {
     assert.equal(byId.get('mcp/meh')!.notRecommended, true);
     // not recommended stays out until its filter is on, like the rest
     assert.deepEqual(ids(result.shown), ['skill/make-lyrics-video']);
-    assert.deepEqual(result.hidden, { failed: 0, archived: 0, alpha: 1, deprecated: 1, notRecommended: 1, admin: 1 });
+    assert.deepEqual(result.hidden, { failed: 0, archived: 0, alpha: 1, deprecated: 1, notRecommended: 1, internal: 0, admin: 1 });
     assert.deepEqual(ids(explore(more, { ...ALL, notRecommended: true }).shown), ['mcp/meh', 'skill/make-lyrics-video']);
     assert.deepEqual(ids(explore(more, { ...ALL, alpha: true, deprecated: true, notRecommended: true, admin: true }).shown), ['mcp/meh', 'mcp/old-way', 'mcp/vault', 'skill/make-lyrics-video', 'skill/make-trial']);
     // and the store front never shows them
@@ -165,7 +166,7 @@ describe('Explore', () => {
   });
 
   it('reads its filters from the address', () => {
-    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived,alpha,deprecated,not-recommended,admin', locked: '0' }), {
+    assert.deepEqual(exploreFiltersFrom({ q: 'amv', kind: 'skill', show: 'failed,archived,alpha,deprecated,not-recommended,internal,admin', locked: '0' }), {
       q: 'amv',
       kind: 'skill',
       category: null,
@@ -174,6 +175,7 @@ describe('Explore', () => {
       alpha: true,
       deprecated: true,
       notRecommended: true,
+      internal: true,
       admin: true,
       locked: false,
       view: 'list',
@@ -188,6 +190,7 @@ describe('Explore', () => {
     assert.equal(exploreFiltersFrom({ show: 'failed' }).view, 'list');
     assert.equal(exploreFiltersFrom({ show: 'deprecated' }).view, 'list');
     assert.equal(exploreFiltersFrom({ show: 'not-recommended' }).view, 'list');
+    assert.equal(exploreFiltersFrom({ show: 'internal' }).view, 'list');
   });
 });
 
@@ -273,12 +276,13 @@ describe('most used', () => {
     );
   });
 
-  it('fills the three columns: most used, then installed lately without repeats', () => {
+  it('fills the three columns: most used, then installed lately without repeats, never an internal skill', () => {
     const [skills, mcps, apps] = homeColumns(items, ACTIVITY, SKILLS);
     assert.deepEqual(skills.mostUsed.map(row => row.name), ['make-lyrics-video', 'pack-brand-kit', 'my-own-skill']);
     assert.equal(skills.mostUsed[2].item, undefined);
     assert.equal(skills.mostUsed[0].updateAvailable, true);
-    assert.deepEqual(skills.recent.map(row => row.item!.id), ['skill/cleanup-out']);
+    // cleanup-out was installed lately, but it is internal
+    assert.deepEqual(skills.recent.map(row => row.item!.id), []);
     // browse-hack is counted, though locked; elevenlabs is not repeated under installs
     assert.deepEqual(mcps.mostUsed.map(row => row.item!.id), ['mcp/elevenlabs', 'mcp/browse-hack']);
     assert.deepEqual(mcps.recent.map(row => row.item!.id), ['mcp/broken']);
@@ -289,8 +293,9 @@ describe('most used', () => {
 describe('Mine', () => {
   const result = mine(items, ACTIVITY, SKILLS);
 
-  it('lists what was installed and the MediaMake skills on a computer, the last used first, then the last installed', () => {
-    assert.deepEqual(result.installed.map(entry => entry.item.id), ['mcp/elevenlabs', 'skill/make-lyrics-video', 'mcp/broken', 'skill/cleanup-out']);
+  it('lists what was installed and the MediaMake skills on a computer, the last used first, then the last installed, never an internal skill', () => {
+    // cleanup-out is installed, but internal
+    assert.deepEqual(result.installed.map(entry => entry.item.id), ['mcp/elevenlabs', 'skill/make-lyrics-video', 'mcp/broken']);
     // an MCP is used when a skill that works with it runs
     assert.deepEqual(result.installed[0].used, { at: '2026-11-12T10:00:00.000Z', count: 15, type: 'runs' });
     assert.equal(result.installed[2].used, undefined);
@@ -302,6 +307,10 @@ describe('Mine', () => {
 
   it('never lists an installed item the catalog no longer shows them', () => {
     assert.equal(result.installed.some(entry => entry.item.id === 'mcp/secret'), false);
+  });
+
+  it('leaves out an internal skill the catalog does not list, by its name', () => {
+    assert.deepEqual(mine(items, ACTIVITY, SKILLS, new Set(['my-own-skill'])).local, []);
   });
 
   it('tells their variants from their other skills', () => {

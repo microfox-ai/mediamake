@@ -59,8 +59,10 @@ const LEVEL = { alpha: 'Alpha', beta: 'Beta', ready: 'Ready' } as const;
 type StoreKind = keyof typeof KIND;
 const isStoreKind = (kind: string): kind is StoreKind => kind in KIND;
 
-export function homeShelf(cards: CatalogEntry[]): HomeShelf {
-  const listed = cards.filter((card) => !card.archivedAt && isStoreKind(card.kind));
+/** `internalSkills`: the names of the internal skills (other skills run them), which the homepage never shows or counts. */
+export function homeShelf(cards: CatalogEntry[], internalSkills: ReadonlySet<string> = new Set()): HomeShelf {
+  const isInternal = (card: CatalogEntry) => card.kind === 'skill' && internalSkills.has(card.id.slice('skill/'.length));
+  const listed = cards.filter((card) => !card.archivedAt && isStoreKind(card.kind) && !isInternal(card));
   const counts = { skill: 0, mcp: 0, app: 0 };
   for (const card of listed) counts[card.kind as StoreKind] += 1;
 

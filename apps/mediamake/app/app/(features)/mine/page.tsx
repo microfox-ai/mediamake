@@ -1,7 +1,7 @@
 import { AppPage } from '@/components/app-shell/app-page';
 import { MINE_TABS, MineView, type MineTab } from '@/components/app-shell/mine';
 import { mine } from '@/lib/app-shell/member';
-import { getAppItems, getMemberActivity, getSpaces } from '@/lib/app-shell/member-data';
+import { getAppItems, getInternalSkillNames, getMemberActivity, getSpaces } from '@/lib/app-shell/member-data';
 import { registry } from '@/lib/skills/registry';
 import { SPACES_HREF, pageOpens } from '@/lib/app-shell/nav';
 import { getAppViewer } from '@/lib/app-shell/viewer';
@@ -19,11 +19,12 @@ export default async function MinePage({ searchParams }: { searchParams: Promise
   const { tab } = await searchParams;
   const { clientId, tier } = await getAppViewer();
   if (!clientId) return null;
-  const [items, activity, spaces] = await Promise.all([getAppItems(clientId), getMemberActivity(clientId), getSpaces(clientId)]);
+  const [items, activity, spaces, internal] = await Promise.all([getAppItems(clientId), getMemberActivity(clientId), getSpaces(clientId), getInternalSkillNames()]);
 
   const skills = registry?.skills ?? [];
   const now = Date.now();
-  const mineOf = mine(items, activity, skills);
+  // internal skills come with the skills that run them: only Explore lists them, behind its filter
+  const mineOf = mine(items, activity, skills, internal);
 
   return (
     <AppPage title="My Items">
