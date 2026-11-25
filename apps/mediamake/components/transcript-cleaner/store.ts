@@ -10,7 +10,9 @@ import {
   changeCount,
   instructionsOf,
   linesOf,
+  MIN_RANGE,
   momentAt,
+  rangeContext,
   revisionFileName,
   revisionIdOf,
   revisionNumber,
@@ -23,11 +25,12 @@ import {
   wordsOf,
 } from '@/lib/transcript-cleaner/transcript';
 import { joinLine, relinedMoves, splitLine, withLineTexts, type Caret, type Relining, type ReliningResult } from '@/lib/transcript-cleaner/lines';
-import { CLEAN_FILE, type CleanMark, type LineMove, type Mark, type MarkKind, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from '@/lib/transcript-cleaner/types';
+import { CLEAN_FILE, type CleanMark, type LineMove, type Mark, type MarkKind, type MissingRange, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from '@/lib/transcript-cleaner/types';
 
 /*
  * State for /transcript-cleaner: the opened folder and the songs in it (and which are marked clean), the song being
- * cleaned (its words, lines, audio and waveform), playback, the open revision (marks, moved words, and words deleted,
+ * cleaned (its words, lines, audio and waveform), playback and the stretch selected on the timeline (looped or not),
+ * the open revision (marks, stretches where words are missing, moved words, and words deleted,
  * rewritten, pushed to another line, and lines split or joined), the caret in the song's lines and the undo of word
  * edits, and saving that revision beside the transcript. The transcript file itself is never written: Claude applies a
  * revision when the user pastes it.
@@ -109,6 +112,10 @@ interface State {
   /** Where the timeline starts when it doesn't follow the playhead (paused and panned). */
   viewStart: number | null;
   selected: number | null;
+  /** The stretch selected on the timeline (dragged on the waveform, ⇧-dragged anywhere, or set with I and O). */
+  range: { start: number; end: number } | null;
+  /** The selected stretch plays over and over. */
+  looping: boolean;
   /** The text caret in the song's lines (shown while they have the focus): before a word, or after a line's last one. */
   caret: Caret | null;
   /** The word whose text is being rewritten, and where its text box is. */
@@ -129,7 +136,16 @@ interface State {
   stepSong: (d: number) => void;
   setFilter: (f: string) => void;
   togglePlay: () => void;
-  playRange: (start: number, end: number) => void;
+  playRange: (start: number, end: number, loop?: boolean) => void;
+  setRange: (range: { start: number; end: number } | null) => void;
+  /** I and O: the selected stretch starts or ends at the playhead (with none, a 2 s one starts or ends there). */
+  setRangeEdge: (edge: 'start' | 'end') => void;
+  /** Play the selected stretch, once or looping. */
+  playSelection: (loop?: boolean) => void;
+  /** Mark the selected stretch: words are sung there that the transcript lacks. */
+  addMissingRange: () => void;
+  updateMissingRange: (id: string, patch: Partial<Pick<MissingRange, 'note' | 'words'>>) => void;
+  removeMissingRange: (id: string) => void;
   replayLine: () => void;
   seek: (t: number) => void;
   nudge: (d: number) => void;
@@ -178,6 +194,8 @@ let raf = 0;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 /** playRange stops the song here. */
 let stopAt: number | null = null;
+/** …or goes back here and plays on, when it loops. */
+let loopFrom: number | null = null;
 /** Revisions already written to disk (song id + rev id): one taken back to no changes is written again, empty. */
 const written = new Set<string>();
 
@@ -239,6 +257,7 @@ export const useTranscriptStore = create<State>((set, get) => {
       deleted: [],
       rewrites: [],
       lineMoves: [],
+      missingRanges: [],
     };
   };
 
@@ -298,6 +317,12 @@ export const useTranscriptStore = create<State>((set, get) => {
     if (!audio) return;
     const t = audio.currentTime;
     if (stopAt !== null && t >= stopAt) {
+      if (loopFrom !== null) {
+        audio.currentTime = loopFrom;
+        set({ time: loopFrom });
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       stopAt = null;
       audio.pause();
       return;
@@ -337,6 +362,8 @@ export const useTranscriptStore = create<State>((set, get) => {
     span: 8,
     viewStart: null,
     selected: null,
+    range: null,
+    looping: false,
     caret: null,
     editing: null,
     undoStack: [],
@@ -391,6 +418,7 @@ export const useTranscriptStore = create<State>((set, get) => {
       if (!root) return;
       await get().flushSave();
       stopAt = null;
+      loopFrom = null;
       audio?.pause();
       cancelAnimationFrame(raf);
       const old = get().song;
@@ -404,6 +432,8 @@ export const useTranscriptStore = create<State>((set, get) => {
         lines: [],
         revision: null,
         selected: null,
+        range: null,
+        looping: false,
         caret: null,
         editing: null,
         undoStack: [],
@@ -442,6 +472,7 @@ export const useTranscriptStore = create<State>((set, get) => {
                 rewrites: r.data.rewrites ?? [],
                 lineMoves: r.data.lineMoves ?? [],
                 lineEdits: r.data.lineEdits ?? [],
+                missingRanges: r.data.missingRanges ?? [],
               };
               written.add(`${entry.id}/${revision.id}`);
             }
@@ -466,7 +497,10 @@ export const useTranscriptStore = create<State>((set, get) => {
             cancelAnimationFrame(raf);
             set({ playing: false, time: a.currentTime });
           });
-          a.addEventListener('ended', () => set({ playing: false }));
+          a.addEventListener('ended', () => {
+            loopFrom = null;
+            set({ playing: false, looping: false });
+          });
           a.addEventListener('loadedmetadata', () => set(s => (s.song && audio === a ? { song: { ...s.song, duration: a.duration } } : {})));
           audio = a;
         }
@@ -521,16 +555,98 @@ export const useTranscriptStore = create<State>((set, get) => {
     togglePlay: () => {
       if (!audio) return;
       stopAt = null;
+      loopFrom = null;
+      set({ looping: false });
       if (audio.paused) void audio.play();
       else audio.pause();
     },
 
-    playRange: (start, end) => {
+    playRange: (start, end, loop = false) => {
       if (!audio) return;
       audio.currentTime = Math.max(0, start);
-      set({ time: audio.currentTime });
+      set({ time: audio.currentTime, looping: loop });
       stopAt = end;
+      loopFrom = loop ? Math.max(0, start) : null;
       void audio.play();
+    },
+
+    setRange: range => {
+      if (!range || range.end - range.start < MIN_RANGE) {
+        if (get().looping) {
+          loopFrom = null;
+          stopAt = null;
+          set({ looping: false });
+        }
+        set({ range: null });
+        return;
+      }
+      const d = get().song?.duration || Infinity;
+      const start = round3(Math.max(0, Math.min(range.start, range.end)));
+      const end = round3(Math.min(d, Math.max(range.start, range.end)));
+      set({ range: { start, end } });
+      // a looping stretch follows its new edges
+      if (get().looping) {
+        loopFrom = start;
+        stopAt = end;
+      }
+    },
+
+    setRangeEdge: edge => {
+      const { range, time } = get();
+      if (edge === 'start') get().setRange(range && range.end - time >= MIN_RANGE ? { start: time, end: range.end } : { start: time, end: time + 2 });
+      else get().setRange(range && time - range.start >= MIN_RANGE ? { start: range.start, end: time } : { start: Math.max(0, time - 2), end: time });
+    },
+
+    playSelection: (loop = false) => {
+      const { range, looping } = get();
+      if (!range) {
+        toast.message('Select a stretch first: drag on the waveform (or ⇧-drag anywhere), or press I and O at the playhead');
+        return;
+      }
+      // L again stops the loop
+      if (loop && looping) {
+        audio?.pause();
+        loopFrom = null;
+        stopAt = null;
+        set({ looping: false });
+        return;
+      }
+      get().playRange(range.start, range.end, loop);
+    },
+
+    addMissingRange: () => {
+      const { range, words, lines } = get();
+      if (!range) {
+        toast.message('Select a stretch first: drag on the waveform (or ⇧-drag anywhere), or press I and O at the playhead');
+        return;
+      }
+      const base = ensureRevision();
+      if (!base) return;
+      if (audio && !audio.paused) audio.pause();
+      loopFrom = null;
+      stopAt = null;
+      const r: MissingRange = { id: uid(), start: range.start, end: range.end, note: '', ...rangeContext(words, lines, range.start, range.end), createdAt: now() };
+      set({
+        revision: withTimings({ ...base, status: 'open', missingRanges: [...(base.missingRanges ?? []), r] }),
+        focusMark: r.id,
+        range: null,
+        looping: false,
+      });
+      scheduleSave();
+    },
+
+    updateMissingRange: (id, patch) => {
+      const r = get().revision;
+      if (!r) return;
+      set({ revision: { ...r, missingRanges: (r.missingRanges ?? []).map(m => (m.id === id ? { ...m, ...patch } : m)), updatedAt: now() } });
+      scheduleSave();
+    },
+
+    removeMissingRange: id => {
+      const r = get().revision;
+      if (!r) return;
+      set({ revision: { ...r, missingRanges: (r.missingRanges ?? []).filter(m => m.id !== id), updatedAt: now() } });
+      scheduleSave();
     },
 
     replayLine: () => {
@@ -538,6 +654,8 @@ export const useTranscriptStore = create<State>((set, get) => {
       const l = lines[momentAt(words, lines, time + lead).line];
       if (!l || !audio) return;
       stopAt = null;
+      loopFrom = null;
+      set({ looping: false });
       audio.currentTime = Math.max(0, l.start - 0.4);
       set({ time: audio.currentTime });
       void audio.play();

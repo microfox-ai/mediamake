@@ -35,7 +35,7 @@ const SHORTCUTS: [string, string][] = [
   ['R', 'Play the line on screen from its start'],
   ['↑ ↓', 'Previous / next line'],
   [', .', 'Previous / next word (selects it)'],
-  ['P', 'Play the selected word'],
+  ['P', 'Play the selected word (no word selected: the selected stretch)'],
   ['Mod Z', 'Undo a word edit: split, join, push, delete, rewrite (⇧: redo)'],
   ['Right-click a word', 'Its menu: rewrite, delete, mark, new line, join, push to the next or previous line, trim'],
   ['↵', 'Rewrite the selected word'],
@@ -48,12 +48,16 @@ const SHORTCUTS: [string, string][] = [
   ['S / E', 'Selected word starts / ends at the playhead'],
   ['⌥ ← →', 'Move the selected word 0.02 s (⇧: 0.1 s)'],
   ['Drag a word', 'Its edges: start or end; its middle: move it (⇧ the rest of the line too); it may overlap others'],
+  ['Drag the waveform', 'Select a stretch of the song (⇧-drag works anywhere off the words); click: play from there'],
+  ['I / O', 'The stretch starts / ends at the playhead'],
+  ['L', 'Loop the stretch (again: stop)'],
+  ['M on a stretch', 'Mark it: words are sung there that the transcript lacks'],
   ['- =', 'Zoom the timeline out / in (⌘-scroll too)'],
   ['[ ]', 'Slower / faster'],
   ['⌥ ↑ ↓', 'Previous / next song'],
   ['C', 'Copy the revision for Claude'],
   ['⇧ C', 'Mark the song clean (again: not clean)'],
-  ['Esc', 'Deselect the word'],
+  ['Esc', 'Clear the stretch, else deselect the word'],
   ['Mod S', 'Save now'],
   ['?', 'Show these shortcuts'],
 ];
@@ -127,7 +131,9 @@ function useShortcuts() {
       const key = e.key.toLowerCase();
       if (MARK_BY_KEY[key] && !e.shiftKey) {
         e.preventDefault();
-        s.addMark(MARK_BY_KEY[key]);
+        // M with a stretch selected marks the stretch: words sung there that the transcript lacks
+        if (key === 'm' && s.range) s.addMissingRange();
+        else s.addMark(MARK_BY_KEY[key]);
         return;
       }
       switch (e.key) {
@@ -166,9 +172,22 @@ function useShortcuts() {
         case 'P': {
           const w = s.selected !== null ? s.words[s.selected] : null;
           if (w) s.playRange(w.start - 0.15, w.end + 0.15);
-          else toast.message('Select a word first (click it)');
+          else if (s.range) s.playSelection();
+          else toast.message('Select a word first (click it), or a stretch on the waveform');
           break;
         }
+        case 'i':
+        case 'I':
+          s.setRangeEdge('start');
+          break;
+        case 'o':
+        case 'O':
+          s.setRangeEdge('end');
+          break;
+        case 'l':
+        case 'L':
+          s.playSelection(true);
+          break;
         case 's':
         case 'S':
           s.setEdgeAtPlayhead('start');
@@ -216,7 +235,8 @@ function useShortcuts() {
           else toast.message('Select a word first (click it), then press ⌫ to delete it');
           break;
         case 'Escape':
-          s.selectWord(null);
+          if (s.range) s.setRange(null);
+          else s.selectWord(null);
           break;
         case '?':
           s.setShortcutsOpen(!s.shortcutsOpen);

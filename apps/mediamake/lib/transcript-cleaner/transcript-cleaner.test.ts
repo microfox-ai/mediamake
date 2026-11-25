@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { caretAt, joinLine, relinedMoves, slotOf, splitLine, stepCaret, withLineTexts, type Relining } from './lines';
-import { changeCount, instructionsOf, linesOf, revisedWords, wordsOf } from './transcript';
+import { changeCount, instructionsOf, linesOf, rangeContext, revisedWords, wordsOf } from './transcript';
 import type { TranscriptFile, TranscriptRevision } from './types';
 
 // stanza 1: "a b c" / "d e" / "f" · stanza 2: "g h" / "i"
@@ -151,4 +151,27 @@ test('the caret steps word by word and across lines, like a text caret', () => {
   // the song's ends hold
   assert.deepEqual(stepCaret(lines, { i: 0, end: false }, -1), { i: 0, end: false });
   assert.deepEqual(stepCaret(lines, { i: 8, end: true }, 1), { i: 8, end: true });
+});
+
+test('a stretch with words missing names the words around it and lands in the instructions', () => {
+  const lines = linesOf(base, DOC);
+  // between "c" (2–2.5 s, line 1.1) and "d" (3–3.5 s, line 1.2)
+  const ctx = rangeContext(base, lines, 2.6, 2.95);
+  assert.equal(ctx.after?.text, 'c');
+  assert.equal(ctx.before?.text, 'd');
+  assert.equal(ctx.inside, undefined);
+  // over "e" (4–4.5 s): it is inside, the neighbours are "d" and "f"
+  const over = rangeContext(base, lines, 3.8, 4.8);
+  assert.deepEqual(over.inside?.map(w => w.text), ['e']);
+  assert.equal(over.after?.text, 'd');
+  assert.equal(over.before?.text, 'f');
+  const rev = { ...emptyRev(), missingRanges: [{ id: 'r1', start: 2.6, end: 2.95, words: 'oh yeah', note: 'backing vocal', ...ctx, createdAt: '' }] };
+  assert.equal(changeCount(rev), 1);
+  const text = instructionsOf(rev);
+  assert.match(text, /Words missing in these stretches \(1\)/);
+  assert.match(text, /2\.600–2\.950 s/);
+  assert.match(text, /sung: "oh yeah"/);
+  assert.match(text, /after word #2 "c"/);
+  assert.match(text, /before word #3 "d"/);
+  assert.match(text, /between two lines/);
 });

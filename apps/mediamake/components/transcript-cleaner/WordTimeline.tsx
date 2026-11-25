@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { PlayIcon, RepeatIcon, TextCursorInputIcon, XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { clock, lanesOf, lineOf } from '@/lib/transcript-cleaner/transcript';
 import type { TWord } from '@/lib/transcript-cleaner/types';
@@ -13,6 +14,9 @@ import { isLong, RewriteInput, useRevisionWords, WordMenu } from './WordMenu';
  * run over its neighbours (several voices, a choir), and words that overlap stack in lanes. Right-click a word for its
  * menu. Drag the empty part or scroll to look around; ⌘/Ctrl-scroll zooms. Moved words show their old place as a
  * dashed outline; long words (maybe stretched across a gap) are striped amber.
+ *
+ * Drag on the waveform (or ⇧-drag anywhere off the words) to select a stretch of the song: play it, loop it, or mark it
+ * as words missing (sung there, but the transcript shows none). Marked stretches stay as violet bands.
  */
 
 const LANES_TOP = 6;
@@ -72,6 +76,10 @@ export function WordTimeline() {
   const HEIGHT = WAVE_TOP + WAVE_HEIGHT;
   const dragRef = useRef<Drag | null>(null);
   const panRef = useRef<{ x0: number; v0: number; moved: boolean } | null>(null);
+  const rangeRef = useRef<{ x0: number; t0: number; moved: boolean } | null>(null);
+  const range = useTranscriptStore(s => s.range);
+  const looping = useTranscriptStore(s => s.looping);
+  const missing = revision?.missingRanges ?? [];
   const [live, setLive] = useState<{ i: number; start: number; end: number } | null>(null);
 
   const duration = song?.duration ?? 0;
@@ -251,10 +259,23 @@ export function WordTimeline() {
       onPointerDown={e => {
         if (e.button !== 0 || !song) return;
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        panRef.current = { x0: e.clientX, v0, moved: false };
+        // the waveform (or ⇧ anywhere) selects a stretch; the empty lanes pan
+        const y = e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top;
+        if (e.shiftKey || y >= WAVE_TOP - 4) rangeRef.current = { x0: e.clientX, t0: timeAt(e.clientX), moved: false };
+        else panRef.current = { x0: e.clientX, v0, moved: false };
       }}
       onPointerMove={e => {
         if (dragRef.current) return onDragMove(e);
+        const r = rangeRef.current;
+        if (r) {
+          if (!r.moved && Math.abs(e.clientX - r.x0) < 3) return;
+          r.moved = true;
+          const s = useTranscriptStore.getState();
+          if (s.viewStart === null) s.setViewStart(v0);
+          if (s.selected !== null) s.selectWord(null);
+          s.setRange({ start: r.t0, end: timeAt(e.clientX) });
+          return;
+        }
         const p = panRef.current;
         if (!p) return;
         if (!p.moved && Math.abs(e.clientX - p.x0) < 4) return;
@@ -263,6 +284,17 @@ export function WordTimeline() {
       }}
       onPointerUp={e => {
         if (dragRef.current) return endDrag();
+        const r = rangeRef.current;
+        rangeRef.current = null;
+        if (r) {
+          if (!r.moved) {
+            const s = useTranscriptStore.getState();
+            s.selectWord(null);
+            s.setRange(null);
+            s.seek(timeAt(e.clientX));
+          }
+          return;
+        }
         const p = panRef.current;
         panRef.current = null;
         if (p && !p.moved) {
@@ -273,6 +305,65 @@ export function WordTimeline() {
       }}
     >
       <canvas ref={canvasRef} style={{ width, height: HEIGHT }} className="pointer-events-none absolute inset-0 block" />
+      {/* the waveform strip: drag here to select a stretch */}
+      <div className="absolute inset-x-0 bottom-0 cursor-crosshair" style={{ top: WAVE_TOP - 4 }} title="Drag to select a stretch of the song (⇧-drag works anywhere) · click: play from there" />
+      {/* stretches marked as words missing */}
+      {missing
+        .filter(m => m.end >= v0 && m.start <= v0 + span)
+        .map(m => {
+          const left = x(m.start);
+          const w = Math.max(2, (m.end - m.start) * pps);
+          const label = m.words?.trim() || m.note.trim() || 'words missing';
+          return (
+            <div key={m.id} className="pointer-events-none absolute inset-y-0 border-x border-dashed border-violet-400/80 bg-violet-500/15" style={{ left, width: w }}>
+              <button
+                className="pointer-events-auto absolute max-w-[calc(100%-4px)] truncate rounded bg-violet-600/90 px-1 py-0.5 text-[10px] leading-none text-white hover:bg-violet-500"
+                style={{ top: WAVE_TOP + 2, left: Math.max(2, -left + 2) }}
+                title={`Words missing ${m.start.toFixed(2)}–${m.end.toFixed(2)} s: ${label} · click to play it`}
+                onPointerDown={e => e.stopPropagation()}
+                onClick={() => {
+                  const s = useTranscriptStore.getState();
+                  s.setFocusMark(m.id);
+                  s.playRange(m.start, m.end);
+                }}
+              >
+                {label}
+              </button>
+            </div>
+          );
+        })}
+      {/* the selected stretch, and what to do with it */}
+      {range && range.end >= v0 && range.start <= v0 + span && (
+        <div className="pointer-events-none absolute inset-y-0 z-10 border-x border-sky-300 bg-sky-400/15" style={{ left: x(range.start), width: Math.max(2, (range.end - range.start) * pps) }}>
+          <div
+            className="pointer-events-auto absolute flex items-center gap-0.5 whitespace-nowrap rounded bg-zinc-900/95 p-0.5 text-[10px] text-zinc-100 shadow ring-1 ring-sky-400/50"
+            style={{ top: WAVE_TOP + 2, left: Math.max(0, -x(range.start)) }}
+            onPointerDown={e => e.stopPropagation()}
+          >
+            <span className="px-1 font-mono text-sky-200">{(range.end - range.start).toFixed(1)} s</span>
+            <button className="flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-zinc-700" title="Play the stretch (P)" onClick={() => useTranscriptStore.getState().playSelection()}>
+              <PlayIcon className="size-3" />
+            </button>
+            <button
+              className={cn('flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-zinc-700', looping && 'bg-sky-500/40')}
+              title={looping ? 'Stop looping (L)' : 'Loop the stretch (L)'}
+              onClick={() => useTranscriptStore.getState().playSelection(true)}
+            >
+              <RepeatIcon className="size-3" />
+            </button>
+            <button
+              className="flex items-center gap-0.5 rounded bg-violet-600/90 px-1 py-0.5 text-white hover:bg-violet-500"
+              title="Mark it: words are sung here that the transcript lacks (M)"
+              onClick={() => useTranscriptStore.getState().addMissingRange()}
+            >
+              <TextCursorInputIcon className="size-3" /> Words missing
+            </button>
+            <button className="rounded px-1 py-0.5 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100" title="Clear the selection (Esc)" onClick={() => useTranscriptStore.getState().setRange(null)}>
+              <XIcon className="size-3" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* where moved words were; drags on a word bubble their moves here (the word captures the pointer) */}
       {visible
         .filter(w => moved.has(w.i) && song?.original[w.i])
