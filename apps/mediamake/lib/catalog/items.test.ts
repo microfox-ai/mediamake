@@ -8,7 +8,7 @@ import { updatePromptFor } from './install-prompt';
 import { MCP_HEALTH, directoryUrlOf, isAlwaysPublic, isInstallable, mcpRunsOf, parseCatalogItemId, withHealth, type ItemHealth } from './types';
 
 /** Our MCPs, released through the catalog database rather than defined in the repo. */
-const OURS = new Set(['mcp/browse-hack', 'mcp/mediamake', 'mcp/mm-release', 'mcp/mm-use', 'mcp/projectsync']);
+const OURS = new Set(['mcp/browse-hack', 'mcp/mac-recorder', 'mcp/mediamake', 'mcp/mm-release', 'mcp/mm-use', 'mcp/projectsync']);
 
 describe('third-party.json', () => {
   const items = thirdPartyRecords([]);
@@ -89,7 +89,8 @@ describe('third-party.json', () => {
 
     const connector = staticRecord('mcp/elevenlabs-connector')!;
     const archivedByRepo = { ...elevenlabs, id: 'mcp/old', health: 'archived' as const };
-    const skill = { id: 'skill/x', kind: 'skill' as const };
+    // a skill with no health of its own; its type names the health fields, so every item in the list below has them
+    const skill: { id: string; kind: 'skill'; health?: ItemHealth; healthNote?: string } = { id: 'skill/x', kind: 'skill' };
     const [archived, healthy, broken, untouched] = withHealth([archivedByRepo, connector, { ...connector, id: 'mcp/fal' }, skill], [
       // a mark stored under the earlier name reads as failed
       { id: 'mcp/fal', health: 'not-working' as never, note: 'its API changed', at: '2026-11-03' },
@@ -99,8 +100,7 @@ describe('third-party.json', () => {
     assert.deepEqual([broken.health, broken.healthNote], ['failed', 'its API changed']);
     assert.equal('health' in untouched, false);
     // health is for every kind: a skill can fail too, with the reason
-    const plain: { id: string; kind: 'skill'; health?: ItemHealth; healthNote?: string } = { id: 'skill/x', kind: 'skill' };
-    const [failedSkill] = withHealth([plain], [{ id: 'skill/x', health: 'failed', note: 'its MCP was retired', at: '2026-11-15' }]);
+    const [failedSkill] = withHealth([skill], [{ id: 'skill/x', health: 'failed', note: 'its MCP was retired', at: '2026-11-15' }]);
     assert.deepEqual([failedSkill.health, failedSkill.healthNote], ['failed', 'its MCP was retired']);
     // a mark beats the repo's default
     assert.equal(withHealth([archivedByRepo], [{ id: 'mcp/old', health: 'healthy', at: '2026-11-03' }])[0].health, 'healthy');
