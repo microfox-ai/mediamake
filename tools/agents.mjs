@@ -20,6 +20,8 @@
  *   mm agents usage                          what was spent, by day and model, against the credit
  *   mm agents credit [--total=200 --ends=2026-11-29T05:30]   the credit the ledger counts against
  *   mm agents defaults [--model= --effort= --cap= --max= --mode=]   what a run starts with
+ *   mm agents watch                         takes what the Sub-agents page sends this place (an answer, a stop, a new run)
+ *   mm agents report [on|off]               whether runs are reported to the page (on); mm agents sync sends what it hasn't got
  *
  * Rules it keeps:
  *   - Admins and Cohort members only (the account `mm login` signed in).
@@ -30,6 +32,10 @@
  *   - A sub-agent does not start sub-agents of its own.
  *   - Two run at a time (`max`), the rest wait their turn. A run stops at its cap (`--cap`, $15), and no
  *     run starts after the credit's end or within its last dollars unless --paid says the key may bill.
+ *   - Each run is reported to the account's Sub-agents page (/app/agents) as it works: its record and
+ *     its conversation, cut to size, with the keys taken out. For that account only. `report off` stops it.
+ *   - The page's Send, Stop and New are done by the run's own runner, or by `mm agents watch` when its
+ *     owner has it listening. What the signed-in owner sends from the page is their yes.
  *   - Costs are Claude Code's own count, reported when a turn ends. The Console is the bill.
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -305,6 +311,143 @@ export function turnCost(result, before) {
   };
 }
 
+/* ---------- reporting: the run as the Sub-agents page shows it ---------- */
+
+/** Whether runs are reported to MediaMake (`mm agents report off` keeps them on this computer only). */
+export const reporting = (env = process.env) => {
+  const value = readJson(configFile(env)).agents?.report;
+  return !(value === false || value === 'off');
+};
+
+const KEY_SHAPES = [/sk-ant-[A-Za-z0-9_-]{16,}/g];
+/** `text` without the keys this process holds, or anything shaped like an Anthropic key. */
+export function scrub(text, secrets = []) {
+  let out = String(text);
+  for (const secret of secrets) if (secret && secret.length >= 8) out = out.split(secret).join('[key removed]');
+  for (const shape of KEY_SHAPES) out = out.replace(shape, '[key removed]');
+  return out;
+}
+
+const cut = (text, n) => {
+  const s = String(text ?? '');
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+};
+const toolInput = (input = {}) => cut(input.command ?? input.file_path ?? input.skill ?? input.pattern ?? input.url ?? input.prompt ?? input.description ?? JSON.stringify(input), 600);
+
+/** One line Claude printed, as the lines the page shows: your message, its words, a tool and its result, how a turn ended. */
+export function displayEvents(ev, turn) {
+  if (ev.type === 'mm_turn') return [{ kind: 'you', turn: ev.turn, at: ev.at, text: cut(ev.message, 6000) }];
+  const out = [];
+  if (ev.type === 'assistant') {
+    for (const block of ev.message?.content ?? []) {
+      if (block.type === 'text' && withoutState(block.text)) out.push({ kind: 'agent', turn, text: cut(withoutState(block.text), 6000) });
+      if (block.type === 'tool_use') out.push({ kind: 'tool', turn, name: String(block.name ?? 'tool').slice(0, 120), text: toolInput(block.input) });
+    }
+  } else if (ev.type === 'user') {
+    for (const block of Array.isArray(ev.message?.content) ? ev.message.content : []) {
+      if (block.type !== 'tool_result') continue;
+      const body = typeof block.content === 'string' ? block.content : (block.content ?? []).map(c => c.text ?? `[${c.type}]`).join('\n');
+      out.push({ kind: 'result', turn, text: cut(body.trim(), 1500), ...(block.is_error && { error: true }) });
+    }
+  } else if (ev.type === 'result') {
+    out.push({ kind: 'end', turn, text: `${ev.subtype === 'success' ? 'ended' : String(ev.subtype ?? 'ended').replace(/^error_/, '').replace(/_/g, ' ')} · ${ev.num_turns ?? '?'} steps · ${Math.round((ev.duration_ms ?? 0) / 1000)} s` });
+  }
+  return out;
+}
+
+/** The whole lines of `file` from byte `offset`, as display events: at most `limit` of them, and where the next read starts. */
+export function readNew(file, { offset = 0, turn = 0 } = {}, limit = 250) {
+  let buffer;
+  try {
+    const fd = fs.openSync(file, 'r');
+    const size = fs.fstatSync(fd).size;
+    buffer = Buffer.alloc(Math.max(0, Math.min(size - offset, 4 * 1024 * 1024)));
+    fs.readSync(fd, buffer, 0, buffer.length, offset);
+    fs.closeSync(fd);
+  } catch {
+    return { events: [], offset, turn, more: false };
+  }
+  const events = [];
+  let at = 0;
+  for (;;) {
+    const end = buffer.indexOf(10, at);
+    if (end < 0) break;
+    let ev = null;
+    try {
+      ev = JSON.parse(buffer.subarray(at, end).toString('utf8'));
+    } catch {}
+    const made = ev ? displayEvents(ev, turn) : [];
+    if (events.length && events.length + made.length > limit) return { events, offset: offset + at, turn, more: true };
+    if (ev?.type === 'mm_turn') turn = ev.turn;
+    events.push(...made.map(e => (e.kind === 'you' ? e : { ...e, turn })));
+    at = end + 1;
+  }
+  return { events, offset: offset + at, turn, more: false };
+}
+
+const mediamake = env => {
+  const url = site(env);
+  const key = apiKey(url, env);
+  return key ? { url, key: key.key } : null;
+};
+
+/** What this place counts with, for the page: the credit and what a run starts with. */
+const placeSettings = env => {
+  const set = settings(env);
+  return { ...(set.credit && { credit: set.credit }), defaults: { model: set.model, effort: set.effort, cap: set.cap } };
+};
+
+/**
+ * Sends a run to MediaMake as it is now, with the lines the page has not got yet, and answers what
+ * the page asked this place to do. Null when reporting is off or this place isn't signed in.
+ * `all` keeps going until every line is sent.
+ */
+export async function report(env, dir, id, { all = false } = {}) {
+  if (!reporting(env)) return null;
+  const at = mediamake(env);
+  const run = readRun(dir, id);
+  if (!at || !run) return null;
+  const folder = path.join(dir, id);
+  const syncFile = path.join(folder, 'sync.json');
+  const secrets = [at.key, anthropicKey(env)?.key];
+  let sync = { offset: 0, seq: 0, turn: 0, ...readJson(syncFile) };
+  let commands = [];
+  for (let round = 0; round < (all ? 400 : 2); round++) {
+    const fresh = sync.full ? { events: [], offset: sync.offset, turn: sync.turn, more: false } : readNew(path.join(folder, 'events.jsonl'), sync);
+    const { task: _task, runner: _runner, pid: _pid, ...rest } = run;
+    const body = { action: 'report', place: run.place, run: { ...rest, state: stateOf(run) }, from: sync.seq, events: fresh.events, settings: placeSettings(env) };
+    const answer = await call('POST', `${at.url}/api/agents`, at.key, JSON.parse(scrub(JSON.stringify(body), secrets)), { timeoutMs: 15000 });
+    commands = answer?.commands ?? [];
+    const have = Number(answer?.have) || 0;
+    if (have === sync.seq + fresh.events.length) sync = { offset: fresh.offset, seq: have, turn: fresh.turn };
+    else if (have === sync.seq) sync = { ...sync, full: have >= 20000 }; // it took none: the page keeps no more lines of a run this long
+    else sync = { offset: 0, seq: 0, turn: 0, ...seek(path.join(folder, 'events.jsonl'), have) }; // out of step: go on from what it has
+    writeJson(syncFile, { ...sync, updated: run.updated, state: stateOf(run) });
+    if (!fresh.more || sync.full) break;
+  }
+  return commands;
+}
+
+/** Where in `file` the event numbered `have` starts (the end of the file when it has fewer). */
+function seek(file, have) {
+  let at = { offset: 0, turn: 0 };
+  let seq = 0;
+  while (seq < have) {
+    const next = readNew(file, at, Math.min(250, have - seq));
+    if (!next.events.length) break;
+    seq += next.events.length;
+    at = { offset: next.offset, turn: next.turn };
+  }
+  return { ...at, seq: have };
+}
+
+/** Tells MediaMake a command from the page was done here, or why it could not be. */
+async function settle(env, command, done, more = {}) {
+  const at = mediamake(env);
+  if (!at) return;
+  await call('POST', `${at.url}/api/agents`, at.key, { action: 'settle', command, done, ...more }).catch(() => null);
+}
+
 /* ---------- the runner: one turn of one run, in its own process ---------- */
 
 /** Whether `run` may leave the queue: fewer than `max` are running, and no run has waited longer. */
@@ -315,10 +458,34 @@ export function mayGo(run, runs, max) {
   return !others.some(r => r.state === 'queued' && since(r) < since(run));
 }
 
+/**
+ * A run's turns, one after another, in its own process: the turn it was started for, then any
+ * message the page sent while it worked. It reports as it goes, one report at a time.
+ */
 async function runTurn(id, env = process.env) {
   const dir = agentsDir(env);
+  if (!readRun(dir, id)) throw new Error(`No sub-agent ${id} in ${tilde(dir)}.`);
+  let line = Promise.resolve(null);
+  const tell = more => (line = line.then(() => report(env, dir, id, more)).catch(() => null));
+  for (;;) {
+    await oneTurn(dir, id, env, tell);
+    const commands = (await tell({ all: true })) ?? [];
+    // a stop that arrived as it ended has nothing left to stop
+    for (const late of commands.filter(c => c.kind === 'stop' && c.run === id)) await settle(env, late.id, true);
+    const next = commands.find(c => c.kind === 'message' && c.run === id);
+    if (!next) return;
+    try {
+      writeRun(dir, turnAfter(readRun(dir, id), next.message, { credit: creditNow(settings(env).credit, spentAll(allRuns(dir))) }));
+      await settle(env, next.id, true);
+    } catch (error) {
+      await settle(env, next.id, false, { note: error.message });
+      return;
+    }
+  }
+}
+
+async function oneTurn(dir, id, env, tell) {
   let run = readRun(dir, id);
-  if (!run) throw new Error(`No sub-agent ${id} in ${tilde(dir)}.`);
   const at = path.join(dir, id);
   const stopFile = path.join(at, 'stop');
   const turn = run.turns.at(-1);
@@ -333,6 +500,7 @@ async function runTurn(id, env = process.env) {
   };
 
   save({ runner: process.pid, state: 'queued' });
+  tell();
   while (!mayGo(run, allRuns(dir), settings(env).max)) {
     if (fs.existsSync(stopFile)) return end('stopped', { outcome: 'stopped before it started' });
     await sleep(Number(env.MM_AGENTS_POLL_MS) || 3000);
@@ -377,9 +545,20 @@ async function runTurn(id, env = process.env) {
   let noKey = false;
   let wrote = 0;
   turn.calls = 0;
+  // the page hears of it every few seconds, and a stop from the page ends the turn
+  const telling = setInterval(async () => {
+    const stopIt = ((await tell()) ?? []).find(c => c.kind === 'stop' && c.run === id);
+    if (!stopIt || fs.existsSync(stopFile)) return;
+    fs.writeFileSync(stopFile, `${new Date().toISOString()}\n`);
+    child.kill('SIGTERM');
+    await settle(env, stopIt.id, true);
+  }, Number(env.MM_AGENTS_REPORT_MS) || 4000);
+  const secrets = [key.key, mediamake(env)?.key];
   const lines = readline.createInterface({ input: child.stdout });
-  lines.on('line', line => {
-    if (!line.trim()) return;
+  lines.on('line', raw => {
+    if (!raw.trim()) return;
+    // a tool that printed a .env would otherwise leave the key in the record
+    const line = scrub(raw, secrets);
     events.write(`${line}\n`);
     let ev;
     try {
@@ -425,6 +604,7 @@ async function runTurn(id, env = process.env) {
     });
     child.on('close', (c, s) => resolve([c, s]));
   });
+  clearInterval(telling);
   await new Promise(resolve => events.end(resolve));
   errors.end();
 
@@ -523,6 +703,44 @@ function list(env, { has }) {
   console.log(`\nmm agents show <id> for its conversation · continue <id> "<message>" to answer or go on`);
 }
 
+/** Writes a new run's record and starts its runner. Whoever calls has checked the account, the key and the credit. */
+function launch(env, dir, { task, title, model, effort, mode, cap, cwd, note }) {
+  const now = new Date().toISOString();
+  const run = {
+    id: newId(dir),
+    title,
+    task,
+    model,
+    effort,
+    mode,
+    cap,
+    cwd,
+    place: place(env),
+    session: crypto.randomUUID(),
+    from: { ...(env.CLAUDE_CODE_SESSION_ID && { session: env.CLAUDE_CODE_SESSION_ID }), ...(note && { note: short(note, 120) }) },
+    state: 'queued',
+    created: now,
+    turns: [{ n: 1, at: now, message: task }],
+  };
+  writeRun(dir, run);
+  startRunner(run.id, cwd, env);
+  return run;
+}
+
+/** `run` with its next turn waiting, or an Error saying why it can't go on: still working, never started, its cap spent, the credit over. */
+export function turnAfter(run, message, { cap = run.cap, credit = null, paid = false } = {}) {
+  const state = stateOf(run);
+  if (ACTIVE.has(state)) throw new Error(`${run.id} is still ${SAYS[state]}: mm agents wait ${run.id}, or mm agents stop ${run.id} first.`);
+  if (!run.loaded && state !== 'stopped') throw new Error(`${run.id} never started a conversation (${run.turns.at(-1)?.error ?? state}): start a new one.`);
+  if (cap - spentOn(run) <= 0) throw new Error(`${run.id} has spent its cap of ${money(run.cap)}: --cap=<a higher total> lets it go on.`);
+  const stop = creditStop(credit, paid);
+  if (stop) throw new Error(stop);
+  const now = new Date().toISOString();
+  // a stopped first turn that never reached Claude starts the conversation instead of resuming one
+  const turns = run.loaded ? [...run.turns, { n: run.turns.length + 1, at: now, message }] : [{ n: 1, at: now, message: `${run.task}\n\n${message}` }];
+  return { ...run, cap, state: 'queued', runner: null, pid: null, turns };
+}
+
 async function start(env, { words, has, flag }) {
   const dir = agentsDir(env);
   const set = settings(env);
@@ -555,6 +773,7 @@ async function start(env, { words, has, flag }) {
   credit   ${creditLine(c)}
   key      ${key ? `from ${key.from}` : 'NOT FOUND: ANTHROPIC_API_KEY in the environment, or in the checkout\'s .env'}
   now      ${running} of ${set.max} running${running >= set.max || waiting ? `, ${waiting} waiting: it would wait its turn` : ': it would start at once'}
+  record   agents/ in the workspace${reporting(env) && mediamake(env) ? ', and your Sub-agents page' : ''}
 ${stop ? `\n! ${stop}\n` : ''}
 Ask: Start a sub-agent on ${model} (${effort}) for "${title}", spending up to ${money(cap)} of the API ${c && !c.ended ? 'credit' : 'key\'s balance'}?
 Nothing was started: add --yes after they agree.`);
@@ -568,26 +787,7 @@ Nothing was started: add --yes after they agree.`);
   const bin = env.MM_AGENTS_CLAUDE || 'claude';
   if (spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 20000 }).status !== 0) throw new Error(`Claude Code isn't installed here (${bin} --version failed): npm i -g @anthropic-ai/claude-code.`);
 
-  const id = newId(dir);
-  const now = new Date().toISOString();
-  const run = {
-    id,
-    title,
-    task,
-    model,
-    effort,
-    mode,
-    cap,
-    cwd,
-    place: place(env),
-    session: crypto.randomUUID(),
-    from: { ...(env.CLAUDE_CODE_SESSION_ID && { session: env.CLAUDE_CODE_SESSION_ID }), ...(flag('from') && { note: short(flag('from'), 120) }) },
-    state: 'queued',
-    created: now,
-    turns: [{ n: 1, at: now, message: task }],
-  };
-  writeRun(dir, run);
-  run.runner = startRunner(id, cwd, env);
+  const { id } = launch(env, dir, { task, title, model, effort, mode, cap, cwd, note: flag('from') });
   console.log(`✔ Started ${id} · "${title}" · ${model} ${effort} · cap ${money(cap)}${running >= set.max || waiting ? ' · waiting its turn' : ''}`);
   if (has('wait')) return wait(env, { words: [id], has, flag });
   console.log(`  mm agents show ${id} follows it · mm agents wait ${id} stays until its turn ends`);
@@ -618,16 +818,117 @@ Nothing was sent: add --yes after they agree.`);
   }
   notInside(env);
   await mustBeOpen(env);
-  if (stop) throw new Error(stop);
-  const now = new Date().toISOString();
-  const next = { ...run, cap, state: 'queued', turns: [...run.turns, { n: run.turns.length + 1, at: now, message }] };
-  // a stopped first turn that never reached Claude starts the conversation instead of resuming one
-  if (!run.loaded) next.turns = [{ n: 1, at: now, message: `${run.task}\n\n${message}` }];
-  writeRun(dir, next);
+  writeRun(dir, turnAfter(run, message, { cap, credit: c, paid: has('paid') }));
   startRunner(run.id, run.cwd, env);
   console.log(`✔ Sent to ${run.id} · "${run.title}"`);
   if (has('wait')) return wait(env, { words: [run.id], has, flag });
   console.log(`  mm agents wait ${run.id} stays until its turn ends`);
+}
+
+/* ---------- the page's side: reports, and what the page asks this place to do ---------- */
+
+const PAGE = env => `${site(env)}/app/agents`;
+
+/** Sends every run the page hasn't all of. */
+async function sync(env, { quiet = false } = {}) {
+  const dir = agentsDir(env);
+  if (!reporting(env)) return quiet || console.log('Reporting is off: mm agents report on sends the runs to your Sub-agents page.');
+  if (!mediamake(env)) return quiet || console.log(`This computer isn't signed in to ${site(env)}: mm login.`);
+  let sent = 0;
+  for (const run of allRuns(dir)) {
+    const kept = readJson(path.join(dir, run.id, 'sync.json'));
+    if (kept.updated === run.updated && kept.state === stateOf(run)) continue;
+    await report(env, dir, run.id, { all: true });
+    sent += 1;
+  }
+  if (!quiet) console.log(sent ? `✔ ${sent} sub-agent${sent === 1 ? '' : 's'} sent: ${PAGE(env)}` : `Nothing new to send: ${PAGE(env)}`);
+}
+
+function reportSwitch(env, { words }) {
+  const to = words[0];
+  if (to === 'on' || to === 'off') saveSettings({ report: to }, env);
+  else if (to) throw new Error('mm agents report on | off');
+  console.log(
+    reporting(env)
+      ? `Reporting is on: each run goes to your Sub-agents page as it works (${PAGE(env)}), for you only: its title, model, cost, your messages, its replies and each tool call with the start of its result. Never the key. mm agents report off keeps runs on this computer only.`
+      : 'Reporting is off: runs stay on this computer, and the Sub-agents page shows none from here. mm agents report on sends them.',
+  );
+}
+
+/** One thing the page asked this place to do. Its sender is the account's owner, signed in: that is the yes. */
+async function obey(env, dir, command) {
+  const set = settings(env);
+  const credit = creditNow(set.credit, spentAll(allRuns(dir)));
+  if (command.kind === 'stop') {
+    const run = readRun(dir, command.run);
+    if (run && ACTIVE.has(stateOf(run))) {
+      fs.writeFileSync(path.join(dir, run.id, 'stop'), `${new Date().toISOString()}\n`);
+      if (alive(run.pid)) process.kill(run.pid, 'SIGTERM');
+    }
+    return { done: true, said: `stopped ${command.run}` };
+  }
+  if (command.kind === 'message') {
+    const run = readRun(dir, command.run);
+    if (!run) return { done: false, note: `${command.run} isn't on this place` };
+    // its own runner takes the message when the turn ends
+    if (ACTIVE.has(stateOf(run))) return null;
+    writeRun(dir, turnAfter(run, command.message, { credit }));
+    startRunner(run.id, run.cwd, env);
+    return { done: true, said: `sent your message to ${run.id} · "${run.title}"` };
+  }
+  if (command.kind === 'start') {
+    const s = command.start ?? {};
+    const model = s.model ?? set.model;
+    const effort = s.effort ?? set.effort;
+    if (!modelOk(model) || !EFFORTS.includes(effort)) return { done: false, note: 'That model or effort is not one this place knows' };
+    if (!s.cwd || !fs.existsSync(s.cwd)) return { done: false, note: `No folder ${s.cwd} on this place` };
+    if (!anthropicKey(env)) return { done: false, note: 'No Anthropic API key on this place' };
+    const stop = creditStop(credit, false);
+    if (stop) return { done: false, note: stop.replace(/ Only on their word: --paid\.$/, '') };
+    let cap = Number(s.cap) > 0 ? Number(s.cap) : set.cap;
+    if (credit && cap > credit.usable) cap = Math.floor(credit.usable * 100) / 100;
+    const run = launch(env, dir, { task: s.task, title: short(s.title ?? String(s.task).split(/\r?\n/)[0], 60), model, effort, mode: set.mode, cap, cwd: s.cwd, note: 'the Sub-agents page' });
+    return { done: true, run: run.id, said: `started ${run.id} · "${run.title}" · ${model} ${effort} · cap ${money(cap)}` };
+  }
+  return { done: false, note: `This place doesn't know "${command.kind}": mm update` };
+}
+
+/**
+ * Takes what the Sub-agents page sends this place (an answer to a run, a stop, a new run), until it
+ * is stopped. The owner starts it: while it runs, the page can spend the key here, within each run's
+ * cap and the credit. It never passes --paid or a permission mode.
+ */
+async function watch(env) {
+  notInside(env);
+  await mustBeOpen(env);
+  const at = mediamake(env);
+  if (!reporting(env)) throw new Error('Reporting is off, so the page has nothing from this place: mm agents report on.');
+  const dir = agentsDir(env);
+  const folder = path.resolve(process.env.INIT_CWD ?? process.cwd());
+  const every = Number(env.MM_AGENTS_WATCH_MS) || 5000;
+  console.log(`Listening for ${PAGE(env)} as ${place(env)}.\nA message, a stop or a new run sent from the page is done here, within each run's cap and the credit. New runs can start in ${tilde(folder)}.\nCtrl+C stops listening; runs that are going carry on.\n`);
+  for (;;) {
+    try {
+      await sync(env, { quiet: true });
+      const answer = await call('POST', `${at.url}/api/agents`, at.key, { action: 'poll', place: place(env), listening: true, folder, settings: placeSettings(env) }, { timeoutMs: 15000 });
+      for (const command of answer?.commands ?? []) {
+        let result;
+        try {
+          result = await obey(env, dir, command);
+        } catch (error) {
+          result = { done: false, note: error.message };
+        }
+        if (!result) continue;
+        await settle(env, command.id, result.done, { ...(result.note && { note: result.note }), ...(result.run && { run: result.run }) });
+        console.log(`${new Date().toLocaleTimeString('en-GB')}  ${result.done ? `✔ ${result.said}` : `✖ ${command.kind}${command.run ? ` ${command.run}` : ''}: ${result.note}`}`);
+      }
+    } catch (error) {
+      if (/answered 40[13]/.test(error.message)) throw new Error(`MediaMake refused this place (${error.message}): mm login, and sub-agents are for admins and Cohort members.`);
+      // the network dropped: try again at the next turn of the loop
+    }
+    if (env.MM_AGENTS_WATCH_ONCE) return;
+    await sleep(every);
+  }
 }
 
 async function wait(env, { words, flag }) {
@@ -785,7 +1086,9 @@ const HELP = `mm agents: sub-agents on the Anthropic API key (admins and Cohort)
   mm agents stop <id>                        ends the turn it is on
   mm agents usage                            what was spent, against the credit
   mm agents credit [--total= --ends=]        the credit the ledger counts against
-  mm agents defaults [--model= --effort= --cap= --max= --mode=]`;
+  mm agents defaults [--model= --effort= --cap= --max= --mode=]
+  mm agents watch                            takes what your Sub-agents page sends this place, until Ctrl+C
+  mm agents report [on|off] · sync           whether runs go to the page · sends what it hasn't got`;
 
 async function main(argv = process.argv.slice(2), env = process.env) {
   const [cmd, ...rest] = argv;
@@ -810,6 +1113,12 @@ async function main(argv = process.argv.slice(2), env = process.env) {
       return credit(env, args);
     case 'defaults':
       return defaults(env, args);
+    case 'sync':
+      return sync(env);
+    case 'report':
+      return reportSwitch(env, args);
+    case 'watch':
+      return watch(env);
     case 'help':
       return console.log(HELP);
     default:

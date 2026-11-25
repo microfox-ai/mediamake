@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'mm-agents-'));
-const { anthropicKey, childEnv, conversation, creditNow, creditStop, envLine, mayGo, replyState, stateOf, turnCost } = await import('./agents.mjs');
+const { anthropicKey, childEnv, conversation, creditNow, creditStop, displayEvents, envLine, mayGo, readNew, replyState, scrub, stateOf, turnCost } = await import('./agents.mjs');
 
 /* ---------- a stand-in for claude ---------- */
 
@@ -53,14 +53,44 @@ fs.chmodSync(FAKE, 0o755);
 
 let tier = 'cohort';
 let asked = 0;
+/** What places reported, what the page has waiting for them, and what they said they did. */
+const reports = [];
+const kept = new Map(); // run id → events kept
+let pending = [];
+const settled = [];
 const server = http.createServer((req, res) => {
-  if (req.url === '/api/me' && req.headers.authorization === 'Bearer mm-test') {
+  const json = (status, body) => {
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(body));
+  };
+  if (req.headers.authorization !== 'Bearer mm-test') return json(401, { error: 'no' });
+  if (req.url === '/api/me') {
     asked += 1;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ name: 'Tester', tier, isAdmin: tier === 'admin' }));
+    return json(200, { name: 'Tester', tier, isAdmin: tier === 'admin' });
   }
-  res.writeHead(401, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'no' }));
+  if (req.url === '/api/agents' && req.method === 'POST') {
+    let text = '';
+    req.on('data', d => (text += d));
+    req.on('end', () => {
+      const body = JSON.parse(text);
+      if (body.action === 'report') {
+        reports.push(body);
+        const have = kept.get(body.run.id) ?? 0;
+        const next = body.from === have ? have + body.events.length : have;
+        kept.set(body.run.id, next);
+        return json(200, { have: next, commands: pending.filter(c => c.run === body.run.id) });
+      }
+      if (body.action === 'poll') return json(200, { commands: pending.filter(c => c.for === body.folder) });
+      if (body.action === 'settle') {
+        settled.push(body);
+        pending = pending.filter(c => c.id !== body.command);
+        return json(200, { ok: true });
+      }
+      json(400, { error: 'action' });
+    });
+    return;
+  }
+  json(404, { error: 'no' });
 });
 let url;
 before(async () => {
@@ -86,6 +116,7 @@ const place = name => {
     ANTHROPIC_API_KEY: 'sk-ant-test',
     MM_AGENTS_CLAUDE: FAKE,
     MM_AGENTS_POLL_MS: '60',
+    MM_AGENTS_REPORT_MS: '80',
     // what a Claude session leaves in its shell: the sub-agent must not inherit it
     CLAUDE_CODE_SESSION_ID: 'parent-session-1',
     CLAUDE_CODE_SIMPLE: '1',
@@ -348,4 +379,121 @@ test('no run starts on a credit that ended or is nearly gone, unless --paid says
   await p.mm(['credit', '--total=20']);
   // $0.25 spent of $20: $9.75 usable, so a $15 cap is lowered to it
   assert.match((await p.mm(['start', 'fits'])).out, /cap {6}\$9\.75 at most for this run \(lowered/);
+});
+
+/* ---------- the Sub-agents page: reports, and what the page asks a place to do ---------- */
+
+const reportsOf = id => reports.filter(r => r.run.id === id);
+
+test('the lines the page shows: your message, its words, a tool and the start of its result, how a turn ended', () => {
+  assert.deepEqual(displayEvents({ type: 'mm_turn', turn: 2, at: 't', message: 'brighter' }, 1), [{ kind: 'you', turn: 2, at: 't', text: 'brighter' }]);
+  assert.deepEqual(displayEvents({ type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'hm' }, { type: 'text', text: 'On it.\nSTATE: done' }, { type: 'tool_use', name: 'Bash', input: { command: 'mm render x' } }] } }, 2), [
+    { kind: 'agent', turn: 2, text: 'On it.' },
+    { kind: 'tool', turn: 2, name: 'Bash', text: 'mm render x' },
+  ]);
+  const [result] = displayEvents({ type: 'user', message: { content: [{ type: 'tool_result', is_error: true, content: [{ type: 'text', text: 'x'.repeat(5000) }] }] } }, 2);
+  assert.equal(result.kind, 'result');
+  assert.equal(result.error, true);
+  assert.equal(result.text.length, 1500);
+  assert.deepEqual(displayEvents({ type: 'result', subtype: 'error_max_budget_usd', num_turns: 4, duration_ms: 9100 }, 2), [{ kind: 'end', turn: 2, text: 'max budget usd · 4 steps · 9 s' }]);
+  assert.deepEqual(displayEvents({ type: 'system', subtype: 'init' }, 1), []);
+  assert.equal(scrub(`KEY=sk-live-12345678 and sk-ant-api03-${'b'.repeat(30)}`, ['sk-live-12345678']), 'KEY=[key removed] and [key removed]');
+});
+
+test('a record is read in whole lines from where the last report stopped', () => {
+  const file = path.join(tmp, 'lines.jsonl');
+  const line = ev => `${JSON.stringify(ev)}\n`;
+  fs.writeFileSync(file, `${line({ type: 'mm_turn', turn: 1, at: 't', message: 'go' })}${line({ type: 'assistant', message: { content: [{ type: 'text', text: 'one' }, { type: 'text', text: 'two' }] } })}{"type":"assistant","message":{"content":[{"type":"te`);
+  const first = readNew(file, { offset: 0, turn: 0 }, 2);
+  assert.deepEqual(first.events.map(e => e.kind), ['you']);
+  assert.equal(first.more, true);
+  const second = readNew(file, first, 250);
+  assert.deepEqual(second.events.map(e => [e.kind, e.turn, e.text]), [['agent', 1, 'one'], ['agent', 1, 'two']]);
+  assert.equal(second.more, false);
+  // the half-written last line waits for its end
+  assert.deepEqual(readNew(file, second).events, []);
+  assert.equal(readNew(file, second).offset, second.offset);
+});
+
+test('a run is reported as it works, without its keys; report off keeps it here', async () => {
+  const p = place('reported');
+  const out = await p.mm(['start', 'Render a preview of demo', '--yes', '--wait']);
+  const id = idIn(out.out);
+  await p.until(() => reportsOf(id).some(r => r.run.state === 'done'));
+  const mine = reportsOf(id);
+  assert.ok(mine.some(r => r.run.state === 'queued' || r.run.state === 'running'), 'it was reported before it ended');
+  const lines = mine.flatMap(r => r.events);
+  assert.deepEqual(lines.map(e => e.kind), ['you', 'agent', 'tool', 'result', 'agent', 'end']);
+  assert.equal(lines[2].text, 'mm render demo --preview');
+  assert.equal(kept.get(id), 6);
+  const last = mine.at(-1);
+  assert.equal(last.run.turns[0].cost, 0.25);
+  assert.ok(!('task' in last.run) && !('pid' in last.run));
+  assert.deepEqual(last.settings.defaults, { model: 'opus', effort: 'high', cap: 15 });
+  assert.doesNotMatch(JSON.stringify(mine), /sk-ant-test|mm-test/);
+
+  assert.match((await p.mm(['report', 'off'])).out, /Reporting is off/);
+  const quiet = idIn((await p.mm(['start', 'kept here', '--yes', '--wait'])).out);
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(reportsOf(quiet).length, 0);
+  assert.match((await p.mm(['report', 'on'])).out, /Reporting is on/);
+  assert.match((await p.mm(['sync'])).out, /1 sub-agent sent/);
+  assert.ok(reportsOf(quiet).length > 0);
+  assert.match((await p.mm(['sync'])).out, /Nothing new to send/);
+});
+
+test("the page's message is the next turn when the turn ends; the page's stop ends a turn", async () => {
+  const p = place('page');
+  const id = idIn((await p.mm(['start', 'SLOW700 first look', '--yes'])).out);
+  await p.until(() => p.runs()[0]?.state === 'running');
+  pending.push({ id: 'cm-000001', kind: 'message', run: id, message: 'Make it brighter' });
+  await p.until(() => p.runs()[0].turns.length === 2 && p.runs()[0].state === 'done');
+  assert.equal(p.runs()[0].turns[1].message, 'Make it brighter');
+  assert.deepEqual(settled.find(s => s.command === 'cm-000001'), { action: 'settle', command: 'cm-000001', done: true });
+  assert.equal(callsFor(id).length, 2);
+
+  // a message it can't take is refused, with why: here its cap is spent after one turn
+  const small = idIn((await p.mm(['start', 'SLOW500 small', '--cap=0.2', '--yes'])).out);
+  await p.until(() => p.runs().find(r => r.id === small)?.state === 'running');
+  pending.push({ id: 'cm-000002', kind: 'message', run: small, message: 'and again' });
+  await p.until(() => settled.some(s => s.command === 'cm-000002'));
+  const refused = settled.find(s => s.command === 'cm-000002');
+  assert.equal(refused.done, false);
+  assert.match(refused.note, /has spent its cap/);
+  assert.equal(p.runs().find(r => r.id === small).turns.length, 1);
+
+  const long = idIn((await p.mm(['start', 'SLOW20000 long', '--yes'])).out);
+  await p.until(() => p.runs().find(r => r.id === long)?.state === 'running');
+  pending.push({ id: 'cm-000004', kind: 'stop', run: long });
+  await p.until(() => p.runs().find(r => r.id === long).state === 'stopped');
+  await p.until(() => settled.some(s => s.command === 'cm-000004' && s.done));
+});
+
+test('mm agents watch does what the page sent: a new run, an answer to a finished one', async () => {
+  const p = place('watch');
+  const done = idIn((await p.mm(['start', 'ASK which look', '--yes', '--wait'])).out);
+  const folder = fs.realpathSync(p.root);
+  pending.push(
+    { id: 'cm-000010', kind: 'start', for: folder, start: { task: 'A run from the page', cwd: folder, model: 'sonnet', effort: 'medium', cap: 3 } },
+    { id: 'cm-000011', kind: 'message', for: folder, run: done, message: 'The second one' },
+    { id: 'cm-000012', kind: 'start', for: folder, start: { task: 'Nowhere', cwd: path.join(folder, 'missing') } },
+  );
+  const heard = await p.mm(['watch'], { MM_AGENTS_WATCH_ONCE: '1' });
+  assert.equal(heard.code, 0, heard.out);
+  assert.match(heard.out, /Listening for .*\/app\/agents/);
+  assert.match(heard.out, /✔ started ag-[a-z0-9]{5} · "A run from the page" · sonnet medium · cap \$3\.00/);
+  assert.match(heard.out, /✔ sent your message to/);
+  assert.match(heard.out, /✖ start: No folder/);
+  const made = settled.find(s => s.command === 'cm-000010');
+  assert.equal(made.done, true);
+  await p.until(() => p.runs().length === 2 && p.runs().every(r => r.state === 'done'));
+  const fresh = p.runs().find(r => r.id === made.run);
+  assert.equal(fresh.from.note, 'the Sub-agents page');
+  assert.equal(fresh.mode, 'auto');
+  assert.equal(p.runs().find(r => r.id === done).turns.at(-1).message, 'The second one');
+  assert.equal(settled.find(s => s.command === 'cm-000012').done, false);
+  tier = 'pro';
+  const closed = place('watch-closed');
+  assert.match((await closed.mm(['watch'], { MM_AGENTS_WATCH_ONCE: '1' })).out, /for admins and Cohort members/);
+  tier = 'cohort';
 });
