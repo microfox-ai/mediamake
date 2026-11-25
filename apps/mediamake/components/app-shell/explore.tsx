@@ -27,7 +27,7 @@ function writeFilters(f: ExploreFilters) {
   if (f.q.trim()) url.searchParams.set('q', f.q.trim());
   if (f.kind) url.searchParams.set('kind', f.kind);
   if (f.category) url.searchParams.set('category', f.category);
-  const show = [f.failed && 'failed', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.notRecommended && 'not-recommended', f.admin && 'admin'].filter(Boolean).join(',');
+  const show = [f.failed && 'failed', f.archived && 'archived', f.alpha && 'alpha', f.deprecated && 'deprecated', f.notRecommended && 'not-recommended', f.internal && 'internal', f.admin && 'admin'].filter(Boolean).join(',');
   if (show) url.searchParams.set('show', show);
   if (!f.locked) url.searchParams.set('locked', '0');
   // the list with nothing asked of it: say so, or the address would open the store front
@@ -48,8 +48,8 @@ const COLLECTIONS = 'collections';
  * higher membership would open, locked and saying which (the cohort's never
  * reach this page: lib/app-shell/member › appItems), by tag (one row of tags,
  * More opens the rest), with failed, archived, Alpha, deprecated, not
- * recommended and admin-only items behind Filters. Internal skills are never
- * listed (lib/app-shell/member › explore). Collections (the Cloud Library's
+ * recommended, internal and admin-only items behind Filters (internal skills
+ * are listed nowhere else: lib/app-shell/member › explore). Collections (the Cloud Library's
  * listed ones) show only to those the Library opens for (`libraryOpen`).
  * A search always shows the list.
  * A card's picture or name opens the item's page (./item-details).
@@ -103,11 +103,12 @@ export function Explore({
   const alphaCount = useMemo(() => items.filter(item => item.alpha).length, [items]);
   const deprecatedCount = useMemo(() => items.filter(item => item.deprecated).length, [items]);
   const notRecommendedCount = useMemo(() => items.filter(item => item.notRecommended).length, [items]);
+  const internalCount = useMemo(() => items.filter(item => item.internal).length, [items]);
   // only admins see the vault's items: the filter is theirs alone
   const adminCount = useMemo(() => items.filter(item => item.adminOnly).length, [items]);
   const filtered = !!(filters.q.trim() || filters.category);
   const hiddenTotal = Object.values(result.hidden).reduce((sum, n) => sum + n, 0);
-  const filtersOn = [!filters.locked, filters.failed, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.admin].filter(Boolean).length;
+  const filtersOn = [!filters.locked, filters.failed, filters.archived, filters.alpha, filters.deprecated, filters.notRecommended, filters.internal, filters.admin].filter(Boolean).length;
 
   // collections members list from their Library: a tab of its own, shown only when there are some
   const listed = useListedCollections(libraryOpen);
@@ -208,6 +209,11 @@ export function Explore({
                     <DropdownMenuCheckboxItem checked={filters.notRecommended} onCheckedChange={on => update({ notRecommended: !!on })} onSelect={e => e.preventDefault()} title="They work, but there is a better way: each says why">
                       Not recommended {notRecommendedCount > 0 && <Count n={notRecommendedCount} />}
                     </DropdownMenuCheckboxItem>
+                    {internalCount > 0 && (
+                      <DropdownMenuCheckboxItem checked={filters.internal} onCheckedChange={on => update({ internal: !!on })} onSelect={e => e.preventDefault()} title="Skills other skills run: you get them with those">
+                        Internal <Count n={internalCount} />
+                      </DropdownMenuCheckboxItem>
+                    )}
                     {adminCount > 0 && (
                       <DropdownMenuCheckboxItem checked={filters.admin} onCheckedChange={on => update({ admin: !!on })} onSelect={e => e.preventDefault()} title="The vault: admins and the people granted them only">
                         Admin only <Count n={adminCount} />
@@ -229,6 +235,7 @@ export function Explore({
                         result.hidden.alpha > 0 && <HiddenLink key="al" n={result.hidden.alpha} label="alpha" onClick={() => update({ alpha: true })} />,
                         result.hidden.deprecated > 0 && <HiddenLink key="d" n={result.hidden.deprecated} label="deprecated" onClick={() => update({ deprecated: true })} />,
                         result.hidden.notRecommended > 0 && <HiddenLink key="nr" n={result.hidden.notRecommended} label="not recommended" onClick={() => update({ notRecommended: true })} />,
+                        result.hidden.internal > 0 && <HiddenLink key="in" n={result.hidden.internal} label="internal" onClick={() => update({ internal: true })} />,
                         result.hidden.admin > 0 && <HiddenLink key="ad" n={result.hidden.admin} label="admin only" onClick={() => update({ admin: true })} />,
                       ]
                         .filter(Boolean)

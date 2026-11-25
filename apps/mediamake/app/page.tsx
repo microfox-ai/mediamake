@@ -6,6 +6,7 @@ import { getViewer } from '@/lib/access';
 import { configuredProviders } from '@/lib/auth/providers';
 import { listCatalog } from '@/lib/catalog';
 import { exploreHref } from '@/lib/catalog/paths';
+import { getInternalSkillNames } from '@/lib/app-shell/member-data';
 
 // The shelf depends on who is viewing (private items unlock per viewer), and so does the sign-in.
 export const dynamic = 'force-dynamic';
@@ -34,6 +35,6 @@ export default async function Homepage({
   }
 
   const viewer = await getViewer();
-  const cards = await listCatalog(viewer);
-  return <Landing {...homeShelf(cards)} signedIn={!!viewer.clientId} providers={configuredProviders()} />;
+  const [cards, internal] = await Promise.all([listCatalog(viewer), getInternalSkillNames()]);
+  return <Landing {...homeShelf(cards, internal)} signedIn={!!viewer.clientId} providers={configuredProviders()} />;
 }
