@@ -61,7 +61,7 @@ description, upload details).
 
 Made with this family so far:
 
-- **Screaming to Win**, a 24-second Blue Lock Short, published on 2026-11-08: the first one, and the
+- **[Screaming to Win](https://www.youtube.com/shorts/TQsfMIO5mhM)**, a 24-second Blue Lock Short, published on 2026-11-08: the first one, and the
   example the buildup-punch style comes from.
-- **Someone Took**, a Solo Leveling Short made with the Screaming to Win like skill.
+- **[Someone Took](https://www.youtube.com/shorts/hZ-Z--6i3kw)**, a Solo Leveling Short made with the Screaming to Win like skill.
 - **The AFLT quote Shorts**, a batch of quote Shorts, each with a look from its own research.

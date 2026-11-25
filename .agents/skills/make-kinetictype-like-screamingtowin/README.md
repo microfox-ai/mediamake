@@ -47,8 +47,12 @@ A looping 9:16 Short (1080 × 1920, 20 to 35 seconds: as long as the music's own
 workspace's `out/<slug>/`, and after your sign-off the master in your channel's folder with its
 `youtube/` pack. Whatever it made on the way is kept too: the picture, the quote options, the track.
 
-Made with it:
+The example, Screaming to Win, as it was published:
 
-- **Someone Took**: a Solo Leveling Short of the quote "someone took the same situation you're
-  complaining about and won with it", from five pictures and the instrumental tail of a song. Its hero
-  word, WON, lands letter by letter on the drop's three bass hits.
+https://www.youtube.com/shorts/TQsfMIO5mhM
+
+Made with this skill, Someone Took: a Solo Leveling Short of the quote "someone took the same situation
+you're complaining about and won with it", from five pictures and the instrumental tail of a song. Its
+hero word, WON, lands letter by letter on the drop's three bass hits.
+
+https://www.youtube.com/shorts/hZ-Z--6i3kw

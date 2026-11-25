@@ -49,10 +49,14 @@ workspace's `out/<slug>/`, with a sound effect on every hit mixed over the music
 restyled plates and cut-outs, the edit as one data file (`video/edit.json`) and, once you approve it,
 the master in your channel's folder with its `youtube/` pack.
 
+Twelve Shorts made with it, playing side by side (no sound):
+
+https://mediamake.microfox.app/catalog/make-kinetictype-buildup-punch-outputs.mp4
+
 Made with it:
 
-- **Screaming to Win**: the Blue Lock page "Every cell in your body should be SCREAMING to win" over 24
-  seconds of an instrumental's build and drop, published as a Short on 2026-11-08. Every rule of the
-  style was decided on it.
+- **[Screaming to Win](https://www.youtube.com/shorts/TQsfMIO5mhM)**: the Blue Lock page "Every cell in your body should be SCREAMING to
+  win" over 24 seconds of an instrumental's build and drop, published as a Short on 2026-11-08. Every
+  rule of the style was decided on it. It is the first one in the grid.
 - **The AFLT quote Shorts**: a batch of quote Shorts made with this skill when it was still named
-  make-kinetictype, each with a look from its own research.
+  make-kinetictype, each with a look from its own research. The other eleven in the grid are from it.
