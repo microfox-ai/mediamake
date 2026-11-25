@@ -1,6 +1,7 @@
 ---
 description: One giant word per hit. A quote builds word by word on the riser, its hero word lands letter by letter on the drop, and the picture's characters stand in front of the type. A looping 9:16 Short from a picture, a quote and an instrumental.
 tags: kinetic typography, kinetic type, shorts, youtube shorts, quotes, motivational, anime edit, midjourney, typography, loop
+headshot: headshot.jpg
 nature: shared-use
 type: subset
 superset: make-kinetictype

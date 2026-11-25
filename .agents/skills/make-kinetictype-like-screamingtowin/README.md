@@ -1,6 +1,7 @@
 ---
 description: A kinetic type Short in the look of Screaming to Win. Give Claude a picture, a quote or a song, any one of them, and it makes what is missing, then the Short: giant slammed words, the picture restyled in Midjourney, sound effects on the hits, a loop.
 tags: kinetic typography, kinetic type, shorts, youtube shorts, quotes, motivational, anime edit, midjourney, suno, loop
+headshot: headshot.jpg
 nature: shared-use
 type: subset
 superset: make-kinetictype

@@ -1,6 +1,7 @@
 ---
 description: Words that move with music. Give Claude a quote and a track and it makes a kinetic type Short, in the style that fits or in a new look built from a reference. The main skill of MediaMake's kinetic type family.
 tags: kinetic typography, kinetic type, shorts, youtube shorts, motion graphics, typography, quotes, remotion, midjourney
+headshot: headshot.jpg
 nature: shared-use
 type: superset
 ---
