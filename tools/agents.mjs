@@ -224,7 +224,7 @@ export async function mustBeOpen(env = process.env) {
       writeJson(file, { site: url, tier, at: new Date().toISOString() });
     } catch (error) {
       if (age < 7 * DAY) tier = kept.tier;
-      else throw new Error(`Could not check this account's membership (${error.message}). Sub-agents are for admins and Cohort members.`);
+      else throw new Error(`Could not check this account's membership with ${url} (${error.message}). ${inCloud(env) ? `A cloud environment's network has to allow ${new URL(url).host}: add it to the environment's allowed hosts, or use an environment with full network access. ` : ''}Sub-agents are for admins and Cohort members.`);
     }
   }
   if (!OPEN_TIERS.has(tier)) throw new Error(`Sub-agents are for admins and Cohort members; this account is ${tier}.`);

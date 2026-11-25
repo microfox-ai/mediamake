@@ -344,6 +344,15 @@ test('only admins and Cohort members start one; a sub-agent starts none; no key,
   assert.equal((await q.mm(['start', 'anything', '--yes', '--wait'])).code, 0);
   assert.equal((await q.mm(['start', 'anything else', '--yes', '--wait'])).code, 0);
   assert.equal(asked - before, 1, 'the membership answer is kept for a day');
+  // a place that can't reach MediaMake starts nothing, and a cloud one is told what its network lacks
+  const cut = place('gate-offline');
+  const offline = await cut.mm(['start', 'anything', '--yes'], { MEDIAMAKE_API_URL: 'http://127.0.0.1:9' });
+  assert.equal(offline.code, 1);
+  assert.match(offline.out, /Could not check this account's membership with http:\/\/127\.0\.0\.1:9 /);
+  assert.doesNotMatch(offline.out, /allowed hosts/);
+  const blocked = await cut.mm(['start', 'anything', '--yes'], { MEDIAMAKE_API_URL: 'http://127.0.0.1:9', CLAUDE_CODE_REMOTE: 'true' });
+  assert.match(blocked.out, /A cloud environment's network has to allow 127\.0\.0\.1:9: add it to the environment's allowed hosts/);
+  assert.equal(cut.runs().length, 0);
   const inside = await q.mm(['start', 'a nested one', '--yes'], { MM_AGENT_RUN: 'ag-abcde' });
   assert.equal(inside.code, 1);
   assert.match(inside.out, /a sub-agent does not start others/);
