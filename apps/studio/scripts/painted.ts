@@ -13,8 +13,9 @@
  *     mm painted <slug> --sheet=0.5,1,1.5,2 [--cols=4] [--w=480]          contact sheet of chosen times
  *     mm painted <slug> --strip=2.0:2.5 [--cols=6] [--w=320]              EVERY frame in a stretch (motion)
  *     mm painted <slug> --sheet=2.1,2.2 --crop=760,300,400,400 --w=600   full-resolution crops (details)
- *     mm painted <slug> --strip=2.0:2.5 --crop-at=960,780,500,400        crops that follow a WORLD point through
- *         each frame's camera (x,y in world px, may be page expressions; w,h in screen px)
+ *     mm painted <slug> --strip=2.0:2.5 --crop-at=960,780,500,400        crops of a fixed WORLD point through each
+ *         frame's camera (w,h in screen px). x,y may be expressions, worked out once per sheet in the page: they
+ *         see the kit's names and what a scene puts on window (a name inside a scene's IIFE isn't there)
  *     mm painted <slug> --stills=1.2,3.4                                   full-size PNGs
  *     mm painted <slug> --gpu                                              the GPU the page draws on
  *   Standalone loops (LOOPS in the page: the model sheets 'emotions' and 'views', or the project's own):
@@ -122,7 +123,8 @@ const newProject = (slug: string) => {
   if (!song.length) writeSilence(path.join(input, SILENCE), seconds);
   if (!fs.existsSync(path.join(input, 'lyrics.json'))) fs.writeFileSync(path.join(input, 'lyrics.json'), '[]\n');
   fs.writeFileSync(path.join(video, 'index.tsx'), `import { paintedProject } from '@mediamake/engine/painted';\n\n// A painted cartoon (make-painted-cartoon): its shots are the files video/painted.json lists.\nexport default paintedProject({ id: '${slug}' });\n`);
-  fs.writeFileSync(path.join(video, 'painted.json'), JSON.stringify({ scenes: ['scenes/main.js'] }, null, 2) + '\n');
+  // a silent cartoon's beat is written out, so it's there to change; a song's comes from its analysis
+  fs.writeFileSync(path.join(video, 'painted.json'), JSON.stringify(song.length ? { scenes: ['scenes/main.js'] } : { scenes: ['scenes/main.js'], bpm: 120, offset: 0 }, null, 2) + '\n');
   fs.writeFileSync(path.join(video, 'scenes', 'main.js'), STARTER);
   if (!fs.existsSync(path.join(dir, 'STORYBOARD.md'))) fs.writeFileSync(path.join(dir, 'STORYBOARD.md'), STORYBOARD);
   prepare(slug);
@@ -314,6 +316,11 @@ try {
   } else if (first === 'new') newProject(words[0]);
   else if (first === 'length') setLength(words[0], words[1]);
   else await check(first);
+} catch (e) {
+  // a scene's error, or an expression the page couldn't work out: its message, not puppeteer's stack
+  const msg = (e as Error).message ?? String(e);
+  console.error(`✖ ${msg.split('\n')[0]}${/ReferenceError|is not defined/.test(msg) && str('crop-at') ? '\n  a --crop-at expression sees only the page\'s globals: set window.<name> in the scene to use one of its own' : ''}`);
+  process.exitCode = 1;
 } finally {
   // set inside openPage, so TypeScript would read it as never here
   await (browser as Browser | null)?.close();
