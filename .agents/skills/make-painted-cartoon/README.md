@@ -16,8 +16,9 @@ timing and the acting, and shows you a preview. The look and the craft come from
 
 1. Copy the install prompt and paste it into Claude.
 2. Say what happens, as broadly or as exactly as you like: **make a 15-second cartoon of Clawd trying to
-   catch a butterfly**, **animate Clawd baking a cake that keeps exploding, to this song**, **a painted
-   cartoon of a little fox finding its way home, 20 seconds**.
+   catch a butterfly**, **build two new characters and make them fight commando style**, **animate Clawd
+   baking a cake that keeps exploding, to this song**, **a painted cartoon of a little fox finding its way
+   home, 20 seconds**.
 3. Answer a few questions: how long, silent or to a song, who stars in it.
 4. Read the storyboard it writes (every shot, and what you should understand when) and say what to change.
 5. Watch the 10-second previews on the review screen and leave notes on any frame. The full video renders
@@ -38,9 +39,25 @@ A project in your workspace, `projects/<name>/`: the storyboard, the shots as co
 changing, and its renders in `out/<name>/`. You get 10-second previews to review, then the finished
 video, 1920×1080 at 24 fps, silent or with your song.
 
-From a 16-second test, "Clawd tries to catch a butterfly": the pounce that misses, and the ending, where
-the butterfly lands on the flower that fell on Clawd's head.
+Two cartoons made with it while it was being tested, both silent, at 1920×1080 (the clips here are
+smaller copies).
+
+**Clawd and the butterfly** (16 s). Clawd tries to catch a butterfly, every grab misses and knocks a
+flower onto Clawd's head, and once Clawd gives up and sits down, the butterfly lands on that flower by
+itself.
+
+https://raw.githubusercontent.com/microfox-ai/mediamake/main/.agents/skills/make-painted-cartoon/shots/clawd-and-the-butterfly.mp4
 
 ![The pounce that misses](shots/clawd-pounce.jpg)
+![The ending: the butterfly on the flower on Clawd's head](shots/clawd-and-the-butterfly.jpg)
 
-![The ending](shots/clawd-and-the-butterfly.jpg)
+**Capture the Flag** (22 s). Two caricature commandos, new characters built for this video with the
+kit's own brushes, fight over a flag on a jungle hill: rolls, flying kicks, a smoke bomb, a sneak attack
+and a brawl that ends in dizzy stars. Meanwhile a little bush with Clawd under it walks off with the
+flag.
+
+https://raw.githubusercontent.com/microfox-ai/mediamake/main/.agents/skills/make-painted-cartoon/shots/capture-the-flag.mp4
+
+![The face-off](shots/capture-the-flag-face-off.jpg)
+![The sneak attack](shots/capture-the-flag-sneak.jpg)
+![The steal: Clawd's bush takes the flag](shots/capture-the-flag-the-steal.jpg)
