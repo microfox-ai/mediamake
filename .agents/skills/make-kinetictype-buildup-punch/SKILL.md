@@ -1,9 +1,10 @@
 ---
 name: make-kinetictype-buildup-punch
-description: Make a kinetic-typography edit in Remotion — a quote slammed one giant word per hit over a picture restyled in Midjourney, its characters cut out in front of the type, words as windows onto the art, cracked words, a letter-by-letter hero word on the drop, faces on the bass hits, impact frames, sound effects on every hit, and a seamless loop — as a Short or as a section inside a longer video. It records the workflow and the user's fundamental choices from the first one ("Screaming to Win", a Blue Lock page, 2026-11-08) and runs on a shared engine (src/kinetictype: the edit is data, video/edit.json) and one tool (mm kinetictype: pick a stretch from a long instrumental, map its hits, crop, cut out, storyboard, sound effects). Reviewed through revise-video. Use when the user says "kinetic typography / kinetic type edit", "make a kinetictype video / short", "an inspirational / motivational edit of this quote over this picture", "type that moves with the music", "/make-kinetictype", or asks to change a project whose video/edit.json is a kinetic edit. For the exact Screaming-to-Win look from an image, a quote and a song (making what's missing), use make-kinetictype-like-screamingtowin. Not for lyric videos of a sung song (make-lyrics-video, make-waveform-lyric-video) or footage edits (make-video-music-remix, make-anime-music-video). New user feedback goes in your notes (mm notes add), never in this file.
+description: The buildup-punch style of make-kinetictype — a kinetic-typography edit in Remotion where a quote is slammed one giant word per hit: a build on the riser, the hero word letter by letter on the drop, faces on the bass hits, a rise, the last word cracked and on fire, and an end that rushes back into the start so the Short loops; over one picture restyled in Midjourney, its characters cut out in front of the type, words as windows onto the art, impact frames and sound effects on every hit. It holds what is only this style's: the user's fundamental choices from the first one ("Screaming to Win", a Blue Lock page, 2026-11-08), its art styles, its storyboard shape and planner (mm kinetictype storyboard) and its sound cues. The steps every style shares (the music, the research, the pictures, the edit as data, checks, sound, review through revise-video, the master, delivery, upload) are make-kinetictype's, cited here. Use when the user says "buildup punch", "the buildup-punch style", "one giant word per hit", "slam the quote word by word into a drop", "a build into a drop", "/make-kinetictype-buildup-punch", or asks to change a project made in this style (a production registered as make-kinetictype before 2026-11-25 is one); otherwise make-kinetictype. For the exact Screaming-to-Win look from an image, a quote and a song (making what's missing), use make-kinetictype-like-screamingtowin. Not for lyric videos of a sung song (make-lyrics-video, make-waveform-lyric-video) or footage edits (make-video-music-remix, make-anime-music-video). New user feedback goes in your notes (mm notes add), never in this file.
 metadata:
   category: make
-  depends-on: revise-video, revise-image
+  version: 0.1.0
+  depends-on: make-kinetictype, revise-video, revise-image
 ---
 
 # make-kinetictype-buildup-punch
@@ -16,9 +17,22 @@ Short loops. Built on 2026-11-08 for "Screaming to Win" (projects/screamingtowin
 published on a YouTube Shorts channel). Every rule below is something the user decided on that
 production; the log at the bottom keeps their words.
 
-The edit is data. `projects/<slug>/video/edit.json` lists the shots, each one device with its own
-time span; `src/kinetictype` draws them (one Remotion layer per shot); `mm kinetictype
-<command>` does everything around it. A new project is three lines of TSX.
+This is a style of the kinetic type family (it was `make-kinetictype` itself until 2026-11-25). What it
+fixes is the motion grammar: one giant word per hit, a build into a drop, cut-outs in front of the
+type, a loop (choices 1, 2, 5, 7 and 8, and the order of the shape in choice 6). The type, the colours,
+the art styles and the storyboard's times below are the first production's: the place to start from,
+chosen again for each job from its own research, pictures and track.
+
+## This style and make-kinetictype
+
+`make-kinetictype` holds the steps every style shares; this skill holds only what is this style's and
+cites the rest by step. Read `make-kinetictype`'s SKILL.md once a session (its shared steps, and the two
+files beside it: `reference/devices.md` for the edit and every device, `reference/pictures.md` for crops,
+Midjourney and cut-outs), then follow the workflow here. Read the notes too: `mm notes
+make-kinetictype-buildup-punch` and `mm notes make-kinetictype`. A rule there wins over a default here.
+
+The edit is data: `projects/<slug>/video/edit.json` lists the shots, each one device with its own time
+span, and `mm kinetictype <command>` does everything around it.
 
 ## First: check the MCPs
 
@@ -28,14 +42,8 @@ time span; `src/kinetictype` draws them (one Remotion layer per shot); `mm kinet
 | `mcp/elevenlabs` | optional | Sound effects the media library doesn't have (`text_to_sound_effects`, paid: ask with the price), and a voice-over only if the user asks for one (`text_to_speech`; Scribe word times through `mm transcribe`) | The library's sounds only; no voice-over |
 | `mcp/fal` | optional | A new picture or an upscale when Midjourney isn't available (Ideogram and FLUX.2 klein first; paid: ask with the price) | Pictures come from Midjourney or the user |
 
-Look for the tools named above (`mcp__<name>__<tool>` in Claude Code; a connector added in the
-Claude app has a random prefix, so match on the tool's name; load deferred ones with ToolSearch).
-If one is missing, say at intake what it costs and offer to install it from MediaMake ("Set up
-mcp/<name> from MediaMake by following
-https://github.com/microfox-ai/mediamake/blob/main/install.md"), or go ahead without it. Browse Hack
-runs in the user's Chrome: when several profiles are connected, ask which one by its Google account
-email (never by number), and use the one signed in to Midjourney; the YouTube channel may live in a
-different profile (list_profiles, youtube_list_channels).
+How to look for them, what to say when one is missing and which Chrome profile to ask for:
+`make-kinetictype` › First: check the MCPs.
 
 ## The fundamental choices (the user's, keep them)
 
@@ -85,12 +93,16 @@ different profile (list_profiles, youtube_list_channels).
 
 ## The workflow
 
+Each step names the shared step it rests on (`make-kinetictype` step N) and then what this style adds.
+
 ### 1. Intake
 
-- The three inputs: **a picture** (a manga page, a poster, an artwork; text on it is cropped off),
-  **a quote** (the words on screen; which one is the hero word), **music** (an instrumental and the
-  stretch to use, or a long one to pick from). Missing ones: make-kinetictype-like-screamingtowin
-  says how to make them.
+`make-kinetictype` step 1, asking for this style's three inputs:
+
+- **A picture** (a manga page, a poster, an artwork; text on it is cropped off), **a quote** (the words
+  on screen; which one is the hero word), **music** (an instrumental and the stretch to use, or a long
+  one to pick from). A missing one is asked for; a like skill of this style may say how to make it
+  (`make-kinetictype` lists them).
 - The shape: 9:16 Short by default (ask; a 16:9 section works the same with width/height in
   edit.json and the type re-fitted). Length: the stretch's length (≈24 s).
 - The channel (for the delivery folder and the upload) and the Chrome profile, by email.
@@ -99,22 +111,23 @@ different profile (list_profiles, youtube_list_channels).
 
 ### 2. The music
 
+`make-kinetictype` step 2 (`pick`, `new`, `hits`). For this style:
+
 ```bash
 mm kinetictype pick "<song>" --length=24 --top=3      # long song: 3 stretches + mp3 previews + plot
 mm kinetictype new <slug> --music="<song>" --from=51 --to=75 --image="<picture>" --quote="…"
 ```
 
-`pick` looks for a quiet build into a drop about 4 s in (the bass coming back in), strong section
-hits after it and a dip at the end (good for the loop). Let the user choose by ear from the mp3
-previews (the user's own pick on Screaming to Win, 0:51–1:15, was the tool's first pick before its
-drop detection changed: offer all three). `new` cuts the stretch (input/music.wav, gained to a
-−1.8 dBFS peak, 20 ms fades so it loops), clones the picture, writes the manifest, a placeholder
-edit and prefs.md, and runs `hits`: analysis/hits.json + hits.png with the riser, the drop, the
-section hits (bass re-entries after the drop), onsets and beats. Look at hits.png; the storyboard
-hangs on `drop` and `sections`. A Suno excerpt's tempo is unreliable; the build is counted back from
-the drop on the song's pulse instead.
+The stretch is a quiet build into a drop about 4 s in (the bass coming back in), strong section hits
+after it and a dip at the end (good for the loop): what `pick` looks for. Let the user choose by ear
+from the mp3 previews (the user's own pick on Screaming to Win, 0:51–1:15, was the tool's first pick
+before its drop detection changed: offer all three). Look at hits.png; the storyboard hangs on `drop`
+and `sections`. A Suno excerpt's tempo is unreliable; the build is counted back from the drop on the
+song's pulse instead.
 
 ### 3. Crops and Midjourney
+
+`make-kinetictype` step 5 (`reference/pictures.md`, parts 1 and 2). This style's crops and styles:
 
 ```bash
 mm kinetictype grid <slug>                     # analysis/grid.jpg: read the coordinates
@@ -122,54 +135,40 @@ mm kinetictype crops <slug> --boxes='{"c0-art":[0,250,735,920],"c1-top":[165,262
 ```
 
 `c0-art` is the whole art without its text; then 4–5 close-ups: each important face (square-ish,
-the head in the upper third, with shoulders) and a raised fist or the strongest gesture. Each gets
-a `-1024` copy for Midjourney.
+the head in the upper third, with shoulders) and a raised fist or the strongest gesture.
 
-Midjourney (the midjourney-restyle skill's steps; ask the batch size first, relax mode):
+Midjourney (ask the batch size first, relax mode):
 - the panel `c0-art-1024.png` in the six styles (choice 3), prompt = what's in the picture + "exactly
   the same pose and framing" + the style words;
 - each close-up redrawn clean (the ink prompt), then 1–2 style variations of each from the pick
   (`editImage: mj:<jobId>#<i>`: red riso, neon negative, the fist in fire);
-- `wait: false`, 6–8 jobs at a time, `midjourney_job_status`, `midjourney_download_images` with a set
-  name; contact sheets (`mm kinetictype sheet <folder>`) and a review set
-  (`mm image-index out/<slug>-mj --groups=subfolders`, link
-  https://mediamake.microfox.app/file-revision?job=<slug>-mj);
-- Subtle-upscale the picks to 2048 (`midjourney_upscale`) before using them big; copy them to
-  input/plates/ (the panel styles) and input/chars/ (the close-ups).
+- the picks Subtle-upscaled to 2048 before they are used big, then copied to input/plates/ (the panel
+  styles) and input/chars/ (the close-ups).
 
 ### 4. Type research (Pinterest)
 
-Browse Hack, one search per tab, `pinterest_bulk_start` (perPageLimit 15, includeVideos false),
-`pinterest_bulk_stop`, contact sheets. Search wide: kinetic typography motivational / anime edit,
-manga typography posters, experimental distortion posters, 3D twisted type, sports grunge posters,
-Swiss posters. Name the devices you take and from which pins (choice 4); put them in prefs.md.
+`make-kinetictype` step 4: never skipped, and always before the storyboard. For this style, search
+wide: kinetic typography motivational / anime edit, manga typography posters, experimental distortion
+posters, 3D twisted type, sports grunge posters, Swiss posters. Name the devices you take and from
+which pins (choice 4); put them in prefs.md.
 
 ### 5. Cut-outs and the assets file
+
+`make-kinetictype` step 5 (`reference/pictures.md`, parts 3 and 4):
 
 ```bash
 mm kinetictype cutout <slug> input/plates/red-riso.png input/plates/linocut.png input/plates/anime-colour.png --all
 mm kinetictype cutout <slug> input/chars/c1-top.png input/chars/c5-fist.png input/chars/c1-riso.png
 ```
 
-`--all` for the group plates (every character kept). Look at input/cutouts/_checks.jpg; a blob (a
-close-up of tangled limbs) is dropped. Then write `input/assets.json`; the face and mouth points
-are fractions of each square, read off the cut-out:
-
-```json
-{
-  "plates": { "riso": "plates/red-riso.png", "lino": "plates/linocut.png", "neon": "plates/neon-negative.png",
-              "fire": "plates/firelight.png", "oil": "plates/oil-crimson.png", "colour": "plates/anime-colour.png" },
-  "teams": { "riso": "cutouts/red-riso.png", "lino": "cutouts/linocut.png", "colour": "cutouts/anime-colour.png" },
-  "faces": [ { "src": "cutouts/c3-left.png", "f": [0.33, 0.28] },
-             { "src": "cutouts/c1-riso.png", "f": [0.27, 0.27], "mouth": [0.2, 0.43] } ],
-  "fist": { "src": "cutouts/c5-fist.png", "f": [0.37, 0.16] },
-  "fistFire": { "src": "cutouts/c5-fire.png", "f": [0.35, 0.2] },
-  "open": { "plate": "lino", "face": [0.36, 0.17] },
-  "warp": { "face": [0.4, 0.15] }
-}
-```
+`--all` for the group plates (every character kept). Then `input/assets.json` with what this style's
+planner reads: the six `plates`, the `teams` (the cut-outs of the riso, linocut and colour plates), the
+`faces` (the strongest screaming face first; a `mouth` point on the one the hero word bursts from), the
+`fist` and `fistFire`, the plate and face the `open` lands on, and the face the end `warp`s into.
 
 ### 6. The storyboard
+
+`make-kinetictype` step 6, with this style's planner:
 
 ```bash
 mm kinetictype storyboard <slug> --key=SCREAMING --title="Screaming / To Win"
@@ -179,68 +178,62 @@ The quote splits around the hero word (`--key`, else the longest word): the word
 build (short words ride with the next: "IN YOUR"), the hero word is the drop, the words after it are
 the rise (all but the last: "TO") and the win (the last: "WIN"); the end slams the build in pairs of
 groups, then the hero word, then the lockup "<hero> / <the rest>." Sections come from `drop` and the
-first four section hits (else proportions). It writes video/edit.json (the old one kept as
+first four section hits (else proportions). `--groups="A B|C|…" --step=0.5` sets the build's word
+groups and the seconds between them by hand. It writes video/edit.json (the old one kept as
 edit.prev.json) and video/shots.json (the review map). On Screaming to Win the draft landed on the
-same cuts as the hand-made edit. Then refine edit.json by eye; the devices:
+same cuts as the hand-made edit. Then refine edit.json by eye, device by device
+(`make-kinetictype`'s `reference/devices.md` has each one's fields, how a cut-out is placed, a custom
+scene for what the devices can't do, and how the edit sits as a section inside a longer video).
 
-| `type` | What it draws | Key fields |
-|---|---|---|
-| `open` | out of white, the rush slowing on a plate (the loop's landing) | `plate`, `face` |
-| `slam` | a giant word / stack on a ground, a knockout or a plate; a cut-out rising into it | `ground` / `knock` / `plate`, `rows`, `color`, `stroke`, `echoes`, `y`, `width`, `max`, `cut`, `lines`, `glow`, `invertStart` |
-| `strobe` | a word strobing black/white, growing (the beat before a drop) | `word` |
-| `letters` | the hero word one letter per hit, each its own look, an ink bar spelling it | `word`, `hits`, `looks` |
-| `crack` | a cracked word on a ground, a cut-out punching up into it | `word`, `ground`, `color`, `y`, `cut`, `crackAt`, `echoes` |
-| `burst` | the letters bursting out of a mouth past the camera, then the dive into the mouth | `word`, `cut` (f = the mouth), `diveAt` |
-| `faces` | faces slammed on grounds on the hits, the word running vertically behind | `word`, `faces[]` |
-| `rise` | a fist climbing to an outline word, a small word above, the drum roll pulsing | `big`, `small`, `smallAt`, `cut`, `roll` |
-| `flash` | every plate flashing two frames each under a cracked word | `word`, `plates` |
-| `poster` | the end: phrases slammed, the lockup, the crack, the warp into white | `plate`, `cutout`, `phrases`, `final`, `warp` |
+### 7. Sound
 
-Cut-outs are squares placed by a focus point: `{ "src", "f": [fx, fy], "at": [x, y], "w" }` puts the
-point f of the picture at screen point (x, y), w px wide. Keep cut edges off-screen (w ≈ 1700–1900
-for close-ups). Anything the devices can't do goes in a custom scene in the project's index.tsx
-next to `kineticLayers(edit)` (src/kinetictype/index.tsx).
+`make-kinetictype` step 8 (`kit`, `sfx`), with this style's cues (choice 8): `sfx` writes them from the
+shots. Stacked sub drops and booms at a big hit are what push the mix into the limiter: lower those
+first. Aim for ≈ −13 LUFS, true peak under −1 dB. A sound-only change is muxed onto the last render
+(revise-video, sound-only revisions), not re-rendered.
 
-**A section inside a longer video:** in that project's index.tsx add
-`...kineticLayers(edit)` to its layers with the shots' times in that video's seconds, or render
-the kinetic project and splice it in.
+### 8. Check, review, revise
 
-### 7. Check, review, revise
+`make-kinetictype` steps 7 and 9:
 
 ```bash
 ONLY_PROJECT=<slug> mm stills <slug> 0.5,1.3,2.3,4.6,6.8,8.7,9.5,12.8,15.0,16.6,18.5,21.6,23.9 --only
 mm render <slug> --preview && mm preflight <slug> --video=out/<slug>/preview/<slug>.mp4
 ```
 
-Look at every still before the user does (Tailwind's `img {max-width:100%}` once capped every picture
-at 1080 px: the engine sets `maxWidth: 'none'`). The review loop is revise-video's (link, background
-watcher, revision files). An intended dark beat (the dive into the mouth) is answered with
-`preflight --intended`. Check the loop seam: frame 0 and the last frame both white.
-
-### 8. Sound
-
-```bash
-mm kinetictype kit <slug>      # the sound kit from the media library into input/sfx/
-mm kinetictype sfx <slug>      # video/sfx.json from the edit (first time), mixed → input/mix-sfx.wav
-```
-
-`sfx` writes the cues once from the shots (choice 8), mixes them over the music through a limiter,
-and points the manifest's audio at input/mix-sfx.wav (one file: the review and the master sound
-the same). Edit video/sfx.json (gain, pan, `at` or `end`) and run it again; `--auto` rebuilds the
-cues from the edit. Stacked sub drops and booms at a big hit are what push it into the limiter:
-lower those first. Aim for ≈ −13 LUFS, true peak under −1 dB. A sound-only change is muxed onto the
-last render (revise-video, sound-only revisions), not re-rendered.
+A still in every part of the shape (the seconds above are a 24 s edit's). Look at every still before
+the user does. The review loop is revise-video's (link, background watcher, revision files). An
+intended dark beat (the dive into the mouth) is answered with `preflight --intended`. Check the loop
+seam: frame 0 and the last frame both white.
 
 ### 9. Master, delivery, upload
 
-- The master once the user signs off: `mm render <slug>`, preflight.
-- `mm media deliver <slug> --what=video` (dry run), then `--yes`.
-- The upload: a `youtube/` folder beside the delivery with the video (a clone), title.txt,
-  description.txt (the quote, a line about the edit, the source's credit, the music, at most 5
-  hashtags) and info.json (`channel` @handle, `madeForKids: false`, `alteredContent: false`, category,
-  language, tags). Preview the title and description and ask first; then `youtube_fill_uploads` with
-  the folder: the tab waits on the Visibility step for the user to Publish or Schedule. When they say
-  it's out: `mm media deliver <slug> --uploaded`.
+`make-kinetictype` step 10: the master once the user signs off, `mm media deliver` on their approval,
+the `youtube/` pack previewed and asked about before `youtube_fill_uploads`. The description: the
+quote, a line about the edit, the source's credit, the music, at most 5 hashtags.
+
+## Where it runs
+
+| Step | Needs | A person's yes | Safe to repeat | Without it |
+|---|---|---|---|---|
+| 1. Intake | nothing | no | yes | - |
+| 1b. Register the production | `media:library` | no | yes | skipped in a cloud session: the production is registered on a computer when its files are delivered |
+| 2. The music | `media:library` | no | yes | the track from the session's own files, or the Cloud Library (`mm library use`) |
+| 3. Crops and Midjourney | `mcp:browse-hack`, `browser:midjourney` | yes | no | a to-do: the Midjourney round on a computer signed in to Midjourney |
+| 4. Type research | `mcp:browse-hack` | no | yes | a to-do: the Pinterest research on a computer with Browse Hack |
+| 5. Cut-outs and the assets file | nothing | no | yes | - |
+| 6. The storyboard | `render` | no | yes | - |
+| 7. Sound | `media:library` | no | yes | a to-do: the sound kit and the mix on a computer with the media library |
+| 8. Check and preview | `render` | no | yes | - |
+| 8b. The user's review | `render` | yes | yes | - |
+| 9. The master | `render` | yes | yes | - |
+| 9b. Deliver | `media:library` | yes | yes | `mm cloud deliver <slug>` hands the user the files |
+| 9c. Upload to YouTube | `mcp:browse-hack`, `browser:youtube` | yes | no | a to-do: upload the pack from a computer signed in to the channel |
+
+Step 3's crops need no browser; its Midjourney round is asked about first (the batch's size) and is
+never run twice for the same pictures. The other steps that can cost money are a sound effect made with
+ElevenLabs (step 7) and a voice-over, only when the user asks for one (choice 8): each shows the price
+and waits for the user's yes. Step 9c fills the upload form; the user publishes.
 
 ## Feedback log
 
@@ -254,13 +247,16 @@ mm notes make-kinetictype-buildup-punch                                         
 
 When the user wants them shared, `mm notes promote make-kinetictype-buildup-punch` offers them to this log as a pull request.
 
+A lesson that is true for every kinetic type style goes in `make-kinetictype`'s notes instead.
+
 - 2026-11-08 · "crop the image, create multiple variations in different art styles in the midjourney (browse for some good kinetic typography effects in pinterest, pick a style that matches, and make an inspirational edit (you can also create other images of individual characters by cropping the image … and gen in midjourney if needed) use the music from 51 to 1:15" → the workflow: crops, Midjourney panel restyles, close-ups redrawn, Pinterest research, a 24 s 9:16 edit on that stretch.
-- 2026-11-08 · "no need to stick to bluelock poster for inspiration, inspiration can come from anywhere" → research wide (choice 4).
 - 2026-11-08 · "you can also create variations of the zoomedin images as needed in midjourney" → close-ups restyled too (choice 3).
 - 2026-11-08, on v1 · "make it more dynamic, not powerful enough, i only like rise to w6, the rest is not good" → choices 1 and 2; the slam device, letter-by-letter drop, faces on grounds, impact frames.
 - 2026-11-08, on v2 · "dw4 and dz are bad, redo them. e3 should end with a zoom in warping it to o1 making it a loop" → `crack` with the team punching up, `burst` out of the mouth, the warp and `open` (choice 7).
 - 2026-11-08 · voice-overs (Final Boss, Charlie, Knox, Havoc) with "do not overtightly follow the visuals", "after screaming, create an echo effect untill the to win comes", "to win should appear when the word first appears, and then win in echo later on" — then "remove all voices, i liked it before, jsut add some speciall sound fx along witht the music" → choice 8.
 - 2026-11-08 · the engine (src/kinetictype) and `mm kinetictype` made from the project, checked against it side by side: the auto storyboard landed on the same cuts.
-- 2026-11-09, Someone Took v2 · "does this skill not do inspiration research?" (the layout had gone straight from the pictures to the shots) → step 4 is never skipped: run the Pinterest research before the storyboard and name each device taken with its pins in prefs.md. Search from the inputs (the franchise's own edits, its palette, the devices its pictures suggest, the quote's shape), and reuse earlier productions' boards in the library instead of searching again. Before Browse Hack 0.18.0 a stopped Pinterest session stayed in Chrome's storage until its tab closed, and starts failed with "Session storage quota bytes exceeded"; 0.18.0 frees it on stop (if it happens on an older build, ask the user to close the old research tabs).
-- 2026-11-09, Someone Took v2 · "Fresh v2 from inputs" → when a production's inputs come back, a new take is designed from its own track arc, quote and pictures (v2: cyan from the art instead of the reference's red, its own devices in the project's scenes.tsx, the user's quote card as the ending), and the earlier take is kept.
+- 2026-11-08, Someone Took (Solo Leveling, "someone took the same situation you're complaining about and won with it") · "pick instrumental part at the end of the audio" → when the track is a song, the stretch comes from its instrumental tail: run `pick` on the tail alone (cut it to a file from where the vocals end) and take its drop, even if the tool scores a sung section higher. The tail's second drop became the win (hits.json's drop / sections set by hand, the tool's kept in hits.auto.json).
+- 2026-11-08 · "you can also use the statue image in the mix" (five pictures given: four of the hero, one of the villain's grin) → every picture the user puts in the folder is in the mix: the main panel gets the six styles, the others two styles each (riso + neon / fire) and become the faces, the mouth of the burst and the fist. The hero word was WON (the user's pick over COMPLAINING): the drop takes the short word letter by letter on its three bass hits, the two-word tail "WITH IT" is the rise and the win, the lockup "WON / WITH IT."
+- 2026-11-08 · engine notes from this run: `storyboard --groups="A B|C|…" --step=0.5` sets the build by hand; rembg on the 2048 upscales lost parts (the statue's right half, the dagger fist) that the 1024 picks kept, so cut the 1024 pick and put its alpha on the upscale; the neon-negative and firelight restyles don't cut at all (black grounds): the neon face goes on the ink ground uncut, the fire fist takes the riso cut-out's alpha (same framing). Parallel `midjourney_download_images` calls are fine; the inbox watcher ingests the files into _LIBRARY/_unsorted/art/<set>/ within a minute.
 - 2026-11-09, Someone Took v2 · "in the open section use shots of him as failure, you can use midjourney to convert them as well into the graphic style you need" → the build can carry the hero's low point so the drop is a reversal: frames of him failing from the source (the library's episodes first), square-cropped, restyled in Midjourney into the edit's look (ask the batch size), the open kept colourless so the accent colour arrives with his turn.
+- 2026-11-25 · Renamed from `make-kinetictype`, which became the family's superset: this skill keeps the style's choices and this log; the steps every style shares, and the lessons true for every style (research wide, research never skipped, a fresh take from the inputs), moved to `make-kinetictype`.
