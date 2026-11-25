@@ -12,6 +12,8 @@
     "lint": "turbo lint",
     "prettier-check": "prettier --check \"**/*.{js,ts,tsx,md,mdx}\"",
     "type-check": "turbo type-check",
+    "type-check:mediamake": "turbo type-check --filter=mediamake",
+    "test:mediamake": "turbo test --filter=mediamake",
     "prettier-fix": "prettier --write \"**/*.{js,ts,tsx,md,mdx}\"",
     "test": "turbo test -- --passWithNoTests --",
     "test:watch": "turbo test --watch",

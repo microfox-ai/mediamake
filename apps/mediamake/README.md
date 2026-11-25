@@ -80,6 +80,22 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Checks
+
+From the repo root, on Node 22:
+
+```bash
+npm run type-check:mediamake
+```
+
+```bash
+npm run test:mediamake
+```
+
+The first runs `tsc` over the app. The second runs every `*.test.ts` in the app with Node's test runner, through `tsx`. Both go through turbo, which first builds the workspace packages the app imports from their `dist/` (`packages/datamotion`, `packages/mediamake-mcp`, `packages/remotion`), and each script builds the skills registry (`skills.json`) before it starts. Run `tsc` by hand only after those builds: without them it reads no types for those packages, or an older build's, and reports errors that are not in the code. One test file runs alone with `npx tsx --test lib/catalog/items.test.ts` in `apps/mediamake`.
+
+The App checks workflow (`.github/workflows/app-checks.yml`) runs both on every pull request that touches the app, the packages, the skills or the tools.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

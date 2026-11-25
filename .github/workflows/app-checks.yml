@@ -1,0 +1,53 @@
+name: App checks
+
+# apps/mediamake is type-checked and its tests run before a merge. Both go through turbo, which
+# first builds the workspace packages the app imports from their dist/ (datamotion, mediamake-mcp,
+# remotion): without those builds tsc reads no types for them, or an older build's.
+on:
+  pull_request:
+    paths:
+      - 'apps/mediamake/**'
+      - 'packages/**'
+      - '.agents/skills/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+      - '.github/workflows/app-checks.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/mediamake/**'
+      - 'packages/**'
+      - '.agents/skills/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'turbo.json'
+      - '.github/workflows/app-checks.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node's test runner expands the tests' glob itself from Node 21 on, and `mm` needs 22.6 or later
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Type-check
+        run: npm run type-check:mediamake
+      - name: Tests
+        run: npm run test:mediamake

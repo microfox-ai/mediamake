@@ -58,6 +58,13 @@
         "MONGODB_URI"
       ]
     },
+    "mediamake#type-check": {
+      "dependsOn": ["^build"]
+    },
+    "mediamake#test": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "clean": {
       "dependsOn": ["^clean"]
     },
