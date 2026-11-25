@@ -1,16 +1,21 @@
 import { createHash } from 'crypto';
+import { isAdmin } from '@/lib/admin-utils';
+import { detailsKey } from '@/lib/app-shell/details-key';
 import { getUserByClientId } from '@/lib/auth/users';
+import { picturesFolder } from '@/lib/catalog/author-listing';
 import { isRepoSkill } from '@/lib/catalog/items';
 import { getCatalogRecord } from '@/lib/catalog/records';
 import { packageKey, putPackage } from '@/lib/catalog/storage';
-import { catalogItemsDB } from '@/lib/catalog/store';
+import { catalogItemsDB, catalogListingDB, listingMarksDB, skillProfilesDB } from '@/lib/catalog/store';
 import { submissionDecidedMail } from '@/lib/mail/templates';
 import { deliver, grantContribution, lastsInWords, type Mailed } from '@/lib/memberships/admin';
 import { itemTier } from '@/lib/catalog/types';
 import { tierLabel, type MemberTier } from '@/lib/memberships/tiers';
+import { putPublicUpload } from '@/lib/spaces-upload';
 import { bundleOf, commitMessage, packageEntries, packageProblem, prBody, prTitle, publicSkillFiles, releaseNotes, storeFiles } from './delivery';
 import { commitFolder, github, githubProblem, openPullRequest, publicRepo, storeRepo, storeToken, type Github } from './github';
 import { authorsOf, isAuthor, settleAuthors } from './authors';
+import { fillListingFromPackage, listingLine, listingNotes, type ListingFill, type PackageListingStore } from './package-listing';
 import { submissionsDB } from './store';
 import {
   checkFiles,
@@ -39,7 +44,16 @@ import { tarGz } from './tar';
  * all call these.
  */
 
-export type Outcome = { ok: true; submission: Submission; mailed?: Mailed; notes?: string[] } | { ok: false; why: string; status?: number };
+export type Outcome =
+  | {
+      ok: true;
+      submission: Submission;
+      mailed?: Mailed;
+      notes?: string[];
+      /** What a released skill's listing took from its package's README.md, in one line (./package-listing). */
+      listing?: string;
+    }
+  | { ok: false; why: string; status?: number };
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -119,10 +133,30 @@ async function deliverPr(gh: Github, submission: Submission, files: SubmissionFi
   return { kind: 'pr', repo, branch, number: pr.number, url: pr.url, state: 'open', at: new Date().toISOString() };
 }
 
-/** Releases the item's folder as a package at its tier, in Beta. Throws with words an admin can act on. */
-async function releasePackage(submission: Submission, tier: SubmissionTier, folder: string, tree: { path: string; content: string; encoding: 'utf8' | 'base64' }[], by: string) {
+/** Where a release reads and writes a skill's listing, its details and what the last release put there (./package-listing). */
+const listingStore: PackageListingStore = {
+  listing: itemId => catalogListingDB.get(itemId),
+  saveListing: (itemId, listing, by) => catalogListingDB.set(itemId, listing, by),
+  details: async itemId => {
+    const profile = await skillProfilesDB.get(detailsKey.catalog(itemId));
+    return profile?.type ? { type: profile.type, ...(profile.type === 'subset' && profile.superset && { superset: profile.superset }) } : null;
+  },
+  // only a subset has a superset: any other type clears it
+  saveDetails: (itemId, details, by) => skillProfilesDB.set({ key: detailsKey.catalog(itemId), type: details.type, superset: details.superset ?? null }, by),
+  mark: itemId => listingMarksDB.get(itemId),
+  saveMark: (mark, by) => listingMarksDB.set(mark, by),
+  // where a listing's pictures are kept: the folder Upload on its page and catalog_upload_picture use
+  upload: ({ itemId, by, name, contentType, bytes }) => putPublicUpload({ clientId: by, subPath: picturesFolder(itemId), filename: name, contentType, body: bytes }),
+};
+
+/**
+ * Releases the item's folder as a package at its tier, in Beta. Throws with words an admin can act
+ * on. A skill's listing is then filled from the package's README.md (./package-listing): what
+ * that did comes back, and a listing that could not be filled never undoes the release.
+ */
+async function releasePackage(submission: Submission, tier: SubmissionTier, folder: string, tree: { path: string; content: string; encoding: 'utf8' | 'base64' }[], by: string): Promise<ListingFill | null> {
   const bundle = submission.kind === 'mcp' ? bundleOf(tree.map(file => ({ path: file.path.slice(folder.length + 1) }))) : undefined;
-  await catalogItemsDB.upsert(
+  const item = await catalogItemsDB.upsert(
     {
       id: submission.itemId,
       kind: submission.kind,
@@ -148,23 +182,41 @@ async function releasePackage(submission: Submission, tier: SubmissionTier, fold
     publishedAt: new Date().toISOString(),
     publishedBy: by,
   });
+  try {
+    return await fillListingFromPackage(listingStore, {
+      itemId: submission.itemId,
+      kind: submission.kind,
+      version: submission.version,
+      files: tree.map(file => ({ path: file.path.slice(folder.length + 1), content: file.content, encoding: file.encoding })),
+      by,
+      // an approval is an admin's; a direct update may be its Cohort author's own
+      byAdmin: await isAdmin(by),
+      ownTags: item.tags,
+    });
+  } catch (error) {
+    console.error(`[submissions] Could not fill the listing of ${submission.itemId}@${submission.version}:`, error);
+    return { filled: [], kept: [], notes: ['Its package is released, but its listing could not be filled from its README.md: set it on its page'] };
+  }
 }
 
+/** What a release tells its sender about the listing: the line on what it took, and what to know. */
+const aboutListing = (fill: ListingFill | null | undefined) => ({ line: (fill && listingLine(fill)) || undefined, notes: fill ? listingNotes(fill) : [] });
+
 /** Everything else: one commit on the store repository's main branch, then its package in the catalog. */
-async function deliverStore(gh: Github, submission: Submission, tier: SubmissionTier, files: SubmissionFile[], by: string): Promise<Delivery> {
+async function deliverStore(gh: Github, submission: Submission, tier: SubmissionTier, files: SubmissionFile[], by: string): Promise<{ delivery: Delivery; fill?: ListingFill | null }> {
   const repo = storeRepo();
   const tree = storeFiles(submission, tier, files);
   const existing = await catalogItemsDB.get(submission.itemId);
   const commit = await commitFolder(gh, { repo, ...tree, message: commitMessage(submission, tier, !!existing) });
   const delivery: Delivery = { kind: 'store', repo, path: tree.folder, commit: commit.sha, commitUrl: commit.url, version: submission.version, released: false, at: new Date().toISOString() };
   const problem = packageProblem(submission.kind, files);
-  if (problem) return { ...delivery, why: problem };
+  if (problem) return { delivery: { ...delivery, why: problem } };
   try {
-    await releasePackage(submission, tier, tree.folder, tree.files, by);
-    return { ...delivery, released: true };
+    const fill = await releasePackage(submission, tier, tree.folder, tree.files, by);
+    return { delivery: { ...delivery, released: true }, fill };
   } catch (error) {
     console.error(`[submissions] Could not release ${submission.itemId}@${submission.version}:`, error);
-    return { ...delivery, why: `Its files are in ${repo}, but the package could not be released: ${(error as Error).message}` };
+    return { delivery: { ...delivery, why: `Its files are in ${repo}, but the package could not be released: ${(error as Error).message}` } };
   }
 }
 
@@ -214,9 +266,11 @@ export async function approveSubmission(input: {
   // one admin at a time: the claim stops a second click from delivering it twice
   if (!(await submissionsDB.claim(input.submissionId, input.by))) return { ok: false, status: 409, why: 'Another admin is approving it right now' };
   let delivery: Delivery;
+  let fill: ListingFill | null | undefined;
   try {
     const gh = github(storeToken());
-    delivery = routeOf(before.kind, input.tier) === 'pr' ? await deliverPr(gh, before, files, input.origin) : await deliverStore(gh, before, input.tier, files, input.by);
+    if (routeOf(before.kind, input.tier) === 'pr') delivery = await deliverPr(gh, before, files, input.origin);
+    else ({ delivery, fill } = await deliverStore(gh, before, input.tier, files, input.by));
   } catch (error) {
     await submissionsDB.release(input.submissionId);
     console.error(`[submissions] Could not deliver ${input.submissionId}:`, error);
@@ -272,8 +326,9 @@ export async function approveSubmission(input: {
       }),
     input.notify,
   );
-  const notes = [...(delivery.kind === 'store' && delivery.why ? [delivery.why] : []), ...(earned.membership ? [] : earned.why ? [`No membership given: ${earned.why}`] : [])];
-  return { ok: true, submission, mailed, notes };
+  const listing = aboutListing(fill);
+  const notes = [...(delivery.kind === 'store' && delivery.why ? [delivery.why] : []), ...listing.notes, ...(earned.membership ? [] : earned.why ? [`No membership given: ${earned.why}`] : [])];
+  return { ok: true, submission, mailed, notes, ...(listing.line && { listing: listing.line }) };
 }
 
 /**
@@ -285,6 +340,7 @@ export async function finishRelease(input: { submissionId: string; by: string; d
   const before = await submissionsDB.get(input.submissionId);
   if (!before?.decision || before.delivery?.kind !== 'store') return { ok: false, status: 404, why: 'No such accepted submission' };
   if (before.delivery.released) return { ok: true, submission: before };
+  let fill: ListingFill | null | undefined;
   if (input.done) {
     const item = await catalogItemsDB.get(before.itemId);
     if (!item?.versions.length) return { ok: false, why: `${before.itemId} has no released version in the catalog yet` };
@@ -294,7 +350,7 @@ export async function finishRelease(input: { submissionId: string; by: string; d
     if (problem) return { ok: false, why: problem };
     const tree = storeFiles(before, before.decision.tier, files);
     try {
-      await releasePackage(before, before.decision.tier, tree.folder, tree.files, input.by);
+      fill = await releasePackage(before, before.decision.tier, tree.folder, tree.files, input.by);
     } catch (error) {
       return { ok: false, why: `The package could not be released: ${(error as Error).message}` };
     }
@@ -302,7 +358,8 @@ export async function finishRelease(input: { submissionId: string; by: string; d
   const { why: _why, ...delivery } = before.delivery;
   const submission = await submissionsDB.update(input.submissionId, { status: 'live', delivery: { ...delivery, released: true } });
   await submissionsDB.dropFiles(input.submissionId);
-  return submission ? { ok: true, submission } : { ok: false, why: 'No such submission' };
+  const listing = aboutListing(fill);
+  return submission ? { ok: true, submission, notes: listing.notes, ...(listing.line && { listing: listing.line }) } : { ok: false, why: 'No such submission' };
 }
 
 /** A pull request merged: the submissions it delivers are live. One that delivers none changes nothing. */

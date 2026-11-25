@@ -51,7 +51,46 @@ we don't use.**
    repo, and an admin builds and releases it from a checkout
    (`npm run catalog -- release <folder>/<name>.mcpb --tier <tier>`), then
    presses **I released it by hand** on the submission.
-5. **It enters as Beta.** An admin marks it Ready later, on its release page,
+5. **A skill's listing comes from its package.** A Public skill's page reads
+   its README.md from the repo. A Plus, Pro or Cohort skill is a package, so
+   each release puts the README.md in its folder on the item's listing
+   (`fillListingFromPackage` in `lib/submissions/package-listing.ts`), with
+   nothing to set by hand:
+
+   | From the package | Goes to |
+   | --- | --- |
+   | The README's frontmatter `description` (300 characters, cut at a word) | The listing's description |
+   | `tags` (12 at most; the item's own are not kept again) | The listing's tags |
+   | `headshot`: a picture in the folder (uploaded where a listing's pictures are kept, `catalog-thumbnails/<item>`), or an https link (taken only from an admin's release or approval: an author's own update takes a picture in the folder, never a link to somewhere else) | The listing's headshot |
+   | The README's text, without its frontmatter. Each picture it shows from the folder (`![…](shots/a.png)`, 16 at most) is uploaded the same way and its link rewritten | The listing's README |
+   | `type`, and a subset's `superset` | The skill's details (`skill_profiles`) |
+
+   `nature` is only checked: a skill in the store is shared use, always.
+
+   **What was set by hand stays.** A field is the package's until someone
+   changes it. Each release writes down a fingerprint of what it put in each
+   field (MongoDB `catalog_listing_marks`). The next release sets a field
+   when it is empty, or when it still holds what the last release put there;
+   a field that holds anything else (an admin's or an author's own words or
+   picture, set on the item's page, Edit card or `catalog_set_listing`) is
+   left as it is, for every later release. Clearing a field hands it back to
+   the package: the next release fills it. A listing filled by hand before
+   releases wrote anything down is all set by hand, so only its empty fields
+   are filled. A release fills and refreshes, it never clears: a field the
+   new README no longer names stays as it was.
+
+   The answer says what happened: `listing` names what the listing took, and
+   `notes` what was left because it was set by hand and what could not be
+   taken (a headshot that is not in the package, a picture that could not be
+   uploaded). `mm submit` prints both, and its dry run notes a skill with no
+   README.md or a headshot that would not be sent. A listing that cannot be
+   filled never undoes the release.
+
+   An MCP's or an app's listing is not read from its package (its README.md is
+   often its code's): it is set on its release page, as before. A package
+   released from a checkout (`npm run catalog -- release`) sends no README
+   either: set that listing on its page.
+6. **It enters as Beta.** An admin marks it Ready later, on its release page,
    with the production (`catalog_set_readiness`).
 
 ## Authors
@@ -145,6 +184,7 @@ merges; nothing else depends on it.
 | --- | --- |
 | Rules, limits, checks, who earns what | `lib/submissions/submission.ts` |
 | Pull request and store texts, `catalog.json`, the package | `lib/submissions/delivery.ts`, `tar.ts` |
+| A released skill's listing from its package's README.md, and what stays when it was set by hand | `lib/submissions/package-listing.ts` (the rules), `listingStore` in `lib/submissions/actions.ts`, `listingMarksDB` in `lib/catalog/store.ts`, `putPublicUpload` in `lib/spaces-upload.ts` |
 | GitHub calls | `lib/submissions/github.ts` |
 | Send, approve, ask for changes, decline, withdraw, merged | `lib/submissions/actions.ts` |
 | Authors: the rules, who they are, changing them | `lib/catalog/authors.ts`, `lib/submissions/authors.ts`, `app/api/submissions/authors` |
@@ -155,5 +195,5 @@ merges; nothing else depends on it.
 | Suggested grants | `lib/memberships/suggestions.ts`, `suggestions-store.ts`, `components/memberships/suggested.tsx` |
 | The command, the skill, the mm-use tools | `tools/submit.mjs`, `.agents/skills/mm-submit-to-store`, `packages/mediamake-mcp/src/tools/use.ts` |
 
-Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/catalog/authors.test.ts lib/catalog/author-listing.test.ts`,
+Tests: `npx tsx --test lib/submissions/submissions.test.ts lib/submissions/package-listing.test.ts lib/catalog/authors.test.ts lib/catalog/author-listing.test.ts`,
 `node --test tools/submit.test.mjs`.

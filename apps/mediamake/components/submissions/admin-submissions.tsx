@@ -405,14 +405,14 @@ function Decide({ submission, data, existingInRepo, onDone }: { submission: Subm
   const act = async (type: 'approve' | 'changes' | 'decline') => {
     setBusy(type);
     try {
-      const result = await submissionsCall<{ mailed?: { sent: boolean; to?: string; why?: string }; notes?: string[] }>({
+      const result = await submissionsCall<{ mailed?: { sent: boolean; to?: string; why?: string }; notes?: string[]; listing?: string }>({
         type,
         submissionId: submission.submissionId,
         note,
         ...(type === 'approve' && { tier, membership: earns }),
       });
       const mailed = result.mailed ? (result.mailed.sent ? `Mailed to ${result.mailed.to}.` : `No mail sent: ${result.mailed.why ?? 'unknown reason'}.`) : '';
-      toast.success(type === 'approve' ? 'Accepted' : type === 'changes' ? 'Changes asked' : 'Declined', { description: [mailed, ...(result.notes ?? [])].filter(Boolean).join(' ') || undefined });
+      toast.success(type === 'approve' ? 'Accepted' : type === 'changes' ? 'Changes asked' : 'Declined', { description: [mailed, result.listing, ...(result.notes ?? [])].filter(Boolean).join(' ') || undefined });
       await onDone();
     } catch (e) {
       toast.error((e as Error).message);
@@ -510,8 +510,9 @@ function Decided({ submission, onDone }: { submission: Submission; onDone: () =>
   const finish = async (type: 'release' | 'released') => {
     setBusy(true);
     try {
-      await submissionsCall({ type, submissionId: submission.submissionId });
-      toast.success('It is live');
+      const result = await submissionsCall<{ notes?: string[]; listing?: string }>({ type, submissionId: submission.submissionId });
+      // what its listing took from the package's README.md, and what was left as set by hand
+      toast.success('It is live', { description: [result.listing, ...(result.notes ?? [])].filter(Boolean).join(' ') || undefined });
       await onDone();
     } catch (e) {
       toast.error((e as Error).message);

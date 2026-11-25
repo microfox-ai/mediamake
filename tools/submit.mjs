@@ -38,6 +38,11 @@
  * 3 months, renewed by contributing again. An admin's --tier skips all of that: the item is released
  * at that membership, in Beta, the moment it arrives (a version already released is refused).
  *
+ * A skill released to Plus, Pro or Cohort takes its store listing from the README.md that is sent:
+ * the frontmatter's description, tags, headshot, type and superset, its text, and the pictures it
+ * shows from the folder. A field someone set by hand on the item's page is left as it is; the
+ * answer says what the listing took and what it left.
+ *
  * The same item sent again before a decision replaces what you sent.
  */
 import fs from 'node:fs';
@@ -140,6 +145,14 @@ export function check(item, files) {
     const sheet = runSheet(path.join(item.dir, 'SKILL.md'));
     if (!sheet.found) problems.push(NO_RUN_SHEET);
     problems.push(...sheet.errors);
+    // a store skill's page shows its README.md: a release takes its listing from the one that is sent
+    const sent = new Set(files.map(file => file.path));
+    if (!sent.has('README.md')) notes.push('no README.md: its store page gets a default one and no headshot (apps/mediamake/docs/item-readme.md has the format)');
+    else {
+      const headshot = frontmatter(path.join(item.dir, 'README.md')).headshot;
+      const at = headshot && !/^https:\/\//.test(headshot) ? path.posix.normalize(headshot.replace(/\\/g, '/')).replace(/^\.\//, '') : '';
+      if (at && !sent.has(at)) notes.push(`README.md names the headshot ${headshot}, which is not among the files to send (missing, or over 1 MB): its listing gets none`);
+    }
   }
   for (const file of files) {
     if (file.encoding !== 'utf8') continue;
@@ -326,16 +339,19 @@ async function submit(name, flags) {
   const timeoutMs = uploadTimeout(bytes);
   let submission;
   let serverNotes = [];
+  // what a published skill's listing took from its README.md (its description, headshot, README, tags, type)
+  let listing;
   try {
-    ({ submission, notes: serverNotes = [] } = await call('POST', `${url}/api/submissions`, key, body, { timeoutMs }));
+    ({ submission, notes: serverNotes = [], listing } = await call('POST', `${url}/api/submissions`, key, body, { timeoutMs }));
   } catch (error) {
     if (error?.name === 'TimeoutError') fail(uploadTimedOut(name, bytes, timeoutMs));
     throw error;
   }
-  if (json) return console.log(JSON.stringify({ ...report, sent: true, submission, notes: serverNotes }, null, 2));
+  if (json) return console.log(JSON.stringify({ ...report, sent: true, submission, notes: serverNotes, ...(listing && { listing }) }, null, 2));
   if (submission.decision) {
     const live = submission.status === 'live';
     console.log(`Published ${submission.itemId}@${submission.version} at ${submission.decision.tier}, in Beta (${submission.submissionId}). ${live ? 'It is live now.' : submission.pullRequest ? `It goes live when its pull request merges: ${submission.pullRequest}` : 'Its package is being released.'}`);
+    if (listing) console.log(`  ${listing}`);
     for (const n of serverNotes) console.log(`  ⚠ ${n}`);
     console.log(`Its page: ${url}/app/releases/${submission.kind}/${submission.slug}`);
     return;

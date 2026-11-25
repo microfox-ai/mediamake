@@ -145,10 +145,14 @@ An MCP, an app, or a skill that Plus, Pro or Cohort opens never comes into this 
 releases it directly, from the space it lives in (`mm space` lists every item):
 
 1. **Ready.** An MCP or an app has an `item.json` with a real `title`, `summary` and `version`; a
-   skill has its run sheet. Its README.md is its store listing (`mm-upload-item` writes it).
+   skill has its run sheet, and a README.md in its folder (`mm-upload-item` writes it). A skill's
+   README.md is its store listing, and the release takes the listing from it (step 6): its
+   frontmatter's `description`, `tags`, `headshot`, `type` and `superset`, its text and the
+   pictures it shows from the folder, each picture under 1 MB.
 2. **Check it:** `mm submit <name>` (without `--yes` it only checks; add `--kind=mcp|app` when two
    items share a name). It stops on a path on this computer, something that looks like a key or a
-   token, or more than 3 MB in all. Read every file yourself too, as step 2 above says.
+   token, or more than 3 MB in all, and it notes a skill with no README.md or a headshot that would
+   not be sent. Read every file yourself too, as step 2 above says.
 3. **An MCP's build.** A built `.mcpb` at the top of its folder, under 1 MB, lets it be released the
    moment it arrives. Without one it is built and released by hand, which takes longer.
 4. **Ask which membership opens it**: Public, Plus, Pro or Cohort. It is the user's word, never a
@@ -163,12 +167,26 @@ releases it directly, from the space it lives in (`mm space` lists every item):
    page. A Public skill sent this way becomes a pull request on this repo, as in step 4 above. When
    something stops it (a leak check, a version already released), it waits on `/app/submissions`
    and the command says why.
-6. **Give the user its links**: its release page,
+6. **Its listing.** What its page and its cards show:
+   - **A skill** needs nothing more. The release put its README.md on its listing, with the headshot
+     and the README's pictures uploaded, and set its type and superset: the command says so ("Its
+     listing took its description, headshot, README, tags and type…"). Never follow a skill's
+     release with `catalog_set_listing` or `catalog_upload_picture` to repeat what its README says.
+     Read what the command printed: a ⚠ line names what was not taken (a headshot that is not in
+     the folder) and what was left because someone set it by hand on the item's page. A field set
+     by hand stays as it is through every release; to hand it back to the README, clear it on the
+     page and release again. Tell the user which fields those are, and change one only on their word.
+   - **An MCP or an app** has its listing set on its release page, as before: its description,
+     headshot, icon, tags and README with `catalog_set_listing`, each picture uploaded with
+     `catalog_upload_picture` (never committed). Offer it right after the release.
+7. **Give the user its links**: its release page,
    `https://mediamake.microfox.app/app/releases/<skill|mcp|app>/<name>`, and its public page,
-   `https://mediamake.microfox.app/<skills|mcps|apps>/<name>`.
+   `https://mediamake.microfox.app/<skills|mcps|apps>/<name>`. Open the public page and check that
+   the headshot and the README show before saying it is done.
 
 A new version later: raise `version` (in `item.json`, or `metadata.version` in a SKILL.md) and run
-`mm submit <name> --yes`, with no `--tier`. Marking an item Ready is a separate call an admin makes,
+`mm submit <name> --yes`, with no `--tier`. A skill's listing is refreshed from the new README.md the
+same way, except the fields set by hand. Marking an item Ready is a separate call an admin makes,
 never done unasked.
 
 ## Naming and categories

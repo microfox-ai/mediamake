@@ -234,6 +234,17 @@ Explore's New row goes by the day an item first came out. A released item has it
 skill from the repo has the day of its first commit, in `lib/catalog/skill-dates.json`: a pull
 request that adds a skill adds its line there (without one, the skill sorts with the oldest).
 
+**A skill released through a submission fills its own listing.** `mm submit <name> --yes --tier=…`,
+an approved submission and an update of a Plus, Pro or Cohort skill take the listing from the
+package: the README.md's frontmatter (`description`, `tags`, `headshot`), its text, and the pictures
+it shows from its folder, uploaded like the release page's Upload, with the skill's `type` and
+`superset` set from the same frontmatter (`lib/submissions/package-listing.ts`). So a released skill
+needs no `set_listing` and no upload by hand. What an admin or an author sets here wins for good: a
+release only sets a field that is empty or still holds what the last release put there
+(fingerprints in MongoDB `catalog_listing_marks`), and clearing a field hands it back to the
+package. MCPs, apps and packages released with `npm run catalog -- release` keep their listing
+here, set by hand. [submissions.md](submissions.md) › The path has the whole rule.
+
 From Claude, mm-release's `catalog_set_listing` does the same, the editors' pick and the advice included. A picture on the computer goes up with `catalog_upload_picture` (a signed link from `create_thumbnail_upload`, sent with one `curl`; the local server's `headshotFile` and `iconFile` do it in one step): like the release page's Upload, it needs no pull request and no deploy, so a listing's pictures never go in the repo.
 
 ### The release page
