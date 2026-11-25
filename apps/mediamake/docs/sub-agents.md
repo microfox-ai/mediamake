@@ -26,10 +26,16 @@ works; the folder you are in by default) and `--from="<what asked for it>"`.
 
 ## What it does
 
-- **The key goes to that one process.** `ANTHROPIC_API_KEY` in the environment (a cloud environment's
-  variable), else the line in the checkout's `.env` (a worktree reads its main checkout's). It is passed
-  to the run's own `claude` and nowhere else, so no export per terminal tab and your own sessions stay
-  on the subscription. It is never printed or written to a record.
+- **The key goes to that one process.** `MEDIAMAKE_AGENTS_KEY` or `ANTHROPIC_API_KEY` in the
+  environment, else either line in the checkout's `.env` (a worktree reads its main checkout's). It is
+  passed to the run's own `claude` and nowhere else, so no export per terminal tab and your own sessions
+  stay on the subscription. It is never printed or written to a record.
+- **In a cloud environment the variable is `MEDIAMAKE_AGENTS_KEY`.** A cloud session runs on your
+  Anthropic account whatever key it is given, and its settings say so when you add a variable called
+  `ANTHROPIC_API_KEY`. Under this name only the sub-agent gets the key: it is started as plain Claude
+  Code on it, without what marks the session as a cloud one, and `MEDIAMAKE_CLOUD` tells MediaMake's
+  tools inside it that they are still in the cloud. The session that starts it stays on the
+  subscription; only the sub-agent's work bills the key.
 - **It runs on the key or not at all.** Claude says at start where its key came from; a run that did
   not take the key is stopped before it spends the subscription.
 - **A clean start.** What a Claude session leaves in its shell (its session id, its sign-in) is taken

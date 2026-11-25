@@ -92,8 +92,10 @@ its turns and every message) and continues them. For admins and Cohort members o
 - `--paid` (a run after the credit ended, or within its last dollars) and `--mode=bypassPermissions`
   are the user's own words for that one run. Never pass either to make a run work, and never raise a
   cap, the credit or `max` for them.
-- The key is the person's: `ANTHROPIC_API_KEY` in the environment or the checkout's `.env`. Never
-  print it, export it into a session or write it anywhere.
+- The key is the person's: `ANTHROPIC_API_KEY` in the checkout's `.env` or the shell on a computer,
+  `MEDIAMAKE_AGENTS_KEY` in a cloud environment's variables (a cloud session runs on the account and
+  says so for a variable called `ANTHROPIC_API_KEY`). Never print it, export it into a session or
+  write it anywhere.
 - A sub-agent cannot ask mid-run: put every choice the user already made in the task. One that ends
   *needs you* asked something: show the user its question, and continue it with their answer.
 - A sub-agent does not start sub-agents. Two run at a time; the rest wait their turn.

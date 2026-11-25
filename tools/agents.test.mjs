@@ -171,11 +171,19 @@ test('the key comes from the environment, else the checkout .env, else the main 
   assert.equal(anthropicKey({}, { top: main, keyFile: null }).key, 'sk-main');
   assert.deepEqual(anthropicKey({ ANTHROPIC_API_KEY: 'sk-env' }, { top: tree, keyFile: null }), { key: 'sk-env', from: 'ANTHROPIC_API_KEY' });
   assert.equal(anthropicKey({ ANTHROPIC_API_KEY: '${ANTHROPIC_API_KEY}' }, { top: tree, keyFile: null }).key, 'sk-main');
+  // a cloud environment's name for it comes first: a cloud session is told off for one called ANTHROPIC_API_KEY
+  assert.deepEqual(anthropicKey({ MEDIAMAKE_AGENTS_KEY: 'sk-cloud', ANTHROPIC_API_KEY: 'sk-env' }, { top: tree, keyFile: null }), { key: 'sk-cloud', from: 'MEDIAMAKE_AGENTS_KEY' });
+  fs.writeFileSync(path.join(main, '.env'), 'MEDIAMAKE_AGENTS_KEY=sk-named\n');
+  assert.equal(anthropicKey({}, { top: main, keyFile: null }).key, 'sk-named');
 });
 
 test("a sub-agent's Claude gets the key and none of the session it was started from", () => {
   const env = childEnv({ PATH: '/bin', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 's', CLAUDE_CODE_SIMPLE: '1', CLAUDE_AGENT_SDK_VERSION: '1', CLAUDE_PID: '9', ANTHROPIC_AUTH_TOKEN: 't', ANTHROPIC_BASE_URL: 'u', CLAUDE_CONFIG_DIR: '/c', ELEVENLABS_API_KEY: 'e' }, 'sk-1', 'ag-abcde');
   assert.deepEqual(env, { PATH: '/bin', CLAUDE_CONFIG_DIR: '/c', ELEVENLABS_API_KEY: 'e', ANTHROPIC_API_KEY: 'sk-1', MM_AGENT_RUN: 'ag-abcde' });
+  // in a cloud session it starts as plain Claude Code on the key, and MediaMake's tools are still told where they are
+  const cloud = childEnv({ PATH: '/bin', CLAUDE_CODE_REMOTE: 'true', CLAUDE_CODE_REMOTE_SESSION_ID: 's', MEDIAMAKE_AGENTS_KEY: 'sk-2', HTTPS_PROXY: 'http://proxy', MEDIAMAKE_API_KEY: 'mm' }, 'sk-2', 'ag-abcde');
+  assert.deepEqual(cloud, { PATH: '/bin', HTTPS_PROXY: 'http://proxy', MEDIAMAKE_API_KEY: 'mm', MEDIAMAKE_CLOUD: 'true', ANTHROPIC_API_KEY: 'sk-2', MM_AGENT_RUN: 'ag-abcde' });
+  assert.equal(childEnv({ MEDIAMAKE_CLOUD: 'true' }, 'sk-3').MEDIAMAKE_CLOUD, 'true');
 });
 
 test('the reply says how the turn ended', () => {
