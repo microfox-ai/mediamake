@@ -22,7 +22,8 @@
   sheet <folder> [--out=<jpg>]
       a labelled contact sheet of the pictures in a folder (Midjourney results, pins).
   storyboard <slug> [--quote="…"] [--key=WORD] [--title="…"] [--groups="SOMEONE TOOK|THE SAME|…"] [--step=0.5]
-      a first video/edit.json from the quote, analysis/hits.json and input/assets.json (see the skill).
+      a first video/edit.json from the quote, analysis/hits.json and input/assets.json: the planner of the
+      buildup-punch style (see make-kinetictype-buildup-punch).
       --groups sets the build's word groups by hand (one slam each, in order), --step the seconds between them
       (default: the beat, or 0.5 s when the beat is outside 0.35–0.75 s).
   kit <slug>
@@ -274,8 +275,9 @@ def cmd_hits(a):
 
 # ======================================================================== the project
 
-INDEX = """// {title}: a kinetic-type edit (make-kinetictype). The whole edit is data: video/edit.json; the sound is the
-// manifest's audio. Write `mm kinetictype storyboard {slug}` for a first draft.
+INDEX = """// {title}: a kinetic-type edit (the make-kinetictype family). The whole edit is data: video/edit.json; the
+// sound is the manifest's audio. `mm kinetictype storyboard {slug}` writes a first draft in the buildup-punch
+// style (make-kinetictype-buildup-punch).
 import edit from './edit.json';
 import {{ defineKinetic, type KineticEdit }} from '../../../src/kinetictype';
 
