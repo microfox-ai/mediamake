@@ -15,19 +15,22 @@ import {
   revisionIdOf,
   revisionNumber,
   revisionsDirOf,
+  revisedWords,
   revisionToMarkdown,
   scanSongs,
   TRIM_TO,
   wordNear,
   wordsOf,
 } from '@/lib/transcript-cleaner/transcript';
+import { joinLine, relinedMoves, splitLine, withLineTexts, type Caret, type Relining, type ReliningResult } from '@/lib/transcript-cleaner/lines';
 import { CLEAN_FILE, type CleanMark, type LineMove, type Mark, type MarkKind, type SongEntry, type TLine, type TranscriptFile, type TranscriptRevision, type TWord } from '@/lib/transcript-cleaner/types';
 
 /*
  * State for /transcript-cleaner: the opened folder and the songs in it (and which are marked clean), the song being
  * cleaned (its words, lines, audio and waveform), playback, the open revision (marks, moved words, and words deleted,
- * rewritten or pushed to another line), and saving that revision beside the transcript. The transcript file itself is
- * never written: Claude applies a revision when the user pastes it.
+ * rewritten, pushed to another line, and lines split or joined), the caret in the song's lines and the undo of word
+ * edits, and saving that revision beside the transcript. The transcript file itself is never written: Claude applies a
+ * revision when the user pastes it.
  */
 
 export type Support = 'checking' | 'ok' | 'insecure' | 'browser';
@@ -63,6 +66,21 @@ export interface OpenSong {
   nextRev: number;
 }
 
+/** Where a word's text box opens: on the stage, on the timeline, or in the song's lines. */
+export type EditWhere = 'stage' | 'timeline' | 'lines';
+
+/** The word edits a revision holds, as they were before an edit: what ⌘Z puts back (times and marks are not in it). */
+interface Snapshot {
+  label: string;
+  deleted: TranscriptRevision['deleted'];
+  rewrites: TranscriptRevision['rewrites'];
+  lineMoves: TranscriptRevision['lineMoves'];
+  lineEdits: TranscriptRevision['lineEdits'];
+  caret: Caret | null;
+}
+
+const UNDO_LIMIT = 200;
+
 export interface TimeChange {
   i: number;
   start: number;
@@ -91,8 +109,13 @@ interface State {
   /** Where the timeline starts when it doesn't follow the playhead (paused and panned). */
   viewStart: number | null;
   selected: number | null;
+  /** The text caret in the song's lines (shown while they have the focus): before a word, or after a line's last one. */
+  caret: Caret | null;
   /** The word whose text is being rewritten, and where its text box is. */
-  editing: { i: number; where: 'stage' | 'timeline' } | null;
+  editing: { i: number; where: EditWhere } | null;
+  /** Word edits to undo (latest last) and to redo. */
+  undoStack: Snapshot[];
+  redoStack: Snapshot[];
   revision: TranscriptRevision | null;
   focusMark: string | null;
   saveState: SaveState;
@@ -116,6 +139,8 @@ interface State {
   zoom: (d: number) => void;
   setViewStart: (s: number | null) => void;
   selectWord: (i: number | null, seek?: boolean) => void;
+  /** Put the caret there; the word it means (the one after it, else the line's last) is selected, unless `select` names another. */
+  setCaret: (caret: Caret | null, select?: number) => void;
   stepWord: (d: number) => void;
   setTimes: (changes: TimeChange[]) => void;
   setEdgeAtPlayhead: (edge: 'start' | 'end', i?: number) => void;
@@ -123,10 +148,16 @@ interface State {
   resetWord: (i: number) => void;
   resetAll: () => void;
   toggleDelete: (i: number) => void;
-  startRewrite: (i: number, where: 'stage' | 'timeline') => void;
+  startRewrite: (i: number, where: EditWhere) => void;
   endRewrite: () => void;
   rewriteWord: (i: number, text: string) => void;
   pushLine: (i: number, d: 1 | -1) => void;
+  /** Split the line before word i (Enter at the caret): i and the words after it become a new line below. */
+  splitLineAt: (i: number) => void;
+  /** Join line k (an index in `lines`) to the line above (Backspace at its start). */
+  joinLineUp: (k: number) => void;
+  undo: () => void;
+  redo: () => void;
   undoRewrite: (i: number) => void;
   undoLineMoves: (is: number[]) => void;
   restoreWord: (i: number) => void;
@@ -147,29 +178,12 @@ let raf = 0;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 /** playRange stops the song here. */
 let stopAt: number | null = null;
+/** Revisions already written to disk (song id + rev id): one taken back to no changes is written again, empty. */
+const written = new Set<string>();
 
 const now = () => new Date().toISOString();
 const uid = () => Math.random().toString(36).slice(2, 9);
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
-
-/** The words as the open revision has them: the times as moved, and its rewrites, line moves and deletions. */
-function derive(base: TWord[], times: TWord[], rev: TranscriptRevision | null): TWord[] {
-  const rewrites = new Map((rev?.rewrites ?? []).map(r => [r.i, r.to]));
-  const moves = new Map((rev?.lineMoves ?? []).map(m => [m.i, m.to]));
-  const deleted = new Set((rev?.deleted ?? []).map(d => d.i));
-  return base.map(b => {
-    const t = times[b.i] ?? b;
-    const to = moves.get(b.i);
-    return {
-      ...b,
-      start: t.start,
-      end: t.end,
-      text: rewrites.get(b.i) ?? b.text,
-      ...(to ? { stanza: to.stanza, line: to.line } : {}),
-      ...(deleted.has(b.i) ? { deleted: true } : {}),
-    };
-  });
-}
 
 function urlState(path?: string, song?: string) {
   const u = new URL(window.location.href);
@@ -228,14 +242,56 @@ export const useTranscriptStore = create<State>((set, get) => {
     };
   };
 
-  /** A revision with new word edits: the words on screen follow it, and it saves. */
-  const commit = (rev: TranscriptRevision) => {
+  const snapshotOf = (rev: TranscriptRevision | null, label: string): Snapshot => ({
+    label,
+    deleted: rev?.deleted ?? [],
+    rewrites: rev?.rewrites ?? [],
+    lineMoves: rev?.lineMoves ?? [],
+    lineEdits: rev?.lineEdits ?? [],
+    caret: get().caret,
+  });
+
+  /**
+   * A revision with new word edits: the words on screen follow it, and it saves. Each one can be undone (⌘Z): `label`
+   * names it, and `history: false` is for undo and redo themselves.
+   */
+  const commit = (rev: TranscriptRevision, label = 'the edit', history = true) => {
     const { song } = get();
     if (!song) return;
-    const words = derive(song.base, get().words, rev);
-    set({ words, lines: linesOf(words, song.doc) });
-    set({ revision: withTimings({ ...rev, status: rev.status === 'done' ? 'open' : rev.status }) });
+    if (history) set(s => ({ undoStack: [...s.undoStack, snapshotOf(s.revision, label)].slice(-UNDO_LIMIT), redoStack: [] }));
+    const words = revisedWords(song.base, get().words, rev);
+    const lines = linesOf(words, song.doc);
+    // every move names the line it ends up on, as it reads now
+    const lineMoves = withLineTexts(rev.lineMoves ?? [], lines);
+    set({ words, lines });
+    set({ revision: withTimings({ ...rev, lineMoves, status: rev.status === 'done' ? 'open' : rev.status }) });
     scheduleSave();
+  };
+
+  /** A split or a join: its words' new places go in the revision's line moves, and the edit in its line edits. */
+  const reline = (r: Relining, label: string) => {
+    const { song } = get();
+    const base = ensureRevision();
+    if (!song || !base) return;
+    const lineMoves = relinedMoves(song.base, base.lineMoves ?? [], r);
+    // back to the transcript's lines (a split joined again): nothing to tell Claude
+    const lineEdits = lineMoves.some(m => m.by) ? [...(base.lineEdits ?? []), r.edit] : [];
+    commit({ ...base, lineMoves, lineEdits }, label);
+  };
+
+  const RELINE_HINTS: Record<Exclude<ReliningResult, Relining>['error'], string> = {
+    'line-start': 'The caret is at the start of the line: put it before the word the new line should start with',
+    'first-line': 'This is the first line: there is no line above to join it to',
+    unnumbered: 'This transcript has no stanza and line numbers to split or join lines by',
+    'no-word': 'Put the caret in a line first',
+  };
+
+  /** Undo and redo: the word edits as they were, and the caret where it was. */
+  const restore = (to: Snapshot) => {
+    const rev = get().revision;
+    if (!rev) return;
+    commit({ ...rev, deleted: to.deleted, rewrites: to.rewrites, lineMoves: to.lineMoves, lineEdits: to.lineEdits }, to.label, false);
+    if (to.caret) set({ caret: to.caret, selected: to.caret.i });
   };
 
   const tick = () => {
@@ -281,7 +337,10 @@ export const useTranscriptStore = create<State>((set, get) => {
     span: 8,
     viewStart: null,
     selected: null,
+    caret: null,
     editing: null,
+    undoStack: [],
+    redoStack: [],
     revision: null,
     focusMark: null,
     saveState: 'idle',
@@ -337,7 +396,24 @@ export const useTranscriptStore = create<State>((set, get) => {
       const old = get().song;
       if (old?.url) URL.revokeObjectURL(old.url);
       audio = null;
-      set({ loading: `Opening ${entry.title}…`, error: null, song: null, words: [], lines: [], revision: null, selected: null, editing: null, time: 0, playing: false, viewStart: null, focusMark: null, saveState: 'idle' });
+      set({
+        loading: `Opening ${entry.title}…`,
+        error: null,
+        song: null,
+        words: [],
+        lines: [],
+        revision: null,
+        selected: null,
+        caret: null,
+        editing: null,
+        undoStack: [],
+        redoStack: [],
+        time: 0,
+        playing: false,
+        viewStart: null,
+        focusMark: null,
+        saveState: 'idle',
+      });
       try {
         const dir = entry.folder ? await getSubdir(root.handle, entry.folder, false) : root.handle;
         if (!dir) throw new Error(`Folder ${entry.folder} not found`);
@@ -357,14 +433,24 @@ export const useTranscriptStore = create<State>((set, get) => {
           if (last) {
             nextRev = revisionNumber(last) + 1;
             const r = await readJsonIn<TranscriptRevision>(revDir, last);
-            if (r && r.data.status !== 'done')
-              revision = { ...r.data, marks: r.data.marks ?? [], timings: r.data.timings ?? [], deleted: r.data.deleted ?? [], rewrites: r.data.rewrites ?? [], lineMoves: r.data.lineMoves ?? [] };
+            if (r && r.data.status !== 'done') {
+              revision = {
+                ...r.data,
+                marks: r.data.marks ?? [],
+                timings: r.data.timings ?? [],
+                deleted: r.data.deleted ?? [],
+                rewrites: r.data.rewrites ?? [],
+                lineMoves: r.data.lineMoves ?? [],
+                lineEdits: r.data.lineEdits ?? [],
+              };
+              written.add(`${entry.id}/${revision.id}`);
+            }
           }
         }
         // words moved, rewritten, deleted or re-lined in the open revision show as it has them
         const times = base.slice();
         if (revision) for (const t of revision.timings) if (times[t.i]) times[t.i] = { ...times[t.i], start: t.to.start, end: t.to.end };
-        const words = derive(base, times, revision);
+        const words = revisedWords(base, times, revision);
         const file = entry.audio ? await readFileIn(dir, entry.audio) : null;
         const url = file ? URL.createObjectURL(file) : null;
         if (url) {
@@ -494,12 +580,15 @@ export const useTranscriptStore = create<State>((set, get) => {
     setViewStart: viewStart => set({ viewStart: viewStart === null ? null : Math.max(0, viewStart) }),
 
     selectWord: (i, seek) => {
-      set({ selected: i });
+      // the caret goes before the word, so the song's lines carry on from it
+      set(s => ({ selected: i, caret: i === null ? s.caret : { i, end: false } }));
       if (seek && i !== null) {
         const w = get().words[i];
         if (w) get().seek(w.start);
       }
     },
+
+    setCaret: (caret, select) => set({ caret, selected: caret ? (select ?? caret.i) : null }),
 
     stepWord: d => {
       const { words, lines, selected, time, lead } = get();
@@ -564,10 +653,11 @@ export const useTranscriptStore = create<State>((set, get) => {
       if (!song || !base || !song.base[i]) return;
       const deleted = base.deleted ?? [];
       const o = song.original[i];
-      commit({
-        ...base,
-        deleted: deleted.some(d => d.i === i) ? deleted.filter(d => d.i !== i) : [...deleted, { i, text: song.base[i].text, start: o.start, end: o.end }],
-      });
+      const keep = deleted.some(d => d.i === i);
+      commit(
+        { ...base, deleted: keep ? deleted.filter(d => d.i !== i) : [...deleted, { i, text: song.base[i].text, start: o.start, end: o.end }] },
+        keep ? `keeping “${song.base[i].text}”` : `deleting “${song.base[i].text}”`,
+      );
     },
 
     startRewrite: (i, where) => {
@@ -585,7 +675,7 @@ export const useTranscriptStore = create<State>((set, get) => {
       const base = ensureRevision();
       if (!base) return;
       const rest = (base.rewrites ?? []).filter(r => r.i !== i);
-      commit({ ...base, rewrites: to === song.base[i].text ? rest : [...rest, { i, from: song.base[i].text, to }] });
+      commit({ ...base, rewrites: to === song.base[i].text ? rest : [...rest, { i, from: song.base[i].text, to }] }, `rewriting “${song.base[i].text}”`);
     },
 
     pushLine: (i, d) => {
@@ -613,24 +703,70 @@ export const useTranscriptStore = create<State>((set, get) => {
         if (o.stanza === to.stanza && o.line === to.line) moves.delete(x.i);
         else moves.set(x.i, { i: x.i, text: o.text, from: { stanza: o.stanza, line: o.line }, to, toLine: target.text } satisfies LineMove);
       }
-      commit({ ...base, lineMoves: [...moves.values()].sort((a, b) => a.i - b.i) });
+      commit({ ...base, lineMoves: [...moves.values()].sort((a, b) => a.i - b.i) }, d > 0 ? 'the push to the next line' : 'the push to the previous line');
       get().selectWord(i);
+    },
+
+    splitLineAt: i => {
+      const r = splitLine(get().lines, i);
+      if ('error' in r) {
+        toast.message(RELINE_HINTS[r.error]);
+        return;
+      }
+      reline(r, 'the split');
+      // the caret starts the new line, as Enter leaves it in a text editor
+      get().setCaret({ i, end: false });
+    },
+
+    joinLineUp: k => {
+      const r = joinLine(get().lines, k);
+      if ('error' in r) {
+        toast.message(RELINE_HINTS[r.error]);
+        return;
+      }
+      reline(r, 'the join');
+      // the caret stays where the two lines meet
+      get().setCaret({ i: r.edit.i, end: false });
+    },
+
+    undo: () => {
+      const { undoStack, revision } = get();
+      const to = undoStack.at(-1);
+      if (!to || !revision) {
+        toast.message('Nothing to undo');
+        return;
+      }
+      set(s => ({ undoStack: s.undoStack.slice(0, -1), redoStack: [...s.redoStack, snapshotOf(revision, to.label)] }));
+      restore(to);
+      toast.message(`Undid ${to.label}`);
+    },
+
+    redo: () => {
+      const { redoStack, revision } = get();
+      const to = redoStack.at(-1);
+      if (!to || !revision) {
+        toast.message('Nothing to redo');
+        return;
+      }
+      set(s => ({ redoStack: s.redoStack.slice(0, -1), undoStack: [...s.undoStack, snapshotOf(revision, to.label)] }));
+      restore(to);
+      toast.message(`Redid ${to.label}`);
     },
 
     undoRewrite: i => {
       const base = get().revision;
-      if (base) commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i) });
+      if (base) commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i) }, 'undoing the rewrite');
     },
 
     undoLineMoves: is => {
       const base = get().revision;
-      if (base) commit({ ...base, lineMoves: (base.lineMoves ?? []).filter(m => !is.includes(m.i)) });
+      if (base) commit({ ...base, lineMoves: (base.lineMoves ?? []).filter(m => !is.includes(m.i)) }, 'putting the words back on their line');
     },
 
     restoreWord: i => {
       const base = get().revision;
       if (!base) return;
-      commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i), deleted: (base.deleted ?? []).filter(d => d.i !== i) });
+      commit({ ...base, rewrites: (base.rewrites ?? []).filter(r => r.i !== i), deleted: (base.deleted ?? []).filter(d => d.i !== i) }, 'undoing the word’s edits');
       get().resetWord(i);
     },
 
@@ -729,7 +865,9 @@ export const useTranscriptStore = create<State>((set, get) => {
       }
       const { revision, song } = get();
       if (!revision || !song) return;
-      if (!changeCount(revision) && revision.status === 'open') return;
+      const key = `${song.entry.id}/${revision.id}`;
+      // nothing to save until the first change; a revision on disk taken back to nothing is written again, so it says so
+      if (!changeCount(revision) && revision.status === 'open' && !written.has(key)) return;
       set({ saveState: 'saving' });
       try {
         const dir = await getSubdir(song.dir, revisionsDirOf(song.entry), true);
@@ -737,6 +875,7 @@ export const useTranscriptStore = create<State>((set, get) => {
         const rev = withTimings(revision);
         await writeFileIn(dir, revisionFileName(rev.id), JSON.stringify(rev, null, 2) + '\n');
         await writeFileIn(dir, `${rev.id}.md`, revisionToMarkdown(rev));
+        written.add(key);
         // a newer edit may have landed while writing: keep it, it saves next
         if (get().revision === revision) set({ revision: rev });
         set({ saveState: 'saved' });

@@ -132,3 +132,15 @@
     transform: translateX(100%);
   }
 }
+
+/* a text caret drawn by hand (the Transcript Cleaner's lines): on, then off */
+@keyframes caret-blink {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  56%,
+  100% {
+    opacity: 0;
+  }
+}

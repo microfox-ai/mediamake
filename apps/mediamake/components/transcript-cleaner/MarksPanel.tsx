@@ -1,19 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
-import { CheckCheckIcon, ClipboardCopyIcon, PlayIcon, RotateCcwIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
+import { CheckCheckIcon, ClipboardCopyIcon, CornerDownLeftIcon, MergeIcon, PlayIcon, Redo2Icon, RotateCcwIcon, ScissorsIcon, Trash2Icon, Undo2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Hint } from '@/components/revisions/keyboard';
 import { cn } from '@/lib/utils';
-import { changeCount, clock, LONG_WORD, longWords, TRIM_TO } from '@/lib/transcript-cleaner/transcript';
-import { MARK_LABELS, type LineMove, type Mark, type MarkKind } from '@/lib/transcript-cleaner/types';
+import { moveRuns } from '@/lib/transcript-cleaner/lines';
+import { changeCount, clock, LONG_WORD, longWords, pushedWords, TRIM_TO } from '@/lib/transcript-cleaner/transcript';
+import { MARK_LABELS, type Mark, type MarkKind } from '@/lib/transcript-cleaner/types';
 import { useTranscriptStore } from './store';
 
 /*
- * The open revision: every mark with the user's note, every word moved on the timeline, deleted, rewritten or pushed to
- * another line (each one undoable), the long words to check, and the button that copies it all for Claude. It saves
- * itself beside the transcript (<song>.transcript.revisions/rev-NNN.json and .md).
+ * The open revision: every mark with the user's note, every line split or joined (undone with ⌘Z, the latest first),
+ * every word moved on the timeline, deleted, rewritten or pushed to another line (each one undoable), the long words to
+ * check, and the button that copies it all for Claude. It saves itself beside the transcript
+ * (<song>.transcript.revisions/rev-NNN.json and .md).
  */
 
 const KIND_COLORS: Record<MarkKind, string> = {
@@ -199,18 +201,6 @@ function LongWords() {
   );
 }
 
-/** Line moves in runs: the words one push moved together, undone together so the line stays whole. */
-function runsOf(moves: LineMove[]): LineMove[][] {
-  const runs: LineMove[][] = [];
-  for (const m of [...moves].sort((a, b) => a.i - b.i)) {
-    const run = runs.at(-1);
-    const last = run?.at(-1);
-    if (run && last && last.i === m.i - 1 && last.to.stanza === m.to.stanza && last.to.line === m.to.line && last.from.stanza === m.from.stanza && last.from.line === m.from.line) run.push(m);
-    else runs.push([m]);
-  }
-  return runs;
-}
-
 function EditRow({ onPlay, onUndo, undo, children }: { onPlay: () => void; onUndo: () => void; undo: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-1.5 rounded border border-emerald-500/30 px-2 py-1 text-xs">
@@ -235,9 +225,12 @@ function Edits() {
   const undoRewrite = useTranscriptStore(s => s.undoRewrite);
   const undoLineMoves = useTranscriptStore(s => s.undoLineMoves);
   const rewrites = [...(revision?.rewrites ?? [])].sort((a, b) => a.i - b.i);
-  const runs = runsOf(revision?.lineMoves ?? []);
+  // words pushed on their own, in the runs one push moved together (undone together so the line stays whole); the
+  // words a split or a join moved are under Lines
+  const pushed = pushedWords(revision);
+  const runs = moveRuns(pushed);
   const deleted = [...(revision?.deleted ?? [])].sort((a, b) => a.i - b.i);
-  const n = rewrites.length + (revision?.lineMoves?.length ?? 0) + deleted.length;
+  const n = rewrites.length + pushed.length + deleted.length;
   if (!n) return null;
   const play = (i: number) => {
     const w = words[i];
@@ -269,6 +262,79 @@ function Edits() {
   );
 }
 
+/** Undo and redo of word edits (splits, joins, pushes, deletes, rewrites), as ⌘Z and ⇧⌘Z do. */
+function UndoRedo() {
+  const canUndo = useTranscriptStore(s => s.undoStack.length > 0);
+  const canRedo = useTranscriptStore(s => s.redoStack.length > 0);
+  const undo = useTranscriptStore(s => s.undo);
+  const redo = useTranscriptStore(s => s.redo);
+  return (
+    <>
+      <Hint label="Undo the last word edit: a split, a join, a push, a delete or a rewrite" keys="Mod Z">
+        <Button variant="ghost" size="sm" className="h-7 px-1.5" disabled={!canUndo} onClick={undo}>
+          <Undo2Icon className="size-4" />
+        </Button>
+      </Hint>
+      <Hint label="Redo" keys="⇧ Mod Z">
+        <Button variant="ghost" size="sm" className="h-7 px-1.5" disabled={!canRedo} onClick={redo}>
+          <Redo2Icon className="size-4" />
+        </Button>
+      </Hint>
+    </>
+  );
+}
+
+/** The lines split and joined, in the order done (⌘Z takes back the latest edit). */
+function LineEdits() {
+  const revision = useTranscriptStore(s => s.revision);
+  const words = useTranscriptStore(s => s.words);
+  const setCaret = useTranscriptStore(s => s.setCaret);
+  const playRange = useTranscriptStore(s => s.playRange);
+  const edits = revision?.lineEdits ?? [];
+  const renumbered = (revision?.lineMoves ?? []).filter(m => m.by === 'renumber').length;
+  if (!edits.length) return null;
+  return (
+    <div className="space-y-1.5">
+      <div className="text-xs font-semibold">Lines split and joined ({edits.length})</div>
+      {edits.map((e, n) => (
+        <button
+          key={`${e.kind}-${e.i}-${n}`}
+          className="flex w-full items-start gap-1.5 rounded border border-violet-500/30 px-2 py-1 text-left text-xs hover:bg-muted/40"
+          title="Put the caret there and play it"
+          onClick={() => {
+            const w = words[e.i];
+            if (!w) return;
+            setCaret({ i: e.i, end: false });
+            playRange(w.start - 1.2, w.end + 1.2);
+          }}
+        >
+          {e.kind === 'split' ? <CornerDownLeftIcon className="mt-0.5 size-3 shrink-0 text-violet-600 dark:text-violet-300" /> : <MergeIcon className="mt-0.5 size-3 shrink-0 text-violet-600 dark:text-violet-300" />}
+          <span className="min-w-0 flex-1 leading-snug">
+            {e.kind === 'split' ? (
+              <>
+                Split <span className="text-muted-foreground">“{e.line.slice(0, Math.max(0, e.line.length - e.toLine.length)).trim()}</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-300"> ↵ </span>
+                <span className="text-muted-foreground">{e.toLine}”</span>
+              </>
+            ) : (
+              <>
+                Joined <span className="text-muted-foreground">“{e.toLine}</span>
+                <span className="font-semibold text-violet-600 dark:text-violet-300"> + </span>
+                <span className="text-muted-foreground">{e.line}”</span>
+              </>
+            )}{' '}
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {e.at.stanza ?? '–'}.{e.at.line ?? '–'}
+              {e.renumbered ? ` · ${e.renumbered} below renumbered` : ''}
+            </span>
+          </span>
+        </button>
+      ))}
+      {renumbered > 0 && <p className="text-[10px] leading-snug text-muted-foreground">{renumbered} words keep their line and only get its new number: they’re in the text for Claude too.</p>}
+    </div>
+  );
+}
+
 function HowTo() {
   return (
     <div className="space-y-2 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
@@ -285,6 +351,10 @@ function HowTo() {
         </li>
         <li>
           Right-click a word to <b>rewrite</b> it (↵), <b>delete</b> it (⌫), mark it, or <b>push it to the next or previous line</b>.
+        </li>
+        <li>
+          Edit the lines under the timeline like text: click a word (the song jumps there), <b>↵</b> starts a new line at the caret, <b>⌫</b> at a line's start joins it to the line above,{' '}
+          <b>⌘Z</b> undoes.
         </li>
         <li>
           <b>Copy for Claude</b> and paste it in the chat. Nothing changes in the transcript until Claude applies it.
@@ -304,7 +374,8 @@ export function MarksPanel() {
   const setStatus = useTranscriptStore(s => s.setStatus);
   const marks = [...(revision?.marks ?? [])].sort((a, b) => a.at - b.at);
   const count = changeCount(revision);
-  const edits = (revision?.deleted?.length ?? 0) + (revision?.rewrites?.length ?? 0) + (revision?.lineMoves?.length ?? 0);
+  const edits = (revision?.deleted?.length ?? 0) + (revision?.rewrites?.length ?? 0) + pushedWords(revision).length;
+  const lineEdits = revision?.lineEdits?.length ?? 0;
   if (!song) return <div className="p-4 text-xs text-muted-foreground">Open a song to mark what's wrong in it.</div>;
   return (
     <div className="flex h-full flex-col">
@@ -313,11 +384,12 @@ export function MarksPanel() {
           <div className="text-xs font-semibold">{revision ? revision.id : 'No revision yet'}</div>
           <div className="text-[10px] text-muted-foreground">
             {revision
-              ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks · ${revision.timings.length} moved${edits ? ` · ${edits} edited` : ''}`
+              ? `${revision.status === 'ready' ? 'ready for Claude' : revision.status} · ${marks.length} marks · ${revision.timings.length} moved${edits ? ` · ${edits} edited` : ''}${lineEdits ? ` · ${lineEdits} line${lineEdits === 1 ? '' : 's'} split or joined` : ''}`
               : 'starts with your first change'}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+          <UndoRedo />
           {revision && (
             <Hint label={revision.status === 'ready' ? 'Reopen it' : 'Mark it ready: you are done with this song for now'}>
               <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setStatus(revision.status === 'ready' ? 'open' : 'ready')}>
@@ -343,6 +415,7 @@ export function MarksPanel() {
               ))}
             </div>
           )}
+          <LineEdits />
           <Edits />
           <Moves />
           <LongWords />

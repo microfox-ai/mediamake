@@ -13,7 +13,8 @@ import { LONG_WORD, momentAt } from '@/lib/transcript-cleaner/transcript';
 import type { MarkKind } from '@/lib/transcript-cleaner/types';
 import { MarksPanel } from './MarksPanel';
 import { SongsPanel } from './SongsPanel';
-import { LinesList, Stage } from './Stage';
+import { LinesEditor } from './LinesEditor';
+import { Stage } from './Stage';
 import { WordTimeline } from './WordTimeline';
 import { isLong } from './WordMenu';
 import { RATES, useTranscriptStore } from './store';
@@ -35,7 +36,8 @@ const SHORTCUTS: [string, string][] = [
   ['↑ ↓', 'Previous / next line'],
   [', .', 'Previous / next word (selects it)'],
   ['P', 'Play the selected word'],
-  ['Right-click a word', 'Its menu: rewrite, delete, mark, push to the next or previous line, trim'],
+  ['Mod Z', 'Undo a word edit: split, join, push, delete, rewrite (⇧: redo)'],
+  ['Right-click a word', 'Its menu: rewrite, delete, mark, new line, join, push to the next or previous line, trim'],
   ['↵', 'Rewrite the selected word'],
   ['⌫', 'Delete the selected word (again: keep it)'],
   ['W', 'Mark a wrong word'],
@@ -54,6 +56,18 @@ const SHORTCUTS: [string, string][] = [
   ['Esc', 'Deselect the word'],
   ['Mod S', 'Save now'],
   ['?', 'Show these shortcuts'],
+];
+
+/** In the song's lines under the timeline, where a caret moves through the words as in a text editor. */
+const LINE_SHORTCUTS: [string, string][] = [
+  ['Click a word', 'The caret there (its right half: after it), the song to its start'],
+  ['↵', 'Split the line at the caret: the words after it become a new line'],
+  ['⌫', 'At a line’s start: join it to the line above; else strike out the word before the caret'],
+  ['⌦', 'Strike out the word after the caret (fn ⌫ on a Mac); at a line’s end: join the next line on'],
+  ['← → ↑ ↓', 'Move the caret (Home, End or Mod ← →: the line’s ends)'],
+  ['⇧ ↵', 'Rewrite the word at the caret'],
+  ['W T M X N S E P', 'As everywhere, on the word at the caret; Space still plays'],
+  ['Esc', 'Leave the lines'],
 ];
 
 const MARK_BY_KEY: Record<string, MarkKind> = { w: 'wrong-word', t: 'wrong-timing', m: 'missing-word', x: 'extra-word', n: 'note' };
@@ -87,7 +101,16 @@ function useShortcuts() {
       }
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target?.closest('[role="menu"],[role="listbox"],[role="dialog"]')) return;
-      if (mod) return;
+      if (mod) {
+        // ⌘Z undoes the last word edit (a split, a join, a push, a delete, a rewrite), ⇧⌘Z or Ctrl+Y redoes it
+        const key = e.key.toLowerCase();
+        if ((key === 'z' || key === 'y') && !e.altKey) {
+          e.preventDefault();
+          if (key === 'y' || e.shiftKey) s.redo();
+          else s.undo();
+        }
+        return;
+      }
       if (e.altKey) {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
           e.preventDefault();
@@ -301,18 +324,25 @@ function Header() {
               </Button>
             </PopoverTrigger>
           </Hint>
-          <PopoverContent align="end" className="w-[26rem] p-3">
-            <div className="mb-2 text-xs font-semibold">Shortcuts</div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-              {SHORTCUTS.map(([keys, label]) => (
-                <div key={keys} className="contents">
-                  <dt className="font-mono text-muted-foreground">
-                    <ShortcutKeys keys={keys} />
-                  </dt>
-                  <dd>{label}</dd>
-                </div>
-              ))}
-            </dl>
+          <PopoverContent align="end" className="max-h-[min(80vh,var(--radix-popover-content-available-height))] w-[26rem] overflow-y-auto p-3">
+            {[
+              ['Shortcuts', SHORTCUTS],
+              ['In the song’s lines', LINE_SHORTCUTS],
+            ].map(([title, list], n) => (
+              <div key={n} className={cn(n > 0 && 'mt-3 border-t pt-3')}>
+                <div className="mb-2 text-xs font-semibold">{title as string}</div>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                  {(list as [string, string][]).map(([keys, label]) => (
+                    <div key={keys} className="contents">
+                      <dt className="font-mono text-muted-foreground">
+                        <ShortcutKeys keys={keys} />
+                      </dt>
+                      <dd>{label}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
           </PopoverContent>
         </Popover>
       </div>
@@ -365,7 +395,7 @@ function Center() {
       <Stage />
       <WordTimeline />
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <LinesList />
+        <LinesEditor />
       </div>
     </div>
   );
