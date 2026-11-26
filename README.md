@@ -1,164 +1,194 @@
 # MediaMake
 
-> **Work in progress.** Contact [karcreativeworks](https://github.com/karcreativeworks) for access, requests or to contribute.
+**Skills, MCPs and apps that let Claude make content with you:** videos, Shorts, thumbnails, cartoons,
+music and everything around them. Every one of them was used to make something real before it was
+published. Here is some of what was made with it.
 
-MediaMake turns JSON into videos. It is built on [Remotion](https://www.remotion.dev): a video is a
-timeline of presets (a scene, then tracks such as captions or a waveform, then effects) plus the media
-they point at, and the app renders it on AWS Lambda or on your own machine. Around that sit the tools
-for making content with Claude: an MCP server, a library of skills, brand kits, review apps and a
-catalog for handing all of it out.
+<table>
+  <tr>
+    <td width="25%" align="center" valign="top">
+      <a href="https://www.youtube.com/shorts/TQsfMIO5mhM"><img src="https://i.ytimg.com/vi/TQsfMIO5mhM/hqdefault.jpg" alt="Screaming to Win, a kinetic type Short"></a>
+      <br><b>Screaming to Win</b><br><sub>Kinetic type Short · <a href=".agents/skills/make-kinetictype-buildup-punch">make-kinetictype-buildup-punch</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href="https://www.youtube.com/shorts/hZ-Z--6i3kw"><img src="https://i.ytimg.com/vi/hZ-Z--6i3kw/hqdefault.jpg" alt="Someone Took, a kinetic type Short"></a>
+      <br><b>Someone Took</b><br><sub>Kinetic type Short · <a href=".agents/skills/make-kinetictype-like-screamingtowin">make-kinetictype-like-screamingtowin</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href=".agents/skills/make-painted-cartoon/shots/clawd-and-the-butterfly.mp4"><img src=".agents/skills/make-painted-cartoon/shots/clawd-and-the-butterfly.jpg" alt="Clawd and the butterfly, a painted cartoon"></a>
+      <br><b>Clawd and the butterfly</b><br><sub>Painted cartoon · <a href=".agents/skills/make-painted-cartoon">make-painted-cartoon</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href=".agents/skills/make-painted-cartoon/shots/capture-the-flag.mp4"><img src=".agents/skills/make-painted-cartoon/shots/capture-the-flag-face-off.jpg" alt="Capture the Flag, a painted cartoon"></a>
+      <br><b>Capture the Flag</b><br><sub>Painted cartoon · <a href=".agents/skills/make-painted-cartoon">make-painted-cartoon</a></sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="25%" align="center" valign="top">
+      <a href="https://www.youtube.com/watch?v=7C88BcfQJoM"><img src=".agents/skills/create-thumbnail/shots/cook-with-claude-ep1-B1.jpg" alt="Cook with Claude episode 1 thumbnail"></a>
+      <br><b>Cook with Claude, ep. 1</b><br><sub>Thumbnail · <a href=".agents/skills/create-thumbnail">create-thumbnail</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href=".agents/skills/create-thumbnail"><img src=".agents/skills/create-thumbnail/shots/doomcat-ep3-H3.jpg" alt="Doomcat episode 3 thumbnail"></a>
+      <br><b>Doomcat, ep. 3</b><br><sub>Thumbnail · <a href=".agents/skills/create-thumbnail">create-thumbnail</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href=".agents/skills/create-thumbnail"><img src=".agents/skills/create-thumbnail/shots/wake-up-E1.jpg" alt="WAKE UP song thumbnail"></a>
+      <br><b>WAKE UP</b><br><sub>Thumbnail · <a href=".agents/skills/create-thumbnail">create-thumbnail</a></sub>
+    </td>
+    <td width="25%" align="center" valign="top">
+      <a href=".agents/skills/create-thumbnail"><img src=".agents/skills/create-thumbnail/shots/postcards-from-tomorrow-A2.jpg" alt="Postcards from Tomorrow song thumbnail"></a>
+      <br><b>Postcards from Tomorrow</b><br><sub>Thumbnail · <a href=".agents/skills/create-thumbnail">create-thumbnail</a></sub>
+    </td>
+  </tr>
+</table>
+
+Browse everything at [mediamake.microfox.app](https://mediamake.microfox.app). Each item has one page:
+`/skills/<name>`, `/mcps/<name>` or `/apps/<name>` (for example
+[/skills/create-thumbnail](https://mediamake.microfox.app/skills/create-thumbnail)).
 
 ## The rule
 
-**We publish nothing we don't use.** Every skill, MCP and app here was used by its maker to make
-something real before it was published. An item is **Beta** until a finished production made with it is
-on record, then **Ready**, and its page shows that production under "Made with this". Contributing
-follows the same rule: a pull request that adds or changes a skill, MCP or app names the production it
-was used on (the pull request template asks for it, and so does `node tools/skills.mjs publish`).
+**We publish nothing we don't use.** A skill, MCP or app goes into the store only after it was used for
+real work, and it names that work when it is sent in. Every item starts as **Beta**. An admin marks it
+**Ready** once a finished production proves it, and its page shows that production under
+"Made with this".
+
+## How it works
+
+There are two sides: **sending an item in** (submit, review, release) and **getting items** (sign in
+once, and your membership decides what installs).
+
+```mermaid
+flowchart LR
+  subgraph Make["1 · Make it"]
+    A["Your skill, MCP or app<br/>(in your space)"] --> B["Use it for real work<br/>(a finished production)"]
+  end
+
+  subgraph Submit["2 · Send it in"]
+    B --> C["mm submit<br/>checks for keys, tokens, local paths"]
+    C --> D{"Who sends it?"}
+    D -- "Public, Plus, Pro member" --> E["Admin review<br/>/app/submissions"]
+    D -- "Admin, or a Cohort author's update" --> F["Published directly"]
+    E -- "approve + pick a tier" --> F
+  end
+
+  subgraph Store["3 · The store"]
+    F --> G["Public skill:<br/>pull request on this repo"]
+    F --> H["Plus · Pro · Cohort skill,<br/>every MCP and app:<br/>package in the private store"]
+    G --> I["Item page<br/>/skills · /mcps · /apps<br/>(Beta → Ready)"]
+    H --> I
+  end
+
+  subgraph Pull["4 · Get it"]
+    J["mm login<br/>(once, in the browser)"] --> K["mm items install --yes"]
+    I --> K
+    K --> L{"Your membership<br/>opens it?"}
+    L -- yes --> M["Installed on this computer<br/>skills, MCPs, apps"]
+    L -- no --> N["The page says which<br/>membership opens it"]
+  end
+```
+
+### Sending an item in
+
+1. **Make it in your space.** A new skill is started with the `mm-new-item` skill, in your own private
+   space (a GitHub repo of yours), never by hand in this repo.
+2. **Use it.** Make something real with it: a video, a thumbnail, a song.
+3. **Submit it.** Ask Claude to "make this public" (the `mm-submit-to-store` skill), or run
+   `mm submit <name>`. It checks the files for keys, tokens and paths on your computer, then
+   `mm submit <name> --yes --made="<the production>"` sends it. Cohort members and admins may leave
+   out `--made`.
+4. **Review.** An admin reads it on `/app/submissions`, picks the lowest membership that opens it
+   (Public, Plus, Pro or Cohort) and approves, asks for changes or declines. An admin's own item, and an
+   update a Cohort author sends for an item already in the store, skip the review.
+5. **Release.** A Public skill becomes a pull request on this repo. Everything else (a Plus, Pro or
+   Cohort skill, and every MCP and app) is released as a package from the private store repo. Its
+   README becomes its store listing.
+
+Getting an item accepted earns you a membership for 3 months (a Public or Plus item earns Plus, a Pro
+item earns Pro). Contributing again renews it.
+
+### Getting items
+
+Access follows one ladder: **Public → Plus → Pro → Cohort → Admin**. Each membership opens everything
+below it. There are no codes to copy and no prompts to paste.
+
+1. `mm login` signs this computer in, once. Your browser opens, you click **Allow**, and the computer's
+   key stays in its keychain.
+2. `mm items` shows your account, your membership, and each MCP and app it opens (installed, behind or
+   missing).
+3. `mm items install --yes` installs or updates all of them. `mm items install <id> --yes` installs one
+   (for example `mcp/browse-hack`). New MCPs are added to Claude Code for every project.
+
+Public skills need no install: they come with this repo (`.agents/skills/`, linked from
+`.claude/skills/`), so they load as soon as you open it in Claude Code. Skills your team shares come
+through your project's space (`mm space join <project>`, then `mm space sync`).
+
+## Set up MediaMake
+
+You need **git**, a **GitHub sign-in** (`gh auth login`), **Node 22.6 or newer**, **uv** and
+**ffmpeg**. The easiest way is to open Claude Code anywhere and say **"set up MediaMake"**: the
+`setup-mediamake` skill installs and checks everything, and is safe to run again.
+
+Or do it yourself:
+
+```bash
+gh repo clone microfox-ai/mediamake ~/mediamake
+cd ~/mediamake
+npm ci                       # installs exactly what the lockfile says
+npm run mm -- link           # puts the `mm` command on your PATH
+mm migrate --yes             # sets up your workspace in ~/MediaMake
+mm doctor --fix              # checks the machine and fixes what it can
+mm login                     # sign in to MediaMake (click Allow in the browser)
+mm items install --yes       # install what your membership opens
+```
+
+Then open the folder in Claude Code and ask for something, like "make a thumbnail for this video".
+
+**Day to day**
+
+| Command | What it does |
+| --- | --- |
+| `mm help` | Lists every command |
+| `mm doctor` | Checks Node, uv, ffmpeg, dependencies, builds, the render browser, git, your workspace and keys (`--fix` repairs what it can) |
+| `mm update` | Brings this checkout up to GitHub, reinstalls dependencies when they changed, then runs `mm doctor`. Edits you made on `main` stop it; `mm update --yes` keeps them on a `local/<date>` branch first |
+| `mm workspace` | Shows where your projects, renders and brand kits live (`~/MediaMake`, outside the checkout) |
+| `mm preview` | Opens Remotion Studio |
+| `mm render <slug> --preview` | Renders a 10-second preview on this computer |
+| `mm cloud` | Sets up a Claude Code cloud session to build and render a project there |
+
+Your own work (projects, renders, brand kits) lives in your workspace, not in this checkout, so
+`main` always stays a clean copy of GitHub.
 
 ## What's in the repo
 
 ```
 apps/
-  mediamake/          The Next.js app: Core dashboard, editor, API, hosted MCP, catalog, review apps
-  studio/             Remotion workspace where every video is made: lyric videos, remixes, AMVs, shorts, posters (`mm`)
-  writepad/           A separate writing app (Next.js), not part of the MediaMake site
+  mediamake/      The website and app: the store, item pages, spaces, library, reviews, hosted MCPs
+  studio/         The Remotion workspace where every video is made (the `mm` command)
 packages/
-  remotion/           @microfox/remotion: JSON → Remotion components (scenes, layouts, atoms, effects)
-  datamotion/         @microfox/datamotion: data-driven component configs used by the AI agents
-  mediamake-mcp/      @microfox/mediamake-mcp: the MCP server (local stdio / .mcpb build)
-tools/
-  skills.mjs          Lists, forks and publishes skills, builds skills.json, checks them for keys and paths
-  eslint-config/, tsconfig/   Shared lint and TypeScript configs
-scripts/              Release and CI helper scripts (used by .github/workflows)
-private/              Your unreleased MCPs and apps. Gitignored except its README
-.agents/skills/       Every skill (all public, committed); .claude/skills links to them
-install.md            What Claude follows to install a catalog item
+  remotion/       @microfox/remotion: JSON → Remotion components
+  datamotion/     @microfox/datamotion: data-driven component configs
+  mediamake-mcp/  The MediaMake MCP server
+tools/            The scripts behind `mm` (items, submit, login, skills, guard rails)
+.agents/skills/   Every public skill (linked from .claude/skills)
+install.md        What Claude follows to install an item on a computer
 ```
 
-## The app (`apps/mediamake`)
-
-The site has a public side and a signed-in side.
-
-- **`/`** is the homepage and catalog: MCPs, skills, apps and tutorials, each with an install prompt.
-- **`/apps`** is the launcher for every app below, with the ones you can open marked.
-- **`/app/...`** is the signed-in app, behind **Enter App**: Home, Explore, Mine and Projects (Plus and
-  above), then your API keys, signed-in devices and membership. Admins also get **`/app/releases`**, the
-  release dashboard (see below), the MediaMake MCP page, billing and memberships.
-- **`/core/...`** is MediaMake Core, deprecated: the older editor, presets, media, the transcriber,
-  render history, workers, agents and quota. It still works by its address, but nothing links to it.
-- **Review and browser apps**, open to everyone: `/remotion-editor` (edit lyric videos in the
-  browser), `/video-revision` and `/file-revision` (comment on renders and image sets, track
-  revisions), `/skill-library` (browse the skills on your computer with their variants and the
-  projects that used them) and `/skills` (the public skills index).
-- **`/skills/<name>`, `/mcps/<name>`, `/apps/<name>`**: every catalog item's own page, the only page it has.
-
-### Rendering: Lambda or local
-
-Every render gets a suggestion for where to run, with the reason. Light renders (images, one song, a
-few short clips) go to Lambda; heavy ones (big files, many minutes of video) are suggested locally,
-because Lambda cost grows with media volume. You can always pick either. Lambda is limited to admins,
-the private tier and clients with the `lambdaRender` flag. Local means the editor's Browser render tab,
-`remotion render`, or the `studio` scripts. Details:
-[render-routing.md](apps/mediamake/docs/render-routing.md).
-
-### Brand kits
-
-A cloud project (a channel or brand) can carry a brand kit: colours, fonts, brand guide, logos,
-intros, outros, end screens and sounds. Upload the folder the `pack-brand-kit` skill exports from the
-Projects page, or with the MCP's `upload_brand_kit`. Needs a Plus membership or above.
-
-### Generations
-
-A cloud project also keeps the channel's song takes: every song, cover, extend and remaster made with
-Suno, with its styles, lyrics, model, settings and audio. Browse Hack saves each take as it is made.
-The Generations sheet on the Projects page plays them, rates them keeper, maybe or reject, keeps notes
-and style presets, and copies a take for Claude to make more from; the MCP has `list_generations` and
-`rate_generation`. Same access as brand kits. Routes and fields:
-[generations.md](apps/mediamake/docs/generations.md).
-
-### Catalog, tiers and releases
-
-**Skills are public by default**: every skill is committed in this repo and open to everyone, with
-nothing hidden. **Apps and MCPs** are the gated ones: they are handed out as catalog items, their
-packages live in private storage, and each names the lowest membership that opens it on one strict
-ladder: **Public, Plus, Pro, Cohort, Admin** (the vault, never published). Each tier opens everything
-below it, and a gated item can be set to turn public after a date. People hold a tier too, as a
-membership record that says how they got it (a contribution lasts 3 months). Every item is also **Beta**
-or **Ready** (proven by a finished production) and has a health (a failed one says why).
-
-- **Install an item**: open its page (`/skills/<name>`, `/mcps/<name>` or `/apps/<name>`), copy the install
-  prompt and paste it into Claude. Claude follows [install.md](install.md).
-- **Release and share** (admins): `/app/releases` shows a board per tier (skills always sit in Public), the release timeline,
-  people per tier and per-item access. From the terminal: `npm run catalog` in `apps/mediamake`.
-  See [catalog-releases.md](apps/mediamake/docs/catalog-releases.md).
-
-## The MCP server
-
-Lets Claude (or any MCP client) drive MediaMake: projects and timelines, presets, media,
-transcription, workers and agents, brand kits, song takes and renders. Two ways to add it:
-
-- **Hosted, by URL** (nothing to install): add `https://<your-mediamake-host>/mcp` as a custom
-  connector in Claude and sign in with your MediaMake account. In Claude Code:
-  `claude mcp add --transport http mediamake https://<your-mediamake-host>/mcp`. It can't see your
-  files, so media comes in by URL.
-- **Local** (`.mcpb` for Claude Desktop, or stdio): runs on your machine with an API key and can read
-  and write local files. Build with `npm run build:mcpb --workspace @microfox/mediamake-mcp`. The
-  repo registers no MCP for you (no `.mcp.json`): each computer adds its own, with the line in the
-  package's README.
-
-Full tool list and setup: [packages/mediamake-mcp/README.md](packages/mediamake-mcp/README.md).
-
-## Skills
-
-Claude Code skills for making content: lyric videos and shorts, music remixes, thumbnails, posters,
-brand kits, YouTube upload packs and more. Named `<verb>-<thing>` (`make-*` for videos, `create-*` for
-images, `pack-*` for bundles, and so on). **Every skill is public**: its files are committed in
-`.agents/skills/` and `.claude/skills/` links to them, so they load for anyone who opens the repo.
-[mediamake.microfox.app/skills](https://mediamake.microfox.app/skills) lists them all (and
-`node tools/skills.mjs list` here). A variant you fork (`mm-fork-skill`) or your team shares starts as
-yours, in your workspace (`~/MediaMake/skills/`, linked from `~/.claude/skills/`), and
-`node tools/skills.mjs publish <name> --yes --made="<the production made with it>"` sends it to the repo
-as a pull request (`mm-publish-item`; it refuses without the production, see [The rule](#the-rule));
-`node tools/skills.mjs check` (also run in CI) fails when a skill holds an API key, a token or a path
-on your machine. The registry the site reads, `skills.json`, is built (by the app's `build` and `dev`),
-never committed.
-
-## Getting started
-
-Needs Node 22.6 or newer (the studio's scripts run their TypeScript with Node's own type stripping).
-`npm run mm -- doctor` checks this machine (Node, uv, ffmpeg, dependencies, builds, the render
-browser, git, your workspace, an ElevenLabs key) and says how to fix what's missing; `--fix` does what
-it can itself.
-
-```bash
-npm ci                                          # exactly the lockfile; npm install would rewrite it
-npm run build --workspace=@microfox/remotion   # the app imports the built package
-cd apps/mediamake && npm run dev                # http://localhost:3000
-```
-
-Put the app's environment in `apps/mediamake/.env.local` (MongoDB, Upstash Redis, S3/Spaces, Remotion
-AWS keys, AI provider keys); see [apps/mediamake/README.md](apps/mediamake/README.md). With
-`DEV_CLIENT_KEY` set, the dev server signs your browser in on its own.
-
-Videos are made in [apps/studio](apps/studio/README.md) with the `mm` command: `npm run mm -- link`
-once puts it on your PATH, then `mm help` lists its commands (`mm preview` opens Remotion Studio).
-`apps/studio` was `apps/lyrics_videos` until November 2026: after pulling that change, `mm migrate`
-moves your projects and renders across.
-
-To update, run `mm update`: it brings main up to GitHub's, runs `npm ci` when the dependencies
-changed, then `mm migrate` and `mm doctor`. Edits or commits you made on main stop it with a list;
-`mm update --yes` keeps them on a `local/<date>` branch first (`--push` sends it to GitHub for a PR).
+To run the website locally: `npm run build --workspace=@microfox/remotion`, then
+`cd apps/mediamake && npm run dev` (its settings go in `apps/mediamake/.env.local`; see
+[apps/mediamake/README.md](apps/mediamake/README.md)).
 
 ## More docs
 
-- [apps/mediamake/docs](apps/mediamake/docs/README.md): presets, rendering, ElevenLabs, recording,
-  and the [September 2026 feature notes](apps/mediamake/docs/features-2026-09/README.md) (canvas
-  pipeline, editor collaboration, browser rendering)
-- [packages/remotion/docs](packages/remotion/docs/QUICKSTART.md): the `@microfox/remotion` API
+- [apps/studio/README.md](apps/studio/README.md): making videos with `mm`
+- [Store submissions](apps/mediamake/docs/submissions.md) and [catalog releases](apps/mediamake/docs/catalog-releases.md)
+- [Spaces](apps/mediamake/docs/private-spaces.md), the [Cloud Library](apps/mediamake/docs/library.md) and [cloud and device runs](apps/mediamake/docs/cloud-device-runs.md)
+- [Item READMEs](apps/mediamake/docs/item-readme.md): how a store listing is written
+- [What MediaMake knows about you](apps/mediamake/docs/usage.md)
 - Related: the [Browse Hack extension and its MCP](https://github.com/microfox-ai/extensions)
 
 ## License
 
-MIT for this repository ([LICENSE](LICENSE)). MediaMake is built on Remotion, which needs a company
-license for some commercial use; see Remotion's licensing terms.
+MIT for this repository ([LICENSE](LICENSE)). MediaMake is built on [Remotion](https://www.remotion.dev),
+which needs a company license for some commercial use; see Remotion's licensing terms.
