@@ -30,11 +30,11 @@ assert len(entries) == len(screens), (len(entries), len(screens))
 for k, s in zip(entries, screens):
     l = lines[k]
     if s['kind'] != 'stack' or s['index'] in masks: continue
-    if "reverse: { flip" in l: continue  # one held word as black words over the whole shot: keep
     fa = re.match(r"(\s*)stack\((\[[^\]]*\]|'[^']*'|\"[^\"]*\")", l)
     if not fa: continue
     ind, find = fa.group(1), fa.group(2)
     opts = []
+    # a reversed screen (black words over the footage) is gone: it becomes a lockup like the rest
     for key in ('at', 'end'):
         mm = re.search(rf"\b{key}: ([0-9.]+)", l)
         if mm: opts.append(f"{key}: {mm.group(1)}")

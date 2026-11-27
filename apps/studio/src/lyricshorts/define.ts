@@ -1,10 +1,10 @@
 /**
  * projects/<slug>/shorts/<id>/index.tsx:
  *
- *   export default defineLyricShort({ slug: 'eyesofpink', short, edl, theme, faces, luma });
+ *   export default defineLyricShort({ slug: 'eyesofpink', short, edl, theme, faces });
  *
- * `faces`: projects/<slug>/footage/faces.json, the subject of every footage shot (cuts frame on it);
- * `luma`: shorts/<id>/luma.json, each clip's brightness (written by `clips`: white words on dark shots).
+ * `faces`: projects/<slug>/footage/faces.json, the subject of every footage shot (cuts frame on it).
+ * (`luma`, the luma.json older shorts pass, is ignored: it was for the black words over the footage, now gone.)
  *
  * One composition per format in short.json, '<slug>-<id>-9x16', playing only the short's window of the
  * song (Root.tsx discovers shorts/<id>/index.tsx; `mm lyric-shorts <slug> render <id>`).
@@ -34,7 +34,7 @@ export type LyricShortSpec = {
   loop?: boolean;
 };
 
-export const defineLyricShort = ({ slug, short, edl, theme, faces, luma }: { slug: string; short: LyricShortSpec; edl: LyricShortEdl; theme: LyricShortTheme; faces?: Faces; luma?: Luma }): ProjectDefinition[] =>
+export const defineLyricShort = ({ slug, short, edl, theme, faces }: { slug: string; short: LyricShortSpec; edl: LyricShortEdl; theme: LyricShortTheme; faces?: Faces; /** @deprecated ignored */ luma?: Luma }): ProjectDefinition[] =>
   short.formats.map(format => ({
     id: `${slug}-${short.id}-${format}`,
     slug,
@@ -42,5 +42,5 @@ export const defineLyricShort = ({ slug, short, edl, theme, faces, luma }: { slu
     width: LYRIC_SHORT_FORMATS[format][0],
     height: LYRIC_SHORT_FORMATS[format][1],
     window: { from: short.from, to: short.to, fadeIn: short.fadeIn, fadeOut: short.fadeOut },
-    layers: [{ scene: LyricShort, at: 'all', name: `lyric short ${short.id}`, props: { slug, edl, theme, window: { from: short.from, to: short.to }, loop: short.loop, faces, luma } }],
+    layers: [{ scene: LyricShort, at: 'all', name: `lyric short ${short.id}`, props: { slug, edl, theme, window: { from: short.from, to: short.to }, loop: short.loop, faces } }],
   }));
