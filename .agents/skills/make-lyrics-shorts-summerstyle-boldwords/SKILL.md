@@ -243,8 +243,11 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    With none given, gather it yourself: **twixtor packs from YouTube** (`ytsearch12:"<character> twixtor
    clips 4k"`; Wyunye's "Twixtor Clips For Edit 4K60FPS" packs are clean, no watermark; "Manga Animation"
    packs add a second look but often carry burned-in captions and a disclaimer card) and **Pinterest
-   wallpapers / manga panels** (`uvx gallery-dl --range 1-30 --filter "extension in ('jpg','jpeg','png',
-   'webp')" "https://www.pinterest.com/search/pins/?q=<character> wallpaper"`, no login needed), turned
+   wallpapers / manga panels, at least 50 to 100 pins a song**, over several searches (the character's
+   wallpapers, the scenes the lyrics are about, manga panels, fan art): Browse Hack's
+   `pinterest_bulk_start`, or `uvx gallery-dl --range 1-40 --filter "extension in ('jpg','jpeg','png',
+   'webp')" "https://www.pinterest.com/search/pins/?q=<search>"` per search, no login needed. A handful
+   from one or two searches is too few to pick from. The best of them are turned
    into an art reel: `scripts/artvideo.py` (each picked picture 4 s, contained over a blurred cover of
    itself, a slow push-in, hard cuts, 2560×1440) — then segregated like any footage.
 3. **A style reference** (optional): a reel whose look they want; this skill's default is the one above.
@@ -879,6 +882,10 @@ When the user wants them shared, `mm notes promote make-lyrics-shorts-summerstyl
   shorts of a project are cast together, each with its own shots and scenes; only a vibe shot or an aura
   close-up of the character comes back (`again: true` on its cut), and `clips` warns about any other shot
   another short shows.
+- 2026-11-27 — After a song's shorts made from eight Pinterest pins out of two searches: "so less number of
+  pinterest, a lot more pins should be downloaded atleast 50 to 100" → "What it needs" 2: at least 50 to 100
+  pins a song, over several searches (wallpapers, the lyrics' scenes, manga panels, fan art), and the best
+  of them make the art reel.
 - 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
   MCP's key (`mm transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
