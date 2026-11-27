@@ -34,14 +34,17 @@ released under a Latin title, read from its lyrics, tags or artwork), its length
 the master), artist, record label, use (internal only, unreleased, released), ISRC,
 release date, genres, DistroKid details (a group, key by key: the release's own keys below, its
 language, songwriters and AI disclosure, then whatever the pack holds), store links (one a platform),
-playlists (many a platform), lyrics, what the song is about (in English: who, the story, who it is for
-and when they would listen), a part-by-part description, and the slots master, transcript, stems,
+playlists (many a platform), lyrics, a description (public: what the song is, from its YouTube
+description or DistroKid details, else written from the lyrics), an internal description (private, for
+the owner and the team: what the song is based on, such as the anime, character and scene behind it;
+never copied into anything public), a part-by-part description, and the slots master, transcript, stems,
 release artwork and DistroKid pack. A song has one master, one lyrics and one transcript: a new one
 replaces the old, which the entry's history names.
 
 **Versions.** A collection keeps the template it was made from. When that template gets a new version
-(Songs is at 3: the title in its own script in place of the title in Latin letters, the length and
-what the song is about; the DistroKid group's language, songwriters and AI disclosure), the collection
+(Songs is at 4: the description and the internal description; at 3 the title in its own script in
+place of the title in Latin letters, the length and what the song is about; the DistroKid group's
+language, songwriters and AI disclosure), the collection
 reads as the new one (`upgradeTemplate`), without the fields the new version retired (`retired`):
 its fields, slots and guide are the new version's, and a field only the collection has is kept after
 them. Nothing is written back and no entry changes; a template only guides.

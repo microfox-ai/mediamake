@@ -27,7 +27,8 @@ One question covers one song. For a change to a song that is there, list each fi
 | --- | --- | --- |
 | Song title, artist | The DistroKid pack, the audio file's tags, the folder name, the person | |
 | Title in its own script | The song's own lyrics, its audio file's tags, its artwork or thumbnail | Transliterate by guess |
-| About the song | Written from the lyrics, in English: who it is about, the story it tells, who it is for and when they would listen | Claim a source, a festival or a fact the words don't support |
+| Description | Public: what the song is, in a line or two, as the song's own YouTube description introduces it (its intro lines, before the lyrics), else the DistroKid details. With neither, written from the lyrics in English: who it is about, the story it tells, who it is for and when they would listen | Invent a source, a festival or a fact the words don't support. Name a character or a show the song's public words don't name |
+| Internal description | Private, for the owner and the team: what the song is based on, in one or two lines. For a song written about an anime: the series, the character and the scene or arc it draws on, from the song folder (titles, lyrics, notes), its video's title and description, and what the person says. "Not anime-based" when it isn't. Say "unsure" beside anything the evidence only suggests | Copy it into a description, a store, a release or anything public. Guess a scene the evidence doesn't point to |
 | Length | Measured from the master, as m:ss | Copy it from a store page |
 | Use | The person. Internal only when the song was never meant for release | Assume released |
 | ISRC, release date | The DistroKid pack or the person | Guess, or build one from a pattern |
@@ -68,11 +69,12 @@ A song has one master, one lyrics and one transcript. Putting a new one in repla
 - The transcript is in the lyrics' script.
 - The parts run from 0:00 to the master's end with no gap.
 - A song marked internal only, or unreleased, goes in nothing public.
+- The internal description is in nothing public: not the description, a store, a release or a video's words.
 `;
 
 export const SONGS: Template = {
   id: 'songs',
-  version: 3,
+  version: 4,
   name: 'Songs',
   noun: 'song',
   about: 'A channel’s songs: the master, the words, the release details, the links and the numbers, kept once and reused.',
@@ -91,7 +93,8 @@ export const SONGS: Template = {
     { key: 'storeLinks', label: 'Store links', kind: 'links', group: 'Release', learns: 'platform', neverGuess: true, hint: 'One link a platform. DistroKid’s Sync links fills them once the stores are live' },
     { key: 'playlists', label: 'Playlists', kind: 'playlists', group: 'Release', learns: 'platform', neverGuess: true, hint: 'The playlists the song is on, by platform' },
     { key: 'lyrics', label: 'Lyrics', kind: 'longtext', group: 'Words', hint: 'As written. Exactly one: the owner corrects it in place' },
-    { key: 'description', label: 'About the song', kind: 'longtext', group: 'Words', hint: 'In English: who it is about, the story it tells, who it is for and when they would listen' },
+    { key: 'description', label: 'Description', kind: 'longtext', group: 'Words', hint: 'Public: what the song is, from its YouTube description or DistroKid details, else written from the lyrics. Never a fact the words don’t support' },
+    { key: 'internalDescription', label: 'Internal description', kind: 'longtext', group: 'Words', hint: 'Private, for the owner and the team: what the song is based on (for an anime song, the series, the character and the scene). Never copied into anything public' },
     { key: 'parts', label: 'Part by part', kind: 'parts', group: 'Words', hint: 'Each part: name, start and end in seconds, what happens, energy' },
   ],
   slots: [
@@ -103,6 +106,7 @@ export const SONGS: Template = {
   ],
   guide: SONGS_GUIDE,
   // version 3: the title in its own script replaced the title in Latin letters (the title itself is the released one)
+  // version 4: Description (public, was About the song) and Internal description (private: what the song is based on)
   retired: ['titleLatin'],
 };
 
