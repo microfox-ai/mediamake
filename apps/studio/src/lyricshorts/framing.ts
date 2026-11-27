@@ -1,7 +1,7 @@
 /**
  * Framing (make-lyrics-shorts-summerstyle-boldwords): every cut's 9:16 crop sits on its subject — the face box marked per shot in
  * projects/<slug>/footage/faces.json (or the cut's own `face`) — placed by how the cut is seen:
- * - the footage seen whole (a full screen, or black words before a stack flips to the mask): the eye line
+ * - the footage seen whole (a full screen): the eye line
  *   on the upper third, the face centred across the frame and about a third of its height;
  * - the footage seen through the letters (the mask): the eye line on the biggest row lit during the cut,
  *   the face a little taller than that row, so the face fills the letters (user, s02/s03 v2: "you are
@@ -14,7 +14,7 @@
  */
 import type { StackLayout } from './layout.ts';
 import { dyAt, type Lockup, type Place } from './lockup.ts';
-import { clipFile, type FaceBox, type ResolvedCut, type ResolvedScreen, type ResolvedStack } from './spec.ts';
+import { clipFile, type FaceBox, type ResolvedCut, type ResolvedScreen } from './spec.ts';
 
 /** projects/<slug>/footage/faces.json: the source's width / height, and each shot's subject */
 export type Faces = { aspect: number; shots: Record<string, FaceBox | null | undefined> };
@@ -159,7 +159,7 @@ export const aimOf = (c: Pick<ResolvedCut, 'start' | 'end'>, screens: ResolvedSc
     return cp && box ? clearOf(cp.band, box) : SEEN_WHOLE;
   }
   const lay = layouts.get(s.index);
-  if (!lay || (lay.flip !== undefined && mid < lay.flip)) return SEEN_WHOLE;
+  if (!lay) return SEEN_WHOLE;
   const first = (r: StackLayout['rows'][number]) => Math.min(...r.words.map(w => s.words[w].show));
   const lit = lay.rows.filter(r => first(r) < c.end);
   const pool = lit.length ? lit : [lay.rows.reduce((a, b) => (first(a) <= first(b) ? a : b))];
@@ -168,39 +168,9 @@ export const aimOf = (c: Pick<ResolvedCut, 'start' | 'end'>, screens: ResolvedSc
   return { x: (row.left + row.right) / 2 / W, y: (row.top + row.bottom) / 2 / H, h: clamp(((row.bottom - row.top) / H) * 1.6, 0.3, 0.75), how: 'letters' };
 };
 
-/** each clip's brightness (luma 0–255) in LUMA_BANDS bands down its middle frame, top to bottom, by
- *  clip file: shorts/<id>/luma.json, written by `clips` */
+/** @deprecated nothing reads it: shorts/<id>/luma.json held each clip's brightness for the black (or white)
+ *  words over the footage, which are gone (2026-11-27). Kept so the index.tsx of older shorts compiles */
 export type Luma = Record<string, number[]>;
-export const LUMA_BANDS = 16;
-
-/** the colour of a stack's words over the whole footage, before its flip: black on bright footage, white
- *  on dark — measured where those words sit (the bands behind the rows lit before the flip) in the cut
- *  under the middle of that spell; black when unmeasured. A bright window behind one row and dark hair
- *  behind another average out, so a whole-frame mean is not enough. */
-export const inkOf = (
-  s: ResolvedStack,
-  lay: StackLayout,
-  flip: number,
-  cuts: Pick<ResolvedCut, 'start' | 'end' | 'file'>[],
-  luma: Luma | undefined,
-  H: number,
-  white = 100,
-): 'black' | 'white' => {
-  if (s.ink) return s.ink;
-  const mid = (s.start + flip) / 2;
-  const c = cuts.find(x => mid >= x.start && mid < x.end);
-  const bands = c ? luma?.[c.file] : undefined;
-  if (!bands?.length) return 'black';
-  const rows = lay.rows.filter(r => Math.min(...r.words.map(w => s.words[w].show)) < flip);
-  let sum = 0;
-  let n = 0;
-  for (const r of rows.length ? rows : lay.rows)
-    for (let k = Math.floor((r.top / H) * bands.length); k <= Math.min(bands.length - 1, Math.floor((r.bottom / H) * bands.length)); k++) {
-      sum += bands[Math.max(0, k)];
-      n++;
-    }
-  return n && sum / n < white ? 'white' : 'black';
-};
 
 /** the short's cuts framed on their subjects (cuts cropped by hand, or with no subject marked, as they are) */
 export const frameCuts = (cuts: ResolvedCut[], screens: ResolvedScreen[], layouts: Map<number, StackLayout>, faces: Faces | undefined, W: number, H: number, loop?: boolean, caps?: Map<number, CapPlace>) => {

@@ -43,13 +43,13 @@ export type StackSpec = {
   exit?: 'cut' | 'through' | 'fade';
   /** word: the word to dive into or pull back out of; beats: how long the dive or the pull-back takes (2) */
   through?: { word?: string; beats?: number };
-  /** let the layout set a word vertically (theme.type.vertical decides when not given) */
+  /** let the layout turn a word down a side on this screen, when its footage suits it (the layout never
+   *  does by itself: SKILL.md › special layouts) */
   vertical?: boolean;
-  /** words over the whole footage first (black on bright footage, white on dark), flipping to the mask
-   *  (the footage inside the letters) mid-line: true, false, or { flip: beat, ink } (default:
-   *  theme.type.reverse decides — long screens, flipping when about half the stack is lit; the ink from
-   *  the shot's brightness) */
-  reverse?: boolean | { flip?: number; ink?: 'black' | 'white' };
+  /** @deprecated ignored. Black (or white) words over the footage are gone (the user, 2026-11-27: "remove
+   *  this completely"); a line is a mask or a lockup. Kept only so older cut lists compile: `clips` asks
+   *  for it to be deleted */
+  reverse?: unknown;
 };
 
 /** the footage full frame, no type (after a dive, on an instrumental hit, the ending) */
@@ -120,6 +120,11 @@ export type CutSpec = {
    *  next is also a left pan, and you align the subject, you have a good match cut") */
   pan?: number;
   tilt?: number;
+  /** this shot is meant to come back in another short of the project: a vibe shot, or a close-up of the
+   *  character giving aura. Every other shot belongs to one short only (the user, 2026-11-27: "try to keep
+   *  each video different as much as possible, unless its a vibe or close up shot of character giving aura");
+   *  `clips` warns about a shot another short also uses, unless it carries this */
+  again?: boolean;
 };
 
 /**
@@ -236,10 +241,6 @@ export type ResolvedStack = {
   /** the word a 'through' exit dives into, and the word an 'into' entry pulls back out of */
   throughWord: number;
   intoWord: number;
-  /** words over the footage first: true / false, or the flip to the mask in song seconds; undefined: the
-   *  theme decides. `ink`: their colour by hand (else from the footage's brightness) */
-  reverse?: boolean | number;
-  ink?: 'black' | 'white';
 };
 export type ResolvedFull = { kind: 'full'; index: number; start: number; end: number };
 export type ResolvedCap = { kind: 'cap'; index: number; start: number; end: number; words: ResolvedWord[]; hi: number; place: 'low' | 'high' | 'mid' | 'auto'; color?: string };
@@ -433,8 +434,6 @@ export const resolveShort = (song: SongLike, win: { from: number; to: number }, 
       pullTo: (s.enter === 'into' ? (s.through?.beats ?? 2) : 0) * beat,
       throughWord: wordIndex(s.exit === 'through' ? s.through?.word : undefined, words.length - 1),
       intoWord: wordIndex(s.enter === 'into' ? s.through?.word : undefined, 0),
-      reverse: typeof s.reverse === 'object' ? (s.reverse.flip !== undefined ? beatTime(song, s.reverse.flip) : true) : s.reverse,
-      ink: typeof s.reverse === 'object' ? s.reverse.ink : undefined,
     });
   });
   screens.sort((a, b) => a.start - b.start);

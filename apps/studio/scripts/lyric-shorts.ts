@@ -40,8 +40,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import opentype from 'opentype.js';
-import { aimOf, frameCuts, inkOf, LUMA_BANDS, placeCaps, type Faces, type Luma } from '../src/lyricshorts/framing.ts';
-import { solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
+import { aimOf, frameCuts, placeCaps, type Faces } from '../src/lyricshorts/framing.ts';
+import { maskNotes, solveShort, type TypeStyle } from '../src/lyricshorts/layout.ts';
 import { solveLockup, type Lockup } from '../src/lyricshorts/lockup.ts';
 import { beatAt, beatTime, clipTime, norm, resolveShort, type LyricShortEdl, type SongLike } from '../src/lyricshorts/spec.ts';
 import { DIRS, shown } from './paths.ts';
@@ -319,9 +319,8 @@ if (cmd === 'new') {
   );
   fs.writeFileSync(
     path.join(sd, 'index.tsx'),
-    `${header}import { defineLyricShort, type LyricShortSpec } from '@mediamake/engine/lyricshorts/define';\nimport type { Faces, Luma } from '@mediamake/engine/lyricshorts/framing';\n// the footage's subjects (mark them: SKILL.md, step 2) and each clip's brightness (written by \`clips\`)\nimport faces from '../../footage/faces.json';\nimport { THEME } from '../theme';\nimport { edl } from './edl.ts';\nimport luma from './luma.json';\nimport short from './short.json';\n\nexport default defineLyricShort({ slug: '${slug}', short: short as LyricShortSpec, edl, theme: THEME, faces: faces as unknown as Faces, luma: luma as unknown as Luma });\n`,
+    `${header}import { defineLyricShort, type LyricShortSpec } from '@mediamake/engine/lyricshorts/define';\nimport type { Faces } from '@mediamake/engine/lyricshorts/framing';\n// the footage's subjects (mark them: SKILL.md, step 2)\nimport faces from '../../footage/faces.json';\nimport { THEME } from '../theme';\nimport { edl } from './edl.ts';\nimport short from './short.json';\n\nexport default defineLyricShort({ slug: '${slug}', short: short as LyricShortSpec, edl, theme: THEME, faces: faces as unknown as Faces });\n`,
   );
-  fs.writeFileSync(path.join(sd, 'luma.json'), '{}\n');
   const facesFile = path.join(dir, 'footage', 'faces.json');
   if (!fs.existsSync(facesFile)) {
     fs.mkdirSync(path.dirname(facesFile), { recursive: true });
@@ -440,6 +439,11 @@ if (cmd === 'clips') {
 
   // timeline, with each stack laid out as the render will (rows, vertical word, how far the letters stretch)
   const { THEME } = (await import(pathToFileURL(path.join(shortsDir, 'theme.ts')).href)) as { THEME: { type: TypeStyle } };
+  // settings older cut lists and themes still carry, that do nothing now (the user, 2026-11-27)
+  const reversedByHand = edl.screens.filter(sc => 'reverse' in sc && sc.reverse !== undefined).length;
+  if (reversedByHand) warnings.push(`${reversedByHand} screen${reversedByHand > 1 ? 's' : ''} in edl.ts set \`reverse\`, which does nothing now (the black words over the footage were removed): delete it`);
+  if (THEME.type.reverse !== undefined) warnings.push('shorts/theme.ts sets `type.reverse`, which does nothing now (the black words over the footage were removed): delete it');
+  if (THEME.type.vertical || THEME.type.columns?.max) warnings.push('shorts/theme.ts lets the layout turn words or set columns (`type.vertical` / `type.columns`): ignored now — a special layout is set per screen, where its footage suits it');
   const fontBuf = fs.readFileSync(path.join(DIRS.projects, THEME.type.font));
   const font = opentype.parse(fontBuf.buffer.slice(fontBuf.byteOffset, fontBuf.byteOffset + fontBuf.byteLength));
   const smallBuf = THEME.type.small ? fs.readFileSync(path.join(DIRS.projects, THEME.type.small)) : fontBuf;
@@ -468,17 +472,16 @@ if (cmd === 'clips') {
       const rest = lay.stretch / sy;
       const fit = `${sy !== 1 ? `letters ×${sy.toFixed(2)} tall, ` : ''}${rest >= 1 ? `fills ${Math.round(100 / rest)} % of the height` : `shrunk to ${Math.round(100 * rest)} %`}`;
       // a mask that fills under ~75 % of the height leaves black bands: a lockup reads better (2026-10-28)
-      const off = (rest > 1 / 0.75 || rest < 0.8) && (lay.flip === undefined || lay.flip < s.end);
+      const off = rest > 1 / 0.75 || rest < 0.8;
       // a row stays black until its word is sung: a screen whose words take long to arrive reads as a
       // black screen (the user on v7's 6–10-word screens: "seeing black screen for a lot of time")
       const wait = Math.max(...s.words.map(w => w.show)) - s.start;
-      // black words over the footage until the flip: the wait isn't black
-      const slow = wait > 2.2 && lay.flip === undefined;
-      console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${lay.flip !== undefined ? `  ◐ black words, the mask from ${b(lay.flip).trim()}` : ''}${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow ? '  ⚠' : ''}`);
+      const slow = wait > 2.2;
+      // a mask is a short line, its biggest row a short word (the user, 2026-11-27)
+      const notes = maskNotes(s, lay, THEME.type);
+      console.log(`  ${b(s.start)}–${b(s.end)}  ${lay.label}   (${fit}; all words in by +${wait.toFixed(1)} s)${s.enter === 'into' ? '  ← into' : ''}${s.exit === 'through' ? `  → dives into "${s.words[s.throughWord].text}" from ${b(s.diveFrom).trim()}` : s.exit === 'fade' ? '  → fades' : ''}${off || slow || notes.length ? '  ⚠' : ''}`);
       if (off) warnings.push(`screen ${s.index} (${lay.label}) ${rest > 1 ? `fills only ${Math.round(100 / rest)} % as a mask: make it a lockup (cap) or fold a neighbouring clause in` : 'is too tall and shrinks a lot: regroup its words'}`);
-      // the user, 2026-11-02: "the black text on the screen is looking ugly, instead either go with mask or … 1
-      // highlight word and fitting text above and/or bottom"
-      if (lay.flip !== undefined) warnings.push(`screen ${s.index} (${lay.label}) starts as words over the footage (reverse): the user rejected them — a mask that fills, or a lockup (cap)`);
+      for (const note of notes) warnings.push(`screen ${s.index} (${lay.label}) is a mask of ${note} — make it a lockup (cap), or give the mask to a line that fits`);
       if (slow) warnings.push(`screen ${s.index} (${lay.label}) waits ${wait.toFixed(1)} s for its last word: its lower rows sit black that long — split it`);
       console.log(`      ${s.words.map(w => `${w.text}@${beatAt(m, w.start).toFixed(1)}`).join(' ')}`);
     }
@@ -544,6 +547,20 @@ if (cmd === 'clips') {
     const trs = [c.tr.kind !== 'cut' ? c.tr.kind + (c.tr.dir ? ` ${c.tr.dir}` : '') : '', c.flash ? 'flash' : '', c.shake ? `shake ${c.shake}` : ''].filter(Boolean).join(' + ') + (whole.includes(i) ? '  (whole frame: the screen changes here)' : '');
     console.log(`  ${String(i + 1).padStart(2)}  ${b(c.start)}–${b(c.end)}  ${(c.end - c.start).toFixed(2)} s  ${c.shot} +${c.in.toFixed(2)}  x ${c.x}${c.zoom !== 1 ? ` y ${c.y} zoom ${c.zoom}` : ''}${c.auto && (c.face ?? faces.shots[c.shot]) ? ` ◎ ${aimOf(c, screens, layouts, 1080, 1920, caps, c.face ?? faces.shots[c.shot] ?? undefined).how}` : c.auto ? '  (no subject marked: centred)' : ''}${c.rate !== 1 ? ` ×${c.rate}` : ''}${c.mono ? ' mono' : ''}${trs ? `  ← ${trs}` : ''}${fs.existsSync(file) ? '' : '  (cutting)'}`);
   }
+  // each short its own shots (the user, 2026-11-27: "try to keep each video different as much as possible,
+  // unless its a vibe or close up shot of chracter giving aura"): a shot another short of the project also
+  // shows, unless this cut marks it `again` (a vibe shot, an aura close-up of the character)
+  const elsewhere = new Map<string, string[]>();
+  for (const other of fs.readdirSync(shortsDir).sort()) {
+    const od = path.join(shortsDir, other);
+    if (other === id || !fs.existsSync(path.join(od, 'short.json')) || !fs.existsSync(path.join(od, 'edl.ts'))) continue;
+    const { edl: oe } = (await import(pathToFileURL(path.join(od, 'edl.ts')).href)) as { edl: LyricShortEdl };
+    for (const shot of new Set(oe.cuts.map(c => c.shot))) elsewhere.set(shot, [...(elsewhere.get(shot) ?? []), other]);
+  }
+  const shared = [...new Set(edl.cuts.filter(c => !c.again && elsewhere.has(c.shot)).map(c => c.shot))];
+  if (shared.length)
+    warnings.push(`${shared.length} shot${shared.length > 1 ? 's' : ''} another short also shows: ${shared.map(sh => `${sh} (${elsewhere.get(sh)!.join(', ')})`).join(', ')} — give this short its own, or mark a vibe shot or an aura close-up of the character \`again: true\``);
+
   // decoding 4K AV1 is heavy: a few at a time
   const parallel = Math.max(1, Math.min(4, Math.floor(os.cpus().length / 3)));
   let next = 0;
@@ -563,24 +580,8 @@ if (cmd === 'clips') {
     console.log(`\n  cut ${jobs.length} clips in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   }
 
-  // each clip's brightness in bands down its middle frame, for the words over the footage: black on
-  // bright shots, white on dark (luma.json, read by the render)
-  const luma: Luma = {};
-  for (const c of cuts) {
-    const raw = execFileSync('ffmpeg', ['-v', 'error', '-ss', ((c.end - c.start) / 2).toFixed(3), '-i', path.join(outDir, c.file), '-frames:v', '1', '-vf', `scale=1:${LUMA_BANDS}:flags=area,format=gray`, '-f', 'rawvideo', '-']);
-    luma[c.file] = [...raw.subarray(0, LUMA_BANDS)];
-  }
-  fs.writeFileSync(path.join(sd, 'luma.json'), `${JSON.stringify(luma, null, 1)}\n`);
-  const reversed = screens.filter((s): s is Extract<typeof s, { kind: 'stack' }> => s.kind === 'stack' && layouts.get(s.index)!.flip !== undefined);
-  if (reversed.length) {
-    console.log('\nwords over the footage');
-    for (const s of reversed) {
-      const flip = layouts.get(s.index)!.flip!;
-      const c = cuts.find(x => (s.start + flip) / 2 >= x.start && (s.start + flip) / 2 < x.end);
-      const ink = inkOf(s, layouts.get(s.index)!, flip, cuts, luma, 1920, THEME.type.reverse?.white);
-      console.log(`  ${b(s.start)}–${b(flip)}  ${layouts.get(s.index)!.label}: ${ink} words${c ? ` over ${c.shot} (bands, top to bottom: ${luma[c.file].join(' ')})` : ''}${s.ink ? ' (by hand)' : ''}`);
-    }
-  }
+  // the clips this short plays, for render to check they are all cut
+  fs.writeFileSync(path.join(sd, 'clips.json'), `${JSON.stringify([...new Set(cuts.map(c => c.file))], null, 1)}\n`);
 
   // the Revisions map: one shot per cut, named by the words on screen over it
   const onScreen = (a: number, z: number) =>
@@ -626,12 +627,15 @@ if (cmd === 'render') {
   const asked = args.filter(a => !a.startsWith('--')).slice(2);
   if (!asked.length) throw new Error('render <id …> | all [--format=9x16] [--frames=a-b] [--concurrency=3] [--crf=18]');
   const ids = asked.includes('all') ? fs.readdirSync(shortsDir).filter(d => /^[^_.]/.test(d) && isLyricShort(d)).sort() : asked;
-  // everything a short needs before anything renders: its cut clips (`clips` writes luma.json with one entry per clip)
+  // everything a short needs before anything renders: its cut clips (`clips` writes clips.json; shorts cut
+  // before 2026-11-27 have luma.json, one entry per clip)
   for (const id of ids) {
     if (!isLyricShort(id)) throw new Error(`no lyric short ${id} (shorts/${id}/index.tsx with defineLyricShort)`);
+    const clipsFile = path.join(shortsDir, id, 'clips.json');
     const lumaFile = path.join(shortsDir, id, 'luma.json');
-    if (!fs.existsSync(lumaFile)) throw new Error(`${id} has no clips yet. Run: mm lyric-shorts ${slug} clips ${id}`);
-    const missing = Object.keys(JSON.parse(fs.readFileSync(lumaFile, 'utf8'))).filter(f => !fs.existsSync(path.join(dir, 'derived', 'lyricshorts', f)));
+    const list: string[] | undefined = fs.existsSync(clipsFile) ? JSON.parse(fs.readFileSync(clipsFile, 'utf8')) : fs.existsSync(lumaFile) ? Object.keys(JSON.parse(fs.readFileSync(lumaFile, 'utf8'))) : undefined;
+    if (!list) throw new Error(`${id} has no clips yet. Run: mm lyric-shorts ${slug} clips ${id}`);
+    const missing = list.filter(f => !fs.existsSync(path.join(dir, 'derived', 'lyricshorts', f)));
     if (missing.length) throw new Error(`${id}: ${missing.length} clips missing from derived/lyricshorts/ (${missing.slice(0, 3).join(', ')}…). Run: mm lyric-shorts ${slug} clips ${id}`);
   }
   const concurrency = Number(opt('concurrency') ?? 3);

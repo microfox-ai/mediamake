@@ -1,6 +1,6 @@
 ---
 name: make-lyrics-shorts-summerstyle-boldwords
-description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), sometimes one word turned vertical down a side, each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on the punch lines and the other lines set over the footage as lockups (one big highlight word, the small words nested beside its letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). New user feedback goes in your notes (mm notes add), never in this file.
+description: Make vertical lyric shorts (9:16 YouTube Shorts / Reels / TikTok) of the user's song in Remotion, in the stacked-type style of the "summer leaves quietly" reel — a short phrase a screen, its words filling the black frame top to bottom in huge ultra-bold lowercase, a word or two a row, every row stretched to the same column width (width-fit), the stack centred and filling the frame top to bottom with only a thin black band above and below (letters never stretched), each word lighting up as it is sung, the footage playing inside the letters (a knockout / text mask) on a few short punch lines, their giant word a short one, and the other lines set over the footage as lockups (one big highlight word, the small words fitted into the gaps beside its tall or dropping letters), a row in solid colour that opens onto the footage, and dives through a letter into the footage full frame on the music's big moments. It picks the best stretches of the song itself (as many shorts as the user wants, three by default; sung, hook-heavy, clean sentence starts and ends, ideally ending on an instrumental hit), casts the user's footage (or footage from a reference video) line by line, cuts 9:16 clips framed on the subject and renders through the shorts path; reviewed through Revisions (revise-video). Use when the user says "make lyric shorts / reels of my song", "shorts with bold stacked words", "words width-fit with the video inside the letters", "text mask shorts", "shorts like this reference" (stacked-type), "/make-lyrics-shorts-summerstyle-boldwords", or asks to change a short under projects/<slug>/shorts/ that imports src/lyricshorts. Not for shorts cut from a finished song edit (make-video-music-remix-shorts) or full-length lyric videos (make-lyrics-video, make-waveform-lyric-video). New user feedback goes in your notes (mm notes add), never in this file.
 ---
 
 # make-lyrics-shorts-summerstyle-boldwords
@@ -16,13 +16,18 @@ anatomy is the default look:
   words are grouped so the rows, ink to ink with tight gaps (≈ 1 % of the width) and margins ≈ 4 %,
   stand about as tall as the frame; what is left is a thin black band above and below (fine), never
   black in the lower half. **The letters keep the font's own proportions** — stretching them to fill
-  was rejected ("the fonts appear stretched, don't do that"). One word may be **turned vertical**
-  down a side beside a block of rows (`eyes` up the left beside `of / pink / a soul / of`, `bite`
-  beside its last two rows).
+  was rejected ("the fonts appear stretched, don't do that"). **A mask's line is short and its giant
+  word a short one** (2026-11-27: "the giant word should be small lettered, as that gives enough
+  boldness to make the video inside appear"): a short word run the column's width gets thick strokes.
+  A word turned down a side, the giant upright `i` or columns are special layouts, chosen per screen
+  by its footage (principle 3), never by default.
 - **The lockup** (2026-10-28). Most lines don't use the mask: the footage plays full frame and the
-  line sits on it — one highlight word big and centred, the small words nested beside its letters (above
-  the x-height next to the letters that rise, below the baseline next to the ones that drop), white with a
-  soft shadow. The mask is kept for a few punch lines a short.
+  line sits on it — one highlight word big and centred, the small words fitted into the gaps its letters
+  leave past the rule lines (2026-11-27): the words before it above the x-height, between two letters
+  that rise (between the `t` and the `d`), else after the last one (after a lone `t`), else before the
+  first; the words after it under the baseline, in the same order beside the letters that drop (`g`,
+  `p`, `y`). With no such letter, or no gap that holds them, they sit over (or under) the whole word,
+  flush with its edge. White with a soft shadow. The mask is kept for a few punch lines a short.
 - **A loop.** The short ends on a bar line at the end of a 4-bar unit and its last beat starts the
   take the short opens on, so it runs straight back into its beginning.
 - **Words as sung.** All rows have their place from the start; each word lights up when it is sung,
@@ -63,8 +68,16 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    (`yeah`, `get`, `just`, `lost` → `cage`, `rampage`, `blue`, `edge`): the word that carries the line.
    **Only these two — never words set over the footage in black (or white) as a stack** (the user,
    2026-11-02: "the black text on the screen is looking ugly, instead either go with mask or … 1 highlight
-   word and fitting text above and/or bottom"). No `reverse` screens, no `type.reverse` in the theme;
-   `clips` warns on any.
+   word and fitting text above and/or bottom"; 2026-11-27: "remove this completely"). The engine no longer
+   draws them: a `reverse` left in an older cut list or theme does nothing, and `clips` asks for it to be
+   deleted.
+0a. **A mask is a short line with a short giant word** (the user, 2026-11-27: "lines here should be short,
+   and the giant word should be small lettered, as that gives enough boldness to make the video inside
+   appear"). Two to four words, and its biggest row a word of four letters or fewer (`eyes`, `of`, `it`,
+   `my`, `fall`, `bite`): run the column's width, a short word comes out huge with thick strokes and the
+   footage reads inside it; a long one (`crimson`, `destruction`) comes out thin. Pick the mask lines for
+   that, and set the rest as lockups. `clips` warns past either (theme `type.mask`: `maxWords`,
+   `giantLetters`).
 0b. **The text never sits on the subject's face** (the user, 2026-11-02: "sometimes the text placement is
    messing up the image behind it, overlaying text on important character, if it's semi important it's
    fine, but if it's important, either change position or recrop the background image so as to keep the
@@ -83,8 +96,8 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    shorter". A screen is one clause (`eyes of pink`, `a crimson flame`, `i do not bite`); `clips`
    prints "all words in by +N s" and warns past 2.2 s. A held vocal with no words (`ooh`) plays the
    footage full frame (`full(beat)`) instead of waiting as type. Write `stack('<phrase>')` and let the
-   layout break it (one word a row preferred; `i` kept with its word — a lone `i` becomes a pillar; a
-   giant `a` is a fine shape). The stack is centred; without stretching, a short clause can't always
+   layout break it (one word a row preferred; `i` kept with its word — a lone giant `i` is a thin pillar;
+   a giant `a` is a fine shape). The stack is centred; without stretching, a short clause can't always
    reach full height (`i do / not / break` fills 69 %, `i stand / my / ground` 60 %): the bands are the
    price of short screens, and the user takes them over long black waits. Never stretched letters
    (v5, rejected); never a stack in the top half with black below (v3, rejected).
@@ -92,13 +105,16 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    giant — good, put a face behind them). The layout charges for rows set small (`minSize`) and for a
    giant *last* row (the frame sits half empty until it is sung). Long rows that still come out
    small go solid (`minMask`) — masked type only on big, ultra-bold rows (the user's knockout rule).
-3. **Rows by default; turn words only on short, fast lines.** Turned type is hard to read ("too many
-   vertical wording shots … can't read it", on s02/s03 v1), so a screen turns words only when its line
-   is sung in about a second (a word or two, `tucked away`, `sleeping`) or for the giant `i` pillar —
-   at most two such screens a short, hand-set ones included (the theme's `columns.max`). Everything
-   else is rows, even at 50–65 % fill. Where a word turns, it says something: the first word up the
-   left (it lights first: `eyes`), a word lying down (`sleeping`), or the last word down the right
-   beside its last row or two (`bite`, `space`, `fall`). Turned three-letter words (`ooh`) read as rings.
+3. **Rows by default; a special layout only where the footage calls for it.** The layout never turns a
+   word, stands a giant `i` or sets columns by itself (the theme's `vertical` and `columns` do nothing
+   now). Whether a screen is a stack of rows, the giant upright `i`, or words turned or staggered depends
+   on the shot under it (the user, 2026-11-27: "stuff like that depend on the footage you show, if it makes
+   sense"): the `i` pillar when the main subject is wholly visible inside the `I`; turned or staggered
+   words when the footage is busy, bright, high-exposure colour where the words themselves feel colourful;
+   otherwise plain rows. Set one by hand on its screen (`stack(…, { vertical: true })`, or rows with
+   `vertical`) and say in its comment which shot it is for. Turned type is still hard to read ("too many
+   vertical wording shots … can't read it", on s02/s03 v1): keep it to lines sung in about a second, at
+   most two screens a short. Turned three-letter words (`ooh`) read as rings.
 3. **The footage says the row.** Cast like a song edit, literally: the eyes inside `eyes`, the flame
    inside `flame`, the bamboo muzzle inside `bite` / `keep it shut`, falling inside `fall`, sunlight
    inside `the light`. Put the subject's *face or eyes behind the biggest row* — details read through
@@ -116,11 +132,18 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    her face (the flames, a night sky, a body lying down, "small" in the frame), give the cut its own
    `face`. Check `cuts.jpg` every time: it is the crop the render uses.
 3c. **Long lines are lockups, not black words.** Until 2026-11-02 a long screen started as black (or white)
-   words over the whole footage and flipped to the mask at half lit (`type.reverse`, `reverse: …`); the
-   user called the black text ugly. A line too long for a mask that fills is a lockup; a long line that
+   words over the whole footage and flipped to the mask at half lit; the user called the black text ugly,
+   and on 2026-11-27 had it removed from the engine. A line too long for a mask is a lockup; a long line that
    must be a punch is split into a lockup and a short mask for its last words (`you just out-thought` +
-   `them all`), or joined with the next short line into one stack that fills (75–91 %). The engine still
-   reads `reverse` for older cut lists; new ones never use it.
+   `them all`).
+3d. **Each short its own shots.** A batch of shorts is watched one after another in the same feed: a
+   shot seen in one short makes the next feel like a re-cut (the user, 2026-11-27: "try to keep each video
+   different as much as possible, unless its a vibe or close up shot of character giving aura"). Cast the
+   shorts of a project together, not one at a time: share the sources out so each short leans on scenes of
+   its own, and give every short its own shots, never the same take from another pack either (the twins
+   that packs and episode uploads share). The one shot that may come back is a vibe shot or a close-up of
+   the character giving aura (the hero's stare, his signature pose); mark it `again: true` on its cut.
+   `clips` warns about any other shot another short of the project shows.
 4. **Bright footage in the letters.** Dark shots make dim letters (the `floor` tint helps a little).
    s02 v3 (rejected next to s01 and s03: "s02 not good, learn from s01 and s03") put dark blue demon and
    night shots behind most of its words; s03 (liked) has a bright, warm face behind every line. Even a
@@ -150,18 +173,15 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
    half black until sung. The layout weighs dark time (each row's share of the frame × how long it
    waits, `darkWeight`), so it puts big rows early; when splitting the lyrics into screens, start a
    screen on a short word where the line allows. **A lone `i` can't run the width** (it would stand
-   twice the frame's height), so when "I" should be the biggest word (the user, on `i hold the line`
-   and `i stand my ground`) it stands as a **pillar**, and the rest of the line runs down beside it as
-   one turned line, tight: `stack('i hold the line', [{ text: 'i', vertical: 'upright' }, { text: 'hold
-   the line', vertical: 'down' }])` — every row set down the frame is the *columns* layout: side by
-   side, all as tall as each other (here the full height), centred. **Never spread words apart to fill
-   a height**: gaps between words "look bad" (v10's rows spread beside the pillar); turn them instead.
-   The layout may set a screen as columns by itself, but only within the short's budget
-   (`solveShort`): lines of ≤ 3 words sung within `columns.maxSpan` (1.2 s) whose rows fill under
-   `columns.belowFill`, best gain first — `ignite | the flame` was columns in s02 v1 and is rows now.
-   **A run of turned columns goes right to left** (vertical Japanese: read with the head tilted, the
-   rightmost line comes first) — left to right read "ignite | the flame" as "the flame ignite".
-   Tied to the height of the rows beside it, a thin letter read as a dot and a stroke.
+   twice the frame's height). Where the footage suits a giant `I` (principle 3: the subject wholly inside
+   it) it stands as a **pillar**, and the rest of the line runs down beside it as one turned line, tight:
+   `stack('i hold the line', [{ text: 'i', vertical: 'upright' }, { text: 'hold the line', vertical:
+   'down' }])` — every row set down the frame is the *columns* layout: side by side, all as tall as each
+   other (here the full height), centred. **Never spread words apart to fill a height**: gaps between
+   words "look bad" (v10's rows spread beside the pillar); turn them instead. **A run of turned columns
+   goes right to left** (vertical Japanese: read with the head tilted, the rightmost line comes first) —
+   left to right read "ignite | the flame" as "the flame ignite". Tied to the height of the rows beside
+   it, a thin letter read as a dot and a stroke.
 8. **No wordless stretch inside a short.** An instrumental gap of more than about two bars between
    lines kills it (s02 v1–v3 had 13 beats after its first line): move the window past it (the drums a
    breath before the next line). Full-frame footage belongs to a lead-in of a beat or two, held notes
@@ -190,9 +210,15 @@ of every note, numbered as the user wrote it). Read the lessons log at the botto
 
 ## What it needs
 
-1. **The song** (wav preferred) and **timed words**, transcribed with ElevenLabs Scribe, never taken from
-   MediaMake's transcriptions (the user, 2026-11-03: "should not use mediamake mcp instead use elevenlabs
-   directly"). Separate the vocals and transcribe the vocal stem as CLAUDE.md › Transcription says
+1. **The song** (wav preferred) and **timed words**. **The words may already be in the library: look
+   there first and check with the user** (2026-11-27: "sometimes the song transcript might exist in
+   library, check with user"). `mm library search "<song title>"` (the Cloud Library's Songs: a
+   transcript, the written lyrics) and `mm transcribe <slug>` with no flags (free: it gives back this
+   exact song's words from the media library's cache or the Cloud Library). When one is there, tell the
+   user which (its entry, what it was made from, whether it is the same mix and length) and ask whether to
+   use it; transcribe afresh (`--fresh`, paid) only on their word. With none, the words are transcribed
+   with ElevenLabs Scribe, never taken from MediaMake's transcriptions (the user, 2026-11-03: "should not
+   use mediamake mcp instead use elevenlabs directly"). Separate the vocals and transcribe the vocal stem as CLAUDE.md › Transcription says
    (make-waveform-lyric-video step 1): `mm transcribe <slug>` first gives back the
    song's cached words, or makes the stem's MP3 and prints the price. It is paid: ask first.
    - **The ElevenLabs MCP's key, first choice** (`mcp/elevenlabs`, the official open-source server with an
@@ -244,11 +270,13 @@ session), or go ahead without it.
 
 The user's shorts rules (set for make-video-music-remix-shorts, 2026-10-26; they hold here too):
 **the aspect ratio is always the user's choice — ask every run, never assume** (9:16, 3:4, 4:5: the
-latter crop the 9:16 clips); every run checks **three different stretches** with the user before
-building and ends with the shorts they picked (three by default); a re-cut of a stretch is fine unless
-they called it bad; **never AI-upscale** footage unless asked (a tighter crop's lanczos scale is fine).
+latter crop the 9:16 clips); **how many shorts is the user's too: three by default, fewer or more when
+they say so** (2026-11-27), and every run checks that many different stretches with the user before
+building and ends with the shorts they picked; a re-cut of a stretch is fine unless they called it bad;
+**never AI-upscale** footage unless asked (a tighter crop's lanczos scale is fine).
 
-Ask with `AskUserQuestion` only what else is open: length (15–45 s), the channel (a sign-off or not; a
+Ask with `AskUserQuestion` only what else is open: how many shorts (3 unless they said), length
+(15–45 s), the channel (a sign-off or not; a
 brand watermark or not, and which brand — see "A brand's watermark" below),
 palette and fps (30; 60 for smooth slow-motion footage doubles render time). Write `brief.md`, seed
 `prefs.md`. The first run of this skill (eyesofpink) assumed 9:16 and built one stretch to settle the
@@ -270,7 +298,8 @@ Register the production (`mm media production new <slug> --channel=<brand id>
 - Every file in `input/` is a clone, never a symlink: `media use <id> <slug>
   --as=input/footage/<name>.mp4`. A link into ~/Downloads broke eyesofpink.
 
-Then make-lyrics-video steps 2–3: `mm analyze <slug>
+The words: the library first, then the user's word, as "What it needs" 1 says. Then make-lyrics-video
+steps 2–3: `mm analyze <slug>
 --plots` (stems, beat grid, CTC word alignment; ~1 min with models cached) and `prepare-project`.
 **Set real sections**: print each bar's drums / bass / other / vocal envelope with its lyric (see the
 eyesofpink session) and write intro / verse / pre-chorus / chorus / break / bridge / build / outro to
@@ -310,7 +339,7 @@ index.tsx). The faces sheets double as the casting sheets.
 ### 3. Pick stretches — check with the user
 
 ```bash
-mm lyric-shorts <slug> pick [--n=3] [--min=15] [--max=45]
+mm lyric-shorts <slug> pick [--n=3] [--min=15] [--max=45]   # --n: as many as the user wants
 ```
 
 Scores sentence-aligned stretches (sung share, hook words that come back elsewhere, vocal and drive,
@@ -340,7 +369,9 @@ mm lyric-shorts <slug> font Figtree --weight=900   # → shorts/fonts/Figtree-90
 
 Make a casting sheet of candidate shots with an x-ruler (`drawgrid=w=48` over 480-px keyframes) and read
 each subject's centre off it. Then write screens and cuts, each cut with *why* as a comment (see the
-reference below).
+reference below). With several shorts, cast them together and keep a list of the shots each one takes:
+a shot belongs to one short only, unless it is a vibe shot or an aura close-up of the character
+(principle 3d, `again: true`).
 
 ### A brand's watermark
 
@@ -384,7 +415,8 @@ Prints the timeline (every screen with its rows and each word's beat; every cut)
 9:16 clips into `derived/lyricshorts/` (cropped at `x`, scaled to 1080×1920, at the short's fps; a
 changed cut gets a new file), writes `shorts/<id>/shots.json` (the Revisions map) and
 `out/<slug>/shorts/<id>/cuts.jpg` (each cut's middle frame as framed). Fix the warnings (shots run out,
-same frames twice, words after their screen ends) and any framing that misses the face. Then stills of
+same frames twice, a shot another short also shows, words after their screen ends) and any framing that
+misses the face. Then stills of
 the moments that matter, tiled into one sheet:
 
 ```bash
@@ -440,7 +472,8 @@ export const edl: LyricShortEdl = {
   cuts: [                                   // the footage under everything, back to back from each beat
     cut(477, 'sh0006', { x: 0.5 }),         // beat 477: shot sh0006 from its start, 9:16 crop centred at x
     cut(481, 'sh0002', { in: 0.3, x: 0.42 }), // 0.3 s into the shot
-    // more: y and zoom (a tighter crop), rate (source speed), mono
+    // more: y and zoom (a tighter crop), rate (source speed), mono, again (a vibe or aura shot
+    // another short also shows, principle 3d)
   ],
   screens: [
     full(477),                                          // footage full frame from beat 477
@@ -464,11 +497,12 @@ export const edl: LyricShortEdl = {
   `through.beats`, default 2). `enter: 'into'` (row `through.row`, default 0, lit from the start).
   `align: 'center'` centres rows narrower than the column. Row `fill`: `video` · `solid` (with `color`,
   `reveal` beat); default video when the row is big enough (`minMask`), else solid in `ink`.
-- **Layout**: without rows, `find` is the whole phrase and `solveStack` breaks it (`clips` prints
-  each screen's rows, `↑`/`↓` for a vertical word with the side and how many rows it runs beside,
-  and how much of the height it fills). Rows by hand: `stack('<phrase>', ['row', 'row', { text: 'space',
-  vertical: 'up' }])` — a vertical row must be the first (left side) or the last (right side); the
-  layout picks how many rows it runs beside. `marks: { flame: { fill: 'solid', color, reveal } }`
+- **Layout**: without rows, `find` is the whole phrase and `solveStack` breaks it into rows (`clips`
+  prints each screen's rows, how much of the height it fills, and a warning when a mask's line is long or
+  its giant word is). A special layout, only where the footage suits it (principle 3): `vertical: true`
+  lets the layout turn a word on that screen, or rows by hand: `stack('<phrase>', ['row', 'row', { text:
+  'space', vertical: 'up' }])` — a vertical row must be the first (left side) or the last (right side);
+  the layout picks how many rows it runs beside. `marks: { flame: { fill: 'solid', color, reveal } }`
   styles the row a word lands in. `through.word` picks the word to dive into (default the last; an
   `into` pulls back out of the first).
 - **Cuts** need clips: re-run `clips` after any change to a cut. Clips hold the shot at its own speed
@@ -485,10 +519,10 @@ export const edl: LyricShortEdl = {
   `'<slug>/shorts/fonts/Figtree-900.ttf'`; tracking em, case, margin, top, bottom, gap — fractions of
   the frame; `stretch` [1, 1]: keep it — the user rejected stretched letters (`[0.8, 1.5]` was v5);
   `spread` (false: tight gaps, the stack centred);
-  `maxWords` a row (2); `vertical` (may the layout turn a word beside rows: false since s02/s03 v1);
-  `columns` (`max` turned screens a short incl. hand-set, `maxWords`, `maxSpan` s, `belowFill`: when
-  the layout may set a short line as columns); `minSize` / `minVertical` (font sizes,
-  fractions of the width, under which a row / a vertical word costs the layout); minMask), `colors` (ground, solid, ink), `floor` (how much ink the
+  `maxWords` a row (2); `mask` (`maxWords` 4, `giantLetters` 4: what a mask screen may be before `clips`
+  warns); `minSize` / `minVertical` (font sizes, fractions of the width, under which a row / a vertical
+  word costs the layout); minMask; `vertical`, `columns` and `reverse` do nothing now — leave them out),
+  `colors` (ground, solid, ink), `floor` (how much ink the
   footage letters always carry), `appear` (`from` brightness, `ramp` seconds), `grade` (saturate,
   contrast, brightness, a soft-light `tint`), `leaks` (two colours, amount: over full frames, blooming
   as one opens), `grain`.
@@ -499,10 +533,12 @@ export const edl: LyricShortEdl = {
   (the user: "only some shots use the mask, the others can come on top of the image"). Keep the mask for the
   punch lines — a vow, a repeated word, the dive — and set the rest as `cap('<line>', { hi, place, color })`:
   the footage plays full frame and the line sits on it as a lockup (`lockup.ts`): the highlight word big
-  (`hi`, default the longest-held word that isn't a little one), the words before it nested above the
-  x-height in the widest gap beside the letters that rise, the words after it under the baseline beside the
-  letters that drop — next to the letters, never across them — else above / below the whole word, flush
-  with its edge. White with a soft shadow and a faint scrim; `place` unset lets the engine keep the heads
+  (`hi`, default the longest-held word that isn't a little one), the words before it fitted above the
+  x-height into a gap the letters that rise leave — between two of them first (centred between the `t` and
+  the `d`), else right after the last, else before the first, flush with the word's edge — and the words
+  after it under the baseline beside the letters that drop, in the same order; never across a letter, and
+  clear of the dot of an `i` (small words beside a dot read as a bullet). With no such letter, or no gap
+  that holds them, they sit above / below the whole word, flush with its edge. White with a soft shadow and a faint scrim; `place` unset lets the engine keep the heads
   under it clear (0b), or set it by hand: low (under the faces), high, mid; `color` tints the highlight (the
   theme's accent). The small words use `type.small` (the face at 700:
   `mm lyric-shorts <slug> font Figtree --weight=700`), at least 62 px.
@@ -827,6 +863,22 @@ When the user wants them shared, `mm notes promote make-lyrics-shorts-summerstyl
   first choice, if it is not there, then it should do)" → CLAUDE.md › Transcription for every skill:
   `mm transcribe` first (cached words, or the stem's mono MP3 and the price), the ElevenLabs connector on that
   MP3 then `--save`, else `--yes` with the ElevenLabs MCP's key; the connector is the first MCP to install.
+- 2026-11-27 — The user, after a summary of the skill: "Reversed black text — remove this completely" → the
+  engine no longer draws words over the footage in black or white (`reverse` and `type.reverse` do nothing,
+  `clips` asks for them to be deleted, luma.json is no longer written). "Sometimes the song transcript might
+  exist in library, check with user" → the words are looked for in the library first and used on the
+  user's word. "Pick stretch: default is 3, but can be lesser or greater" → the count is asked at intake.
+  "Stack — lines should be short, and the giant word small lettered, as that gives enough boldness to make
+  the video inside appear" → principle 0a and `clips`' mask warnings. "Cap — the small words fit into the
+  extended gaps … between t & d, or after t (if only t exists) … if no big letter, anywhere that suits
+  visual alignment" → lockup.ts chooses between, then after, then before, centred between two letters and
+  clear of i dots. "Special layouts — ignore this altogether … depends on the footage" → the layout never
+  sets them by itself (principle 3).
+- 2026-11-27 — After a batch of five shorts from one song: "try to keep each video different as much as
+  possible, unless its a vibe or close up shot of chracter giving aura or something" → principle 3d: the
+  shorts of a project are cast together, each with its own shots and scenes; only a vibe shot or an aura
+  close-up of the character comes back (`again: true` on its cut), and `clips` warns about any other shot
+  another short shows.
 - 2026-11-04 — "having the old elevenlabs archived mcp is better than the new one, as it keeps opening a stupid
   widget for transcription. old elevenlabs mcp with api key setup is much cleaner" → flipped back: the ElevenLabs
   MCP's key (`mm transcribe --yes`, no widget) is the first choice and the first MCP to install; the hosted
