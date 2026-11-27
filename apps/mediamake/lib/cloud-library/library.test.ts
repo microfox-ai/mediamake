@@ -249,6 +249,14 @@ test('a collection made from an older template reads as the latest version, its 
   assert.equal(upgradeTemplate(unknown), unknown);
 });
 
+test('a Songs collection made at version 3 gains the description and the internal description', () => {
+  const v3 = { ...SONGS, version: 3, fields: SONGS.fields.filter(f => f.key !== 'internalDescription').map(f => (f.key === 'description' ? { ...f, label: 'About the song' } : f)) };
+  const read = upgradeTemplate(v3);
+  assert.equal(read.fields.find(f => f.key === 'description')?.label, 'Description');
+  assert.equal(read.fields.find(f => f.key === 'internalDescription')?.kind, 'longtext');
+  assert.match(SONGS.guide, /Internal description/);
+});
+
 test('a field the newer version retired leaves an older collection; the collection’s own fields stay', () => {
   const v2 = {
     ...SONGS,
