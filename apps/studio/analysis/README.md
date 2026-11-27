@@ -22,7 +22,7 @@ A 4-minute song takes about 3 minutes on an M3 Pro.
 | Step | Script | Output (`projects/<slug>/analysis/`) |
 |---|---|---|
 | decode | `common.py` | `work/mix.wav`: the song as the video plays it, decoded once. Every later step uses this timeline, so stems and analysis need no offset correction |
-| separate | `separate.py` | `stems/{vocals,drums,bass,other}.wav`: Demucs `htdemucs_ft` on the Apple GPU |
+| separate | `separate.py` | `stems/{vocals,drums,bass,other}.wav`: Demucs `htdemucs_ft` on the GPU (Apple's MPS or NVIDIA's CUDA), else the CPU |
 | feats | `vocal_feats.py` | `work/vocal_feats.npz`: vocal-stem rms, pyin f0, spectral-flux onsets, sibilance (5 ms hop) |
 | emissions | `ctc_emissions.py` | `work/emission_*.npy`: CTC log-probs from MMS_FA and wav2vec2 LV60K on the vocal stem's mono sum, left and right channel |
 | whisper | `whisper_run.py` | `work/whisper.json`: mlx-whisper large-v3-turbo word timestamps, an independent cross-check |

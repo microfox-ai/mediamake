@@ -4,7 +4,7 @@
 # dependencies = ["numpy>=1.26", "pillow>=10.1", "torch>=2.4", "torchvision>=0.19", "transformers>=4.45,<5",
 #                 "timm>=1.0", "kornia>=0.7", "einops>=0.8", "opencv-python-headless>=4.9"]
 # ///
-"""Cut the subject out of a project's picture with BiRefNet (local, Apple GPU, free) and paint them out of the
+"""Cut the subject out of a project's picture with BiRefNet (local, on the GPU, free) and paint them out of the
 background, so the plate can be the cover and the cutout a Subject layer over the visualizers.
 
     mm py .agents/skills/make-waveform-lyric-video/tools/cutout.py <project folder>
@@ -57,7 +57,7 @@ def log(*a):
 def matte(img: np.ndarray, kind: str, size: int) -> np.ndarray:
     from transformers import AutoModelForImageSegmentation
     name = {"lite": "ZhengPeng7/BiRefNet_lite", "full": "ZhengPeng7/BiRefNet"}[kind]
-    dev = "mps" if torch.backends.mps.is_available() else "cpu"
+    dev = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
     if name not in _models:
         _models[name] = AutoModelForImageSegmentation.from_pretrained(name, trust_remote_code=True).to(dev).eval()
     m = _models[name]

@@ -4,8 +4,9 @@ The fine-tuned 4-model Demucs bag gives much cleaner vocal and drum stems than
 htdemucs, which matters for everything downstream: drum onsets, the beat grid and
 the CTC alignment all run on stems, not on the mix.
 
-Runs on the Apple GPU (MPS) when available, else CPU (a 4-minute song takes a few
-minutes either way). Writes 44.1 kHz stereo float WAVs sample-aligned to work/mix.wav.
+Runs on the GPU when there is one (Apple's MPS or NVIDIA's CUDA), else CPU (a 4-minute
+song takes a few minutes on MPS or the CPU, about a minute on CUDA). Writes 44.1 kHz
+stereo float WAVs sample-aligned to work/mix.wav.
 
 Run:  uv run python separate.py <slug> [--model htdemucs_ft] [--cpu]
 """
@@ -23,7 +24,8 @@ from demucs.pretrained import get_model
 def main():
     proj = common.project_from_argv()
     name = sys.argv[sys.argv.index("--model") + 1] if "--model" in sys.argv else "htdemucs_ft"
-    device = "cpu" if "--cpu" in sys.argv or not torch.backends.mps.is_available() else "mps"
+    device = ("cpu" if "--cpu" in sys.argv else "mps" if torch.backends.mps.is_available()
+              else "cuda" if torch.cuda.is_available() else "cpu")
     mix, sr = proj.load_mix(sr=common.SR, mono=False)              # (2, n)
     model = get_model(name)
     model.eval()
