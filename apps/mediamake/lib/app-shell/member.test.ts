@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatalogEntry } from '../catalog/types';
 import type { RegistrySkill } from '../library/types';
-import { appItems, explore, exploreFiltersFrom, homeColumns, homeShelf, mcpUsage, mine, storefront, tagTitle, variantBase, type ExploreFilters } from './member';
+import { appItems, explore, exploreFiltersFrom, homeColumns, homeShelf, mcpUsage, mine, storeList, storefront, tagTitle, variantBase, type ExploreFilters } from './member';
 
 const entry = (id: string, more: Partial<CatalogEntry> = {}): CatalogEntry => ({
   id,
@@ -378,5 +378,16 @@ describe("Home's shelves", () => {
     assert.deepEqual(homeShelf(columns, ['skill']).map(item => item.id), ['skill/make-lyrics-video']);
     // pack-brand-kit's runs still count for the MCPs it works with
     assert.deepEqual(homeShelf(columns, ['mcp', 'app']).map(item => item.id), ['mcp/browse-hack', 'mcp/elevenlabs']);
+  });
+});
+
+describe("Home's list of the store", () => {
+  it('lists the store without internal skills or failed items', () => {
+    assert.deepEqual(ids(storeList(items)), ['app/skill-library', 'mcp/browse-hack', 'mcp/elevenlabs', 'skill/make-lyrics-video', 'skill/pack-brand-kit']);
+  });
+
+  it('searches it, and never finds an internal skill, even by its name', () => {
+    assert.deepEqual(ids(storeList(items, 'brand')), ['skill/pack-brand-kit']);
+    assert.deepEqual(storeList(items, 'cleanup-out'), []);
   });
 });

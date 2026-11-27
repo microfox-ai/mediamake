@@ -1,11 +1,11 @@
 import { SiteHeader } from '@/components/site-header';
 import { SidebarInset } from '@/components/ui/sidebar';
 
-/** One page of the app: its title bar, then its content. */
-export function AppPage({ title, children }: { title: string; children: React.ReactNode }) {
+/** One page of the app: its title bar (with `header` beside the title, when given), then its content. */
+export function AppPage({ title, header, children }: { title: string; header?: React.ReactNode; children: React.ReactNode }) {
   return (
     <SidebarInset>
-      <SiteHeader title={title} />
+      <SiteHeader title={title}>{header}</SiteHeader>
       {children}
     </SidebarInset>
   );
