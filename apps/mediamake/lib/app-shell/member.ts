@@ -281,6 +281,15 @@ export function explore(items: AppItem[], filters: ExploreFilters, categoryOrder
   };
 }
 
+/**
+ * Home's list of the whole store, and its search: what Explore's list shows with no filter on (so
+ * never an internal skill, nor a failed, archived, Alpha, deprecated, not recommended or admin-only
+ * item), in the same order. With words, only what matches them, best match first.
+ */
+export function storeList(items: AppItem[], q = ''): AppItem[] {
+  return explore(items, { ...exploreFiltersFrom({}), q, view: 'list' }).shown;
+}
+
 /* ---------- Explore's store front ---------- */
 
 /** One row of the store front: a title, a few items, and how many there are behind See all. */

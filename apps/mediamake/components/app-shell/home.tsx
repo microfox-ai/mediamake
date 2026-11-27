@@ -3,20 +3,24 @@ import { ArrowRightIcon } from 'lucide-react';
 import { ItemIcon } from '@/components/catalog/item-listing';
 import { VideoThumb } from '@/components/catalog/video';
 import { detailsKey } from '@/lib/app-shell/details-key';
-import { launchedAt, type AppItem } from '@/lib/app-shell/member';
+import { KIND_LABEL, launchedAt, type AppItem } from '@/lib/app-shell/member';
 import type { BrandMarks } from '@/lib/brand-kit';
 import { headshotOf } from '@/lib/catalog/listing';
 import { placeholderBackground } from '@/lib/catalog/video';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { StoreCard } from './explore';
+import { HideWhileSearching, HomeFeed } from './home-feed';
 import { DetailsButton } from './item-details';
 
 /**
- * Home (/app), in two columns. The wide one: what is new on the store, then the member's
- * projects and their own space as a grid of marks (only where Spaces open for them,
- * lib/app-shell/nav). The narrow one: their skills as pictures, their MCPs and apps as
- * icons (lib/app-shell/member › homeShelf: most used, then installed lately), and a
- * section kept for what comes next.
+ * Home (/app), in two columns. The wide one: what is new on the store, then every item on the
+ * store, a row each, more as the page is scrolled (./home-feed); the search beside the page's
+ * title filters that list, and New on Store steps aside while it is on. The narrow one, three
+ * boxes: the member's skills as pictures, their projects and their own space as marks (only
+ * where Spaces open for them, lib/app-shell/nav), and their MCPs and apps as icons
+ * (lib/app-shell/member › homeShelf: most used, then installed lately). A mark or an icon says
+ * what it is in a few words on hover.
  */
 
 export interface HomeProject {
@@ -88,50 +92,57 @@ function ProjectMark({ project }: { project: HomeProject }) {
   );
 }
 
-export function HomeView({ fresh, projects, skills, tools }: { fresh: AppItem[]; projects: HomeProject[] | null; skills: AppItem[]; tools: AppItem[] }) {
+/** A tile of the right column with a few plain words shown on hover (and on keyboard focus). */
+function Hint({ words, children }: { words: React.ReactNode; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top" sideOffset={4} className="max-w-60 text-left">
+        {words}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export function HomeView({
+  fresh,
+  store,
+  q = '',
+  projects,
+  skills,
+  tools,
+}: {
+  fresh: AppItem[];
+  /** The whole store as Home lists it (lib/app-shell/member › storeList). */
+  store: AppItem[];
+  /** The search the page opened with (`/app?q=…`). */
+  q?: string;
+  projects: HomeProject[] | null;
+  skills: AppItem[];
+  tools: AppItem[];
+}) {
   return (
     <div className="mx-auto grid w-full max-w-7xl items-start gap-8 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-6 lg:px-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="flex min-w-0 flex-col gap-10">
-        <section aria-label="New on Store" className="flex flex-col gap-4">
-          <SectionHead title="New on Store" about="The latest skills, MCPs and apps, newest first." href="/app/explore?view=all" />
-          {fresh.length ? (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-4 xl:grid-cols-3">
-              {fresh.map(item => (
-                <StoreCard key={item.id} item={item} note={day(launchedAt(item))} className="w-auto shrink sm:w-auto" />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Nothing new on the store yet.</p>
-          )}
-        </section>
-
-        {projects && (
-          <section aria-label="Projects" className="flex flex-col gap-4">
-            <SectionHead title="Projects" about="Your space and the projects you are on." href="/app/spaces" link="Spaces" />
-            {projects.length ? (
-              <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6">
-                {projects.map(project => (
-                  <li key={project.href}>
-                    <Link href={project.href} className="group flex flex-col items-center gap-2 rounded-xl p-2 text-center outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
-                      <span className="flex size-16 items-center justify-center overflow-hidden rounded-2xl border bg-background shadow-xs transition-shadow group-hover:shadow-md">
-                        <ProjectMark project={project} />
-                      </span>
-                      <span className="flex w-full min-w-0 flex-col">
-                        <span className="truncate text-sm font-medium">{project.name}</span>
-                        <span className="truncate text-[11px] text-muted-foreground">{project.note}</span>
-                      </span>
-                    </Link>
-                  </li>
+        <HideWhileSearching initial={q}>
+          <section aria-label="New on Store" className="flex flex-col gap-4">
+            <SectionHead title="New on Store" about="The latest skills, MCPs and apps, newest first." href="/app/explore?view=all" />
+            {fresh.length ? (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-4 xl:grid-cols-3">
+                {fresh.map(item => (
+                  <StoreCard key={item.id} item={item} note={day(launchedAt(item))} className="w-auto shrink sm:w-auto" />
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">You are on no project yet.</p>
+              <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Nothing new on the store yet.</p>
             )}
           </section>
-        )}
+        </HideWhileSearching>
+
+        <HomeFeed items={store} initial={q} />
       </div>
 
-      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4">
+      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100svh-2rem)] lg:overflow-y-auto lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
         <Panel title="Skills" count={skills.length} href="/app/mine">
           {skills.length ? (
             <ul className="grid grid-cols-2 gap-x-2.5 gap-y-3 sm:grid-cols-4 lg:grid-cols-2">
@@ -149,25 +160,66 @@ export function HomeView({ fresh, projects, skills, tools }: { fresh: AppItem[];
           )}
         </Panel>
 
+        {projects && (
+          <Panel title="Projects" count={projects.length} href="/app/spaces">
+            {projects.length ? (
+              <ul className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-5">
+                {projects.map(project => (
+                  <Hint
+                    key={project.href}
+                    words={
+                      <>
+                        <span className="block font-medium">{project.name}</span>
+                        <span className="block opacity-80">{project.note}</span>
+                      </>
+                    }
+                  >
+                    <li>
+                      <Link
+                        href={project.href}
+                        aria-label={project.name}
+                        className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border bg-background outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <ProjectMark project={project} />
+                      </Link>
+                    </li>
+                  </Hint>
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">You are on no project yet.</p>
+            )}
+          </Panel>
+        )}
+
         <Panel title="MCPs & Apps" count={tools.length} href="/app/mine">
           {tools.length ? (
             <ul className="grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-5">
               {tools.map(item => (
-                <li key={item.id} className="group relative">
-                  <ItemIcon id={item.id} title={item.title} src={item.icon} className={cn('size-full aspect-square rounded-xl text-base transition-transform group-hover:-translate-y-0.5', item.locked && 'opacity-60')} />
-                  <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} cover title={item.title} aria-label={item.title} className="rounded-xl">
-                    <span className="sr-only">{item.title}</span>
-                  </DetailsButton>
-                </li>
+                <Hint
+                  key={item.id}
+                  words={
+                    <>
+                      <span className="block font-medium">
+                        {item.title} · {KIND_LABEL[item.kind].one}
+                      </span>
+                      {item.summary && <span className="line-clamp-3 opacity-80">{item.summary}</span>}
+                    </>
+                  }
+                >
+                  <li className="group relative">
+                    <ItemIcon id={item.id} title={item.title} src={item.icon} className={cn('size-full aspect-square rounded-xl text-base transition-transform group-hover:-translate-y-0.5', item.locked && 'opacity-60')} />
+                    <DetailsButton detailsKey={detailsKey.catalog(item.id)} href={item.page} cover aria-label={item.title} className="rounded-xl">
+                      <span className="sr-only">{item.title}</span>
+                    </DetailsButton>
+                  </li>
+                </Hint>
               ))}
             </ul>
           ) : (
             <Nothing>The MCPs and apps you use and install show here. Find them in</Nothing>
           )}
         </Panel>
-
-        {/* kept empty for what comes next */}
-        <section aria-hidden className="min-h-40 rounded-2xl border border-dashed" />
       </aside>
     </div>
   );
