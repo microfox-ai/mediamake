@@ -24,7 +24,8 @@ def compute(proj, name, source="vocals", chunk_s=20.0, ctx_s=3.0, device=None):
     bundle = {"mms": torchaudio.pipelines.MMS_FA,
               "lv60k": torchaudio.pipelines.WAV2VEC2_ASR_LARGE_LV60K_960H}[name]
     model = bundle.get_model(with_star=False) if name == "mms" else bundle.get_model()
-    device = device or ("mps" if torch.backends.mps.is_available() else "cpu")
+    device = device or ("mps" if torch.backends.mps.is_available()
+                        else "cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device).eval()
     y, _ = proj.load_vocal_source(source, sr=16000)
     y = y / (np.abs(y).max() + 1e-9)
